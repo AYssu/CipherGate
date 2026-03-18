@@ -1,0 +1,10 @@
+services:
+  mysql:
+    image: 'mysql:latest'
+    environment:
+      - 'MYSQL_DATABASE=ciphergate'
+      - 'MYSQL_PASSWORD=Jx4zx_aYui23'
+      - 'MYSQL_ROOT_PASSWORD=super_axUobn34U'
+      - 'MYSQL_USER=kersin'
+    ports:
+      - '13306:3306'

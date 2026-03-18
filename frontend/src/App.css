@@ -1,0 +1,214 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+
+#root {
+  width: 100%;
+}
+
+.ant-layout {
+  background: #fff;
+}
+
+/* 卡片悬停动画 */
+.ant-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Hero区域动画 */
+.hero-content {
+  animation: fadeInUp 1s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 滚动时的视差效果 */
+.parallax-bg {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* 按钮悬停效果 */
+.ant-btn-primary {
+  background: #00d4aa;
+  border-color: #00d4aa;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ant-btn-primary:hover {
+  background: #00b894;
+  border-color: #00b894;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3);
+}
+
+.ant-btn:hover {
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 菜单悬停效果 */
+.ant-menu-horizontal {
+  line-height: 64px;
+}
+
+.ant-menu-horizontal > .ant-menu-item {
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.ant-menu-horizontal > .ant-menu-item:hover {
+  border-bottom-color: #1890ff;
+  transform: translateY(-1px);
+}
+
+/* 渐变文字效果 */
+.gradient-text {
+  background: linear-gradient(135deg, #1890ff, #00d4aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 滚动指示器 */
+.scroll-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1890ff, #00d4aa);
+  z-index: 9999;
+  transition: width 0.3s ease;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .hero-content h1 {
+    font-size: 32px !important;
+    text-align: center !important;
+  }
+  
+  .hero-content p {
+    font-size: 16px !important;
+    text-align: center !important;
+  }
+  
+  .ant-layout-header {
+    padding: 0 16px !important;
+  }
+  
+  .ant-menu-horizontal {
+    display: none !important;
+  }
+  
+  .feature-card .ant-card-body {
+    padding: 20px !important;
+  }
+  
+  .stats-card .ant-statistic-content-value {
+    font-size: 20px !important;
+  }
+  
+  .ant-col {
+    margin-bottom: 16px;
+  }
+  
+  .ant-space {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .ant-space-item {
+    width: 100%;
+  }
+  
+  .ant-btn {
+    width: 100% !important;
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-content h1 {
+    font-size: 28px !important;
+    line-height: 1.3 !important;
+  }
+  
+  .hero-content p {
+    font-size: 14px !important;
+  }
+  
+  .ant-card-body {
+    padding: 16px !important;
+  }
+  
+  .feature-card .ant-card-body {
+    padding: 16px !important;
+  }
+  
+  .stats-card .ant-statistic-content-value {
+    font-size: 18px !important;
+  }
+  
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .hero-content h1 {
+    font-size: 42px !important;
+  }
+  
+  .hero-content p {
+    font-size: 18px !important;
+  }
+}
+
+/* 平滑滚动 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 加载动画 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: pulse 2s infinite;
+}
