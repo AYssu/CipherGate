@@ -64,6 +64,74 @@
 
 body {
   margin: 0;
+  /* 隐藏滚动条但保持滚动功能 */
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* 隐藏 Webkit 浏览器的滚动条 */
+body::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  /* 隐藏滚动条但保持滚动功能 */
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* 隐藏 Webkit 浏览器的滚动条 */
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* 3D魔方旋转动画 */
+@keyframes rotateCube {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  16.66% {
+    transform: rotateX(90deg) rotateY(0deg) rotateZ(0deg);
+  }
+  33.33% {
+    transform: rotateX(90deg) rotateY(90deg) rotateZ(0deg);
+  }
+  50% {
+    transform: rotateX(0deg) rotateY(90deg) rotateZ(90deg);
+  }
+  66.66% {
+    transform: rotateX(0deg) rotateY(180deg) rotateZ(90deg);
+  }
+  83.33% {
+    transform: rotateX(90deg) rotateY(180deg) rotateZ(180deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+  }
+}
+
+/* 浮动动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateZ(100px) translateY(0px);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateZ(100px) translateY(-10px);
+  }
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 h1,

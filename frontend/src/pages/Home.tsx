@@ -1,5 +1,5 @@
-import React from 'react';
-import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider } from 'antd';
+import React, { useState } from 'react';
+import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal } from 'antd';
 import {
   SecurityScanOutlined,
   SafetyOutlined,
@@ -9,50 +9,64 @@ import {
   MonitorOutlined,
   RightOutlined,
   CheckCircleOutlined,
-  TeamOutlined, MenuOutlined
+  TeamOutlined, 
+  MenuOutlined,
+  GithubOutlined
 } from '@ant-design/icons';
-import { navigateTo } from '../utils/router';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Paragraph, Text } = Typography;
 
 const Home: React.FC = () => {
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+
+  const handleGithubLogin = () => {
+    window.location.href = 'http://localhost:8080/oauth2/authorization/github';
+  };
+
+  const showLoginModal = () => {
+    setLoginModalVisible(true);
+  };
+
+  const handleCancel = () => {
+    setLoginModalVisible(false);
+  };
   const features = [
     {
       icon: <SecurityScanOutlined style={{ fontSize: 48, color: '#1890ff' }} />,
-      title: '智能威胁检测',
-      description: '基于数据分析的实时威胁检测系统，99.9%准确率识别恶意行为，保护企业核心资产安全。',
-      highlight: '99.9% 准确率'
+      title: '智能身份验证',
+      description: '支持多种认证方式，包括卡密验证和OAuth登录，确保用户身份安全可靠。',
+      highlight: '多重验证'
     },
     {
       icon: <SafetyOutlined style={{ fontSize: 48, color: '#52c41a' }} />,
-      title: '零信任架构',
-      description: '构建企业级零信任安全框架，动态访问控制，确保每个连接都经过验证。',
-      highlight: '零信任'
+      title: '会话管理',
+      description: '智能会话保持技术，自动维护用户登录状态，提供无缝的用户体验。',
+      highlight: '持久连接'
     },
     {
       icon: <CloudServerOutlined style={{ fontSize: 48, color: '#722ed1' }} />,
-      title: '云原生安全',
-      description: '为云环境量身定制的安全解决方案，支持多云部署，弹性扩展。',
-      highlight: '多云支持'
+      title: '容器部署',
+      description: '基于Docker容器化部署，支持快速部署和弹性扩展，简化运维管理。',
+      highlight: 'Docker支持'
     },
     {
       icon: <SafetyCertificateOutlined style={{ fontSize: 48, color: '#fa8c16' }} />,
-      title: '合规自动化',
-      description: '自动化合规检查与报告生成，满足SOC2、ISO27001等国际标准要求。',
-      highlight: 'SOC2 认证'
+      title: '安全存储',
+      description: '卡密和用户凭证采用加密存储，多层安全防护，确保敏感信息不被泄露。',
+      highlight: '加密存储'
     },
     {
       icon: <LockOutlined style={{ fontSize: 48, color: '#eb2f96' }} />,
       title: '端到端加密',
-      description: '军用级AES-256加密技术，保护数据在传输和存储过程中的绝对安全。',
-      highlight: 'AES-256'
+      description: '采用RSA非对称加密技术，保护数据在传输和存储过程中的绝对安全。',
+      highlight: 'RSA加密'
     },
     {
       icon: <MonitorOutlined style={{ fontSize: 48, color: '#13c2c2' }} />,
-      title: '7x24监控',
-      description: '全天候安全运营中心，专业团队实时监控，平均响应时间小于5分钟。',
-      highlight: '<5分钟响应'
+      title: '实时监控',
+      description: '实时监控用户连接状态和系统运行情况，及时发现异常并自动处理。',
+      highlight: '实时监控'
     },
   ];
   const stats = [
@@ -98,8 +112,8 @@ const Home: React.FC = () => {
               alt="CipherGate Logo" 
               style={{ 
                 marginRight: window.innerWidth < 768 ? 8 : 12, 
-                width: window.innerWidth < 768 ? 24 : 32,
-                height: window.innerWidth < 768 ? 24 : 32
+                width: window.innerWidth < 768 ? 32 : 40,
+                height: window.innerWidth < 768 ? 32 : 40
               }} 
             />
             CipherGate
@@ -137,7 +151,7 @@ const Home: React.FC = () => {
                 type="text" 
                 size="large" 
                 style={{ fontWeight: 500 }}
-                onClick={() => navigateTo('/login')}
+                onClick={showLoginModal}
               >
                 登录
               </Button>
@@ -198,18 +212,71 @@ const Home: React.FC = () => {
             animation: 'float 10s ease-in-out infinite reverse'
           }} />
           
-          {/* 装饰性几何图形 */}
+          {/* 装饰性3D魔方 */}
           <div style={{ 
             position: 'absolute',
             top: '20%',
             left: '10%',
-            width: '100px',
-            height: '100px',
-            border: '2px solid rgba(0, 212, 170, 0.2)',
-            borderRadius: '20px',
-            transform: 'rotate(45deg)',
-            animation: 'rotate 20s linear infinite'
-          }} />
+            perspective: '1000px',
+            zIndex: 1
+          }}>
+            <div style={{
+              width: 100,
+              height: 100,
+              position: 'relative',
+              transformStyle: 'preserve-3d',
+              animation: 'rotateCube 20s infinite linear'
+            }}>
+              {/* 魔方的6个面 */}
+              {[
+                { transform: 'rotateY(0deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #0ba360)' },
+                { transform: 'rotateY(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #0066cc)' },
+                { transform: 'rotateY(180deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #1890ff)' },
+                { transform: 'rotateY(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0ba360, #00d4aa)' },
+                { transform: 'rotateX(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #00d4aa)' },
+                { transform: 'rotateX(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0066cc, #0ba360)' }
+              ].map((face, index) => (
+                <div
+                  key={index}
+                  style={{
+                    position: 'absolute',
+                    width: 100,
+                    height: 100,
+                    background: face.bg,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: 8,
+                    transform: face.transform,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 15px rgba(0,212,170,0.3)',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  {/* 每个面上的小方块网格 */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplate: 'repeat(3, 1fr) / repeat(3, 1fr)',
+                    gap: 3,
+                    width: '70%',
+                    height: '70%'
+                  }}>
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          background: 'rgba(255,255,255,0.3)',
+                          borderRadius: 1,
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          animation: `pulse ${2 + (i * 0.1)}s ease-in-out infinite alternate`
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           
           <div style={{ 
             position: 'absolute',
@@ -249,8 +316,8 @@ const Home: React.FC = () => {
                     textAlign: window.innerWidth < 768 ? 'center' : 'left',
                     margin: window.innerWidth < 768 ? '0 auto 32px' : '0 0 48px 0'
                   }}>
-                    CipherGate 为全球2000+个人开发者提供网络安全解决方案，
-                    从传输检测到数据加密，构建个人开发者软件安全基石。
+                    CipherGate 为全球2000+个人开发者提供安全认证解决方案，
+                    支持卡密验证和OAuth登录，实现安全可靠的用户身份管理。
                   </Paragraph>
                   
                   <div style={{ 
@@ -274,7 +341,7 @@ const Home: React.FC = () => {
                         color: 'white',
                         width: window.innerWidth < 768 ? '200px' : 'auto'
                       }}
-                      onClick={() => navigateTo('/login')}
+                      onClick={showLoginModal}
                     >
                       立即登录 <RightOutlined />
                     </Button>
@@ -610,6 +677,143 @@ const Home: React.FC = () => {
           </div>
         </div>
       </Footer>
+
+      {/* GitHub登录弹窗 */}
+      <Modal
+        title={null}
+        open={loginModalVisible}
+        onCancel={handleCancel}
+        footer={null}
+        width={window.innerWidth < 768 ? '90%' : 400}
+        centered
+        closable={false}
+        maskClosable={true}
+        styles={{
+          content: {
+            background: '#ffffff',
+            borderRadius: 8,
+            border: 'none',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            margin: window.innerWidth < 768 ? '16px' : 'auto'
+          },
+          body: { 
+            padding: window.innerWidth < 768 ? '24px 20px 20px' : '32px'
+          }
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          {/* 关闭按钮 */}
+          <Button
+            type="text"
+            onClick={handleCancel}
+            style={{
+              position: 'absolute',
+              top: window.innerWidth < 768 ? 8 : 12,
+              right: window.innerWidth < 768 ? 8 : 12,
+              color: '#ccc',
+              fontSize: window.innerWidth < 768 ? 14 : 16,
+              width: window.innerWidth < 768 ? 24 : 28,
+              height: window.innerWidth < 768 ? 24 : 28,
+              minWidth: window.innerWidth < 768 ? 24 : 28,
+              maxWidth: window.innerWidth < 768 ? 24 : 28,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+              flexShrink: 0,
+              border: 'none',
+              background: 'transparent'
+            }}
+          >
+            ×
+          </Button>
+
+          <div style={{ marginBottom: window.innerWidth < 768 ? 24 : 32 }}>
+            {/* 简化的Logo */}
+            <div style={{
+              width: window.innerWidth < 768 ? 40 : 48,
+              height: window.innerWidth < 768 ? 40 : 48,
+              margin: window.innerWidth < 768 ? '0 auto 16px' : '0 auto 20px',
+              background: '#f8f9fa',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid #e9ecef'
+            }}>
+              <LockOutlined style={{ 
+                fontSize: window.innerWidth < 768 ? 16 : 20, 
+                color: '#1890ff'
+              }} />
+            </div>
+            
+            <Typography.Title level={4} style={{ 
+              marginBottom: 8,
+              color: '#1a1a1a',
+              fontWeight: 600,
+              fontSize: window.innerWidth < 768 ? 18 : 20
+            }}>
+              登录到 CipherGate
+            </Typography.Title>
+            
+            <Typography.Paragraph style={{ 
+              color: '#666', 
+              marginBottom: 0,
+              fontSize: window.innerWidth < 768 ? 13 : 14
+            }}>
+              使用 GitHub 账号安全登录
+            </Typography.Paragraph>
+          </div>
+
+          {/* GitHub登录按钮 */}
+          <Button
+            type="primary"
+            size="large"
+            icon={<GithubOutlined />}
+            onClick={handleGithubLogin}
+            style={{
+              width: '100%',
+              height: window.innerWidth < 768 ? 40 : 44,
+              fontSize: window.innerWidth < 768 ? 14 : 15,
+              fontWeight: 500,
+              borderRadius: 6,
+              background: '#24292e',
+              borderColor: '#24292e',
+              marginBottom: window.innerWidth < 768 ? 16 : 20,
+              boxShadow: 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#2f363d';
+              e.currentTarget.style.borderColor = '#2f363d';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#24292e';
+              e.currentTarget.style.borderColor = '#24292e';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            Continue with GitHub
+          </Button>
+
+          {/* 底部说明 */}
+          <Typography.Paragraph style={{ 
+            color: '#999', 
+            fontSize: window.innerWidth < 768 ? 11 : 12, 
+            margin: 0,
+            lineHeight: 1.4
+          }}>
+            点击登录即表示您同意我们的
+            <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}> 服务条款 </a>
+            和
+            <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}> 隐私政策</a>
+          </Typography.Paragraph>
+        </div>
+      </Modal>
     </Layout>
   );
 };

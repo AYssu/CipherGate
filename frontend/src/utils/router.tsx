@@ -1,6 +1,4 @@
-import React from 'react';
 import Home from '../pages/Home';
-import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import UserInfo from '../pages/UserInfo';
 
@@ -9,7 +7,8 @@ export const getPageComponent = (path: string) => {
     case '/':
       return <Home />;
     case '/login':
-      return <Login />;
+      // 登录功能已集成到Home页面的弹窗中，重定向到首页
+      return <Home />;
     case '/dashboard':
       return <Dashboard />;
     case '/userinfo':
