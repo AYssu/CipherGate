@@ -226,6 +226,74 @@ body {
   }
 }
 
+/* 侧边栏菜单样式修复 */
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  height: 48px !important;
+  line-height: 48px !important;
+  padding: 0 16px !important;
+  margin: 0 !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item .ant-menu-item-icon {
+  margin-right: 12px !important;
+  font-size: 16px !important;
+  vertical-align: middle !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item .ant-menu-title-content {
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
+  display: flex !important;
+  align-items: center !important;
+  height: 48px !important;
+  line-height: 48px !important;
+  padding: 0 16px !important;
+  margin: 0 !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-submenu-arrow {
+  right: 16px !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-item-icon {
+  margin-right: 12px !important;
+  font-size: 16px !important;
+  vertical-align: middle !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-title-content {
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* 子菜单项样式 */
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
+  padding-left: 48px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item .ant-menu-title-content {
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
 /* 平滑滚动 */
 html {
   scroll-behavior: smooth;

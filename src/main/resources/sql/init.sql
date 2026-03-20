@@ -166,17 +166,17 @@ INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, comp
 ('系统管理', 'SYSTEM_MANAGEMENT', 0, 1, '/system', '', 'setting', 2, 1, 1),
 ('个人中心', 'PROFILE', 0, 2, '/userinfo', 'UserInfo', 'user', 3, 1, 1);
 
--- 插入系统管理子菜单（先插入，然后更新parent_id）
-INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status) VALUES
-('用户管理', 'USER_MANAGEMENT', 0, 2, '/dashboard', 'Dashboard', 'team', 1, 1, 1),
-('角色管理', 'ROLE_MANAGEMENT', 0, 2, '/dashboard', 'Dashboard', 'safety', 2, 1, 1),
-('菜单管理', 'MENU_MANAGEMENT', 0, 2, '/dashboard', 'Dashboard', 'menu', 3, 1, 1),
-('权限管理', 'PERMISSION_MANAGEMENT', 0, 2, '/dashboard', 'Dashboard', 'lock', 4, 1, 1),
-('系统配置', 'SYSTEM_CONFIG', 0, 2, '/dashboard', 'Dashboard', 'tool', 5, 1, 1);
+-- 插入系统管理子菜单（使用变量方式）
+SET @system_management_id = (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT');
 
--- 更新子菜单的parent_id为系统管理菜单的实际ID
-UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT') AS temp)
-WHERE menu_code IN ('USER_MANAGEMENT', 'ROLE_MANAGEMENT', 'MENU_MANAGEMENT', 'PERMISSION_MANAGEMENT', 'SYSTEM_CONFIG');
+INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status) VALUES
+('用户管理', 'USER_MANAGEMENT', @system_management_id, 2, '/system?tab=users', 'SystemManagement', 'team', 1, 1, 1),
+('角色管理', 'ROLE_MANAGEMENT', @system_management_id, 2, '/system?tab=roles', 'SystemManagement', 'safety', 2, 1, 1),
+('菜单管理', 'MENU_MANAGEMENT', @system_management_id, 2, '/system?tab=menus', 'SystemManagement', 'menu', 3, 1, 1),
+('权限管理', 'PERMISSION_MANAGEMENT', @system_management_id, 2, '/system?tab=permissions', 'SystemManagement', 'lock', 4, 1, 1),
+('系统配置', 'SYSTEM_CONFIG', @system_management_id, 2, '/system?tab=config', 'SystemManagement', 'tool', 5, 1, 1);
+
+
 
 -- 为超级管理员分配所有菜单
 INSERT IGNORE INTO role_menus (role_id, menu_id)

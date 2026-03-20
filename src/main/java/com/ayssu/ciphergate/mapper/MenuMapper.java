@@ -20,12 +20,7 @@ public interface MenuMapper extends BaseMapper<Menu> {
     @Select("SELECT DISTINCT m.* FROM menus m " +
             "LEFT JOIN role_menus rm ON m.id = rm.menu_id " +
             "LEFT JOIN user_roles ur ON rm.role_id = ur.role_id " +
-            "WHERE m.status = 1 AND m.visible = 1 " +
-            "AND (ur.user_id = #{userId} OR " +
-            "     m.id IN (SELECT parent_id FROM menus m2 " +
-            "              LEFT JOIN role_menus rm2 ON m2.id = rm2.menu_id " +
-            "              LEFT JOIN user_roles ur2 ON rm2.role_id = ur2.role_id " +
-            "              WHERE ur2.user_id = #{userId} AND m2.parent_id > 0)) " +
+            "WHERE m.status = 1 AND m.visible = 1 AND ur.user_id = #{userId} " +
             "ORDER BY m.parent_id ASC, m.sort_order ASC")
     List<Menu> selectMenusByUserId(@Param("userId") Long userId);
 

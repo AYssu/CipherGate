@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Avatar, Dropdown, Statistic, message } from 'antd';
-import {
+import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Avatar, Dropdown, Statistic, message, Tag } from 'antd';
+import { 
   SafetyOutlined,
-  UserOutlined,
+  UserOutlined, 
   LogoutOutlined,
   DashboardOutlined,
   SecurityScanOutlined,
@@ -11,7 +11,8 @@ import {
   GithubOutlined,
   TeamOutlined,
   MenuOutlined,
-  LockOutlined
+  LockOutlined,
+  MailOutlined
 } from '@ant-design/icons';
 
 // 导入内容组件
@@ -32,6 +33,8 @@ interface UserInfo {
   login: string;
   avatarUrl: string;
   email?: string;
+  githubId?: number;
+  status?: number;
   roles: Role[];
   menus: Menu[];
 }
@@ -40,6 +43,7 @@ interface Role {
   id: number;
   roleName: string;
   roleCode: string;
+  description?: string;
 }
 
 interface Menu {
@@ -63,7 +67,9 @@ const Dashboard: React.FC = () => {
     })
     .then(response => response.json())
     .then(result => {
+      console.log('获取用户信息结果：', result);
       if (result.success) {
+        console.log('用户菜单数据：', result.data.menus);
         setUserInfo(result.data);
       } else {
         message.error(result.message || '获取用户信息失败');
@@ -111,21 +117,29 @@ const Dashboard: React.FC = () => {
 
   // 根据用户菜单权限生成侧边栏菜单
   const generateSidebarMenus = (menus: Menu[]) => {
-    return menus.map(menu => ({
-      key: menu.menuCode.toLowerCase(),
-      icon: getMenuIcon(menu.icon),
-      label: menu.menuName,
-      onClick: menu.children ? undefined : () => {
-        setSelectedMenu(menu.menuCode.toLowerCase());
-      },
-      children: menu.children ? menu.children.map(child => ({
-        key: child.menuCode.toLowerCase(),
-        label: child.menuName,
-        onClick: () => {
-          setSelectedMenu(child.menuCode.toLowerCase());
+    console.log('生成侧边栏菜单，菜单数据：', menus);
+    
+    return menus.map(menu => {
+      console.log(`处理菜单: ${menu.menuName} (${menu.menuCode}), 子菜单数量: ${menu.children?.length || 0}`);
+      
+      return {
+        key: menu.menuCode.toLowerCase(),
+        icon: getMenuIcon(menu.icon),
+        label: menu.menuName,
+        onClick: menu.children && menu.children.length > 0 ? undefined : () => {
+          console.log(`点击菜单: ${menu.menuName} (${menu.menuCode})`);
+          setSelectedMenu(menu.menuCode.toLowerCase());
         },
-      })) : undefined,
-    }));
+        children: menu.children && menu.children.length > 0 ? menu.children.map(child => ({
+          key: child.menuCode.toLowerCase(),
+          label: child.menuName,
+          onClick: () => {
+            console.log(`点击子菜单: ${child.menuName} (${child.menuCode})`);
+            setSelectedMenu(child.menuCode.toLowerCase());
+          },
+        })) : undefined,
+      };
+    });
   };
 
   const getMenuIcon = (iconName: string) => {
@@ -174,40 +188,101 @@ const Dashboard: React.FC = () => {
         return <SystemConfigContent />;
       case 'profile':
         return (
-          <Card>
-            <Title level={3}>个人信息</Title>
-            <Row align="middle" gutter={16}>
-              <Col>
-                <Avatar 
-                  src={userInfo?.avatarUrl} 
-                  size={64}
-                  icon={<UserOutlined />}
-                />
+          <div style={{ padding: 0 }}>
+            <Card>
+              <Row align="middle" gutter={24}>
+                <Col>
+                  <Avatar 
+                    src={userInfo?.avatarUrl} 
+                    size={80}
+                    icon={<UserOutlined />}
+                  />
+                </Col>
+                <Col flex={1}>
+                  <Title level={3} style={{ margin: 0 }}>
+                    {userInfo?.name || userInfo?.login}
+                  </Title>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">
+                      <GithubOutlined /> @{userInfo?.login}
+                    </Text>
+                    {userInfo?.email && (
+                      <Text type="secondary">
+                        <MailOutlined /> {userInfo?.email}
+                      </Text>
+                    )}
+                    <Space wrap>
+                      {userInfo?.roles?.map(role => (
+                        <Tag 
+                          key={role.id}
+                          color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
+                          style={{ marginBottom: 4 }}
+                        >
+                          {role.roleName}
+                        </Tag>
+                      ))}
+                    </Space>
+                  </Space>
+                </Col>
+                <Col>
+                  <Space direction="vertical" style={{ textAlign: 'center' }}>
+                    <Statistic
+                      title="角色数量"
+                      value={userInfo?.roles?.length || 0}
+                      prefix={<TeamOutlined />}
+                    />
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+            
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+              <Col span={12}>
+                <Card title="账户信息" style={{ height: '100%' }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div><Text strong>用户ID:</Text> {userInfo?.id}</div>
+                    <div><Text strong>GitHub ID:</Text> {userInfo?.githubId}</div>
+                    <div><Text strong>用户名:</Text> {userInfo?.login}</div>
+                    <div><Text strong>显示名称:</Text> {userInfo?.name || '-'}</div>
+                    <div><Text strong>邮箱:</Text> {userInfo?.email || '-'}</div>
+                    <div>
+                      <Text strong>账户状态:</Text>{' '}
+                      <Tag color={userInfo?.status === 1 ? 'green' : 'red'}>
+                        {userInfo?.status === 1 ? '正常' : '禁用'}
+                      </Tag>
+                    </div>
+                  </Space>
+                </Card>
               </Col>
-              <Col flex={1}>
-                <Title level={4} style={{ margin: 0 }}>
-                  {userInfo?.name || userInfo?.login}
-                </Title>
-                <Space>
-                  <GithubOutlined />
-                  <Text type="secondary">@{userInfo?.login}</Text>
-                  {userInfo?.email && (
-                    <>
-                      <Text type="secondary">•</Text>
-                      <Text type="secondary">{userInfo.email}</Text>
-                    </>
-                  )}
-                  <Text type="secondary">•</Text>
-                  <Text type="secondary">
-                    {userInfo?.roles?.map(role => role.roleName).join(', ')}
-                  </Text>
-                </Space>
+              
+              <Col span={12}>
+                <Card title="我的角色" style={{ height: '100%' }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {userInfo?.roles?.map(role => (
+                      <Card key={role.id} size="small" style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <Text strong>{role.roleName}</Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {role.description}
+                            </Text>
+                          </div>
+                          <Tag color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}>
+                            {role.roleCode}
+                          </Tag>
+                        </div>
+                      </Card>
+                    )) || <Text type="secondary">暂无角色</Text>}
+                  </Space>
+                </Card>
               </Col>
             </Row>
-          </Card>
+          </div>
         );
+      case 'dashboard':
       default:
-        // 默认仪表板内容
+        // 仪表板内容
         return (
           <>
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -327,6 +402,7 @@ const Dashboard: React.FC = () => {
         return '系统配置';
       case 'profile':
         return '个人信息';
+      case 'dashboard':
       default:
         return '控制台';
     }
@@ -372,7 +448,12 @@ const Dashboard: React.FC = () => {
           mode="inline"
           selectedKeys={[selectedMenu]}
           items={sidebarMenuItems}
-          style={{ border: 'none', padding: '16px 0' }}
+          style={{ 
+            border: 'none', 
+            padding: '16px 0',
+            fontSize: '14px'
+          }}
+          className="dashboard-sidebar-menu"
         />
       </Sider>
 

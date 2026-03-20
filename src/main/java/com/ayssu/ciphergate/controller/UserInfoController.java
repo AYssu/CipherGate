@@ -31,8 +31,21 @@ public class UserInfoController {
             return Result.error("用户未登录");
         }
         
+        log.info("获取用户信息，用户ID: {}", sessionUser.getId());
+        
         // 获取完整的用户信息
         User userInfo = userService.getUserWithRolesPermissionsAndMenus(sessionUser.getId());
+        
+        // 调试日志
+        if (userInfo != null) {
+            log.info("用户角色数量: {}", userInfo.getRoles() != null ? userInfo.getRoles().size() : 0);
+            log.info("用户菜单数量: {}", userInfo.getMenus() != null ? userInfo.getMenus().size() : 0);
+            if (userInfo.getMenus() != null) {
+                for (var menu : userInfo.getMenus()) {
+                    log.info("菜单: {} ({}), 父ID: {}", menu.getMenuName(), menu.getMenuCode(), menu.getParentId());
+                }
+            }
+        }
         
         // 清除敏感信息
         if (userInfo != null) {
