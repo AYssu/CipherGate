@@ -21,7 +21,7 @@ const Home: React.FC = () => {
     {
       icon: <SecurityScanOutlined style={{ fontSize: 48, color: '#1890ff' }} />,
       title: '智能威胁检测',
-      description: '基于AI的实时威胁检测系统，99.9%准确率识别恶意行为，保护企业核心资产安全。',
+      description: '基于数据分析的实时威胁检测系统，99.9%准确率识别恶意行为，保护企业核心资产安全。',
       highlight: '99.9% 准确率'
     },
     {
@@ -86,15 +86,22 @@ const Home: React.FC = () => {
           <div style={{ 
             fontSize: window.innerWidth < 768 ? 20 : 28, 
             fontWeight: 700, 
-            color: '#1890ff',
+            background: 'linear-gradient(135deg, #00d4aa, #1890ff)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
             display: 'flex',
             alignItems: 'center',
             letterSpacing: '-0.5px'
           }}>
-            <SafetyOutlined style={{ 
-              marginRight: window.innerWidth < 768 ? 8 : 12, 
-              fontSize: window.innerWidth < 768 ? 24 : 32 
-            }} />
+            <img 
+              src="/favicon.svg" 
+              alt="CipherGate Logo" 
+              style={{ 
+                marginRight: window.innerWidth < 768 ? 8 : 12, 
+                width: window.innerWidth < 768 ? 24 : 32,
+                height: window.innerWidth < 768 ? 24 : 32
+              }} 
+            />
             CipherGate
           </div>
           
@@ -149,20 +156,70 @@ const Home: React.FC = () => {
       <Content style={{ marginTop: 64 }}>
         {/* Hero Section */}
         <div style={{ 
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+          background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
           color: 'white',
-          padding: window.innerWidth < 768 ? '100px 0 80px' : '18 0px 0 120px',
+          padding: window.innerWidth < 768 ? '177px 0 80px' : '252px 0 120px',
           position: 'relative',
           overflow: 'hidden'
         }}>
+          {/* 动态网格背景 */}
           <div style={{ 
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'url("data:image/svg+xml,%3Csvg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.02"%3E%3Cpath d="M0 0h80v80H0V0zm20 20v40h40V20H20zm20 35a15 15 0 1 1 0-30 15 15 0 0 1 0 30z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-            opacity: 0.4
+            background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%2300d4aa" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+            opacity: 0.3
+          }} />
+          
+          {/* 渐变光晕效果 */}
+          <div style={{ 
+            position: 'absolute',
+            top: '-50%',
+            right: '-10%',
+            width: '600px',
+            height: '600px',
+            background: 'radial-gradient(circle, rgba(0, 212, 170, 0.15) 0%, transparent 70%)',
+            borderRadius: '50%',
+            filter: 'blur(60px)',
+            animation: 'float 8s ease-in-out infinite'
+          }} />
+          
+          <div style={{ 
+            position: 'absolute',
+            bottom: '-30%',
+            left: '-5%',
+            width: '500px',
+            height: '500px',
+            background: 'radial-gradient(circle, rgba(24, 144, 255, 0.15) 0%, transparent 70%)',
+            borderRadius: '50%',
+            filter: 'blur(60px)',
+            animation: 'float 10s ease-in-out infinite reverse'
+          }} />
+          
+          {/* 装饰性几何图形 */}
+          <div style={{ 
+            position: 'absolute',
+            top: '20%',
+            left: '10%',
+            width: '100px',
+            height: '100px',
+            border: '2px solid rgba(0, 212, 170, 0.2)',
+            borderRadius: '20px',
+            transform: 'rotate(45deg)',
+            animation: 'rotate 20s linear infinite'
+          }} />
+          
+          <div style={{ 
+            position: 'absolute',
+            bottom: '15%',
+            right: '15%',
+            width: '80px',
+            height: '80px',
+            border: '2px solid rgba(24, 144, 255, 0.2)',
+            borderRadius: '50%',
+            animation: 'pulse 4s ease-in-out infinite'
           }} />
           
           <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px', position: 'relative' }}>
@@ -251,11 +308,16 @@ const Home: React.FC = () => {
                     backdropFilter: 'blur(10px)',
                     border: '1px solid rgba(0, 212, 170, 0.2)'
                   }}>
-                    <SafetyOutlined style={{ 
-                      fontSize: window.innerWidth < 768 ? 80 : 120, 
-                      color: '#00d4aa', 
-                      marginBottom: window.innerWidth < 768 ? 12 : 20 
-                    }} />
+                    <img 
+                      src="/src/assets/icons/safe.svg"
+                      alt="CipherGate Security" 
+                      style={{ 
+                        width: window.innerWidth < 768 ? 80 : 120,
+                        height: window.innerWidth < 768 ? 80 : 120,
+                        marginBottom: window.innerWidth < 768 ? 12 : 20,
+                        filter: 'drop-shadow(0 4px 20px rgba(0, 212, 170, 0.3))'
+                      }} 
+                    />
                     <Title level={window.innerWidth < 768 ? 4 : 3} style={{ color: 'white', margin: 0 }}>
                       可信赖的安全伙伴
                     </Title>
@@ -489,7 +551,11 @@ const Home: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center'
                 }}>
-                  <SafetyOutlined style={{ marginRight: 8, fontSize: 28 }} />
+                  <img 
+                    src="/favicon.svg" 
+                    alt="CipherGate Logo" 
+                    style={{ marginRight: 8, width: 28, height: 28 }} 
+                  />
                   CipherGate
                 </div>
                 <Paragraph style={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>

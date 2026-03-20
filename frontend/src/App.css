@@ -49,6 +49,38 @@ body {
   }
 }
 
+/* 浮动动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-30px) translateX(20px);
+  }
+}
+
+/* 旋转动画 */
+@keyframes rotate {
+  from {
+    transform: rotate(45deg);
+  }
+  to {
+    transform: rotate(405deg);
+  }
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.5;
+  }
+}
+
 /* 滚动时的视差效果 */
 .parallax-bg {
   background-attachment: fixed;
@@ -200,7 +232,7 @@ html {
 }
 
 /* 加载动画 */
-@keyframes pulse {
+@keyframes pulse-loading {
   0%, 100% {
     opacity: 1;
   }
@@ -210,5 +242,5 @@ html {
 }
 
 .loading {
-  animation: pulse 2s infinite;
+  animation: pulse-loading 2s infinite;
 }
