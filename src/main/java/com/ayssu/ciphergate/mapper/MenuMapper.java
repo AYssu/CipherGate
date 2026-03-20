@@ -25,6 +25,24 @@ public interface MenuMapper extends BaseMapper<Menu> {
     List<Menu> selectMenusByUserId(@Param("userId") Long userId);
 
     /**
+     * 根据用户ID查询管理员可访问的菜单（忽略可见性限制）
+     */
+    @Select("SELECT DISTINCT m.* FROM menus m " +
+            "LEFT JOIN role_menus rm ON m.id = rm.menu_id " +
+            "LEFT JOIN user_roles ur ON rm.role_id = ur.role_id " +
+            "WHERE m.status = 1 AND ur.user_id = #{userId} " +
+            "ORDER BY m.parent_id ASC, m.sort_order ASC")
+    List<Menu> selectMenusByUserIdForAdmin(@Param("userId") Long userId);
+
+    /**
+     * 检查用户是否是管理员
+     */
+    @Select("SELECT COUNT(*) > 0 FROM user_roles ur " +
+            "INNER JOIN roles r ON ur.role_id = r.id " +
+            "WHERE ur.user_id = #{userId} AND r.role_code IN ('SUPER_ADMIN', 'ADMIN')")
+    boolean isUserAdmin(@Param("userId") Long userId);
+
+    /**
      * 根据角色ID查询菜单
      */
     @Select("SELECT m.* FROM menus m " +

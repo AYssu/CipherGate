@@ -94,6 +94,13 @@ INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type,
 ('更新角色', 'ROLE_UPDATE', 'API', '/api/roles/*', 'PUT', '更新角色信息'),
 ('删除角色', 'ROLE_DELETE', 'API', '/api/roles/*', 'DELETE', '删除角色'),
 
+-- 菜单管理权限
+('菜单管理', 'MENU_MANAGEMENT', 'API', '/api/menus', 'GET,POST,PUT,DELETE', '菜单管理权限'),
+('查看菜单列表', 'MENU_LIST', 'API', '/api/menus', 'GET', '查看菜单列表'),
+('创建菜单', 'MENU_CREATE', 'API', '/api/menus', 'POST', '创建新菜单'),
+('更新菜单', 'MENU_UPDATE', 'API', '/api/menus/*', 'PUT', '更新菜单信息'),
+('删除菜单', 'MENU_DELETE', 'API', '/api/menus/*', 'DELETE', '删除菜单'),
+
 -- 权限管理权限
 ('查看权限列表', 'PERMISSION_LIST', 'API', '/api/permissions', 'GET', '查看权限列表'),
 ('创建权限', 'PERMISSION_CREATE', 'API', '/api/permissions', 'POST', '创建新权限'),
@@ -105,24 +112,26 @@ INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type,
 ('更新系统配置', 'CONFIG_UPDATE', 'API', '/api/config', 'PUT', '更新系统配置'),
 
 -- 个人信息权限
-('查看个人信息', 'PROFILE_VIEW', 'API', '/api/profile', 'GET', '查看个人信息'),
-('更新个人信息', 'PROFILE_UPDATE', 'API', '/api/profile', 'PUT', '更新个人信息');
+('查看个人信息', 'PROFILE_VIEW', 'API', '/api/user/info,/api/user/profile', 'GET', '查看个人信息'),
+('更新个人信息', 'PROFILE_UPDATE', 'API', '/api/user/profile', 'PUT', '更新个人信息');
 
--- 为超级管理员分配所有权限
+-- 检查是否是首次初始化，如果是则分配默认权限
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p WHERE r.role_code = 'SUPER_ADMIN';
+SELECT r.id, p.id FROM roles r, permissions p 
+WHERE r.role_code = 'SUPER_ADMIN'
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
--- 为管理员分配部分权限（除了用户删除和权限管理）
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 
 WHERE r.role_code = 'ADMIN' 
-AND p.permission_code NOT IN ('USER_DELETE', 'PERMISSION_CREATE', 'PERMISSION_UPDATE', 'PERMISSION_DELETE');
+AND p.permission_code NOT IN ('USER_DELETE', 'PERMISSION_CREATE', 'PERMISSION_UPDATE', 'PERMISSION_DELETE')
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
--- 为普通用户分配基本权限
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 
 WHERE r.role_code = 'USER' 
-AND p.permission_code IN ('PROFILE_VIEW', 'PROFILE_UPDATE');
+AND p.permission_code IN ('PROFILE_VIEW', 'PROFILE_UPDATE')
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
 -- 菜单表
 CREATE TABLE IF NOT EXISTS menus (
@@ -177,22 +186,23 @@ INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, comp
 ('系统配置', 'SYSTEM_CONFIG', @system_management_id, 2, '/system?tab=config', 'SystemManagement', 'tool', 5, 1, 1);
 
 
-
--- 为超级管理员分配所有菜单
+-- 检查是否是首次初始化，如果是则分配默认菜单权限
 INSERT IGNORE INTO role_menus (role_id, menu_id)
-SELECT r.id, m.id FROM roles r, menus m WHERE r.role_code = 'SUPER_ADMIN';
+SELECT r.id, m.id FROM roles r, menus m 
+WHERE r.role_code = 'SUPER_ADMIN'
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
--- 为管理员分配部分菜单（除了权限管理）
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m 
 WHERE r.role_code = 'ADMIN' 
-AND m.menu_code NOT IN ('PERMISSION_MANAGEMENT');
+AND m.menu_code NOT IN ('PERMISSION_MANAGEMENT')
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
--- 为普通用户分配基本菜单
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m 
 WHERE r.role_code = 'USER' 
-AND m.menu_code IN ('DASHBOARD', 'PROFILE');
+AND m.menu_code IN ('DASHBOARD', 'PROFILE')
+AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
 
 -- 系统配置表
 CREATE TABLE IF NOT EXISTS system_config (
@@ -227,3 +237,6 @@ CREATE TABLE IF NOT EXISTS SPRING_SESSION_ATTRIBUTES (
     CONSTRAINT SPRING_SESSION_ATTRIBUTES_FK FOREIGN KEY (SESSION_PRIMARY_ID) REFERENCES SPRING_SESSION(PRIMARY_ID) ON DELETE CASCADE
 );
 
+-- 标记系统已完成初始化（只在首次运行时插入）
+INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES 
+('SYSTEM_INITIALIZED', 'true', '系统初始化标记，用于判断是否已完成首次初始化');

@@ -34,4 +34,34 @@ public interface MenuService extends IService<Menu> {
      * 根据菜单编码获取菜单
      */
     Menu getMenuByCode(String menuCode);
+    
+    /**
+     * 获取父菜单选项列表
+     */
+    List<Menu> getParentMenuOptions();
+    
+    /**
+     * 创建菜单
+     */
+    boolean createMenu(Menu menu);
+    
+    /**
+     * 更新菜单
+     */
+    boolean updateMenu(Menu menu);
+    
+    /**
+     * 删除菜单
+     */
+    boolean deleteMenu(Long id);
+    
+    /**
+     * 批量删除菜单
+     */
+    boolean batchDeleteMenus(List<Long> ids);
+    
+    /**
+     * 检查菜单是否有子菜单
+     */
+    boolean hasChildren(Long menuId);
 }

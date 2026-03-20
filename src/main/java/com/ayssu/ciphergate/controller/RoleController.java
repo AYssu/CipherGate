@@ -85,4 +85,52 @@ public class RoleController {
             return Result.error("角色分配失败");
         }
     }
+    
+    /**
+     * 获取角色的菜单权限
+     */
+    @GetMapping("/{id}/menus")
+    @RequirePermission(value = "ROLE_LIST", description = "查看角色菜单权限")
+    public Result<List<Long>> getRoleMenus(@PathVariable Long id) {
+        List<Long> menuIds = roleService.getRoleMenuIds(id);
+        return Result.success(menuIds);
+    }
+    
+    /**
+     * 为角色分配菜单权限
+     */
+    @PostMapping("/{id}/menus")
+    @RequirePermission(value = "ROLE_UPDATE", description = "分配角色菜单权限")
+    public Result<String> assignMenusToRole(@PathVariable Long id, @RequestBody List<Long> menuIds) {
+        boolean success = roleService.assignMenusToRole(id, menuIds);
+        if (success) {
+            return Result.success("菜单权限分配成功");
+        } else {
+            return Result.error("菜单权限分配失败");
+        }
+    }
+    
+    /**
+     * 获取角色的API权限
+     */
+    @GetMapping("/{id}/permissions")
+    @RequirePermission(value = "ROLE_LIST", description = "查看角色API权限")
+    public Result<List<Long>> getRolePermissions(@PathVariable Long id) {
+        List<Long> permissionIds = roleService.getRolePermissionIds(id);
+        return Result.success(permissionIds);
+    }
+    
+    /**
+     * 为角色分配API权限
+     */
+    @PostMapping("/{id}/permissions")
+    @RequirePermission(value = "ROLE_UPDATE", description = "分配角色API权限")
+    public Result<String> assignPermissionsToRole(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
+        boolean success = roleService.assignPermissionsToRole(id, permissionIds);
+        if (success) {
+            return Result.success("API权限分配成功");
+        } else {
+            return Result.error("API权限分配失败");
+        }
+    }
 }

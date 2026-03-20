@@ -38,4 +38,10 @@ public interface PermissionMapper extends BaseMapper<Permission> {
             "AND http_method = #{httpMethod} AND status = 1")
     Permission selectByResourceAndMethod(@Param("resourcePath") String resourcePath, 
                                        @Param("httpMethod") String httpMethod);
+    
+    /**
+     * 统计权限被角色使用的次数
+     */
+    @Select("SELECT COUNT(*) FROM role_permissions WHERE permission_id = #{permissionId}")
+    int countRolePermissions(@Param("permissionId") Long permissionId);
 }

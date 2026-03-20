@@ -10,13 +10,17 @@ import {
   Form, 
   Input, 
   message,
-  Popconfirm
+  Popconfirm,
+  Tree,
+  Checkbox
 } from 'antd';
 import { 
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  ApiOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -34,13 +38,32 @@ interface Permission {
   permissionName: string;
   permissionCode: string;
   description: string;
+  resourceType: string;
+  resourcePath: string;
+  httpMethod: string;
+}
+
+interface Menu {
+  id: number;
+  menuName: string;
+  menuCode: string;
+  parentId: number;
+  menuType: number;
+  children?: Menu[];
 }
 
 const RoleManagementContent: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [currentRole, setCurrentRole] = useState<Role | null>(null);
+  const [allMenus, setAllMenus] = useState<Menu[]>([]);
+  const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
+  const [roleMenuIds, setRoleMenuIds] = useState<number[]>([]);
+  const [rolePermissionIds, setRolePermissionIds] = useState<number[]>([]);
   const [form] = Form.useForm();
 
   // 获取角色列表
@@ -70,7 +93,77 @@ const RoleManagementContent: React.FC = () => {
 
   useEffect(() => {
     fetchRoles();
+    fetchAllMenus();
+    fetchAllPermissions();
   }, []);
+
+  // 获取所有菜单
+  const fetchAllMenus = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/menus/all', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setAllMenus(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('获取菜单列表失败:', error);
+    }
+  };
+
+  // 获取所有权限
+  const fetchAllPermissions = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/permissions', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setAllPermissions(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('获取权限列表失败:', error);
+    }
+  };
+
+  // 获取角色的菜单权限
+  const fetchRoleMenus = async (roleId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/roles/${roleId}/menus`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setRoleMenuIds(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('获取角色菜单权限失败:', error);
+    }
+  };
+
+  // 获取角色的API权限
+  const fetchRolePermissions = async (roleId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/roles/${roleId}/permissions`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setRolePermissionIds(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('获取角色API权限失败:', error);
+    }
+  };
 
   // 角色表格列定义
   const roleColumns = [
@@ -107,6 +200,20 @@ const RoleManagementContent: React.FC = () => {
       key: 'actions',
       render: (record: Role) => (
         <Space>
+          <Button 
+            type="link" 
+            icon={<MenuOutlined />}
+            onClick={() => handleManageMenus(record)}
+          >
+            菜单权限
+          </Button>
+          <Button 
+            type="link" 
+            icon={<ApiOutlined />}
+            onClick={() => handleManagePermissions(record)}
+          >
+            API权限
+          </Button>
           <Button 
             type="link" 
             icon={<EditOutlined />}
@@ -210,6 +317,100 @@ const RoleManagementContent: React.FC = () => {
     setModalVisible(true);
   };
 
+  const handleManageMenus = async (role: Role) => {
+    setCurrentRole(role);
+    await fetchRoleMenus(role.id);
+    setMenuModalVisible(true);
+  };
+
+  const handleManagePermissions = async (role: Role) => {
+    setCurrentRole(role);
+    await fetchRolePermissions(role.id);
+    setPermissionModalVisible(true);
+  };
+
+  // 将菜单树转换为Tree组件需要的格式
+  const convertMenusToTreeData = (menus: Menu[]): any[] => {
+    return menus.map(menu => ({
+      title: menu.menuName,
+      key: menu.id,
+      children: menu.children && menu.children.length > 0 
+        ? convertMenusToTreeData(menu.children) 
+        : undefined
+    }));
+  };
+
+  // 保存角色菜单权限
+  const handleSaveMenuPermissions = async () => {
+    if (!currentRole) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/roles/${currentRole.id}/menus`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(roleMenuIds),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        message.success('菜单权限保存成功');
+        setMenuModalVisible(false);
+        setCurrentRole(null);
+        setRoleMenuIds([]);
+      } else {
+        message.error(result.message || '菜单权限保存失败');
+      }
+    } catch (error) {
+      console.error('保存菜单权限失败:', error);
+      message.error('保存菜单权限失败');
+    }
+  };
+
+  // 保存角色API权限
+  const handleSaveApiPermissions = async () => {
+    if (!currentRole) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/roles/${currentRole.id}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(rolePermissionIds),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        message.success('API权限保存成功');
+        setPermissionModalVisible(false);
+        setCurrentRole(null);
+        setRolePermissionIds([]);
+        fetchRoles(); // 刷新角色列表以更新权限显示
+      } else {
+        message.error(result.message || 'API权限保存失败');
+      }
+    } catch (error) {
+      console.error('保存API权限失败:', error);
+      message.error('保存API权限失败');
+    }
+  };
+
+  const handleMenuModalCancel = () => {
+    setMenuModalVisible(false);
+    setCurrentRole(null);
+    setRoleMenuIds([]);
+  };
+
+  const handlePermissionModalCancel = () => {
+    setPermissionModalVisible(false);
+    setCurrentRole(null);
+    setRolePermissionIds([]);
+  };
+
   return (
     <>
       <Card>
@@ -300,6 +501,179 @@ const RoleManagementContent: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 菜单权限管理模态框 */}
+      <Modal
+        title={`管理角色菜单权限 - ${currentRole?.roleName}`}
+        open={menuModalVisible}
+        onOk={handleSaveMenuPermissions}
+        onCancel={handleMenuModalCancel}
+        width={600}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">
+            请选择该角色可以访问的菜单项，已选择 {roleMenuIds.length} 个菜单
+          </Text>
+        </div>
+        
+        <Tree
+          checkable
+          checkedKeys={roleMenuIds}
+          onCheck={(checkedKeys) => {
+            setRoleMenuIds(checkedKeys as number[]);
+          }}
+          treeData={convertMenusToTreeData(allMenus)}
+          height={400}
+          defaultExpandAll
+        />
+      </Modal>
+
+      {/* 权限管理模态框 */}
+      <Modal
+        title={`管理角色API权限 - ${currentRole?.roleName}`}
+        open={permissionModalVisible}
+        onOk={handleSaveApiPermissions}
+        onCancel={handlePermissionModalCancel}
+        width={800}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">
+            请选择该角色可以使用的API权限，已选择 {rolePermissionIds.length} 个权限
+          </Text>
+        </div>
+        
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Button 
+              size="small" 
+              onClick={() => setRolePermissionIds(allPermissions.map(p => p.id))}
+            >
+              全选
+            </Button>
+            <Button 
+              size="small" 
+              onClick={() => setRolePermissionIds([])}
+            >
+              清空
+            </Button>
+          </Space>
+        </div>
+
+        <div style={{ 
+          maxHeight: 400, 
+          overflowY: 'auto', 
+          paddingRight: 8,
+          scrollbarWidth: 'none', /* Firefox */
+          msOverflowStyle: 'none'  /* IE and Edge */
+        }}>
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              display: none; /* Chrome, Safari and Opera */
+            }
+          `}</style>
+          {(() => {
+            // 按资源类型分组权限
+            const groupedPermissions = allPermissions.reduce((groups, permission) => {
+              const category = permission.permissionCode.split('_')[0];
+              if (!groups[category]) {
+                groups[category] = [];
+              }
+              groups[category].push(permission);
+              return groups;
+            }, {} as Record<string, Permission[]>);
+
+            const categoryNames: Record<string, string> = {
+              'USER': '用户管理',
+              'ROLE': '角色管理', 
+              'MENU': '菜单管理',
+              'PERMISSION': '权限管理',
+              'CONFIG': '系统配置',
+              'PROFILE': '个人信息'
+            };
+
+            return Object.entries(groupedPermissions).map(([category, permissions]) => (
+              <div key={category} style={{ marginBottom: 20 }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginBottom: 12,
+                  paddingBottom: 8,
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  <Text strong style={{ marginRight: 8 }}>
+                    {categoryNames[category] || category}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    ({permissions.length} 个权限)
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Checkbox
+                      indeterminate={
+                        permissions.some(p => rolePermissionIds.includes(p.id)) && 
+                        !permissions.every(p => rolePermissionIds.includes(p.id))
+                      }
+                      checked={permissions.every(p => rolePermissionIds.includes(p.id))}
+                      onChange={(e) => {
+                        const categoryPermissionIds = permissions.map(p => p.id);
+                        if (e.target.checked) {
+                          setRolePermissionIds([
+                            ...rolePermissionIds.filter(id => !categoryPermissionIds.includes(id)),
+                            ...categoryPermissionIds
+                          ]);
+                        } else {
+                          setRolePermissionIds(
+                            rolePermissionIds.filter(id => !categoryPermissionIds.includes(id))
+                          );
+                        }
+                      }}
+                    >
+                      全选
+                    </Checkbox>
+                  </div>
+                </div>
+                
+                <div style={{ paddingLeft: 16 }}>
+                  {permissions.map(permission => (
+                    <div key={permission.id} style={{ marginBottom: 8 }}>
+                      <Checkbox
+                        checked={rolePermissionIds.includes(permission.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setRolePermissionIds([...rolePermissionIds, permission.id]);
+                          } else {
+                            setRolePermissionIds(rolePermissionIds.filter(id => id !== permission.id));
+                          }
+                        }}
+                      >
+                        <div>
+                          <Text strong>{permission.permissionName}</Text>
+                          <div style={{ marginTop: 2 }}>
+                            <Tag color="blue" style={{ marginRight: 4 }}>
+                              {permission.permissionCode}
+                            </Tag>
+                            {permission.httpMethod && (
+                              <Tag color="green">
+                                {permission.httpMethod}
+                              </Tag>
+                            )}
+                          </div>
+                          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
+                            {permission.description}
+                          </Text>
+                        </div>
+                      </Checkbox>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
       </Modal>
     </>
   );

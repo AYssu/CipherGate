@@ -80,4 +80,42 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     public boolean clearUserRoles(Long userId) {
         return userRoleMapper.deleteByUserId(userId) >= 0;
     }
+    
+    @Override
+    public List<Long> getRoleMenuIds(Long roleId) {
+        return baseMapper.selectMenuIdsByRoleId(roleId);
+    }
+    
+    @Override
+    @Transactional
+    public boolean assignMenusToRole(Long roleId, List<Long> menuIds) {
+        // 先删除角色现有的菜单权限
+        baseMapper.deleteRoleMenus(roleId);
+        
+        // 分配新的菜单权限
+        if (menuIds != null && !menuIds.isEmpty()) {
+            baseMapper.insertRoleMenus(roleId, menuIds);
+        }
+        
+        return true;
+    }
+    
+    @Override
+    public List<Long> getRolePermissionIds(Long roleId) {
+        return baseMapper.selectPermissionIdsByRoleId(roleId);
+    }
+    
+    @Override
+    @Transactional
+    public boolean assignPermissionsToRole(Long roleId, List<Long> permissionIds) {
+        // 先删除角色现有的权限
+        baseMapper.deleteRolePermissions(roleId);
+        
+        // 分配新的权限
+        if (permissionIds != null && !permissionIds.isEmpty()) {
+            baseMapper.insertRolePermissions(roleId, permissionIds);
+        }
+        
+        return true;
+    }
 }

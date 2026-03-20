@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.entity.SystemConfig;
 import com.ayssu.ciphergate.service.SystemConfigService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class ConfigController {
     private final SystemConfigService systemConfigService;
     
     @GetMapping("/{configKey}")
+    @RequirePermission("CONFIG_LIST")
     public Map<String, Object> getConfig(@PathVariable String configKey) {
         try {
             String value = systemConfigService.getConfigValue(configKey);
@@ -47,6 +49,7 @@ public class ConfigController {
     }
     
     @PostMapping("/{configKey}")
+    @RequirePermission("CONFIG_UPDATE")
     public Map<String, Object> setConfig(
             @PathVariable String configKey,
             @RequestBody Map<String, Object> request) {
@@ -71,6 +74,7 @@ public class ConfigController {
     }
     
     @GetMapping("/github/oauth2")
+    @RequirePermission("CONFIG_LIST")
     public Map<String, Object> getGithubOAuth2Config() {
         try {
             String clientId = systemConfigService.getGithubClientId();
@@ -91,6 +95,7 @@ public class ConfigController {
     }
     
     @PostMapping("/refresh")
+    @RequirePermission("CONFIG_UPDATE")
     public Map<String, Object> refreshCache() {
         try {
             systemConfigService.refreshCache();
@@ -108,6 +113,7 @@ public class ConfigController {
     }
     
     @GetMapping("/database/status")
+    @RequirePermission("CONFIG_LIST")
     public Map<String, Object> getDatabaseStatus() {
         try {
             return Map.of(

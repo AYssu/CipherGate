@@ -26,7 +26,12 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     @Override
     public List<Menu> getUserMenuTree(Long userId) {
         log.info("开始获取用户 {} 的菜单树", userId);
-        List<Menu> userMenus = menuMapper.selectMenusByUserId(userId);
+        
+        // 检查用户是否是管理员
+        List<Menu> userMenus;
+        log.info("用户 {} 是普通用户，只获取可见菜单", userId);
+        userMenus = menuMapper.selectMenusByUserId(userId);
+        
         log.info("查询到 {} 个菜单项", userMenus.size());
         
         for (Menu menu : userMenus) {
@@ -48,7 +53,6 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     @Override
     public List<Menu> getAllMenuTree() {
         QueryWrapper<Menu> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("status", 1);
         queryWrapper.orderByAsc("sort_order");
         List<Menu> allMenus = list(queryWrapper);
         return buildMenuTree(allMenus);
@@ -63,7 +67,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         // 找出所有根菜单（parent_id = 0）
         List<Menu> roots = menus.stream()
                 .filter(menu -> menu.getParentId() == 0)
-                .collect(Collectors.toList());
+                .toList();
         
         log.info("找到 {} 个根菜单", roots.size());
         
@@ -104,5 +108,61 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         QueryWrapper<Menu> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("menu_code", menuCode);
         return getOne(queryWrapper);
+    }
+    
+    @Override
+    public List<Menu> getParentMenuOptions() {
+        QueryWrapper<Menu> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("status", 1);
+        queryWrapper.in("menu_type", 1, 2); // 只有目录和菜单可以作为父菜单
+        queryWrapper.orderByAsc("sort_order");
+        return list(queryWrapper);
+    }
+    
+    @Override
+    public boolean createMenu(Menu menu) {
+        // 设置默认值
+        if (menu.getParentId() == null) {
+            menu.setParentId(0L);
+        }
+        if (menu.getVisible() == null) {
+            menu.setVisible(1);
+        }
+        if (menu.getStatus() == null) {
+            menu.setStatus(1);
+        }
+        if (menu.getSortOrder() == null) {
+            menu.setSortOrder(0);
+        }
+        
+        return save(menu);
+    }
+    
+    @Override
+    public boolean updateMenu(Menu menu) {
+        return updateById(menu);
+    }
+    
+    @Override
+    public boolean deleteMenu(Long id) {
+        return removeById(id);
+    }
+    
+    @Override
+    public boolean batchDeleteMenus(List<Long> ids) {
+        // 检查每个菜单是否有子菜单
+        for (Long id : ids) {
+            if (hasChildren(id)) {
+                throw new RuntimeException("菜单ID " + id + " 下有子菜单，无法删除");
+            }
+        }
+        return removeByIds(ids);
+    }
+    
+    @Override
+    public boolean hasChildren(Long menuId) {
+        QueryWrapper<Menu> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("parent_id", menuId);
+        return count(queryWrapper) > 0;
     }
 }

@@ -39,4 +39,24 @@ public interface RoleService extends IService<Role> {
      * 清除用户的所有角色
      */
     boolean clearUserRoles(Long userId);
+    
+    /**
+     * 获取角色的菜单ID列表
+     */
+    List<Long> getRoleMenuIds(Long roleId);
+    
+    /**
+     * 为角色分配菜单权限
+     */
+    boolean assignMenusToRole(Long roleId, List<Long> menuIds);
+    
+    /**
+     * 获取角色的权限ID列表
+     */
+    List<Long> getRolePermissionIds(Long roleId);
+    
+    /**
+     * 为角色分配权限
+     */
+    boolean assignPermissionsToRole(Long roleId, List<Long> permissionIds);
 }
