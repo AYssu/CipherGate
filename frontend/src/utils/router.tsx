@@ -1,6 +1,7 @@
 import Home from '../pages/Home';
 import Dashboard from '../pages/Dashboard';
 import UserInfo from '../pages/UserInfo';
+import SystemManagement from '../pages/SystemManagement';
 
 export const getPageComponent = (path: string) => {
   switch (path) {
@@ -13,6 +14,13 @@ export const getPageComponent = (path: string) => {
       return <Dashboard />;
     case '/userinfo':
       return <UserInfo />;
+    case '/users':
+    case '/roles':
+    case '/menus':
+    case '/permissions':
+    case '/config':
+    case '/system':
+      return <SystemManagement />;
     default:
       return <Home />;
   }

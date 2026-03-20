@@ -1,12 +1,11 @@
 package com.ayssu.ciphergate.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @TableName("users")
@@ -24,7 +23,30 @@ public class User implements Serializable {
     private String avatarUrl;
     private String accessToken;
     
+    /**
+     * 用户状态：1-正常，0-禁用
+     */
+    private Integer status;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
+    
+    /**
+     * 用户拥有的角色列表（非数据库字段）
+     */
+    @TableField(exist = false)
+    private List<Role> roles;
+    
+    /**
+     * 用户拥有的权限列表（非数据库字段）
+     */
+    @TableField(exist = false)
+    private List<Permission> permissions;
+    
+    /**
+     * 用户可访问的菜单列表（非数据库字段）
+     */
+    @TableField(exist = false)
+    private List<Menu> menus;
 }

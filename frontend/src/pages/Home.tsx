@@ -212,71 +212,73 @@ const Home: React.FC = () => {
             animation: 'float 10s ease-in-out infinite reverse'
           }} />
           
-          {/* 装饰性3D魔方 */}
-          <div style={{ 
-            position: 'absolute',
-            top: '20%',
-            left: '10%',
-            perspective: '1000px',
-            zIndex: 1
-          }}>
-            <div style={{
-              width: 100,
-              height: 100,
-              position: 'relative',
-              transformStyle: 'preserve-3d',
-              animation: 'rotateCube 20s infinite linear'
+          {/* 装饰性3D魔方 - 仅桌面端显示 */}
+          {window.innerWidth >= 768 && (
+            <div style={{ 
+              position: 'absolute',
+              top: '20%',
+              left: '10%',
+              perspective: '1000px',
+              zIndex: 1
             }}>
-              {/* 魔方的6个面 */}
-              {[
-                { transform: 'rotateY(0deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #0ba360)' },
-                { transform: 'rotateY(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #0066cc)' },
-                { transform: 'rotateY(180deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #1890ff)' },
-                { transform: 'rotateY(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0ba360, #00d4aa)' },
-                { transform: 'rotateX(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #00d4aa)' },
-                { transform: 'rotateX(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0066cc, #0ba360)' }
-              ].map((face, index) => (
-                <div
-                  key={index}
-                  style={{
-                    position: 'absolute',
-                    width: 100,
-                    height: 100,
-                    background: face.bg,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: 8,
-                    transform: face.transform,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 15px rgba(0,212,170,0.3)',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                >
-                  {/* 每个面上的小方块网格 */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplate: 'repeat(3, 1fr) / repeat(3, 1fr)',
-                    gap: 3,
-                    width: '70%',
-                    height: '70%'
-                  }}>
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          background: 'rgba(255,255,255,0.3)',
-                          borderRadius: 1,
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          animation: `pulse ${2 + (i * 0.1)}s ease-in-out infinite alternate`
-                        }}
-                      />
-                    ))}
+              <div style={{
+                width: 100,
+                height: 100,
+                position: 'relative',
+                transformStyle: 'preserve-3d',
+                animation: 'rotateCube 20s infinite linear'
+              }}>
+                {/* 魔方的6个面 */}
+                {[
+                  { transform: 'rotateY(0deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #0ba360)' },
+                  { transform: 'rotateY(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #0066cc)' },
+                  { transform: 'rotateY(180deg) translateZ(50px)', bg: 'linear-gradient(135deg, #00d4aa, #1890ff)' },
+                  { transform: 'rotateY(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0ba360, #00d4aa)' },
+                  { transform: 'rotateX(90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #1890ff, #00d4aa)' },
+                  { transform: 'rotateX(-90deg) translateZ(50px)', bg: 'linear-gradient(135deg, #0066cc, #0ba360)' }
+                ].map((face, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      position: 'absolute',
+                      width: 100,
+                      height: 100,
+                      background: face.bg,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 8,
+                      transform: face.transform,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 15px rgba(0,212,170,0.3)',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                  >
+                    {/* 每个面上的小方块网格 */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplate: 'repeat(3, 1fr) / repeat(3, 1fr)',
+                      gap: 3,
+                      width: '70%',
+                      height: '70%'
+                    }}>
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            background: 'rgba(255,255,255,0.3)',
+                            borderRadius: 1,
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            animation: `pulse ${2 + (i * 0.1)}s ease-in-out infinite alternate`
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           
           <div style={{ 
             position: 'absolute',

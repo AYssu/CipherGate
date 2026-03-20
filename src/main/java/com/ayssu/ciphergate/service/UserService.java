@@ -1,104 +1,68 @@
 package com.ayssu.ciphergate.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.ayssu.ciphergate.entity.User;
-import com.ayssu.ciphergate.mapper.UserMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class UserService {
+/**
+ * 用户服务接口
+ */
+public interface UserService extends IService<User> {
     
-    private final UserMapper userMapper;
+    /**
+     * 根据GitHub ID获取用户
+     */
+    User getUserByGithubId(String githubId);
     
-    public User findOrCreateUser(OAuth2User oauth2User) {
-        log.info("=== 处理用户信息 ===");
-        
-        // 获取 GitHub ID
-        Object idObj = oauth2User.getAttribute("id");
-        String githubId = idObj != null ? idObj.toString() : null;
-        
-        log.info("GitHub ID: {} (类型: {})", 
-            githubId, 
-            idObj != null ? idObj.getClass().getSimpleName() : "null");
-        
-        if (githubId == null) {
-            log.error("无法获取 GitHub ID，OAuth2User 属性: {}", oauth2User.getAttributes());
-            throw new RuntimeException("无法获取 GitHub 用户 ID");
-        }
-        
-        // 查找现有用户
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("github_id", githubId);
-        User existingUser = userMapper.selectOne(queryWrapper);
-        
-        if (existingUser != null) {
-            log.info("找到现有用户: {}", existingUser);
-            
-            // 更新最后登录时间和用户信息
-            existingUser.setLastLoginAt(LocalDateTime.now());
-            existingUser.setName(getStringAttribute(oauth2User, "name"));
-            existingUser.setEmail(getStringAttribute(oauth2User, "email"));
-            existingUser.setAvatarUrl(getStringAttribute(oauth2User, "avatar_url"));
-            existingUser.setUpdatedAt(LocalDateTime.now());
-            
-            log.info("更新用户信息: name={}, email={}, avatar_url={}", 
-                String.valueOf(existingUser.getName()), 
-                String.valueOf(existingUser.getEmail()), 
-                String.valueOf(existingUser.getAvatarUrl()));
-            
-            userMapper.updateById(existingUser);
-            return existingUser;
-        } else {
-            log.info("创建新用户");
-            
-            // 创建新用户
-            User newUser = new User();
-            newUser.setGithubId(githubId);
-            newUser.setLogin(getStringAttribute(oauth2User, "login"));
-            newUser.setName(getStringAttribute(oauth2User, "name"));
-            newUser.setEmail(getStringAttribute(oauth2User, "email"));
-            newUser.setAvatarUrl(getStringAttribute(oauth2User, "avatar_url"));
-            newUser.setCreatedAt(LocalDateTime.now());
-            newUser.setUpdatedAt(LocalDateTime.now());
-            newUser.setLastLoginAt(LocalDateTime.now());
-            
-            log.info("新用户信息: githubId={}, login={}, name={}, email={}, avatar_url={}", 
-                String.valueOf(newUser.getGithubId()), 
-                String.valueOf(newUser.getLogin()), 
-                String.valueOf(newUser.getName()), 
-                String.valueOf(newUser.getEmail()), 
-                String.valueOf(newUser.getAvatarUrl()));
-            
-            userMapper.insert(newUser);
-            log.info("用户创建成功，ID: {}", String.valueOf(newUser.getId()));
-            return newUser;
-        }
-    }
+    /**
+     * 创建或更新用户
+     */
+    User createOrUpdateUser(String githubId, String login, String name, String email, String avatarUrl, String accessToken);
     
-    private String getStringAttribute(OAuth2User oauth2User, String attributeName) {
-        Object value = oauth2User.getAttribute(attributeName);
-        String result = value != null ? value.toString() : null;
-        log.debug("属性 [{}]: {} -> {}", 
-            attributeName, 
-            String.valueOf(value), 
-            String.valueOf(result));
-        return result;
-    }
+    /**
+     * 更新用户最后登录时间
+     */
+    void updateLastLoginTime(Long userId);
     
-    public User findByGithubId(String githubId) {
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("github_id", githubId);
-        User user = userMapper.selectOne(queryWrapper);
-        log.info("根据 GitHub ID [{}] 查找用户: {}", 
-            String.valueOf(githubId), 
-            String.valueOf(user));
-        return user;
-    }
+    /**
+     * 检查用户是否有指定权限
+     */
+    boolean hasPermission(Long userId, String permissionCode);
+    
+    /**
+     * 检查用户是否有指定角色
+     */
+    boolean hasRole(Long userId, String roleCode);
+    
+    /**
+     * 获取用户详细信息（包含角色和权限）
+     */
+    User getUserWithRolesAndPermissions(Long userId);
+    
+    /**
+     * 为新用户分配默认角色
+     */
+    void assignDefaultRole(Long userId);
+    
+    /**
+     * 查找或创建用户（OAuth2登录）
+     */
+    User findOrCreateUser(OAuth2User oauth2User);
+    
+    /**
+     * 根据GitHub ID查找用户
+     */
+    User findByGithubId(String githubId);
+    
+    /**
+     * 获取用户详细信息（包含角色、权限和菜单）
+     */
+    User getUserWithRolesPermissionsAndMenus(Long userId);
+    
+    /**
+     * 获取所有用户及其角色信息
+     */
+    List<User> getAllUsersWithRoles();
 }
