@@ -65,4 +65,7 @@ export const userApi = {
   // 更新当前用户信息
   updateCurrentUserProfile: (userData: Partial<User>) => 
     request.put('/user/profile', userData),
+
+  // 退出登录
+  logout: () => request.post('/logout'),
 };

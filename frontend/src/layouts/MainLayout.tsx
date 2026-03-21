@@ -76,13 +76,13 @@ const MainLayout: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8080/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await userApi.logout();
+      // 退出成功后跳转到首页
       window.location.href = '/';
     } catch (error) {
       console.error('退出登录失败:', error);
+      // 即使退出失败，也跳转到首页（可能是网络问题）
+      window.location.href = '/';
     }
   };
 
