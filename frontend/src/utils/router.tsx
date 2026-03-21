@@ -1,6 +1,5 @@
 import Home from '../pages/Home';
 import Dashboard from '../pages/Dashboard';
-import UserInfo from '../pages/UserInfo';
 import SystemManagement from '../pages/SystemManagement';
 
 export const getPageComponent = (path: string) => {
@@ -12,8 +11,6 @@ export const getPageComponent = (path: string) => {
       return <Home />;
     case '/dashboard':
       return <Dashboard />;
-    case '/userinfo':
-      return <UserInfo />;
     case '/users':
     case '/roles':
     case '/menus':

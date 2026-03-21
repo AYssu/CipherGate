@@ -3,3 +3,5 @@ export { default as RoleManagementContent } from './RoleManagementContent';
 export { default as MenuManagementContent } from './MenuManagementContent';
 export { default as PermissionManagementContent } from './PermissionManagementContent';
 export { default as SystemConfigContent } from './SystemConfigContent';
+export { default as ProfileContent } from './ProfileContent';
+export { default as DashboardContent } from './DashboardContent';
