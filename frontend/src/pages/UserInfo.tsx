@@ -9,86 +9,33 @@ import {
   Tag, 
   Avatar, 
   Descriptions,
-  Divider,
-  Statistic,
-  message
+  Statistic
 } from 'antd';
 import { 
   UserOutlined, 
   GithubOutlined, 
   MailOutlined, 
-  GlobalOutlined,
   CalendarOutlined,
   TeamOutlined,
   SafetyOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
+import { userApi } from '../services/userService';
+import type { User } from '../services/userService';
 
 const { Title, Text } = Typography;
 
-interface UserInfo {
-  id: number;
-  name: string;
-  login: string;
-  email: string;
-  avatarUrl: string;
-  githubId: string;
-  status: number;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt: string;
-  roles: Role[];
-  permissions: Permission[];
-  menus: Menu[];
-}
-
-interface Role {
-  id: number;
-  roleName: string;
-  roleCode: string;
-  description: string;
-}
-
-interface Permission {
-  id: number;
-  permissionName: string;
-  permissionCode: string;
-  description: string;
-}
-
-interface Menu {
-  id: number;
-  menuName: string;
-  menuCode: string;
-  path: string;
-  icon: string;
-  children?: Menu[];
-}
-
 const UserInfo: React.FC = () => {
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userInfo, setUserInfo] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchUserInfo = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/user/info', {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setUserInfo(result.data);
-        } else {
-          message.error(result.message || '获取用户信息失败');
-        }
-      } else {
-        message.error('获取用户信息失败');
-      }
+      const result = await userApi.getCurrentUserInfo();
+      setUserInfo((result as any).data);
     } catch (error) {
       console.error('获取用户信息失败:', error);
-      message.error('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }

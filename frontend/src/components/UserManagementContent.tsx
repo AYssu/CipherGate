@@ -20,27 +20,11 @@ import {
   StopOutlined,
   CheckCircleOutlined
 } from '@ant-design/icons';
+import { userApi } from '../services/userService';
+import { roleApi } from '../services/roleService';
+import type { User, Role } from '../services/userService';
 
 const { Title, Text } = Typography;
-
-interface User {
-  id: number;
-  name: string;
-  login: string;
-  email: string;
-  avatarUrl: string;
-  roles: Role[];
-  status: number;
-  createdAt: string;
-  lastLoginAt: string;
-}
-
-interface Role {
-  id: number;
-  roleName: string;
-  roleCode: string;
-  description: string;
-}
 
 const UserManagementContent: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -54,22 +38,10 @@ const UserManagementContent: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/users', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setUsers(result.data || []);
-        } else {
-          message.error(result.message || '获取用户列表失败');
-        }
-      } else {
-        message.error('获取用户列表失败');
-      }
+      const result = await userApi.getUsers();
+      setUsers((result as any).data || []);
     } catch (error) {
       console.error('获取用户列表失败:', error);
-      message.error('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -78,15 +50,8 @@ const UserManagementContent: React.FC = () => {
   // 获取角色列表
   const fetchRoles = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/roles', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setRoles(result.data || []);
-        }
-      }
+      const result = await roleApi.getRoles();
+      setRoles((result as any).data || []);
     } catch (error) {
       console.error('获取角色列表失败:', error);
     }
@@ -205,49 +170,25 @@ const UserManagementContent: React.FC = () => {
 
   const handleDeleteUser = async (user: User) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/users/${user.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        message.success('用户删除成功');
-        fetchUsers();
-      } else {
-        message.error(result.message || '用户删除失败');
-      }
+      await userApi.deleteUser(user.id);
+      message.success('用户删除成功');
+      fetchUsers();
     } catch (error) {
       console.error('删除用户失败:', error);
-      message.error('删除用户失败');
     }
   };
 
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const response = await fetch(`http://localhost:8080/api/users/${editingUser?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(values),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        message.success('用户更新成功');
-        setModalVisible(false);
-        setEditingUser(null);
-        form.resetFields();
-        fetchUsers();
-      } else {
-        message.error(result.message || '用户更新失败');
-      }
+      await userApi.updateUser(editingUser!.id, values);
+      message.success('用户更新成功');
+      setModalVisible(false);
+      setEditingUser(null);
+      form.resetFields();
+      fetchUsers();
     } catch (error) {
       console.error('更新用户失败:', error);
-      message.error('用户更新失败');
     }
   };
 

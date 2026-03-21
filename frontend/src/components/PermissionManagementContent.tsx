@@ -22,23 +22,11 @@ import {
   DeleteOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
+import { permissionApi } from '../services/permissionService';
+import type { Permission } from '../services/permissionService';
 
 const { Title } = Typography;
 const { Option } = Select;
-
-// 本地类型定义
-interface Permission {
-  id: number;
-  permissionName: string;
-  permissionCode: string;
-  resourceType: string;
-  resourcePath?: string;
-  httpMethod?: string;
-  description?: string;
-  status: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 const PermissionManagementContent: React.FC = () => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -59,18 +47,10 @@ const PermissionManagementContent: React.FC = () => {
   const fetchPermissions = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/permissions', {
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        setPermissions(result.data);
-      } else {
-        message.error(result.message || '获取权限列表失败');
-      }
+      const result = await permissionApi.getPermissions();
+      setPermissions((result as any).data || []);
     } catch (error) {
       console.error('获取权限列表失败:', error);
-      message.error('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -78,13 +58,8 @@ const PermissionManagementContent: React.FC = () => {
 
   const fetchResourceTypes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/permissions/resource-types', {
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        setResourceTypes(result.data);
-      }
+      const result = await permissionApi.getResourceTypes();
+      setResourceTypes((result as any).data || []);
     } catch (error) {
       console.error('获取资源类型失败:', error);
     }
@@ -92,13 +67,8 @@ const PermissionManagementContent: React.FC = () => {
 
   const fetchHttpMethods = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/permissions/http-methods', {
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        setHttpMethods(result.data);
-      }
+      const result = await permissionApi.getHttpMethods();
+      setHttpMethods((result as any).data || []);
     } catch (error) {
       console.error('获取HTTP方法失败:', error);
     }
@@ -125,20 +95,11 @@ const PermissionManagementContent: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/permissions/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        message.success('删除成功');
-        fetchPermissions();
-      } else {
-        message.error(result.message || '删除失败');
-      }
+      await permissionApi.deletePermission(id);
+      message.success('删除成功');
+      fetchPermissions();
     } catch (error) {
       console.error('删除权限失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 
@@ -149,25 +110,12 @@ const PermissionManagementContent: React.FC = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/permissions/batch', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(selectedRowKeys)
-      });
-      const result = await response.json();
-      if (result.success) {
-        message.success('批量删除成功');
-        setSelectedRowKeys([]);
-        fetchPermissions();
-      } else {
-        message.error(result.message || '批量删除失败');
-      }
+      await permissionApi.batchDeletePermissions(selectedRowKeys as number[]);
+      message.success('批量删除成功');
+      setSelectedRowKeys([]);
+      fetchPermissions();
     } catch (error) {
       console.error('批量删除权限失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 
@@ -179,32 +127,18 @@ const PermissionManagementContent: React.FC = () => {
         status: values.status ? 1 : 0
       };
 
-      const url = editingPermission 
-        ? `http://localhost:8080/api/permissions/${editingPermission.id}`
-        : 'http://localhost:8080/api/permissions';
-      
-      const method = editingPermission ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(permissionData)
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        message.success(editingPermission ? '更新成功' : '创建成功');
-        setModalVisible(false);
-        fetchPermissions();
+      if (editingPermission) {
+        await permissionApi.updatePermission(editingPermission.id, permissionData);
+        message.success('更新成功');
       } else {
-        message.error(result.message || (editingPermission ? '更新失败' : '创建失败'));
+        await permissionApi.createPermission(permissionData);
+        message.success('创建成功');
       }
+      
+      setModalVisible(false);
+      fetchPermissions();
     } catch (error) {
       console.error('提交权限失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 

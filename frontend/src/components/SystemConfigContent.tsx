@@ -14,8 +14,9 @@ import {
   BellOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
+import { userApi } from '../services/userService';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const SystemConfigContent: React.FC = () => {
   const [userCount, setUserCount] = useState(0);
@@ -23,15 +24,9 @@ const SystemConfigContent: React.FC = () => {
   // 获取用户数量
   const fetchUserCount = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/users', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setUserCount(result.data?.filter((u: any) => u.status === 1).length || 0);
-        }
-      }
+      const result = await userApi.getUsers();
+      const users = (result as any).data || [];
+      setUserCount(users.filter((u: any) => u.status === 1).length);
     } catch (error) {
       console.error('获取用户数量失败:', error);
     }

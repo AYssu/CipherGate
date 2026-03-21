@@ -1,5 +1,7 @@
+import request from '../utils/request';
+
 // 本地类型定义，避免循环导入
-interface Menu {
+export interface Menu {
   id: number;
   menuName: string;
   menuCode: string;
@@ -16,110 +18,60 @@ interface Menu {
   children?: Menu[];
 }
 
-interface ApiResponse<T = any> {
-  code: number;
-  message: string;
-  data: T;
-  timestamp: string;
-  success: boolean;
-}
-
-const BASE_URL = 'http://localhost:8080/api/menus';
-
 export class MenuService {
   /**
    * 获取所有菜单树
    */
-  static async getAllMenus(): Promise<ApiResponse<Menu[]>> {
-    const response = await fetch(`${BASE_URL}/all`, {
-      credentials: 'include'
-    });
-    return response.json();
+  static async getAllMenus() {
+    return request.get<{ data: Menu[] }>('/menus/all');
   }
 
   /**
    * 获取用户菜单树
    */
-  static async getUserMenus(): Promise<ApiResponse<Menu[]>> {
-    const response = await fetch(`${BASE_URL}/user`, {
-      credentials: 'include'
-    });
-    return response.json();
+  static async getUserMenus() {
+    return request.get<{ data: Menu[] }>('/menus/user');
   }
 
   /**
    * 获取父菜单选项
    */
-  static async getParentMenuOptions(): Promise<ApiResponse<Menu[]>> {
-    const response = await fetch(`${BASE_URL}/parent-options`, {
-      credentials: 'include'
-    });
-    return response.json();
+  static async getParentMenuOptions() {
+    return request.get<{ data: Menu[] }>('/menus/parent-options');
   }
 
   /**
    * 根据ID获取菜单详情
    */
-  static async getMenuById(id: number): Promise<ApiResponse<Menu>> {
-    const response = await fetch(`${BASE_URL}/${id}`, {
-      credentials: 'include'
-    });
-    return response.json();
+  static async getMenuById(id: number) {
+    return request.get<{ data: Menu }>(`/menus/${id}`);
   }
 
   /**
    * 创建菜单
    */
-  static async createMenu(menu: Partial<Menu>): Promise<ApiResponse<string>> {
-    const response = await fetch(BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify(menu)
-    });
-    return response.json();
+  static async createMenu(menu: Partial<Menu>) {
+    return request.post('/menus', menu);
   }
 
   /**
    * 更新菜单
    */
-  static async updateMenu(id: number, menu: Partial<Menu>): Promise<ApiResponse<string>> {
-    const response = await fetch(`${BASE_URL}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify(menu)
-    });
-    return response.json();
+  static async updateMenu(id: number, menu: Partial<Menu>) {
+    return request.put(`/menus/${id}`, menu);
   }
 
   /**
    * 删除菜单
    */
-  static async deleteMenu(id: number): Promise<ApiResponse<string>> {
-    const response = await fetch(`${BASE_URL}/${id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-    return response.json();
+  static async deleteMenu(id: number) {
+    return request.delete(`/menus/${id}`);
   }
 
   /**
    * 批量删除菜单
    */
-  static async batchDeleteMenus(ids: number[]): Promise<ApiResponse<string>> {
-    const response = await fetch(`${BASE_URL}/batch`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify(ids)
-    });
-    return response.json();
+  static async batchDeleteMenus(ids: number[]) {
+    return request.delete('/menus/batch', { data: ids });
   }
 }

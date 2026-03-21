@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Avatar, Dropdown, Statistic, message, Tag } from 'antd';
+import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Avatar, Dropdown, Statistic, Tag } from 'antd';
 import { 
   SafetyOutlined,
   UserOutlined, 
@@ -14,6 +14,8 @@ import {
   LockOutlined,
   MailOutlined
 } from '@ant-design/icons';
+import { userApi } from '../services/userService';
+import type { User, Menu as UserMenu } from '../services/userService';
 
 // 导入内容组件
 import {
@@ -27,73 +29,40 @@ import {
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
-interface UserInfo {
-  id: number;
-  name: string;
-  login: string;
-  avatarUrl: string;
-  email?: string;
-  githubId?: number;
-  status?: number;
-  roles: Role[];
-  menus: Menu[];
-}
-
-interface Role {
-  id: number;
-  roleName: string;
-  roleCode: string;
-  description?: string;
-}
-
-interface Menu {
-  id: number;
-  menuName: string;
-  menuCode: string;
-  path: string;
-  icon: string;
-  children?: Menu[];
-}
-
 const Dashboard: React.FC = () => {
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userInfo, setUserInfo] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMenu, setSelectedMenu] = useState('dashboard');
 
   useEffect(() => {
     // 获取用户完整信息（包含菜单）
-    fetch('http://localhost:8080/api/user/info', {
-      credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(result => {
-      console.log('获取用户信息结果：', result);
-      if (result.success) {
-        console.log('用户菜单数据：', result.data.menus);
-        setUserInfo(result.data);
-      } else {
-        message.error(result.message || '获取用户信息失败');
+    const fetchUserInfo = async () => {
+      try {
+        const result = await userApi.getCurrentUserInfo();
+        console.log('获取用户信息结果：', result);
+        setUserInfo((result as any).data);
+        console.log('用户菜单数据：', (result as any).data.menus);
+      } catch (error) {
+        console.error('获取用户信息失败:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    })
-    .catch(error => {
-      console.error('获取用户信息失败:', error);
-      message.error('网络错误，请稍后重试');
-      setLoading(false);
-    });
+    };
+    
+    fetchUserInfo();
   }, []);
 
-  const handleLogout = () => {
-    fetch('http://localhost:8080/logout', {
-      method: 'POST',
-      credentials: 'include'
-    })
-    .then(() => {
+  const handleLogout = async () => {
+    try {
+      // 使用原生fetch处理登出，因为这不是标准的API响应
+      await fetch('http://localhost:8080/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
       window.location.href = '/';
-    })
-    .catch(error => {
+    } catch (error) {
       console.error('退出登录失败:', error);
-    });
+    }
   };
 
   const userMenuItems = [
@@ -116,7 +85,7 @@ const Dashboard: React.FC = () => {
   ];
 
   // 根据用户菜单权限生成侧边栏菜单
-  const generateSidebarMenus = (menus: Menu[]) => {
+  const generateSidebarMenus = (menus: UserMenu[]) => {
     console.log('生成侧边栏菜单，菜单数据：', menus);
     
     return menus.map(menu => {
@@ -130,7 +99,7 @@ const Dashboard: React.FC = () => {
           console.log(`点击菜单: ${menu.menuName} (${menu.menuCode})`);
           setSelectedMenu(menu.menuCode.toLowerCase());
         },
-        children: menu.children && menu.children.length > 0 ? menu.children.map(child => ({
+        children: menu.children && menu.children.length > 0 ? menu.children.map((child: any) => ({
           key: child.menuCode.toLowerCase(),
           label: child.menuName,
           onClick: () => {

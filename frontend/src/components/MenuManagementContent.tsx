@@ -21,33 +21,15 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  MenuOutlined,
   FolderOutlined,
   FileOutlined,
   SettingOutlined
 } from '@ant-design/icons';
 import { MenuService } from '../services';
+import type { Menu } from '../services/menuService';
 
 const { Title } = Typography;
 const { Option } = Select;
-
-// 本地类型定义
-interface Menu {
-  id: number;
-  menuName: string;
-  menuCode: string;
-  parentId: number;
-  menuType: number;
-  path?: string;
-  component?: string;
-  icon?: string;
-  sortOrder: number;
-  visible: number;
-  status: number;
-  createdAt?: string;
-  updatedAt?: string;
-  children?: Menu[];
-}
 
 const MenuManagementContent: React.FC = () => {
   const [menus, setMenus] = useState<Menu[]>([]);
@@ -87,14 +69,9 @@ const MenuManagementContent: React.FC = () => {
     setLoading(true);
     try {
       const result = await MenuService.getAllMenus();
-      if (result.success) {
-        setMenus(result.data);
-      } else {
-        message.error(result.message || '获取菜单列表失败');
-      }
+      setMenus((result as any).data || []);
     } catch (error) {
       console.error('获取菜单列表失败:', error);
-      message.error('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -103,9 +80,7 @@ const MenuManagementContent: React.FC = () => {
   const fetchParentOptions = async () => {
     try {
       const result = await MenuService.getParentMenuOptions();
-      if (result.success) {
-        setParentOptions(result.data);
-      }
+      setParentOptions((result as any).data || []);
     } catch (error) {
       console.error('获取父菜单选项失败:', error);
     }
@@ -136,16 +111,11 @@ const MenuManagementContent: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const result = await MenuService.deleteMenu(id);
-      if (result.success) {
-        message.success('删除成功');
-        fetchMenus();
-      } else {
-        message.error(result.message || '删除失败');
-      }
+      await MenuService.deleteMenu(id);
+      message.success('删除成功');
+      fetchMenus();
     } catch (error) {
       console.error('删除菜单失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 
@@ -156,17 +126,12 @@ const MenuManagementContent: React.FC = () => {
     }
 
     try {
-      const result = await MenuService.batchDeleteMenus(selectedRowKeys as number[]);
-      if (result.success) {
-        message.success('批量删除成功');
-        setSelectedRowKeys([]);
-        fetchMenus();
-      } else {
-        message.error(result.message || '批量删除失败');
-      }
+      await MenuService.batchDeleteMenus(selectedRowKeys as number[]);
+      message.success('批量删除成功');
+      setSelectedRowKeys([]);
+      fetchMenus();
     } catch (error) {
       console.error('批量删除菜单失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 
@@ -179,21 +144,19 @@ const MenuManagementContent: React.FC = () => {
         status: values.status ? 1 : 0
       };
 
-      const result = editingMenu 
-        ? await MenuService.updateMenu(editingMenu.id, menuData)
-        : await MenuService.createMenu(menuData);
-
-      if (result.success) {
-        message.success(editingMenu ? '更新成功' : '创建成功');
-        setModalVisible(false);
-        fetchMenus();
-        fetchParentOptions();
+      if (editingMenu) {
+        await MenuService.updateMenu(editingMenu.id, menuData);
+        message.success('更新成功');
       } else {
-        message.error(result.message || (editingMenu ? '更新失败' : '创建失败'));
+        await MenuService.createMenu(menuData);
+        message.success('创建成功');
       }
+      
+      setModalVisible(false);
+      fetchMenus();
+      fetchParentOptions();
     } catch (error) {
       console.error('提交菜单失败:', error);
-      message.error('网络错误，请稍后重试');
     }
   };
 

@@ -22,35 +22,13 @@ import {
   ApiOutlined,
   MenuOutlined
 } from '@ant-design/icons';
+import { roleApi } from '../services/roleService';
+import { MenuService } from '../services/menuService';
+import { permissionApi } from '../services/permissionService';
+import type { Role, Permission } from '../services/roleService';
+import type { Menu } from '../services/menuService';
 
 const { Title, Text } = Typography;
-
-interface Role {
-  id: number;
-  roleName: string;
-  roleCode: string;
-  description: string;
-  permissions?: Permission[];
-}
-
-interface Permission {
-  id: number;
-  permissionName: string;
-  permissionCode: string;
-  description: string;
-  resourceType: string;
-  resourcePath: string;
-  httpMethod: string;
-}
-
-interface Menu {
-  id: number;
-  menuName: string;
-  menuCode: string;
-  parentId: number;
-  menuType: number;
-  children?: Menu[];
-}
 
 const RoleManagementContent: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -70,22 +48,10 @@ const RoleManagementContent: React.FC = () => {
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/roles', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setRoles(result.data || []);
-        } else {
-          message.error(result.message || '获取角色列表失败');
-        }
-      } else {
-        message.error('获取角色列表失败');
-      }
+      const result = await roleApi.getRoles();
+      setRoles((result as any).data || []);
     } catch (error) {
       console.error('获取角色列表失败:', error);
-      message.error('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -100,15 +66,8 @@ const RoleManagementContent: React.FC = () => {
   // 获取所有菜单
   const fetchAllMenus = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/menus/all', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setAllMenus(result.data || []);
-        }
-      }
+      const result = await MenuService.getAllMenus();
+      setAllMenus((result as any).data || []);
     } catch (error) {
       console.error('获取菜单列表失败:', error);
     }
@@ -117,15 +76,8 @@ const RoleManagementContent: React.FC = () => {
   // 获取所有权限
   const fetchAllPermissions = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/permissions', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setAllPermissions(result.data || []);
-        }
-      }
+      const result = await permissionApi.getPermissions();
+      setAllPermissions((result as any).data || []);
     } catch (error) {
       console.error('获取权限列表失败:', error);
     }
@@ -134,15 +86,8 @@ const RoleManagementContent: React.FC = () => {
   // 获取角色的菜单权限
   const fetchRoleMenus = async (roleId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/roles/${roleId}/menus`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setRoleMenuIds(result.data || []);
-        }
-      }
+      const result = await roleApi.getRoleMenus(roleId);
+      setRoleMenuIds((result as any).data || []);
     } catch (error) {
       console.error('获取角色菜单权限失败:', error);
     }
@@ -151,15 +96,8 @@ const RoleManagementContent: React.FC = () => {
   // 获取角色的API权限
   const fetchRolePermissions = async (roleId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/roles/${roleId}/permissions`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setRolePermissionIds(result.data || []);
-        }
-      }
+      const result = await roleApi.getRolePermissions(roleId);
+      setRolePermissionIds((result as any).data || []);
     } catch (error) {
       console.error('获取角色API权限失败:', error);
     }
@@ -254,54 +192,32 @@ const RoleManagementContent: React.FC = () => {
 
   const handleDeleteRole = async (role: Role) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/roles/${role.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        message.success('角色删除成功');
-        fetchRoles();
-      } else {
-        message.error(result.message || '角色删除失败');
-      }
+      await roleApi.deleteRole(role.id);
+      message.success('角色删除成功');
+      fetchRoles();
     } catch (error) {
       console.error('删除角色失败:', error);
-      message.error('删除角色失败');
     }
   };
 
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const url = editingRole 
-        ? `http://localhost:8080/api/roles/${editingRole.id}`
-        : 'http://localhost:8080/api/roles';
-      const method = editingRole ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(values),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        message.success(editingRole ? '角色更新成功' : '角色创建成功');
-        setModalVisible(false);
-        setEditingRole(null);
-        form.resetFields();
-        fetchRoles();
+      
+      if (editingRole) {
+        await roleApi.updateRole(editingRole.id, values);
+        message.success('角色更新成功');
       } else {
-        message.error(result.message || (editingRole ? '角色更新失败' : '角色创建失败'));
+        await roleApi.createRole(values);
+        message.success('角色创建成功');
       }
+      
+      setModalVisible(false);
+      setEditingRole(null);
+      form.resetFields();
+      fetchRoles();
     } catch (error) {
       console.error('操作角色失败:', error);
-      message.error('操作角色失败');
     }
   };
 
@@ -345,27 +261,13 @@ const RoleManagementContent: React.FC = () => {
     if (!currentRole) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/roles/${currentRole.id}/menus`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(roleMenuIds),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        message.success('菜单权限保存成功');
-        setMenuModalVisible(false);
-        setCurrentRole(null);
-        setRoleMenuIds([]);
-      } else {
-        message.error(result.message || '菜单权限保存失败');
-      }
+      await roleApi.assignMenusToRole(currentRole.id, roleMenuIds);
+      message.success('菜单权限保存成功');
+      setMenuModalVisible(false);
+      setCurrentRole(null);
+      setRoleMenuIds([]);
     } catch (error) {
       console.error('保存菜单权限失败:', error);
-      message.error('保存菜单权限失败');
     }
   };
 
@@ -374,28 +276,14 @@ const RoleManagementContent: React.FC = () => {
     if (!currentRole) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/roles/${currentRole.id}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(rolePermissionIds),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        message.success('API权限保存成功');
-        setPermissionModalVisible(false);
-        setCurrentRole(null);
-        setRolePermissionIds([]);
-        fetchRoles(); // 刷新角色列表以更新权限显示
-      } else {
-        message.error(result.message || 'API权限保存失败');
-      }
+      await roleApi.assignPermissionsToRole(currentRole.id, rolePermissionIds);
+      message.success('API权限保存成功');
+      setPermissionModalVisible(false);
+      setCurrentRole(null);
+      setRolePermissionIds([]);
+      fetchRoles(); // 刷新角色列表以更新权限显示
     } catch (error) {
       console.error('保存API权限失败:', error);
-      message.error('保存API权限失败');
     }
   };
 
@@ -564,18 +452,14 @@ const RoleManagementContent: React.FC = () => {
           </Space>
         </div>
 
-        <div style={{ 
-          maxHeight: 400, 
-          overflowY: 'auto', 
-          paddingRight: 8,
-          scrollbarWidth: 'none', /* Firefox */
-          msOverflowStyle: 'none'  /* IE and Edge */
-        }}>
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              display: none; /* Chrome, Safari and Opera */
-            }
-          `}</style>
+        <div 
+          className="hide-scrollbar"
+          style={{ 
+            maxHeight: 400, 
+            overflowY: 'auto', 
+            paddingRight: 8
+          }}
+        >
           {(() => {
             // 按资源类型分组权限
             const groupedPermissions = allPermissions.reduce((groups, permission) => {
