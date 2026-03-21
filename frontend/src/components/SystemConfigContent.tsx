@@ -4,197 +4,104 @@ import {
   Typography, 
   Row, 
   Col, 
-  Switch, 
-  Divider, 
   Statistic,
-  Space
+  Space,
+  Spin,
+  message
 } from 'antd';
 import { 
-  SafetyOutlined,
-  BellOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  ClockCircleOutlined,
+  DatabaseOutlined,
+  CloudServerOutlined
 } from '@ant-design/icons';
-import { userApi } from '../services/userService';
+import { systemApi } from '../services/systemService';
+import type { SystemInfo, SystemStatus } from '../services/systemService';
 
 const { Text } = Typography;
 
 const SystemConfigContent: React.FC = () => {
-  const [userCount, setUserCount] = useState(0);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // 获取用户数量
-  const fetchUserCount = async () => {
+  // 获取系统信息
+  const fetchSystemInfo = async () => {
     try {
-      const result = await userApi.getUsers();
-      const users = (result as any).data || [];
-      setUserCount(users.filter((u: any) => u.status === 1).length);
+      const response = await systemApi.getSystemInfo();
+      setSystemInfo(response.data);
     } catch (error) {
-      console.error('获取用户数量失败:', error);
+      console.error('获取系统信息失败:', error);
+      message.error('获取系统信息失败');
     }
   };
 
+  // 获取系统状态
+  const fetchSystemStatus = async () => {
+    try {
+      const response = await systemApi.getSystemStatus();
+      setSystemStatus(response.data);
+    } catch (error) {
+      console.error('获取系统状态失败:', error);
+      message.error('获取系统状态失败');
+    }
+  };
+
+  // 格式化运行时间
+  const formatUptime = (uptime: number) => {
+    const days = Math.floor(uptime / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((uptime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) {
+      return `${days}天 ${hours}小时 ${minutes}分钟`;
+    } else if (hours > 0) {
+      return `${hours}小时 ${minutes}分钟`;
+    } else {
+      return `${minutes}分钟`;
+    }
+  };
+
+  // 格式化内存大小
+  const formatMemorySize = (bytes: number) => {
+    const gb = bytes / (1024 * 1024 * 1024);
+    return `${gb.toFixed(2)} GB`;
+  };
+
   useEffect(() => {
-    fetchUserCount();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchSystemInfo(), fetchSystemStatus()]);
+      setLoading(false);
+    };
+    
+    loadData();
+    
+    // 每30秒刷新一次状态数据
+    const interval = setInterval(fetchSystemStatus, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <div>
       <Row gutter={[16, 16]}>
+        {/* 系统状态概览 */}
         <Col span={24}>
-          <Card title={<Space><SafetyOutlined />安全设置</Space>}>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Card size="small" title="认证设置">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>启用双因素认证</div>
-                        <Text type="secondary">增强账户安全性</Text>
-                      </div>
-                      <Switch defaultChecked={false} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>强制密码复杂度</div>
-                        <Text type="secondary">要求复杂密码策略</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>会话超时</div>
-                        <Text type="secondary">自动登出闲置用户</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-              
-              <Col span={12}>
-                <Card size="small" title="审计设置">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>登录日志记录</div>
-                        <Text type="secondary">记录所有登录活动</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>操作日志记录</div>
-                        <Text type="secondary">记录用户操作行为</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>API访问日志</div>
-                        <Text type="secondary">记录API调用详情</Text>
-                      </div>
-                      <Switch defaultChecked={false} />
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-        
-        <Col span={24}>
-          <Card title={<Space><BellOutlined />通知设置</Space>}>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Card size="small" title="邮件通知">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>系统通知</div>
-                        <Text type="secondary">发送系统状态通知</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>安全警报</div>
-                        <Text type="secondary">发送安全事件警报</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>用户活动通知</div>
-                        <Text type="secondary">通知用户登录等活动</Text>
-                      </div>
-                      <Switch defaultChecked={false} />
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-              
-              <Col span={12}>
-                <Card size="small" title="系统通知">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>维护通知</div>
-                        <Text type="secondary">系统维护时通知用户</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>更新通知</div>
-                        <Text type="secondary">系统更新时通知管理员</Text>
-                      </div>
-                      <Switch defaultChecked={true} />
-                    </div>
-                    
-                    <Divider />
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div>错误报告</div>
-                        <Text type="secondary">自动发送错误报告</Text>
-                      </div>
-                      <Switch defaultChecked={false} />
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-        
-        <Col span={24}>
-          <Card title={<Space><InfoCircleOutlined />系统信息</Space>}>
+          <Card title={<Space><CloudServerOutlined />系统状态</Space>}>
             <Row gutter={[16, 16]}>
               <Col span={6}>
                 <Card size="small">
                   <Statistic
                     title="系统版本"
-                    value="CipherGate v1.0.0"
+                    value={systemInfo?.application.name + ' ' + systemInfo?.application.version}
                     valueStyle={{ fontSize: 16, color: '#1890ff' }}
                   />
                 </Card>
@@ -203,7 +110,7 @@ const SystemConfigContent: React.FC = () => {
                 <Card size="small">
                   <Statistic
                     title="运行状态"
-                    value="正常运行"
+                    value={systemStatus?.status || '正常运行'}
                     valueStyle={{ fontSize: 16, color: '#52c41a' }}
                   />
                 </Card>
@@ -211,45 +118,52 @@ const SystemConfigContent: React.FC = () => {
               <Col span={6}>
                 <Card size="small">
                   <Statistic
-                    title="在线用户"
-                    value={userCount}
-                    suffix="人"
-                    valueStyle={{ fontSize: 16, color: '#722ed1' }}
+                    title="系统负载"
+                    value={systemStatus?.systemLoad || 0}
+                    suffix="%"
+                    valueStyle={{ 
+                      fontSize: 16, 
+                      color: (systemStatus?.systemLoad || 0) > 80 ? '#ff4d4f' : '#13c2c2' 
+                    }}
                   />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
                   <Statistic
-                    title="系统负载"
-                    value="12%"
-                    valueStyle={{ fontSize: 16, color: '#13c2c2' }}
+                    title="运行时间"
+                    value={systemInfo?.application.uptime ? formatUptime(systemInfo.application.uptime) : '-'}
+                    valueStyle={{ fontSize: 14, color: '#722ed1' }}
+                    prefix={<ClockCircleOutlined />}
                   />
                 </Card>
               </Col>
             </Row>
-            
-            <Divider />
-            
+          </Card>
+        </Col>
+        
+        {/* 系统详细信息 */}
+        <Col span={24}>
+          <Card title={<Space><InfoCircleOutlined />系统信息</Space>}>
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Card size="small" title="技术栈">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>后端框架</Text>
-                      <Text strong>Spring Boot 4.0.3</Text>
+                      <Text strong>{systemInfo?.techStack.backend}</Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>前端框架</Text>
-                      <Text strong>React + TypeScript</Text>
+                      <Text strong>{systemInfo?.techStack.frontend}</Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>数据库</Text>
-                      <Text strong>MySQL 8.0</Text>
+                      <Text strong>{systemInfo?.techStack.database}</Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>认证方式</Text>
-                      <Text strong>OAuth2 + GitHub</Text>
+                      <Text strong>{systemInfo?.techStack.authentication}</Text>
                     </div>
                   </Space>
                 </Card>
@@ -259,20 +173,69 @@ const SystemConfigContent: React.FC = () => {
                 <Card size="small" title="系统资源">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>CPU使用率</Text>
-                      <Text strong style={{ color: '#52c41a' }}>12%</Text>
+                      <Text>CPU核心数</Text>
+                      <Text strong>{systemInfo?.operatingSystem.processors} 核</Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>内存使用率</Text>
-                      <Text strong style={{ color: '#1890ff' }}>45%</Text>
+                      <Text strong style={{ 
+                        color: (systemInfo?.memory.usagePercent || 0) > 80 ? '#ff4d4f' : '#1890ff' 
+                      }}>
+                        {systemInfo?.memory.usagePercent}%
+                      </Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>磁盘使用率</Text>
-                      <Text strong style={{ color: '#722ed1' }}>23%</Text>
+                      <Text>已用内存</Text>
+                      <Text strong>{systemInfo?.memory.used ? formatMemorySize(systemInfo.memory.used) : '-'}</Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>网络状态</Text>
-                      <Text strong style={{ color: '#52c41a' }}>正常</Text>
+                      <Text>最大内存</Text>
+                      <Text strong>{systemInfo?.memory.max ? formatMemorySize(systemInfo.memory.max) : '-'}</Text>
+                    </div>
+                  </Space>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+
+        {/* 环境信息 */}
+        <Col span={24}>
+          <Card title={<Space><DatabaseOutlined />环境信息</Space>}>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Card size="small" title="操作系统">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>系统名称</Text>
+                      <Text strong>{systemInfo?.operatingSystem.name}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>系统版本</Text>
+                      <Text strong>{systemInfo?.operatingSystem.version}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>系统架构</Text>
+                      <Text strong>{systemInfo?.operatingSystem.arch}</Text>
+                    </div>
+                  </Space>
+                </Card>
+              </Col>
+              
+              <Col span={12}>
+                <Card size="small" title="Java环境">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>Java版本</Text>
+                      <Text strong>{systemInfo?.java.version}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>Java厂商</Text>
+                      <Text strong>{systemInfo?.java.vendor}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text>Java路径</Text>
+                      <Text strong style={{ fontSize: '12px' }}>{systemInfo?.java.home}</Text>
                     </div>
                   </Space>
                 </Card>
