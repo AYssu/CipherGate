@@ -5,3 +5,4 @@ export { default as PermissionManagementContent } from './PermissionManagementCo
 export { default as SystemConfigContent } from './SystemConfigContent';
 export { default as ProfileContent } from './ProfileContent';
 export { default as DashboardContent } from './DashboardContent';
+export { DashboardLayout } from './Layout';

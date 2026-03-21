@@ -8,27 +8,12 @@ import {
   SettingOutlined, 
   BellOutlined 
 } from '@ant-design/icons';
+import type { User } from '../services/userService';
 
 const { Title, Text } = Typography;
 
-interface UserInfo {
-  id: number;
-  githubId: string;
-  login: string;
-  name?: string;
-  email?: string;
-  avatarUrl?: string;
-  status: number;
-  roles?: Array<{
-    id: number;
-    roleName: string;
-    roleCode: string;
-    description: string;
-  }>;
-}
-
 interface DashboardContentProps {
-  userInfo?: UserInfo;
+  userInfo?: User | null;
   isAdmin: () => boolean;
   setSelectedMenu: (menu: string) => void;
 }

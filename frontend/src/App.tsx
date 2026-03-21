@@ -1,23 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { ConfigProvider } from 'antd';
-import { getPageComponent } from './utils/router';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router';
 import './App.css';
 
 const App: React.FC = () => {
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
   return (
     <ConfigProvider>
-      {getPageComponent(currentPath)}
+      <RouterProvider router={router} />
     </ConfigProvider>
   );
 };

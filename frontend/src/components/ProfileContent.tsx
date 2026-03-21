@@ -1,27 +1,12 @@
 import React from 'react';
 import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic } from 'antd';
 import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined } from '@ant-design/icons';
+import type { User } from '../services/userService';
 
 const { Title, Text } = Typography;
 
-interface UserInfo {
-  id: number;
-  githubId: string;
-  login: string;
-  name?: string;
-  email?: string;
-  avatarUrl?: string;
-  status: number;
-  roles?: Array<{
-    id: number;
-    roleName: string;
-    roleCode: string;
-    description: string;
-  }>;
-}
-
 interface ProfileContentProps {
-  userInfo?: UserInfo;
+  userInfo?: User | null;
 }
 
 const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
