@@ -322,3 +322,125 @@ html {
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari and Opera */
 }
+
+/* 侧边栏折叠样式 */
+.ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon {
+  margin-right: 0 !important;
+}
+
+.ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
+  margin-right: 0 !important;
+}
+
+/* 折叠时的 Logo 样式 */
+.ant-layout-sider-collapsed .sider-logo {
+  padding: 24px 8px !important;
+}
+
+.ant-layout-sider-collapsed .sider-logo .ant-typography {
+  display: none;
+}
+
+/* 折叠按钮样式优化 */
+.ant-layout-sider-trigger {
+  background: #fff !important;
+  color: #1890ff !important;
+  border-top: 1px solid #f0f0f0 !important;
+  transition: all 0.2s !important;
+}
+
+.ant-layout-sider-trigger:hover {
+  background: #f5f5f5 !important;
+  color: #40a9ff !important;
+}
+
+/* 侧边栏过渡动画 */
+.ant-layout-sider {
+  transition: all 0.2s !important;
+}
+
+.ant-menu {
+  transition: all 0.2s !important;
+}
+
+/* 折叠时菜单项的 Tooltip */
+.ant-layout-sider-collapsed .ant-menu-item,
+.ant-layout-sider-collapsed .ant-menu-submenu-title {
+  padding: 0 calc(50% - 16px / 2) !important;
+}
+
+.ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon,
+.ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
+  font-size: 16px !important;
+  line-height: 48px !important;
+}
+/* 子菜单展开/收起动画优化 */
+.ant-menu-submenu-title {
+  transition: all 0.3s ease !important;
+}
+
+.ant-menu-submenu-title:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.ant-menu-submenu-arrow {
+  transition: transform 0.3s ease !important;
+}
+
+.ant-menu-submenu-open > .ant-menu-submenu-title .ant-menu-submenu-arrow {
+  transform: rotate(180deg) !important;
+}
+
+/* 子菜单内容区域动画 */
+.ant-menu-sub {
+  background-color: #fafafa !important;
+  border-radius: 0 !important;
+}
+
+.ant-menu-sub .ant-menu-item {
+  background-color: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-menu-sub .ant-menu-item:hover {
+  background-color: #e6f7ff !important;
+  color: #1890ff !important;
+}
+
+.ant-menu-sub .ant-menu-item-selected {
+  background-color: #e6f7ff !important;
+  color: #1890ff !important;
+  font-weight: 500 !important;
+}
+
+/* 折叠状态下的子菜单处理 */
+.ant-layout-sider-collapsed .ant-menu-submenu {
+  overflow: visible !important;
+}
+
+.ant-layout-sider-collapsed .ant-menu-submenu-title {
+  padding: 0 calc(50% - 16px / 2) !important;
+}
+
+/* 菜单项激活状态优化 */
+.ant-menu-item-selected {
+  background-color: #e6f7ff !important;
+  color: #1890ff !important;
+  font-weight: 500 !important;
+}
+
+.ant-menu-item-selected::after {
+  border-right: 3px solid #1890ff !important;
+}
+
+/* 菜单悬停效果 */
+.ant-menu-item:hover,
+.ant-menu-submenu-title:hover {
+  color: #1890ff !important;
+}
+
+/* 菜单图标对齐 */
+.ant-menu-item .ant-menu-item-icon,
+.ant-menu-submenu-title .ant-menu-item-icon {
+  vertical-align: middle !important;
+}

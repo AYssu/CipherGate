@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Typography, Space, Avatar, Dropdown } from 'antd';
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   SafetyOutlined,
   UserOutlined, 
   LogoutOutlined,
-  BellOutlined
+  BellOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import type { User, Menu as UserMenu } from '../services/userService';
@@ -16,6 +18,8 @@ const { Title, Text } = Typography;
 const MainLayout: React.FC = () => {
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,6 +43,13 @@ const MainLayout: React.FC = () => {
 
   const selectedMenu = getSelectedMenuFromPath(location.pathname);
 
+  // 根据当前选中的菜单自动设置展开的父菜单
+  useEffect(() => {
+    if (selectedMenu?.includes('_management')) {
+      setOpenKeys(['system_management']);
+    }
+  }, [selectedMenu]);
+
   // 获取页面标题
   const getPageTitle = (pathname: string) => {
     if (pathname === '/dashboard') return '控制台';
@@ -55,6 +66,11 @@ const MainLayout: React.FC = () => {
       }
     }
     return '控制台';
+  };
+
+  // 处理子菜单展开/收起
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
   };
 
   const pageTitle = getPageTitle(location.pathname);
@@ -203,26 +219,34 @@ const MainLayout: React.FC = () => {
       <Sider
         theme="light"
         width={250}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
         style={{
           boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
           borderRight: '1px solid #f0f0f0'
         }}
       >
-        <div style={{
-          padding: '24px 16px',
+        <div className="sider-logo" style={{
+          padding: collapsed ? '24px 8px' : '24px 16px',
           borderBottom: '1px solid #f0f0f0',
-          textAlign: 'center'
+          textAlign: 'center',
+          transition: 'all 0.2s'
         }}>
-          <SafetyOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: 8 }} />
-          <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
-            CipherGate
-          </Title>
+          <SafetyOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: collapsed ? 0 : 8 }} />
+          {!collapsed && (
+            <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+              CipherGate
+            </Title>
+          )}
         </div>
         
         <Menu
           mode="inline"
           selectedKeys={[selectedMenu]}
-          defaultOpenKeys={selectedMenu?.includes('_management') ? ['system_management'] : []}
+          openKeys={collapsed ? [] : openKeys}
+          onOpenChange={handleOpenChange}
+          inlineCollapsed={collapsed}
           items={sidebarMenuItems}
           style={{ 
             border: 'none', 
@@ -243,9 +267,22 @@ const MainLayout: React.FC = () => {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
-            {pageTitle}
-          </Title>
+          <Space className="header-left-section">
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className="header-collapse-btn"
+              style={{
+                fontSize: '16px',
+                width: 32,
+                height: 32,
+              }}
+            />
+            <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+              {pageTitle}
+            </Title>
+          </Space>
           
           <Space size="middle">
             <BellOutlined style={{ fontSize: 16, cursor: 'pointer' }} />
