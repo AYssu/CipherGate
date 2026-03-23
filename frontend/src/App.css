@@ -710,13 +710,13 @@ html {
 }
 /* Dashboard 组件移动端优化 */
 @media (max-width: 767px) {
-  /* 欢迎卡片移动端适配 */
-  .ant-card .ant-row {
+  /* 欢迎卡片移动端适配 - 仅针对特定的欢迎卡片 */
+  .dashboard-welcome-card .ant-row {
     flex-direction: column !important;
     text-align: center !important;
   }
   
-  .ant-card .ant-row .ant-col:first-child {
+  .dashboard-welcome-card .ant-row .ant-col:first-child {
     margin-bottom: 12px !important;
   }
   
@@ -755,7 +755,7 @@ html {
     margin-bottom: 8px !important;
   }
   
-  .ant-space {
+  .ant-layout-content .ant-space {
     justify-content: center !important;
     flex-wrap: wrap !important;
   }
@@ -843,13 +843,13 @@ html {
     margin-bottom: 8px !important;
   }
   
-  /* 工具栏移动端适配 */
-  .ant-space-horizontal {
+  /* 工具栏移动端适配 - 排除 Header 中的 Space */
+  .ant-layout-content .ant-space-horizontal {
     flex-direction: column !important;
     width: 100% !important;
   }
   
-  .ant-space-horizontal .ant-space-item {
+  .ant-layout-content .ant-space-horizontal .ant-space-item {
     width: 100% !important;
     margin-bottom: 8px !important;
   }
