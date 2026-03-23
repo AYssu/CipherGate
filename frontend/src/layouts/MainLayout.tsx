@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button } from 'antd';
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Drawer } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   SafetyOutlined,
@@ -19,9 +19,26 @@ const MainLayout: React.FC = () => {
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 检测屏幕尺寸
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setCollapsed(false); // 移动端不使用 collapsed 状态
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   // 根据当前路由自动计算 selectedMenu
   const getSelectedMenuFromPath = (pathname: string) => {
@@ -152,6 +169,11 @@ const MainLayout: React.FC = () => {
               key: childKey,
               label: child.menuName,
               onClick: () => {
+                // 移动端点击菜单项后关闭抽屉
+                if (isMobile) {
+                  setMobileDrawerOpen(false);
+                }
+                
                 if (menuKey === 'system_management') {
                   let routePath = '';
                   switch (childKey) {
@@ -188,6 +210,11 @@ const MainLayout: React.FC = () => {
           icon: getMenuIcon(menu.icon),
           label: menu.menuName,
           onClick: () => {
+            // 移动端点击菜单项后关闭抽屉
+            if (isMobile) {
+              setMobileDrawerOpen(false);
+            }
+            
             if (menuKey === 'dashboard') {
               navigate('/dashboard');
             } else {
@@ -214,96 +241,148 @@ const MainLayout: React.FC = () => {
 
   const sidebarMenuItems = userInfo?.menus ? generateSidebarMenus(userInfo.menus) : [];
 
+  // 渲染菜单内容
+  const renderMenuContent = () => (
+    <>
+      <div className="sider-logo" style={{
+        padding: (isMobile || !collapsed) ? '24px 16px' : '24px 8px',
+        borderBottom: '1px solid #f0f0f0',
+        textAlign: 'center',
+        transition: 'all 0.2s'
+      }}>
+        <SafetyOutlined style={{ 
+          fontSize: 32, 
+          color: '#1890ff', 
+          marginBottom: (isMobile || !collapsed) ? 8 : 0 
+        }} />
+        {(isMobile || !collapsed) && (
+          <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+            CipherGate
+          </Title>
+        )}
+      </div>
+      
+      <Menu
+        mode="inline"
+        selectedKeys={[selectedMenu]}
+        openKeys={isMobile ? openKeys : (collapsed ? [] : openKeys)}
+        onOpenChange={handleOpenChange}
+        inlineCollapsed={!isMobile && collapsed}
+        items={sidebarMenuItems}
+        style={{ 
+          border: 'none', 
+          padding: '16px 0',
+          fontSize: '14px'
+        }}
+        className="dashboard-sidebar-menu"
+      />
+    </>
+  );
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        theme="light"
-        width={250}
-        collapsible
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        style={{
-          boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-          borderRight: '1px solid #f0f0f0'
-        }}
-      >
-        <div className="sider-logo" style={{
-          padding: collapsed ? '24px 8px' : '24px 16px',
-          borderBottom: '1px solid #f0f0f0',
-          textAlign: 'center',
-          transition: 'all 0.2s'
-        }}>
-          <SafetyOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: collapsed ? 0 : 8 }} />
-          {!collapsed && (
-            <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
-              CipherGate
-            </Title>
-          )}
-        </div>
-        
-        <Menu
-          mode="inline"
-          selectedKeys={[selectedMenu]}
-          openKeys={collapsed ? [] : openKeys}
-          onOpenChange={handleOpenChange}
-          inlineCollapsed={collapsed}
-          items={sidebarMenuItems}
-          style={{ 
-            border: 'none', 
-            padding: '16px 0',
-            fontSize: '14px'
+      {/* 桌面端侧边栏 */}
+      {!isMobile && (
+        <Sider
+          theme="light"
+          width={250}
+          collapsed={collapsed}
+          style={{
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            borderRight: '1px solid #f0f0f0'
           }}
-          className="dashboard-sidebar-menu"
-        />
-      </Sider>
+        >
+          {renderMenuContent()}
+        </Sider>
+      )}
+
+      {/* 移动端抽屉 */}
+      {isMobile && (
+        <Drawer
+          title={null}
+          placement="left"
+          closable={false}
+          onClose={() => setMobileDrawerOpen(false)}
+          open={mobileDrawerOpen}
+          styles={{ body: { padding: 0 } }}
+          width={280}
+        >
+          {renderMenuContent()}
+        </Drawer>
+      )}
 
       <Layout>
         <Header style={{
           background: '#fff',
-          padding: '0 24px',
+          padding: isMobile ? '0 16px' : '0 24px',
+          height: isMobile ? '56px' : '64px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           borderBottom: '1px solid #f0f0f0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <Space className="header-left-section">
+          <Space size={12} align="center">
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              className="header-collapse-btn"
+              icon={isMobile ? <MenuFoldOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+              onClick={() => {
+                if (isMobile) {
+                  setMobileDrawerOpen(!mobileDrawerOpen);
+                } else {
+                  setCollapsed(!collapsed);
+                }
+              }}
               style={{
                 fontSize: '16px',
                 width: 32,
                 height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             />
-            <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+            <Title 
+              level={4}
+              style={{ 
+                margin: 0, 
+                color: '#1a1a2e',
+                fontSize: isMobile ? '16px' : '18px',
+                fontWeight: 500,
+                lineHeight: 1
+              }}
+            >
               {pageTitle}
             </Title>
           </Space>
           
-          <Space size="middle">
+          <Space size={12} align="center">
             <BellOutlined style={{ fontSize: 16, cursor: 'pointer' }} />
             
             <Dropdown
               menu={{ items: userMenuItems }}
               placement="bottomRight"
             >
-              <Space style={{ cursor: 'pointer' }}>
+              <Space style={{ cursor: 'pointer' }} size={8} align="center">
                 <Avatar 
                   src={userInfo?.avatarUrl} 
                   icon={<UserOutlined />}
-                  size="small"
+                  size={isMobile ? 28 : 32}
                 />
-                <Text strong>{userInfo?.name || userInfo?.login}</Text>
+                {!isMobile && (
+                  <Text strong style={{ fontSize: '14px' }}>
+                    {userInfo?.name || userInfo?.login}
+                  </Text>
+                )}
               </Space>
             </Dropdown>
           </Space>
         </Header>
 
-        <Content style={{ padding: '24px', background: '#f5f5f5' }}>
+        <Content style={{ 
+          padding: isMobile ? '16px' : '24px', 
+          background: '#f5f5f5' 
+        }}>
           <Outlet context={{ userInfo }} />
         </Content>
       </Layout>

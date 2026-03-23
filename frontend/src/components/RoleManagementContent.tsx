@@ -12,7 +12,10 @@ import {
   message,
   Popconfirm,
   Tree,
-  Checkbox
+  Checkbox,
+  Dropdown,
+  Row,
+  Col
 } from 'antd';
 import { 
   PlusOutlined,
@@ -20,7 +23,8 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   ApiOutlined,
-  MenuOutlined
+  MenuOutlined,
+  MoreOutlined
 } from '@ant-design/icons';
 import { roleApi } from '../services/roleService';
 import { MenuService } from '../services/menuService';
@@ -42,7 +46,19 @@ const RoleManagementContent: React.FC = () => {
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [roleMenuIds, setRoleMenuIds] = useState<number[]>([]);
   const [rolePermissionIds, setRolePermissionIds] = useState<number[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   const [form] = Form.useForm();
+
+  // 检测屏幕尺寸
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   // 获取角色列表
   const fetchRoles = async () => {
@@ -299,56 +315,165 @@ const RoleManagementContent: React.FC = () => {
     setRolePermissionIds([]);
   };
 
+  // 移动端角色操作菜单
+  const getRoleActionMenu = (role: Role) => ({
+    items: [
+      {
+        key: 'menus',
+        label: '菜单权限',
+        icon: <MenuOutlined />,
+        onClick: () => handleManageMenus(role),
+      },
+      {
+        key: 'permissions',
+        label: 'API权限',
+        icon: <ApiOutlined />,
+        onClick: () => handleManagePermissions(role),
+      },
+      {
+        key: 'edit',
+        label: '编辑角色',
+        icon: <EditOutlined />,
+        onClick: () => handleEditRole(role),
+      },
+      {
+        key: 'delete',
+        label: '删除角色',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: role.roleCode === 'SUPER_ADMIN',
+        onClick: () => {
+          Modal.confirm({
+            title: '确认删除',
+            content: `确定要删除角色 ${role.roleName} 吗？`,
+            onOk: () => handleDeleteRole(role),
+            okText: '确定',
+            cancelText: '取消',
+          });
+        },
+      },
+    ],
+  });
+
+  // 移动端角色卡片渲染
+  const renderMobileRoleCard = (role: Role) => (
+    <Card key={role.id} size="small" style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+              {role.roleName}
+            </Text>
+            <Tag color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}>
+              {role.roleCode}
+            </Tag>
+          </div>
+          
+          {role.description && (
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+              {role.description}
+            </div>
+          )}
+          
+          <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+            权限数量: {role.permissions?.length || 0} 个
+          </div>
+          
+          {role.permissions && role.permissions.length > 0 && (
+            <div>
+              <Text style={{ fontSize: 12, color: '#666', marginBottom: 4, display: 'block' }}>
+                权限列表:
+              </Text>
+              <Space wrap size={[4, 4]}>
+                {role.permissions.slice(0, 3).map(permission => (
+                  <Tag key={permission.id} color="blue" style={{ fontSize: 10 }}>
+                    {permission.permissionName}
+                  </Tag>
+                ))}
+                {role.permissions.length > 3 && (
+                  <Tag color="default" style={{ fontSize: 10 }}>
+                    +{role.permissions.length - 3} 更多
+                  </Tag>
+                )}
+              </Space>
+            </div>
+          )}
+        </div>
+        
+        <Dropdown menu={getRoleActionMenu(role)} trigger={['click']}>
+          <Button type="text" icon={<MoreOutlined />} size="small" />
+        </Dropdown>
+      </div>
+    </Card>
+  );
+
+  // 移动端列表渲染
+  const renderMobileList = () => (
+    <div>
+      {roles.map(role => renderMobileRoleCard(role))}
+    </div>
+  );
+
   return (
     <>
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-          <Title level={4}>角色列表</Title>
-          <Space>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />}
-              onClick={handleCreateRole}
-            >
-              新建角色
-            </Button>
-            <Button 
-              icon={<ReloadOutlined />}
-              onClick={fetchRoles}
-              loading={loading}
-            >
-              刷新
-            </Button>
-          </Space>
+        <div style={{ marginBottom: 16 }}>
+          <Row justify="space-between" align="middle" gutter={[8, 8]}>
+            <Col xs={24} sm={12}>
+              <Title level={4} style={{ margin: 0 }}>角色列表</Title>
+            </Col>
+            <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'center' : 'right' }}>
+              <Space wrap>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateRole}
+                  size={isMobile ? 'middle' : 'middle'}
+                >
+                  新建角色
+                </Button>
+                <Button 
+                  icon={<ReloadOutlined />}
+                  onClick={fetchRoles}
+                  loading={loading}
+                  size={isMobile ? 'middle' : 'middle'}
+                >
+                  刷新
+                </Button>
+              </Space>
+            </Col>
+          </Row>
         </div>
         
-        <Table
-          columns={roleColumns}
-          dataSource={roles}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-          }}
-          expandable={{
-            expandedRowRender: (record: Role) => (
-              <div style={{ padding: 16, background: '#fafafa' }}>
-                <Title level={5}>权限列表</Title>
-                <Space wrap>
-                  {record.permissions?.map(permission => (
-                    <Tag key={permission.id} color="blue">
-                      {permission.permissionName}
-                    </Tag>
-                  )) || <Text type="secondary">暂无权限</Text>}
-                </Space>
-              </div>
-            ),
-            rowExpandable: (record: Role) => (record.permissions?.length || 0) > 0,
-          }}
-        />
+        {isMobile ? renderMobileList() : (
+          <Table
+            columns={roleColumns}
+            dataSource={roles}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+            }}
+            expandable={{
+              expandedRowRender: (record: Role) => (
+                <div style={{ padding: 16, background: '#fafafa' }}>
+                  <Title level={5}>权限列表</Title>
+                  <Space wrap>
+                    {record.permissions?.map(permission => (
+                      <Tag key={permission.id} color="blue">
+                        {permission.permissionName}
+                      </Tag>
+                    )) || <Text type="secondary">暂无权限</Text>}
+                  </Space>
+                </div>
+              ),
+              rowExpandable: (record: Role) => (record.permissions?.length || 0) > 0,
+            }}
+          />
+        )}
       </Card>
 
       {/* 编辑/创建角色模态框 */}
@@ -357,7 +482,8 @@ const RoleManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={600}
+        width={isMobile ? '95%' : 600}
+        style={isMobile ? { top: 20 } : undefined}
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -365,7 +491,10 @@ const RoleManagementContent: React.FC = () => {
             name="roleName"
             rules={[{ required: true, message: '请输入角色名称' }]}
           >
-            <Input placeholder="请输入角色名称" />
+            <Input 
+              placeholder="请输入角色名称" 
+              size={isMobile ? 'large' : 'middle'}
+            />
           </Form.Item>
           
           <Form.Item
@@ -376,6 +505,7 @@ const RoleManagementContent: React.FC = () => {
             <Input 
               placeholder="请输入角色编码" 
               disabled={editingRole?.roleCode === 'SUPER_ADMIN'}
+              size={isMobile ? 'large' : 'middle'}
             />
           </Form.Item>
           
@@ -386,6 +516,7 @@ const RoleManagementContent: React.FC = () => {
             <Input.TextArea 
               placeholder="请输入角色描述" 
               rows={3}
+              style={{ fontSize: isMobile ? '16px' : '14px' }}
             />
           </Form.Item>
         </Form>
@@ -397,7 +528,8 @@ const RoleManagementContent: React.FC = () => {
         open={menuModalVisible}
         onOk={handleSaveMenuPermissions}
         onCancel={handleMenuModalCancel}
-        width={600}
+        width={isMobile ? '95%' : 600}
+        style={isMobile ? { top: 20 } : undefined}
         okText="保存"
         cancelText="取消"
       >
@@ -414,7 +546,7 @@ const RoleManagementContent: React.FC = () => {
             setRoleMenuIds(checkedKeys as number[]);
           }}
           treeData={convertMenusToTreeData(allMenus)}
-          height={400}
+          height={isMobile ? 300 : 400}
           defaultExpandAll
         />
       </Modal>
@@ -425,7 +557,8 @@ const RoleManagementContent: React.FC = () => {
         open={permissionModalVisible}
         onOk={handleSaveApiPermissions}
         onCancel={handlePermissionModalCancel}
-        width={800}
+        width={isMobile ? '95%' : 800}
+        style={isMobile ? { top: 20 } : undefined}
         okText="保存"
         cancelText="取消"
       >
@@ -436,15 +569,15 @@ const RoleManagementContent: React.FC = () => {
         </div>
         
         <div style={{ marginBottom: 16 }}>
-          <Space>
+          <Space wrap>
             <Button 
-              size="small" 
+              size={isMobile ? 'middle' : 'small'}
               onClick={() => setRolePermissionIds(allPermissions.map(p => p.id))}
             >
               全选
             </Button>
             <Button 
-              size="small" 
+              size={isMobile ? 'middle' : 'small'}
               onClick={() => setRolePermissionIds([])}
             >
               清空
@@ -455,7 +588,7 @@ const RoleManagementContent: React.FC = () => {
         <div 
           className="hide-scrollbar"
           style={{ 
-            maxHeight: 400, 
+            maxHeight: isMobile ? 300 : 400, 
             overflowY: 'auto', 
             paddingRight: 8
           }}
@@ -489,10 +622,10 @@ const RoleManagementContent: React.FC = () => {
                   paddingBottom: 8,
                   borderBottom: '1px solid #f0f0f0'
                 }}>
-                  <Text strong style={{ marginRight: 8 }}>
+                  <Text strong style={{ marginRight: 8, fontSize: isMobile ? '14px' : '13px' }}>
                     {categoryNames[category] || category}
                   </Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: isMobile ? '12px' : '11px' }}>
                     ({permissions.length} 个权限)
                   </Text>
                   <div style={{ marginLeft: 'auto' }}>
@@ -516,12 +649,12 @@ const RoleManagementContent: React.FC = () => {
                         }
                       }}
                     >
-                      全选
+                      <span style={{ fontSize: isMobile ? '14px' : '13px' }}>全选</span>
                     </Checkbox>
                   </div>
                 </div>
                 
-                <div style={{ paddingLeft: 16 }}>
+                <div style={{ paddingLeft: isMobile ? 8 : 16 }}>
                   {permissions.map(permission => (
                     <div key={permission.id} style={{ marginBottom: 8 }}>
                       <Checkbox
@@ -535,18 +668,31 @@ const RoleManagementContent: React.FC = () => {
                         }}
                       >
                         <div>
-                          <Text strong>{permission.permissionName}</Text>
+                          <Text strong style={{ fontSize: isMobile ? '14px' : '13px' }}>
+                            {permission.permissionName}
+                          </Text>
                           <div style={{ marginTop: 2 }}>
-                            <Tag color="blue" style={{ marginRight: 4 }}>
+                            <Tag color="blue" style={{ 
+                              marginRight: 4, 
+                              fontSize: isMobile ? '10px' : '9px',
+                              padding: isMobile ? '0 4px' : '0 3px'
+                            }}>
                               {permission.permissionCode}
                             </Tag>
                             {permission.httpMethod && (
-                              <Tag color="green">
+                              <Tag color="green" style={{ 
+                                fontSize: isMobile ? '10px' : '9px',
+                                padding: isMobile ? '0 4px' : '0 3px'
+                              }}>
                                 {permission.httpMethod}
                               </Tag>
                             )}
                           </div>
-                          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
+                          <Text type="secondary" style={{ 
+                            fontSize: isMobile ? '12px' : '11px', 
+                            display: 'block', 
+                            marginTop: 2 
+                          }}>
                             {permission.description}
                           </Text>
                         </div>

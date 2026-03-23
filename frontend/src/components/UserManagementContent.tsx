@@ -11,14 +11,19 @@ import {
   Select, 
   message,
   Popconfirm,
-  Tooltip
+  Tooltip,
+  List,
+  Avatar,
+  Dropdown
 } from 'antd';
 import { 
   EditOutlined,
   DeleteOutlined,
   ReloadOutlined,
   StopOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  MoreOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import { roleApi } from '../services/roleService';
@@ -32,7 +37,19 @@ const UserManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [form] = Form.useForm();
+
+  // 检测屏幕尺寸
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -198,34 +215,142 @@ const UserManagementContent: React.FC = () => {
     form.resetFields();
   };
 
+  // 移动端用户操作菜单
+  const getUserActionMenu = (user: User) => ({
+    items: [
+      {
+        key: 'edit',
+        label: '编辑用户',
+        icon: <EditOutlined />,
+        onClick: () => handleEditUser(user),
+      },
+      {
+        key: 'delete',
+        label: '删除用户',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: user.roles?.some(role => role.roleCode === 'SUPER_ADMIN'),
+        onClick: () => {
+          Modal.confirm({
+            title: '确认删除',
+            content: `确定要删除用户 ${user.name || user.login} 吗？`,
+            onOk: () => handleDeleteUser(user),
+            okText: '确定',
+            cancelText: '取消',
+          });
+        },
+      },
+    ],
+  });
+
+  // 移动端卡片列表渲染
+  const renderMobileList = () => (
+    <List
+      loading={loading}
+      dataSource={users}
+      renderItem={(user) => (
+        <List.Item style={{ padding: 0, marginBottom: 12 }}>
+          <Card size="small" style={{ width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                <Avatar
+                  src={user.avatarUrl}
+                  icon={<UserOutlined />}
+                  size={40}
+                  style={{ marginRight: 12 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                    {user.name || user.login}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    @{user.login}
+                  </div>
+                  {user.email && (
+                    <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                      {user.email}
+                    </div>
+                  )}
+                  <Space wrap size={[4, 4]}>
+                    <Tag 
+                      color={user.status === 1 ? 'green' : 'red'} 
+                      icon={user.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}
+                      style={{ fontSize: 11 }}
+                    >
+                      {user.status === 1 ? '正常' : '禁用'}
+                    </Tag>
+                    {user.roles?.map(role => (
+                      <Tag 
+                        key={role.id}
+                        color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
+                        style={{ fontSize: 11 }}
+                      >
+                        {role.roleName}
+                      </Tag>
+                    ))}
+                  </Space>
+                  {user.lastLoginAt && (
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                      最后登录: {new Date(user.lastLoginAt).toLocaleString('zh-CN')}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Dropdown menu={getUserActionMenu(user)} trigger={['click']}>
+                <Button type="text" icon={<MoreOutlined />} size="small" />
+              </Dropdown>
+            </div>
+          </Card>
+        </List.Item>
+      )}
+      pagination={{
+        pageSize: 10,
+        showSizeChanger: false,
+        showQuickJumper: false,
+        showTotal: (total) => `共 ${total} 条记录`,
+        simple: true,
+      }}
+    />
+  );
+
   return (
     <>
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-          <Title level={4}>用户列表</Title>
+        <div style={{ 
+          marginBottom: 16, 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8
+        }}>
+          <Title level={4} style={{ margin: 0 }}>用户列表</Title>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
             onClick={fetchUsers}
             loading={loading}
+            size={isMobile ? 'middle' : 'middle'}
           >
             刷新
           </Button>
         </div>
         
-        <Table
-          columns={userColumns}
-          dataSource={users}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-          }}
-          scroll={{ x: 1200 }}
-        />
+        {isMobile ? renderMobileList() : (
+          <Table
+            columns={userColumns}
+            dataSource={users}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+            }}
+            scroll={{ x: 1200 }}
+          />
+        )}
       </Card>
 
       {/* 编辑用户模态框 */}
@@ -234,7 +359,8 @@ const UserManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={600}
+        width={isMobile ? '90%' : 600}
+        style={isMobile ? { top: 20 } : undefined}
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -242,7 +368,7 @@ const UserManagementContent: React.FC = () => {
             name="status"
             rules={[{ required: true, message: '请选择用户状态' }]}
           >
-            <Select>
+            <Select size={isMobile ? 'large' : 'middle'}>
               <Select.Option value={1}>正常</Select.Option>
               <Select.Option value={0}>禁用</Select.Option>
             </Select>
@@ -253,7 +379,11 @@ const UserManagementContent: React.FC = () => {
             name="roleIds"
             rules={[{ required: true, message: '请选择用户角色' }]}
           >
-            <Select mode="multiple" placeholder="请选择角色">
+            <Select 
+              mode="multiple" 
+              placeholder="请选择角色"
+              size={isMobile ? 'large' : 'middle'}
+            >
               {roles.map(role => (
                 <Select.Option key={role.id} value={role.id}>
                   {role.roleName}
