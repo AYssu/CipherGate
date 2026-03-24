@@ -7,23 +7,29 @@ import {
   Statistic,
   Space,
   Spin,
-  message
+  message,
+  Descriptions,
+  Progress,
+  Alert
 } from 'antd';
 import { 
   InfoCircleOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
-  CloudServerOutlined
+  CloudServerOutlined,
+  CheckCircleOutlined,
+  WarningOutlined
 } from '@ant-design/icons';
 import { systemApi } from '../services/systemService';
 import type { SystemInfo, SystemStatus } from '../services/systemService';
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 
 const SystemConfigContent: React.FC = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMobile = window.innerWidth < 768;
 
   // 获取系统信息
   const fetchSystemInfo = async () => {
@@ -90,157 +96,148 @@ const SystemConfigContent: React.FC = () => {
     );
   }
 
+  const memoryUsage = systemInfo?.memory.usagePercent || 0;
+  const systemLoad = systemStatus?.systemLoad || 0;
+
   return (
-    <div>
+    <div style={{ padding: 0 }}>
+      {/* 系统状态概览 */}
+      <Card style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: '0 0 16px 0' }}>
+          <CloudServerOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          系统状态概览
+        </Title>
+        
+        <Row gutter={[16, 16]}>
+          <Col xs={12} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="系统版本"
+                value={systemInfo?.application.name}
+                suffix={systemInfo?.application.version}
+                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="运行状态"
+                value={systemStatus?.status || '正常运行'}
+                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#52c41a' }}
+                prefix={<CheckCircleOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="系统负载"
+                value={systemLoad}
+                suffix="%"
+                valueStyle={{ 
+                  fontSize: isMobile ? 14 : 16, 
+                  color: systemLoad > 80 ? '#ff4d4f' : systemLoad > 60 ? '#faad14' : '#52c41a'
+                }}
+                prefix={systemLoad > 80 ? <WarningOutlined /> : <CheckCircleOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} lg={6}>
+            <Card size="small">
+              <Statistic
+                title="运行时间"
+                value={systemInfo?.application.uptime ? formatUptime(systemInfo.application.uptime) : '-'}
+                valueStyle={{ fontSize: isMobile ? 12 : 14, color: '#722ed1' }}
+                prefix={<ClockCircleOutlined />}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* 系统资源监控 */}
+      <Card style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: '0 0 16px 0' }}>
+          <DatabaseOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          系统资源监控
+        </Title>
+        
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={12}>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>内存使用情况</Text>
+              <div style={{ marginTop: 8 }}>
+                <Progress 
+                  percent={memoryUsage} 
+                  strokeColor={memoryUsage > 80 ? '#ff4d4f' : memoryUsage > 60 ? '#faad14' : '#52c41a'}
+                  format={() => `${memoryUsage}%`}
+                />
+                <div style={{ marginTop: 8, fontSize: 13, color: '#666' }}>
+                  已用: {systemInfo?.memory.used ? formatMemorySize(systemInfo.memory.used) : '-'} / 
+                  总计: {systemInfo?.memory.max ? formatMemorySize(systemInfo.memory.max) : '-'}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <Text strong>CPU 信息</Text>
+              <div style={{ marginTop: 8 }}>
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="处理器核心">{systemInfo?.operatingSystem.processors} 核</Descriptions.Item>
+                  <Descriptions.Item label="系统负载">{systemLoad}%</Descriptions.Item>
+                </Descriptions>
+              </div>
+            </div>
+          </Col>
+          
+          <Col xs={24} lg={12}>
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>技术栈信息</Text>
+              <div style={{ marginTop: 8 }}>
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="后端框架">{systemInfo?.techStack.backend}</Descriptions.Item>
+                  <Descriptions.Item label="前端框架">{systemInfo?.techStack.frontend}</Descriptions.Item>
+                  <Descriptions.Item label="数据库">{systemInfo?.techStack.database}</Descriptions.Item>
+                  <Descriptions.Item label="认证方式">{systemInfo?.techStack.authentication}</Descriptions.Item>
+                </Descriptions>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* 环境信息 */}
       <Row gutter={[16, 16]}>
-        {/* 系统状态概览 */}
-        <Col span={24}>
-          <Card title={<Space><CloudServerOutlined />系统状态</Space>}>
-            <Row gutter={[16, 16]}>
-              <Col span={6}>
-                <Card size="small">
-                  <Statistic
-                    title="系统版本"
-                    value={systemInfo?.application.name + ' ' + systemInfo?.application.version}
-                    valueStyle={{ fontSize: 16, color: '#1890ff' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Statistic
-                    title="运行状态"
-                    value={systemStatus?.status || '正常运行'}
-                    valueStyle={{ fontSize: 16, color: '#52c41a' }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Statistic
-                    title="系统负载"
-                    value={systemStatus?.systemLoad || 0}
-                    suffix="%"
-                    valueStyle={{ 
-                      fontSize: 16, 
-                      color: (systemStatus?.systemLoad || 0) > 80 ? '#ff4d4f' : '#13c2c2' 
-                    }}
-                  />
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card size="small">
-                  <Statistic
-                    title="运行时间"
-                    value={systemInfo?.application.uptime ? formatUptime(systemInfo.application.uptime) : '-'}
-                    valueStyle={{ fontSize: 14, color: '#722ed1' }}
-                    prefix={<ClockCircleOutlined />}
-                  />
-                </Card>
-              </Col>
-            </Row>
+        <Col xs={24} lg={12}>
+          <Card>
+            <Title level={5} style={{ margin: '0 0 16px 0' }}>
+              <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+              操作系统
+            </Title>
+            <Descriptions size="small" column={1}>
+              <Descriptions.Item label="系统名称">{systemInfo?.operatingSystem.name}</Descriptions.Item>
+              <Descriptions.Item label="系统版本">{systemInfo?.operatingSystem.version}</Descriptions.Item>
+              <Descriptions.Item label="系统架构">{systemInfo?.operatingSystem.arch}</Descriptions.Item>
+            </Descriptions>
           </Card>
         </Col>
         
-        {/* 系统详细信息 */}
-        <Col span={24}>
-          <Card title={<Space><InfoCircleOutlined />系统信息</Space>}>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Card size="small" title="技术栈">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>后端框架</Text>
-                      <Text strong>{systemInfo?.techStack.backend}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>前端框架</Text>
-                      <Text strong>{systemInfo?.techStack.frontend}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>数据库</Text>
-                      <Text strong>{systemInfo?.techStack.database}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>认证方式</Text>
-                      <Text strong>{systemInfo?.techStack.authentication}</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-              
-              <Col span={12}>
-                <Card size="small" title="系统资源">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>CPU核心数</Text>
-                      <Text strong>{systemInfo?.operatingSystem.processors} 核</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>内存使用率</Text>
-                      <Text strong style={{ 
-                        color: (systemInfo?.memory.usagePercent || 0) > 80 ? '#ff4d4f' : '#1890ff' 
-                      }}>
-                        {systemInfo?.memory.usagePercent}%
-                      </Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>已用内存</Text>
-                      <Text strong>{systemInfo?.memory.used ? formatMemorySize(systemInfo.memory.used) : '-'}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>最大内存</Text>
-                      <Text strong>{systemInfo?.memory.max ? formatMemorySize(systemInfo.memory.max) : '-'}</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-
-        {/* 环境信息 */}
-        <Col span={24}>
-          <Card title={<Space><DatabaseOutlined />环境信息</Space>}>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Card size="small" title="操作系统">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>系统名称</Text>
-                      <Text strong>{systemInfo?.operatingSystem.name}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>系统版本</Text>
-                      <Text strong>{systemInfo?.operatingSystem.version}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>系统架构</Text>
-                      <Text strong>{systemInfo?.operatingSystem.arch}</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-              
-              <Col span={12}>
-                <Card size="small" title="Java环境">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>Java版本</Text>
-                      <Text strong>{systemInfo?.java.version}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>Java厂商</Text>
-                      <Text strong>{systemInfo?.java.vendor}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text>Java路径</Text>
-                      <Text strong style={{ fontSize: '12px' }}>{systemInfo?.java.home}</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
+        <Col xs={24} lg={12}>
+          <Card>
+            <Title level={5} style={{ margin: '0 0 16px 0' }}>
+              <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+              Java 环境
+            </Title>
+            <Descriptions size="small" column={1}>
+              <Descriptions.Item label="Java 版本">{systemInfo?.java.version}</Descriptions.Item>
+              <Descriptions.Item label="Java 厂商">{systemInfo?.java.vendor}</Descriptions.Item>
+              <Descriptions.Item label="安装路径" span={2}>
+                <Text style={{ fontSize: 12, wordBreak: 'break-all' }}>
+                  {systemInfo?.java.home}
+                </Text>
+              </Descriptions.Item>
+            </Descriptions>
           </Card>
         </Col>
       </Row>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   Card, 
   Typography, 
@@ -9,12 +9,14 @@ import {
   Modal, 
   Form, 
   Select, 
+  Input,
   message,
   Popconfirm,
   Tooltip,
   List,
   Avatar,
-  Dropdown
+  Dropdown,
+  Grid
 } from 'antd';
 import { 
   EditOutlined,
@@ -23,13 +25,15 @@ import {
   StopOutlined,
   CheckCircleOutlined,
   MoreOutlined,
-  UserOutlined
+  UserOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import { roleApi } from '../services/roleService';
 import type { User, Role } from '../services/userService';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 const UserManagementContent: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -37,19 +41,13 @@ const UserManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [form] = Form.useForm();
 
-  // 检测屏幕尺寸
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+  const [keyword, setKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<number | 'all'>('all');
+  const [roleFilter, setRoleFilter] = useState<number | 'all'>('all');
 
   // 获取用户列表
   const fetchUsers = async () => {
@@ -79,6 +77,23 @@ const UserManagementContent: React.FC = () => {
     fetchRoles();
   }, []);
 
+  const filteredUsers = useMemo(() => {
+    const kw = keyword.trim().toLowerCase();
+    return users.filter((u) => {
+      const matchKeyword = !kw
+        ? true
+        : [u.name, u.login, u.email]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(kw));
+      const matchStatus = statusFilter === 'all' ? true : u.status === statusFilter;
+      const matchRole =
+        roleFilter === 'all'
+          ? true
+          : (u.roles || []).some((r) => r.id === roleFilter);
+      return matchKeyword && matchStatus && matchRole;
+    });
+  }, [keyword, roleFilter, statusFilter, users]);
+
   // 用户表格列定义
   const userColumns = [
     {
@@ -86,13 +101,13 @@ const UserManagementContent: React.FC = () => {
       key: 'user',
       render: (record: User) => (
         <Space>
-          <img 
+          <Avatar 
             src={record.avatarUrl} 
-            alt={record.name}
-            style={{ width: 32, height: 32, borderRadius: '50%' }}
+            icon={<UserOutlined />}
+            size={32}
           />
           <div>
-            <div>{record.name || record.login}</div>
+            <div style={{ fontWeight: 500 }}>{record.name || record.login}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>@{record.login}</Text>
           </div>
         </Space>
@@ -124,7 +139,10 @@ const UserManagementContent: React.FC = () => {
       title: '状态',
       key: 'status',
       render: (record: User) => (
-        <Tag color={record.status === 1 ? 'green' : 'red'} icon={record.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}>
+        <Tag 
+          color={record.status === 1 ? 'green' : 'red'} 
+          icon={record.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}
+        >
           {record.status === 1 ? '正常' : '禁用'}
         </Tag>
       ),
@@ -151,6 +169,7 @@ const UserManagementContent: React.FC = () => {
               type="link" 
               icon={<EditOutlined />}
               onClick={() => handleEditUser(record)}
+              size="small"
             >
               编辑
             </Button>
@@ -167,6 +186,7 @@ const UserManagementContent: React.FC = () => {
               danger
               icon={<DeleteOutlined />}
               disabled={record.roles?.some(role => role.roleCode === 'SUPER_ADMIN')}
+              size="small"
             >
               删除
             </Button>
@@ -243,103 +263,215 @@ const UserManagementContent: React.FC = () => {
     ],
   });
 
-  // 移动端卡片列表渲染
+  // 移动端紧凑列表渲染 - 企业风格
   const renderMobileList = () => (
     <List
       loading={loading}
-      dataSource={users}
+      dataSource={filteredUsers}
+      split={false}
+      style={{ background: 'transparent' }}
+      locale={{ emptyText: '暂无用户' }}
       renderItem={(user) => (
-        <List.Item style={{ padding: 0, marginBottom: 12 }}>
-          <Card size="small" style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                <Avatar
-                  src={user.avatarUrl}
-                  icon={<UserOutlined />}
-                  size={40}
-                  style={{ marginRight: 12 }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                    {user.name || user.login}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
-                    @{user.login}
-                  </div>
-                  {user.email && (
-                    <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-                      {user.email}
-                    </div>
-                  )}
-                  <Space wrap size={[4, 4]}>
-                    <Tag 
-                      color={user.status === 1 ? 'green' : 'red'} 
-                      icon={user.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}
-                      style={{ fontSize: 11 }}
+        <div style={{ padding: '8px 0' }}>
+          <Card
+            size="small"
+            styles={{ body: { padding: 12 } }}
+            style={{ borderRadius: 10 }}
+          >
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <Avatar
+                src={user.avatarUrl}
+                icon={<UserOutlined />}
+                size={40}
+                style={{ flexShrink: 0 }}
+              />
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <Text
+                      strong
+                      style={{
+                        fontSize: 15,
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
-                      {user.status === 1 ? '正常' : '禁用'}
-                    </Tag>
-                    {user.roles?.map(role => (
-                      <Tag 
-                        key={role.id}
-                        color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
-                        style={{ fontSize: 11 }}
-                      >
-                        {role.roleName}
-                      </Tag>
-                    ))}
-                  </Space>
-                  {user.lastLoginAt && (
-                    <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-                      最后登录: {new Date(user.lastLoginAt).toLocaleString('zh-CN')}
-                    </div>
-                  )}
+                      {user.name || user.login}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      @{user.login}
+                    </Text>
+                  </div>
+
+                  <Dropdown menu={getUserActionMenu(user)} trigger={['click']} placement="bottomRight">
+                    <Button type="text" icon={<MoreOutlined />} />
+                  </Dropdown>
                 </div>
+
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <Tag
+                    color={user.status === 1 ? 'success' : 'error'}
+                    icon={user.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}
+                    style={{ margin: 0 }}
+                  >
+                    {user.status === 1 ? '正常' : '禁用'}
+                  </Tag>
+
+                  {(user.roles || []).slice(0, 2).map((role) => (
+                    <Tag
+                      key={role.id}
+                      color={
+                        role.roleCode === 'SUPER_ADMIN'
+                          ? 'red'
+                          : role.roleCode === 'ADMIN'
+                            ? 'blue'
+                            : 'default'
+                      }
+                      style={{ margin: 0 }}
+                    >
+                      {role.roleName}
+                    </Tag>
+                  ))}
+                </div>
+
+                {!!user.email && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {user.email}
+                    </Text>
+                  </div>
+                )}
+
+                {!!user.lastLoginAt && (
+                  <div style={{ marginTop: 6 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      最后登录: {new Date(user.lastLoginAt).toLocaleString('zh-CN')}
+                    </Text>
+                  </div>
+                )}
               </div>
-              <Dropdown menu={getUserActionMenu(user)} trigger={['click']}>
-                <Button type="text" icon={<MoreOutlined />} size="small" />
-              </Dropdown>
             </div>
           </Card>
-        </List.Item>
+        </div>
       )}
       pagination={{
-        pageSize: 10,
+        pageSize: 20,
+        size: 'small',
         showSizeChanger: false,
-        showQuickJumper: false,
-        showTotal: (total) => `共 ${total} 条记录`,
+        showTotal: (total) => `共 ${total} 条`,
         simple: true,
+        style: { textAlign: 'center', padding: '12px 0' }
       }}
     />
   );
 
   return (
-    <>
-      <Card>
-        <div style={{ 
-          marginBottom: 16, 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 8
-        }}>
-          <Title level={4} style={{ margin: 0 }}>用户列表</Title>
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />}
-            onClick={fetchUsers}
-            loading={loading}
-            size={isMobile ? 'middle' : 'middle'}
+    <div style={{ 
+      padding: 0,
+      background: isMobile ? '#f5f5f5' : 'transparent'
+    }}>
+      {/* 用户列表 */}
+      <Card 
+        bordered={!isMobile}
+        style={isMobile ? { 
+          borderRadius: 0,
+          boxShadow: 'none',
+          marginBottom: 0
+        } : undefined}
+        bodyStyle={isMobile ? { padding: 12 } : undefined}
+      >
+        <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
           >
-            刷新
-          </Button>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flex: 1,
+                minWidth: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <UserOutlined style={{ color: '#1677ff', flexShrink: 0 }} />
+              <Text
+                strong
+                style={{
+                  fontSize: isMobile ? 16 : 20,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                用户管理
+              </Text>
+            </div>
+
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={fetchUsers}
+              loading={loading}
+            >
+              {isMobile ? '' : '刷新'}
+            </Button>
+          </div>
+
+          {isMobile && (
+            <div style={{ marginTop: 12 }}>
+              <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                <Input
+                  placeholder="搜索姓名 / 账号 / 邮箱"
+                  allowClear
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />}
+                />
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Select
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    style={{ flex: 1 }}
+                    options={[
+                      { label: '全部状态', value: 'all' },
+                      { label: '正常', value: 1 },
+                      { label: '禁用', value: 0 },
+                    ]}
+                  />
+
+                  <Select
+                    value={roleFilter}
+                    onChange={setRoleFilter}
+                    style={{ flex: 1 }}
+                    options={[
+                      { label: '全部角色', value: 'all' },
+                      ...roles.map((r) => ({ label: r.roleName, value: r.id })),
+                    ]}
+                  />
+                </div>
+              </Space>
+            </div>
+          )}
         </div>
         
         {isMobile ? renderMobileList() : (
           <Table
             columns={userColumns}
-            dataSource={users}
+            dataSource={filteredUsers}
             rowKey="id"
             loading={loading}
             pagination={{
@@ -361,6 +493,8 @@ const UserManagementContent: React.FC = () => {
         onCancel={handleModalCancel}
         width={isMobile ? '90%' : 600}
         style={isMobile ? { top: 20 } : undefined}
+        okText="确定"
+        cancelText="取消"
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -393,7 +527,7 @@ const UserManagementContent: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </>
+    </div>
   );
 };
 

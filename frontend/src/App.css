@@ -12,6 +12,7 @@ body {
 
 #root {
   width: 100%;
+  min-height: 100vh;
 }
 
 .ant-layout {
@@ -148,45 +149,42 @@ body {
     font-size: 32px !important;
     text-align: center !important;
   }
-  
+
   .hero-content p {
     font-size: 16px !important;
     text-align: center !important;
   }
-  
+
   .ant-layout-header {
     padding: 0 16px !important;
   }
-  
+
   .ant-menu-horizontal {
     display: none !important;
   }
-  
+
   .feature-card .ant-card-body {
     padding: 20px !important;
   }
-  
+
   .stats-card .ant-statistic-content-value {
     font-size: 20px !important;
   }
-  
+
   .ant-col {
     margin-bottom: 16px;
   }
-  
+
   .ant-space {
     width: 100%;
     justify-content: center;
   }
-  
+
   .ant-space-item {
     width: 100%;
   }
-  
-  .ant-btn {
-    width: 100% !important;
-    max-width: 240px;
-  }
+
+
 }
 
 @media (max-width: 480px) {
@@ -194,23 +192,23 @@ body {
     font-size: 28px !important;
     line-height: 1.3 !important;
   }
-  
+
   .hero-content p {
     font-size: 14px !important;
   }
-  
+
   .ant-card-body {
     padding: 16px !important;
   }
-  
+
   .feature-card .ant-card-body {
     padding: 16px !important;
   }
-  
+
   .stats-card .ant-statistic-content-value {
     font-size: 18px !important;
   }
-  
+
   .ant-statistic-title {
     font-size: 12px !important;
   }
@@ -220,7 +218,7 @@ body {
   .hero-content h1 {
     font-size: 42px !important;
   }
-  
+
   .hero-content p {
     font-size: 18px !important;
   }
@@ -447,31 +445,31 @@ html {
     padding: 0 16px !important;
     height: 56px !important;
   }
-  
+
   .ant-layout-header .ant-space {
     align-items: center !important;
   }
-  
+
   .ant-layout-header .ant-typography {
     margin: 0 !important;
     line-height: 1 !important;
   }
 }
-  
+
   /* 内容区域移动端适配 */
   .ant-layout-content {
     padding: 16px !important;
   }
-  
+
   /* 移动端抽屉样式 */
   .ant-drawer-body {
     padding: 0 !important;
   }
-  
+
   .ant-drawer-content {
     background: #fff !important;
   }
-  
+
   /* 移动端菜单样式 */
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-item {
     height: 48px !important;
@@ -480,7 +478,7 @@ html {
     margin: 0 8px !important;
     border-radius: 6px !important;
   }
-  
+
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
     height: 48px !important;
     line-height: 48px !important;
@@ -488,73 +486,73 @@ html {
     margin: 0 8px !important;
     border-radius: 6px !important;
   }
-  
+
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
     padding-left: 48px !important;
     margin: 0 8px !important;
     border-radius: 6px !important;
   }
-  
+
   /* 移动端 Logo 区域 */
   .sider-logo {
     padding: 20px 16px !important;
   }
-  
+
   .sider-logo .anticon {
     font-size: 28px !important;
     margin-bottom: 6px !important;
   }
-  
+
   .sider-logo .ant-typography {
     font-size: 18px !important;
     margin: 0 !important;
   }
-  
+
   /* 移动端用户头像区域 */
   .ant-dropdown-trigger .ant-space {
     padding: 4px !important;
   }
-  
+
   /* 移动端卡片适配 */
   .ant-card {
     margin-bottom: 16px !important;
   }
-  
+
   .ant-card-body {
     padding: 16px !important;
   }
-  
+
   /* 移动端表格适配 */
   .ant-table-wrapper {
     overflow-x: auto !important;
   }
-  
+
   .ant-table {
     min-width: 600px !important;
   }
-  
+
   /* 移动端表单适配 */
   .ant-form-item {
     margin-bottom: 16px !important;
   }
-  
+
   .ant-form-item-label {
     padding-bottom: 4px !important;
   }
-  
+
   /* 移动端按钮适配 */
   .ant-btn {
     height: 36px !important;
     padding: 4px 12px !important;
     font-size: 14px !important;
   }
-  
+
   .ant-btn-sm {
     height: 28px !important;
     padding: 0 8px !important;
     font-size: 12px !important;
   }
-  
+
   /* 移动端输入框适配 */
   .ant-input,
   .ant-select-selector,
@@ -562,13 +560,13 @@ html {
     height: 36px !important;
     font-size: 14px !important;
   }
-  
+
   /* 移动端分页适配 */
   .ant-pagination {
     text-align: center !important;
     margin-top: 16px !important;
   }
-  
+
   .ant-pagination-item,
   .ant-pagination-prev,
   .ant-pagination-next {
@@ -576,51 +574,31 @@ html {
     height: 32px !important;
     line-height: 30px !important;
   }
-  
-  /* 移动端模态框适配 */
-  .ant-modal {
-    margin: 16px !important;
-    max-width: calc(100vw - 32px) !important;
-  }
-  
-  .ant-modal-content {
-    border-radius: 8px !important;
-  }
-  
-  .ant-modal-header {
-    padding: 16px 20px !important;
-  }
-  
-  .ant-modal-body {
-    padding: 16px 20px !important;
-  }
-  
-  .ant-modal-footer {
-    padding: 12px 20px 16px !important;
-  }
-  
+
+
+
+
   /* 移动端抽屉遮罩优化 */
   .ant-drawer-mask {
     background-color: rgba(0, 0, 0, 0.45) !important;
   }
-  
+
   /* 移动端菜单项点击反馈 */
   .dashboard-sidebar-menu .ant-menu-item:active,
   .dashboard-sidebar-menu .ant-menu-submenu-title:active {
     background-color: #e6f7ff !important;
   }
-}
 
 /* 平板端适配 (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
   .ant-layout-header {
     padding: 0 20px !important;
   }
-  
+
   .ant-layout-content {
     padding: 20px !important;
   }
-  
+
   .header-left-section .ant-typography {
     font-size: 18px !important;
   }
@@ -631,43 +609,43 @@ html {
   .ant-layout-header {
     padding: 0 12px !important;
   }
-  
+
   .header-left-section {
     gap: 6px !important;
   }
-  
+
   .header-left-section .ant-typography {
     font-size: 14px !important;
   }
-  
+
   .header-collapse-btn {
     width: 24px !important;
     height: 24px !important;
     font-size: 12px !important;
   }
-  
+
   .ant-layout-content {
     padding: 12px !important;
   }
-  
+
   .sider-logo {
     padding: 16px 12px !important;
   }
-  
+
   .sider-logo .anticon {
     font-size: 24px !important;
   }
-  
+
   .sider-logo .ant-typography {
     font-size: 16px !important;
   }
-  
+
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-item,
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
     padding: 0 16px !important;
     margin: 0 6px !important;
   }
-  
+
   .dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
     padding-left: 40px !important;
     margin: 0 6px !important;
@@ -680,16 +658,16 @@ html {
     height: 48px !important;
     line-height: 48px !important;
   }
-  
+
   .sider-logo {
     padding: 12px 16px !important;
   }
-  
+
   .sider-logo .anticon {
     font-size: 24px !important;
     margin-bottom: 4px !important;
   }
-  
+
   .sider-logo .ant-typography {
     font-size: 16px !important;
   }
@@ -702,7 +680,7 @@ html {
   .ant-btn {
     min-height: 44px !important;
   }
-  
+
   .header-collapse-btn {
     min-width: 44px !important;
     min-height: 44px !important;
@@ -715,51 +693,51 @@ html {
     flex-direction: column !important;
     text-align: center !important;
   }
-  
+
   .dashboard-welcome-card .ant-row .ant-col:first-child {
     margin-bottom: 12px !important;
   }
-  
+
   /* 统计卡片移动端适配 */
   .ant-statistic {
     text-align: center !important;
   }
-  
+
   .ant-statistic-title {
     font-size: 12px !important;
     margin-bottom: 4px !important;
   }
-  
+
   .ant-statistic-content {
     font-size: 20px !important;
   }
-  
+
   .ant-statistic-content-prefix {
     font-size: 16px !important;
     margin-right: 4px !important;
   }
-  
+
   /* 快速操作按钮移动端适配 */
   .ant-space-wrap {
     justify-content: center !important;
   }
-  
+
   .ant-space-wrap .ant-space-item {
     margin-bottom: 8px !important;
   }
-  
+
   /* 用户信息区域移动端适配 */
   .ant-typography h3 {
     font-size: 18px !important;
     text-align: center !important;
     margin-bottom: 8px !important;
   }
-  
+
   .ant-layout-content .ant-space {
     justify-content: center !important;
     flex-wrap: wrap !important;
   }
-  
+
   .ant-space .ant-space-item {
     font-size: 12px !important;
   }
@@ -771,29 +749,29 @@ html {
     border-radius: 8px !important;
     overflow: hidden !important;
   }
-  
+
   .ant-table-thead > tr > th {
     padding: 8px 4px !important;
     font-size: 12px !important;
     white-space: nowrap !important;
   }
-  
+
   .ant-table-tbody > tr > td {
     padding: 8px 4px !important;
     font-size: 12px !important;
   }
-  
+
   .ant-table-pagination {
     margin: 16px 0 0 0 !important;
     text-align: center !important;
   }
-  
+
   /* 操作按钮组移动端适配 */
   .ant-space-compact {
     flex-direction: column !important;
     width: 100% !important;
   }
-  
+
   .ant-space-compact .ant-btn {
     width: 100% !important;
     margin-bottom: 4px !important;
@@ -807,21 +785,21 @@ html {
     text-align: left !important;
     padding-bottom: 4px !important;
   }
-  
+
   .ant-form-item-control {
     margin-left: 0 !important;
   }
-  
+
   .ant-form-item-label {
     padding-right: 0 !important;
   }
-  
+
   /* 表单按钮组移动端适配 */
   .ant-form-item:last-child .ant-space {
     width: 100% !important;
     justify-content: center !important;
   }
-  
+
   .ant-form-item:last-child .ant-btn {
     min-width: 80px !important;
   }
@@ -832,23 +810,23 @@ html {
   .ant-input-search {
     margin-bottom: 12px !important;
   }
-  
+
   .ant-select {
     width: 100% !important;
     margin-bottom: 8px !important;
   }
-  
+
   .ant-date-picker {
     width: 100% !important;
     margin-bottom: 8px !important;
   }
-  
+
   /* 工具栏移动端适配 - 排除 Header 中的 Space */
   .ant-layout-content .ant-space-horizontal {
     flex-direction: column !important;
     width: 100% !important;
   }
-  
+
   .ant-layout-content .ant-space-horizontal .ant-space-item {
     width: 100% !important;
     margin-bottom: 8px !important;
@@ -861,35 +839,35 @@ html {
     margin-left: -8px !important;
     margin-right: -8px !important;
   }
-  
+
   .ant-col {
     padding-left: 8px !important;
     padding-right: 8px !important;
   }
-  
+
   .ant-card {
     border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   }
-  
+
   .ant-card-head {
     padding: 12px 16px !important;
     min-height: auto !important;
   }
-  
+
   .ant-card-head-title {
     font-size: 16px !important;
     font-weight: 500 !important;
   }
-  
+
   .ant-card-body {
     padding: 16px !important;
   }
-  
+
   .ant-card-actions {
     padding: 8px 16px !important;
   }
-  
+
   .ant-card-actions > li {
     margin: 4px 0 !important;
   }
@@ -900,17 +878,17 @@ html {
   .ant-message {
     top: 16px !important;
   }
-  
+
   .ant-message-notice {
     margin-left: 16px !important;
     margin-right: 16px !important;
   }
-  
+
   .ant-notification {
     margin-right: 16px !important;
     margin-top: 16px !important;
   }
-  
+
   .ant-notification-notice {
     margin-bottom: 8px !important;
   }
@@ -921,11 +899,11 @@ html {
   .ant-spin-container {
     min-height: 200px !important;
   }
-  
+
   .ant-spin-dot {
     font-size: 20px !important;
   }
-  
+
   .ant-spin-text {
     font-size: 14px !important;
     margin-top: 8px !important;
@@ -937,12 +915,12 @@ html {
   .ant-empty {
     padding: 32px 16px !important;
   }
-  
+
   .ant-empty-image {
     height: 60px !important;
     margin-bottom: 8px !important;
   }
-  
+
   .ant-empty-description {
     font-size: 14px !important;
     color: #999 !important;
@@ -956,46 +934,46 @@ html {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 12px !important;
   }
-  
+
   .user-management-mobile-card .ant-card-body {
     padding: 12px !important;
   }
-  
+
   .user-management-mobile-card .user-avatar {
     width: 40px !important;
     height: 40px !important;
     border-radius: 50% !important;
     margin-right: 12px !important;
   }
-  
+
   .user-management-mobile-card .user-info {
     flex: 1 !important;
     min-width: 0 !important;
   }
-  
+
   .user-management-mobile-card .user-name {
     font-weight: 500 !important;
     font-size: 14px !important;
     margin-bottom: 4px !important;
     color: #262626 !important;
   }
-  
+
   .user-management-mobile-card .user-login {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
-  
+
   .user-management-mobile-card .user-email {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 8px !important;
   }
-  
+
   .user-management-mobile-card .user-tags {
     margin-bottom: 4px !important;
   }
-  
+
   .user-management-mobile-card .user-tags .ant-tag {
     font-size: 11px !important;
     padding: 0 6px !important;
@@ -1004,48 +982,48 @@ html {
     margin-right: 4px !important;
     margin-bottom: 4px !important;
   }
-  
+
   .user-management-mobile-card .user-last-login {
     font-size: 11px !important;
     color: #bfbfbf !important;
     margin-top: 4px !important;
   }
-  
+
   /* 菜单管理移动端卡片样式 */
   .menu-management-mobile-card {
     border-radius: 6px !important;
     margin-bottom: 8px !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   }
-  
+
   .menu-management-mobile-card.menu-child {
     background-color: #fafafa !important;
     border-left: 3px solid #1890ff !important;
   }
-  
+
   .menu-management-mobile-card .ant-card-body {
     padding: 10px 12px !important;
   }
-  
+
   .menu-management-mobile-card .menu-name {
     font-weight: 500 !important;
     font-size: 14px !important;
     margin-right: 8px !important;
     color: #262626 !important;
   }
-  
+
   .menu-management-mobile-card .menu-code {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
-  
+
   .menu-management-mobile-card .menu-path {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
-  
+
   .menu-management-mobile-card .menu-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
@@ -1054,60 +1032,60 @@ html {
     margin-right: 4px !important;
     margin-bottom: 2px !important;
   }
-  
+
   /* 移动端操作按钮优化 */
   .mobile-action-dropdown .ant-dropdown-menu {
     min-width: 120px !important;
   }
-  
+
   .mobile-action-dropdown .ant-dropdown-menu-item {
     padding: 8px 12px !important;
     font-size: 14px !important;
   }
-  
+
   /* 移动端分页样式 */
   .ant-pagination.ant-pagination-simple {
     text-align: center !important;
     margin-top: 16px !important;
   }
-  
+
   .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager {
     display: inline-flex !important;
     align-items: center !important;
   }
-  
+
   .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager input {
     width: 50px !important;
     text-align: center !important;
     margin: 0 8px !important;
   }
-  
+
   /* 移动端标题区域 */
   .mobile-page-header {
     margin-bottom: 16px !important;
   }
-  
+
   .mobile-page-header .ant-typography {
     font-size: 18px !important;
     font-weight: 600 !important;
     margin: 0 !important;
   }
-  
+
   .mobile-page-header .ant-btn {
     width: 100% !important;
     margin-top: 8px !important;
   }
-  
+
   /* 移动端表单优化 */
   .mobile-form .ant-form-item {
     margin-bottom: 16px !important;
   }
-  
+
   .mobile-form .ant-form-item-label {
     padding-bottom: 4px !important;
     font-weight: 500 !important;
   }
-  
+
   .mobile-form .ant-input,
   .mobile-form .ant-select-selector,
   .mobile-form .ant-input-number {
@@ -1115,58 +1093,58 @@ html {
     font-size: 16px !important;
     border-radius: 6px !important;
   }
-  
+
   .mobile-form .ant-select-selection-item {
     line-height: 38px !important;
   }
-  
+
   .mobile-form .ant-switch {
     margin-top: 4px !important;
   }
-  
+
   /* 移动端模态框优化 */
   .mobile-modal .ant-modal-content {
     border-radius: 12px !important;
     overflow: hidden !important;
   }
-  
+
   .mobile-modal .ant-modal-header {
     padding: 16px 20px 12px !important;
     border-bottom: 1px solid #f0f0f0 !important;
   }
-  
+
   .mobile-modal .ant-modal-title {
     font-size: 18px !important;
     font-weight: 600 !important;
   }
-  
+
   .mobile-modal .ant-modal-body {
     padding: 16px 20px !important;
     max-height: 70vh !important;
     overflow-y: auto !important;
   }
-  
+
   .mobile-modal .ant-modal-footer {
     padding: 12px 20px 16px !important;
     border-top: 1px solid #f0f0f0 !important;
   }
-  
+
   .mobile-modal .ant-modal-footer .ant-btn {
     height: 40px !important;
     font-size: 16px !important;
     border-radius: 6px !important;
   }
-  
+
   /* 移动端加载状态 */
   .mobile-loading {
     padding: 40px 20px !important;
     text-align: center !important;
   }
-  
+
   .mobile-loading .ant-spin-dot {
     font-size: 24px !important;
   }
-  
+
   .mobile-loading .ant-spin-text {
     font-size: 14px !important;
     margin-top: 12px !important;
@@ -1179,16 +1157,16 @@ html {
   .menu-management-mobile-card {
     transition: transform 0.1s ease !important;
   }
-  
+
   .user-management-mobile-card:active,
   .menu-management-mobile-card:active {
     transform: scale(0.98) !important;
   }
-  
+
   .ant-btn:active {
     transform: scale(0.95) !important;
   }
-  
+
   .ant-dropdown-menu-item:active {
     background-color: #e6f7ff !important;
   }
@@ -1199,7 +1177,7 @@ html {
   .mobile-modal .ant-modal-body {
     max-height: 50vh !important;
   }
-  
+
   .mobile-page-header .ant-btn {
     width: auto !important;
     margin-top: 0 !important;
@@ -1214,16 +1192,16 @@ html {
     background-color: #1f1f1f !important;
     border-color: #303030 !important;
   }
-  
+
   .menu-management-mobile-card.menu-child {
     background-color: #262626 !important;
   }
-  
+
   .user-management-mobile-card .user-name,
   .menu-management-mobile-card .menu-name {
     color: #ffffff !important;
   }
-  
+
   .user-management-mobile-card .user-login,
   .user-management-mobile-card .user-email,
   .menu-management-mobile-card .menu-code,
@@ -1239,51 +1217,51 @@ html {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 12px !important;
   }
-  
+
   .role-management-mobile-card .ant-card-body {
     padding: 12px !important;
   }
-  
+
   .role-management-mobile-card .role-header {
     display: flex !important;
     align-items: center !important;
     margin-bottom: 8px !important;
   }
-  
+
   .role-management-mobile-card .role-name {
     font-size: 16px !important;
     font-weight: 500 !important;
     margin-right: 8px !important;
     color: #262626 !important;
   }
-  
+
   .role-management-mobile-card .role-code-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     height: 18px !important;
     line-height: 16px !important;
   }
-  
+
   .role-management-mobile-card .role-description {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 8px !important;
     line-height: 1.4 !important;
   }
-  
+
   .role-management-mobile-card .role-permission-count {
     font-size: 12px !important;
     color: #999 !important;
     margin-bottom: 8px !important;
   }
-  
+
   .role-management-mobile-card .role-permissions-label {
     font-size: 12px !important;
     color: #666 !important;
     margin-bottom: 4px !important;
     display: block !important;
   }
-  
+
   .role-management-mobile-card .role-permission-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
@@ -1292,16 +1270,16 @@ html {
     margin-right: 4px !important;
     margin-bottom: 2px !important;
   }
-  
+
   /* 权限管理模态框移动端优化 */
   .permission-modal-mobile .ant-modal-body {
     padding: 12px 16px !important;
   }
-  
+
   .permission-modal-mobile .permission-category {
     margin-bottom: 16px !important;
   }
-  
+
   .permission-modal-mobile .permission-category-header {
     display: flex !important;
     align-items: center !important;
@@ -1309,40 +1287,40 @@ html {
     padding-bottom: 6px !important;
     border-bottom: 1px solid #f0f0f0 !important;
   }
-  
+
   .permission-modal-mobile .permission-category-title {
     font-size: 14px !important;
     font-weight: 500 !important;
     margin-right: 8px !important;
   }
-  
+
   .permission-modal-mobile .permission-category-count {
     font-size: 12px !important;
     color: #8c8c8c !important;
   }
-  
+
   .permission-modal-mobile .permission-item {
     margin-bottom: 8px !important;
     padding: 8px !important;
     background-color: #fafafa !important;
     border-radius: 4px !important;
   }
-  
+
   .permission-modal-mobile .permission-item .ant-checkbox-wrapper {
     width: 100% !important;
   }
-  
+
   .permission-modal-mobile .permission-name {
     font-size: 14px !important;
     font-weight: 500 !important;
     display: block !important;
     margin-bottom: 4px !important;
   }
-  
+
   .permission-modal-mobile .permission-tags {
     margin: 4px 0 !important;
   }
-  
+
   .permission-modal-mobile .permission-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
@@ -1350,32 +1328,32 @@ html {
     line-height: 14px !important;
     margin-right: 4px !important;
   }
-  
+
   .permission-modal-mobile .permission-description {
     font-size: 12px !important;
     color: #8c8c8c !important;
     line-height: 1.3 !important;
     margin-top: 2px !important;
   }
-  
+
   /* 菜单权限树移动端优化 */
   .menu-tree-mobile .ant-tree {
     font-size: 14px !important;
   }
-  
+
   .menu-tree-mobile .ant-tree-node-content-wrapper {
     padding: 4px 8px !important;
     border-radius: 4px !important;
   }
-  
+
   .menu-tree-mobile .ant-tree-title {
     font-size: 14px !important;
   }
-  
+
   .menu-tree-mobile .ant-tree-checkbox {
     margin-right: 8px !important;
   }
-  
+
   /* 移动端操作按钮组优化 */
   .mobile-action-buttons {
     display: flex !important;
@@ -1383,36 +1361,36 @@ html {
     gap: 8px !important;
     width: 100% !important;
   }
-  
+
   .mobile-action-buttons .ant-btn {
     width: 100% !important;
     height: 40px !important;
     font-size: 14px !important;
     border-radius: 6px !important;
   }
-  
+
   /* 移动端表单项间距优化 */
   .mobile-role-form .ant-form-item {
     margin-bottom: 20px !important;
   }
-  
+
   .mobile-role-form .ant-form-item-label {
     padding-bottom: 6px !important;
     font-weight: 500 !important;
     font-size: 14px !important;
   }
-  
+
   .mobile-role-form .ant-input,
   .mobile-role-form .ant-input-affix-wrapper {
     height: 44px !important;
     font-size: 16px !important;
     border-radius: 6px !important;
   }
-  
+
   .mobile-role-form .ant-input::placeholder {
     color: #bfbfbf !important;
   }
-  
+
   /* 移动端树形控件优化 */
   .mobile-tree-container {
     border: 1px solid #f0f0f0 !important;
@@ -1420,11 +1398,11 @@ html {
     padding: 8px !important;
     background-color: #fafafa !important;
   }
-  
+
   .mobile-tree-container .ant-tree-node-content-wrapper:hover {
     background-color: #e6f7ff !important;
   }
-  
+
   .mobile-tree-container .ant-tree-node-selected {
     background-color: #bae7ff !important;
   }
@@ -1435,15 +1413,15 @@ html {
   .role-management-mobile-card {
     transition: transform 0.1s ease !important;
   }
-  
+
   .role-management-mobile-card:active {
     transform: scale(0.98) !important;
   }
-  
+
   .permission-item:active {
     background-color: #e6f7ff !important;
   }
-  
+
   .ant-tree-node-content-wrapper:active {
     background-color: #e6f7ff !important;
   }
@@ -1455,21 +1433,21 @@ html {
     background-color: #1f1f1f !important;
     border-color: #303030 !important;
   }
-  
+
   .role-management-mobile-card .role-name {
     color: #ffffff !important;
   }
-  
+
   .role-management-mobile-card .role-description,
   .role-management-mobile-card .role-permission-count,
   .role-management-mobile-card .role-permissions-label {
     color: #bfbfbf !important;
   }
-  
+
   .permission-modal-mobile .permission-item {
     background-color: #262626 !important;
   }
-  
+
   .mobile-tree-container {
     background-color: #262626 !important;
     border-color: #404040 !important;

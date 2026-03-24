@@ -319,11 +319,16 @@ const MainLayout: React.FC = () => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           borderBottom: '1px solid #f0f0f0',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          flexDirection: 'row'
+          position: 'relative'
         }}>
-          <Space size={12} align="center">
+          {/* 左侧区域 - 绝对定位到最左边 */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            position: 'absolute',
+            left: isMobile ? '16px' : '24px'
+          }}>
             <Button
               type="text"
               icon={isMobile ? <MenuFoldOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
@@ -343,41 +348,55 @@ const MainLayout: React.FC = () => {
                 justifyContent: 'center'
               }}
             />
-            <Title 
-              level={4}
-              style={{ 
-                margin: 0, 
-                color: '#1a1a2e',
-                fontSize: isMobile ? '16px' : '18px',
-                fontWeight: 500,
-                lineHeight: 1
-              }}
-            >
-              {pageTitle}
-            </Title>
-          </Space>
+            {/* 桌面端显示标题，移动端不显示 */}
+            {!isMobile && (
+              <Title 
+                level={4}
+                style={{ 
+                  margin: '0 0 0 12px', 
+                  color: '#1a1a2e',
+                  fontSize: '18px',
+                  fontWeight: 500,
+                  lineHeight: 1
+                }}
+              >
+                {pageTitle}
+              </Title>
+            )}
+          </div>
           
-          <Space size={12} align="center">
-            <BellOutlined style={{ fontSize: 16, cursor: 'pointer' }} />
-            
-            <Dropdown
-              menu={{ items: userMenuItems }}
-              placement="bottomRight"
-            >
-              <Space style={{ cursor: 'pointer' }} size={8} align="center">
-                <Avatar 
-                  src={userInfo?.avatarUrl} 
-                  icon={<UserOutlined />}
-                  size={isMobile ? 28 : 32}
-                />
-                {!isMobile && (
-                  <Text strong style={{ fontSize: '14px' }}>
-                    {userInfo?.name || userInfo?.login}
-                  </Text>
-                )}
-              </Space>
-            </Dropdown>
-          </Space>
+          {/* 右侧区域 - 绝对定位到最右边 */}
+          <div style={{
+            position: 'absolute',
+            right: isMobile ? '16px' : '24px',
+            top: '50%',
+            transform: 'translateY(-50%)'
+          }}>
+            <Space size={12} align="center">
+              <BellOutlined style={{ 
+                fontSize: 16, 
+                cursor: 'pointer'
+              }} />
+              
+              <Dropdown
+                menu={{ items: userMenuItems }}
+                placement="bottomRight"
+              >
+                <Space style={{ cursor: 'pointer' }} size={8} align="center">
+                  <Avatar 
+                    src={userInfo?.avatarUrl} 
+                    icon={<UserOutlined />}
+                    size={isMobile ? 28 : 32}
+                  />
+                  {!isMobile && (
+                    <Text strong style={{ fontSize: '14px' }}>
+                      {userInfo?.name || userInfo?.login}
+                    </Text>
+                  )}
+                </Space>
+              </Dropdown>
+            </Space>
+          </div>
         </Header>
 
         <Content style={{ 
