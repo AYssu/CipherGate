@@ -5,12 +5,10 @@ import {
   Row, 
   Col, 
   Statistic,
-  Space,
   Spin,
   message,
   Descriptions,
   Progress,
-  Alert
 } from 'antd';
 import { 
   InfoCircleOutlined,
@@ -20,8 +18,8 @@ import {
   CheckCircleOutlined,
   WarningOutlined
 } from '@ant-design/icons';
-import { systemApi } from '../services/systemService';
-import type { SystemInfo, SystemStatus } from '../services/systemService';
+import { systemApi } from '../services';
+import type { SystemInfo, SystemStatus } from '../services';
 
 const { Title, Text } = Typography;
 

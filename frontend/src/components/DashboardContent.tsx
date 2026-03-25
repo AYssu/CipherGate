@@ -8,11 +8,7 @@ import {
   Space, 
   Statistic, 
   Button, 
-  List, 
-  Badge, 
-  Divider,
-  Alert,
-  Timeline,
+  List,
   Tag
 } from 'antd';
 import { 
@@ -21,17 +17,14 @@ import {
   SecurityScanOutlined, 
   SafetyOutlined, 
   SettingOutlined, 
-  BellOutlined,
   TeamOutlined,
   LockOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
   ClockCircleOutlined,
-  RiseOutlined,
   EyeOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
-import type { User } from '../services/userService';
+import type { User } from '../services';
 
 const { Title, Text } = Typography;
 
@@ -300,7 +293,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                             activity.status === 'success' ? 'green' :
                             activity.status === 'warning' ? 'orange' : 'blue'
                           }
-                          size="small"
                           style={{ fontSize: 10, margin: 0 }}
                         >
                           {activity.status === 'success' ? '成功' :

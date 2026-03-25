@@ -23,10 +23,10 @@ import {
   MenuOutlined,
   SafetyOutlined
 } from '@ant-design/icons';
-import { roleApi } from '../services/roleService';
-import { MenuService } from '../services/menuService';
-import { permissionApi } from '../services/permissionService';
-import type { Role, Permission } from '../services/roleService';
+import { roleApi } from '../services';
+import { MenuService } from '../services';
+import { permissionApi } from '../services';
+import type { Role, Permission } from '../services';
 import type { Menu } from '../services/menuService';
 
 const { Title, Text } = Typography;

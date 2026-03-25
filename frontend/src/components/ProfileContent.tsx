@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions } from 'antd';
 import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined, IdcardOutlined, SafetyOutlined } from '@ant-design/icons';
-import type { User } from '../services/userService';
+import type { User } from '../services';
 
 const { Title, Text } = Typography;
 
@@ -133,7 +133,7 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
             style={{ height: '100%' }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
-              {userInfo?.roles?.map((role, index) => (
+              {userInfo?.roles?.map((role) => (
                 <div 
                   key={role.id} 
                   style={{ 
