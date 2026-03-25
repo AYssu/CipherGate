@@ -15,8 +15,7 @@ import {
   Tag,
   Row,
   Col,
-  Typography,
-  Dropdown
+  Typography
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,8 +23,7 @@ import {
   DeleteOutlined,
   FolderOutlined,
   FileOutlined,
-  SettingOutlined,
-  MoreOutlined
+  SettingOutlined
 } from '@ant-design/icons';
 import { MenuService } from '../services';
 import type { Menu } from '../services/menuService';
@@ -40,19 +38,7 @@ const MenuManagementContent: React.FC = () => {
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
   const [parentOptions, setParentOptions] = useState<Menu[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [isMobile, setIsMobile] = useState(false);
   const [form] = Form.useForm();
-
-  // 检测屏幕尺寸
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
 
   // 菜单类型选项
   const menuTypeOptions = [
@@ -305,91 +291,16 @@ const MenuManagementContent: React.FC = () => {
     },
   };
 
-  // 移动端菜单操作
-  const getMenuActionMenu = (menu: Menu) => ({
-    items: [
-      {
-        key: 'edit',
-        label: '编辑菜单',
-        icon: <EditOutlined />,
-        onClick: () => handleEdit(menu),
-      },
-      {
-        key: 'delete',
-        label: '删除菜单',
-        icon: <DeleteOutlined />,
-        danger: true,
-        onClick: () => {
-          Modal.confirm({
-            title: '确认删除',
-            content: `确定要删除菜单 ${menu.menuName} 吗？`,
-            onOk: () => handleDelete(menu.id),
-            okText: '确定',
-            cancelText: '取消',
-          });
-        },
-      },
-    ],
-  });
-
-  // 移动端菜单项渲染
-  const renderMobileMenuItem = (menu: Menu, level: number = 0) => (
-    <div key={menu.id} style={{ marginLeft: level * 16 }}>
-      <Card 
-        size="small" 
-        style={{ 
-          marginBottom: 8,
-          backgroundColor: level > 0 ? '#fafafa' : '#fff'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontWeight: 500, marginRight: 8 }}>
-                {menu.menuName}
-              </span>
-              {getMenuTypeTag(menu.menuType)}
-            </div>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
-              编码: {menu.menuCode}
-            </div>
-            {menu.path && (
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
-                路径: {menu.path}
-              </div>
-            )}
-            <Space size={[4, 4]} wrap>
-              {getVisibleTag(menu.visible)}
-              {getStatusTag(menu.status)}
-              <Tag color="default">排序: {menu.sortOrder}</Tag>
-            </Space>
-          </div>
-          <Dropdown menu={getMenuActionMenu(menu)} trigger={['click']}>
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
-        </div>
-      </Card>
-      {menu.children && menu.children.map(child => renderMobileMenuItem(child, level + 1))}
-    </div>
-  );
-
-  // 移动端列表渲染
-  const renderMobileList = () => (
-    <div>
-      {menus.map(menu => renderMobileMenuItem(menu))}
-    </div>
-  );
-
   return (
     <Card>
       <div style={{ marginBottom: 16 }}>
-        <Row justify="space-between" align="middle" gutter={[8, 8]}>
-          <Col xs={24} sm={12}>
+        <Row justify="space-between" align="middle">
+          <Col>
             <Title level={4} style={{ margin: 0 }}>菜单管理</Title>
           </Col>
-          <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'center' : 'right' }}>
-            <Space wrap>
-              {!isMobile && selectedRowKeys.length > 0 && (
+          <Col>
+            <Space>
+              {selectedRowKeys.length > 0 && (
                 <Popconfirm
                   title={`确定要删除选中的 ${selectedRowKeys.length} 个菜单吗？`}
                   onConfirm={handleBatchDelete}
@@ -405,7 +316,6 @@ const MenuManagementContent: React.FC = () => {
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleAdd}
-                size={isMobile ? 'middle' : 'middle'}
               >
                 新增菜单
               </Button>
@@ -414,30 +324,27 @@ const MenuManagementContent: React.FC = () => {
         </Row>
       </div>
 
-      {isMobile ? renderMobileList() : (
-        <Table
-          columns={columns}
-          dataSource={convertMenusToTableData(menus)}
-          loading={loading}
-          rowSelection={rowSelection}
-          pagination={{
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-          }}
-          expandable={{
-            defaultExpandAllRows: true,
-          }}
-        />
-      )}
+      <Table
+        columns={columns}
+        dataSource={convertMenusToTableData(menus)}
+        loading={loading}
+        rowSelection={rowSelection}
+        pagination={{
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条记录`,
+        }}
+        expandable={{
+          defaultExpandAllRows: true,
+        }}
+      />
 
       <Modal
         title={editingMenu ? '编辑菜单' : '新增菜单'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={isMobile ? '95%' : 600}
-        style={isMobile ? { top: 20 } : undefined}
+        width={600}
       >
         <Form
           form={form}
@@ -450,43 +357,34 @@ const MenuManagementContent: React.FC = () => {
             sortOrder: 0
           }}
         >
-          <Row gutter={isMobile ? [0, 0] : [16, 0]}>
-            <Col xs={24} sm={12}>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 label="菜单名称"
                 name="menuName"
                 rules={[{ required: true, message: '请输入菜单名称' }]}
               >
-                <Input 
-                  placeholder="请输入菜单名称" 
-                  size={isMobile ? 'large' : 'middle'}
-                />
+                <Input placeholder="请输入菜单名称" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col span={12}>
               <Form.Item
                 label="菜单编码"
                 name="menuCode"
                 rules={[{ required: true, message: '请输入菜单编码' }]}
               >
-                <Input 
-                  placeholder="请输入菜单编码" 
-                  size={isMobile ? 'large' : 'middle'}
-                />
+                <Input placeholder="请输入菜单编码" />
               </Form.Item>
             </Col>
           </Row>
 
-          <Row gutter={isMobile ? [0, 0] : [16, 0]}>
-            <Col xs={24} sm={12}>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 label="父菜单"
                 name="parentId"
               >
-                <Select 
-                  placeholder="请选择父菜单"
-                  size={isMobile ? 'large' : 'middle'}
-                >
+                <Select placeholder="请选择父菜单">
                   <Option value={0}>根菜单</Option>
                   {parentOptions.map(menu => (
                     <Option key={menu.id} value={menu.id}>
@@ -496,16 +394,13 @@ const MenuManagementContent: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col span={12}>
               <Form.Item
                 label="菜单类型"
                 name="menuType"
                 rules={[{ required: true, message: '请选择菜单类型' }]}
               >
-                <Select 
-                  placeholder="请选择菜单类型"
-                  size={isMobile ? 'large' : 'middle'}
-                >
+                <Select placeholder="请选择菜单类型">
                   {menuTypeOptions.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
@@ -516,33 +411,27 @@ const MenuManagementContent: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={isMobile ? [0, 0] : [16, 0]}>
-            <Col xs={24} sm={12}>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 label="路由路径"
                 name="path"
               >
-                <Input 
-                  placeholder="请输入路由路径" 
-                  size={isMobile ? 'large' : 'middle'}
-                />
+                <Input placeholder="请输入路由路径" />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col span={12}>
               <Form.Item
                 label="组件路径"
                 name="component"
               >
-                <Input 
-                  placeholder="请输入组件路径" 
-                  size={isMobile ? 'large' : 'middle'}
-                />
+                <Input placeholder="请输入组件路径" />
               </Form.Item>
             </Col>
           </Row>
 
-          <Row gutter={isMobile ? [0, 0] : [16, 0]}>
-            <Col xs={24} sm={12}>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 label="菜单图标"
                 name="icon"
@@ -550,7 +439,6 @@ const MenuManagementContent: React.FC = () => {
                 <Select 
                   placeholder="请选择菜单图标" 
                   allowClear
-                  size={isMobile ? 'large' : 'middle'}
                 >
                   {iconOptions.map(option => (
                     <Option key={option.value} value={option.value}>
@@ -560,7 +448,7 @@ const MenuManagementContent: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col span={12}>
               <Form.Item
                 label="排序"
                 name="sortOrder"
@@ -569,14 +457,13 @@ const MenuManagementContent: React.FC = () => {
                   min={0}
                   placeholder="请输入排序值"
                   style={{ width: '100%' }}
-                  size={isMobile ? 'large' : 'middle'}
                 />
               </Form.Item>
             </Col>
           </Row>
 
-          <Row gutter={isMobile ? [0, 0] : [16, 0]}>
-            <Col xs={24} sm={12}>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 label="是否可见"
                 name="visible"
@@ -585,11 +472,10 @@ const MenuManagementContent: React.FC = () => {
                 <Switch 
                   checkedChildren="显示" 
                   unCheckedChildren="隐藏"
-                  size={isMobile ? 'default' : 'default'}
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12}>
+            <Col span={12}>
               <Form.Item
                 label="菜单状态"
                 name="status"
@@ -598,7 +484,6 @@ const MenuManagementContent: React.FC = () => {
                 <Switch 
                   checkedChildren="启用" 
                   unCheckedChildren="禁用"
-                  size={isMobile ? 'default' : 'default'}
                 />
               </Form.Item>
             </Col>

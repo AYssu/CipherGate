@@ -176,7 +176,6 @@ body {
   }
 
   .ant-space {
-    width: 100%;
     justify-content: center;
   }
 
@@ -821,16 +820,6 @@ html {
     margin-bottom: 8px !important;
   }
 
-  /* 工具栏移动端适配 - 排除 Header 中的 Space */
-  .ant-layout-content .ant-space-horizontal {
-    flex-direction: column !important;
-    width: 100% !important;
-  }
-
-  .ant-layout-content .ant-space-horizontal .ant-space-item {
-    width: 100% !important;
-    margin-bottom: 8px !important;
-  }
 }
 
 /* 卡片网格移动端优化 */

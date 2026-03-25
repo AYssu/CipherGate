@@ -29,7 +29,6 @@ const SystemConfigContent: React.FC = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const isMobile = window.innerWidth < 768;
 
   // 获取系统信息
   const fetchSystemInfo = async () => {
@@ -109,46 +108,46 @@ const SystemConfigContent: React.FC = () => {
         </Title>
         
         <Row gutter={[16, 16]}>
-          <Col xs={12} sm={12} lg={6}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="系统版本"
                 value={systemInfo?.application.name}
                 suffix={systemInfo?.application.version}
-                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#1890ff' }}
+                valueStyle={{ fontSize: 16, color: '#1890ff' }}
               />
             </Card>
           </Col>
-          <Col xs={12} sm={12} lg={6}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="运行状态"
                 value={systemStatus?.status || '正常运行'}
-                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#52c41a' }}
+                valueStyle={{ fontSize: 16, color: '#52c41a' }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
           </Col>
-          <Col xs={12} sm={12} lg={6}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="系统负载"
                 value={systemLoad}
                 suffix="%"
                 valueStyle={{ 
-                  fontSize: isMobile ? 14 : 16, 
+                  fontSize: 16, 
                   color: systemLoad > 80 ? '#ff4d4f' : systemLoad > 60 ? '#faad14' : '#52c41a'
                 }}
                 prefix={systemLoad > 80 ? <WarningOutlined /> : <CheckCircleOutlined />}
               />
             </Card>
           </Col>
-          <Col xs={12} sm={12} lg={6}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="运行时间"
                 value={systemInfo?.application.uptime ? formatUptime(systemInfo.application.uptime) : '-'}
-                valueStyle={{ fontSize: isMobile ? 12 : 14, color: '#722ed1' }}
+                valueStyle={{ fontSize: 14, color: '#722ed1' }}
                 prefix={<ClockCircleOutlined />}
               />
             </Card>
@@ -164,7 +163,7 @@ const SystemConfigContent: React.FC = () => {
         </Title>
         
         <Row gutter={[24, 24]}>
-          <Col xs={24} lg={12}>
+          <Col span={12}>
             <div style={{ marginBottom: 16 }}>
               <Text strong>内存使用情况</Text>
               <div style={{ marginTop: 8 }}>
@@ -191,7 +190,7 @@ const SystemConfigContent: React.FC = () => {
             </div>
           </Col>
           
-          <Col xs={24} lg={12}>
+          <Col span={12}>
             <div style={{ marginBottom: 16 }}>
               <Text strong>技术栈信息</Text>
               <div style={{ marginTop: 8 }}>
@@ -209,7 +208,7 @@ const SystemConfigContent: React.FC = () => {
 
       {/* 环境信息 */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
+        <Col span={12}>
           <Card>
             <Title level={5} style={{ margin: '0 0 16px 0' }}>
               <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />
@@ -223,7 +222,7 @@ const SystemConfigContent: React.FC = () => {
           </Card>
         </Col>
         
-        <Col xs={24} lg={12}>
+        <Col span={12}>
           <Card>
             <Title level={5} style={{ margin: '0 0 16px 0' }}>
               <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />

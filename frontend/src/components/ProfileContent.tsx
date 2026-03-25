@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions, Divider } from 'antd';
+import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions } from 'antd';
 import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined, IdcardOutlined, SafetyOutlined } from '@ant-design/icons';
 import type { User } from '../services/userService';
 
@@ -10,109 +10,6 @@ interface ProfileContentProps {
 }
 
 const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
-  // 检测是否为移动端
-  const isMobile = window.innerWidth < 768;
-
-  // 移动端布局
-  if (isMobile) {
-    return (
-      <div style={{ padding: 0 }}>
-        {/* 用户头部信息卡片 */}
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ textAlign: 'center', paddingBottom: 16 }}>
-            <Avatar
-              src={userInfo?.avatarUrl}
-              size={80}
-              icon={<UserOutlined />}
-              style={{ marginBottom: 16 }}
-            />
-            <Title level={4} style={{ margin: '0 0 8px 0' }}>
-              {userInfo?.name || userInfo?.login}
-            </Title>
-            <Text type="secondary" style={{ fontSize: 14 }}>
-              <GithubOutlined /> @{userInfo?.login}
-            </Text>
-            <div style={{ marginTop: 12 }}>
-              <Tag
-                color={userInfo?.roles?.[0]?.roleCode === 'SUPER_ADMIN' ? 'red' : 
-                       userInfo?.roles?.[0]?.roleCode === 'ADMIN' ? 'blue' : 'green'}
-              >
-                {userInfo?.roles?.[0]?.roleName || '普通用户'}
-              </Tag>
-            </div>
-          </div>
-          
-          <Row gutter={16}>
-            <Col span={12}>
-              <Statistic
-                title="角色数量"
-                value={userInfo?.roles?.length || 0}
-                prefix={<TeamOutlined />}
-                valueStyle={{ fontSize: 20, textAlign: 'center' }}
-                style={{ textAlign: 'center' }}
-              />
-            </Col>
-            <Col span={12}>
-              <Statistic
-                title="账户状态"
-                value={userInfo?.status === 1 ? '正常' : '禁用'}
-                prefix={<SafetyOutlined />}
-                valueStyle={{ 
-                  fontSize: 16, 
-                  color: userInfo?.status === 1 ? '#52c41a' : '#ff4d4f',
-                  textAlign: 'center'
-                }}
-                style={{ textAlign: 'center' }}
-              />
-            </Col>
-          </Row>
-        </Card>
-
-        {/* 账户信息 */}
-        <Card title={<><IdcardOutlined /> 账户信息</>} style={{ marginBottom: 16 }}>
-          <Descriptions column={1} size="small" colon={false}>
-            <Descriptions.Item label="用户ID">{userInfo?.id}</Descriptions.Item>
-            <Descriptions.Item label="GitHub ID">{userInfo?.githubId}</Descriptions.Item>
-            <Descriptions.Item label="用户名">{userInfo?.login}</Descriptions.Item>
-            <Descriptions.Item label="显示名称">{userInfo?.name || '-'}</Descriptions.Item>
-            <Descriptions.Item label="邮箱地址">{userInfo?.email || '-'}</Descriptions.Item>
-          </Descriptions>
-        </Card>
-
-        {/* 角色权限 */}
-        <Card title={<><TeamOutlined /> 我的角色</>}>
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            {userInfo?.roles?.map((role, index) => (
-              <div key={role.id}>
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: 6
-                  }}>
-                    <Text strong style={{ fontSize: 16 }}>{role.roleName}</Text>
-                    <Tag 
-                      color={role.roleCode === 'SUPER_ADMIN' ? 'red' : 
-                             role.roleCode === 'ADMIN' ? 'blue' : 'green'}
-                    >
-                      {role.roleCode}
-                    </Tag>
-                  </div>
-                  <Text type="secondary" style={{ fontSize: 13, display: 'block' }}>
-                    {role.description}
-                  </Text>
-                </div>
-                {index < (userInfo?.roles?.length || 0) - 1 && <Divider style={{ margin: '12px 0' }} />}
-              </div>
-            )) || <Text type="secondary">暂无分配角色</Text>}
-          </Space>
-        </Card>
-      </div>
-    );
-  }
-
-  // 桌面端布局（重新设计更企业化的版本）
   return (
     <div style={{ padding: 0 }}>
       {/* 用户概览卡片 */}

@@ -47,7 +47,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   setSelectedMenu 
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const isMobile = window.innerWidth < 768;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -117,15 +116,15 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
           <Col>
             <Avatar
               src={userInfo?.avatarUrl}
-              size={isMobile ? 64 : 72}
+              size={72}
               icon={<UserOutlined />}
             />
           </Col>
           <Col flex={1}>
-            <Title level={isMobile ? 4 : 3} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
+            <Title level={3} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
               {getGreeting()}, {userInfo?.name || userInfo?.login}
             </Title>
-            <Space direction={isMobile ? 'vertical' : 'horizontal'} size={16}>
+            <Space size={16}>
               <Text type="secondary" style={{ fontSize: 14 }}>
                 <GithubOutlined /> @{userInfo?.login}
               </Text>
@@ -147,22 +146,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               </Space>
             </div>
           </Col>
-          {!isMobile && (
-            <Col>
-              <div style={{ textAlign: 'right' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>系统状态</Text>
-                <div style={{ fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
-                  <CheckCircleOutlined /> 正常运行
-                </div>
+          <Col>
+            <div style={{ textAlign: 'right' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>系统状态</Text>
+              <div style={{ fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
+                <CheckCircleOutlined /> 正常运行
               </div>
-            </Col>
-          )}
+            </div>
+          </Col>
         </Row>
       </Card>
 
       {/* 统计数据 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={12} lg={6}>
+        <Col span={6}>
           <Card>
             <Statistic
               title="安全事件"
@@ -173,7 +170,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={12} lg={6}>
+        <Col span={6}>
           <Card>
             <Statistic
               title="今日拦截"
@@ -184,7 +181,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={12} lg={6}>
+        <Col span={6}>
           <Card>
             <Statistic
               title="系统健康度"
@@ -196,7 +193,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={12} lg={6}>
+        <Col span={6}>
           <Card>
             <Statistic
               title="在线用户"
@@ -211,7 +208,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
       <Row gutter={[16, 16]}>
         {/* 快速操作 */}
-        <Col xs={24} lg={12}>
+        <Col span={12}>
           <Card 
             title={
               <Space>
@@ -225,7 +222,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               {quickActions
                 .filter(action => !action.adminOnly || isAdmin())
                 .map((action, index) => (
-                <Col xs={12} key={index}>
+                <Col span={12} key={index}>
                   <Card 
                     size="small"
                     hoverable
@@ -254,7 +251,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Col>
 
         {/* 最近活动 */}
-        <Col xs={24} lg={12}>
+        <Col span={12}>
           <Card 
             title={
               <Space>
