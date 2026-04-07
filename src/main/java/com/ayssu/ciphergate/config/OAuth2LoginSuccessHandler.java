@@ -1,7 +1,9 @@
 package com.ayssu.ciphergate.config;
 
 import com.ayssu.ciphergate.entity.User;
+import com.ayssu.ciphergate.service.ActivityLogService;
 import com.ayssu.ciphergate.service.UserService;
+import com.ayssu.ciphergate.service.SystemConfigService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,6 +23,8 @@ import java.io.IOException;
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     
     private final UserService userService;
+    private final SystemConfigService systemConfigService;
+    private final ActivityLogService activityLogService;
     
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -56,7 +60,47 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         log.info("Session 最大不活跃时间: {} 秒", session.getMaxInactiveInterval());
         log.info("=== OAuth2 登录处理完成 ===");
         
-        // 重定向到前端仪表板
-        getRedirectStrategy().sendRedirect(request, response, "/dashboard");
+        // 记录登录日志
+        try {
+            String ipAddress = getClientIpAddress(request);
+            String userAgent = request.getHeader("User-Agent");
+            activityLogService.log(
+                user.getId(),
+                user.getName(),
+                "LOGIN",
+                "AUTHENTICATION",
+                "执行了登录操作",
+                ipAddress,
+                userAgent,
+                "SUCCESS"
+            );
+        } catch (Exception e) {
+            log.error("记录登录日志失败: {}", e.getMessage());
+        }
+        
+        // 重定向到前端（从配置中获取前端地址）
+        String frontendUrl = systemConfigService.getFrontendUrl();
+        log.info("重定向到前端: {}", frontendUrl);
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl);
+    }
+    
+    /**
+     * 获取客户端IP地址
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }

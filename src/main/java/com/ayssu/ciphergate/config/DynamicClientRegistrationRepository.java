@@ -30,7 +30,9 @@ public class DynamicClientRegistrationRepository implements ClientRegistrationRe
             String clientSecret = systemConfigService.getGithubClientSecret();
             String redirectUri = systemConfigService.getGithubRedirectUri();
             
-            log.debug("创建动态 GitHub OAuth2 客户端注册，Client ID: {}, Redirect URI: {}", clientId, redirectUri);
+            log.info("创建动态 GitHub OAuth2 客户端注册");
+            log.info("Client ID: {}", clientId);
+            log.info("Redirect URI: {}", redirectUri);
             
             return ClientRegistration.withRegistrationId("github")
                     .clientId(clientId)

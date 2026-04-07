@@ -21,8 +21,8 @@ public class SessionConfig {
         // Cookie 路径
         serializer.setCookiePath("/");
         
-        // 域名设置（开发环境可以不设置）
-        // serializer.setDomainName("localhost");
+        // 域名设置为 localhost，这样前后端都能共享 Cookie
+        serializer.setDomainName("localhost");
         
         // HttpOnly 防止 XSS 攻击
         serializer.setUseHttpOnlyCookie(true);
@@ -30,7 +30,7 @@ public class SessionConfig {
         // 生产环境启用 Secure（需要 HTTPS）
         serializer.setUseSecureCookie(false); // 开发环境设为 false
         
-        // SameSite 设置
+        // SameSite 设置为 Lax（允许顶级导航携带 Cookie）
         serializer.setSameSite("Lax");
         
         // Cookie 最大存活时间（7天）

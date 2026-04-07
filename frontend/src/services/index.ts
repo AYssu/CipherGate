@@ -14,3 +14,7 @@ export type { User, Menu } from './userService';
 
 // 从 systemService 导出
 export * from './systemService';
+
+// 从 activityService 导出
+export { activityApi } from './activityService';
+export type { ActivityLog, PageResult } from './activityService';

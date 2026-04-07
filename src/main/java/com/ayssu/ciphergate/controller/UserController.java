@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
@@ -29,6 +30,7 @@ public class UserController {
      */
     @GetMapping
     @RequirePermission("USER_LIST")
+    @ActivityLog(actionType = "VIEW", actionTarget = "USER_MANAGEMENT", description = "查看用户列表")
     public Result<List<User>> getUsers() {
         try {
             List<User> users = userService.getAllUsersWithRoles();
@@ -64,6 +66,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @RequirePermission("USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "USER_MANAGEMENT", description = "更新用户信息")
     public Result<String> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> updateData) {
         try {
             User user = userService.getById(id);
@@ -103,6 +106,7 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission("USER_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "USER_MANAGEMENT", description = "删除用户")
     public Result<String> deleteUser(@PathVariable Long id) {
         try {
             User user = userService.getById(id);

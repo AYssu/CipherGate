@@ -4,4 +4,14 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080', // 后端服务地址
+        changeOrigin: true,
+        // 后端接口路径包含 /api 前缀，所以不需要 rewrite
+        // rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 })

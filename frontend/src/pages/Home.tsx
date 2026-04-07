@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal, Form, Input, message } from 'antd';
 import {
   SecurityScanOutlined,
   SafetyOutlined,
@@ -11,17 +11,72 @@ import {
   CheckCircleOutlined,
   TeamOutlined, 
   MenuOutlined,
-  GithubOutlined
+  GithubOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
+import { systemApi } from '../services';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Paragraph, Text } = Typography;
 
 const Home: React.FC = () => {
   const [loginModalVisible, setLoginModalVisible] = useState(false);
+  const [initModalVisible, setInitModalVisible] = useState(false);
+  const [initForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+
+  // 检查系统是否已初始化
+  useEffect(() => {
+    checkSystemInit();
+  }, []);
+
+  const checkSystemInit = async () => {
+    try {
+      const response = await systemApi.checkInitStatus();
+      if (response.success && !response.initialized) {
+        // 系统未初始化，显示配置弹窗
+        setInitModalVisible(true);
+      }
+    } catch (error) {
+      console.error('检查初始化状态失败:', error);
+    }
+  };
+
+  const handleInitSubmit = async () => {
+    try {
+      const values = await initForm.validateFields();
+      setLoading(true);
+      
+      const response = await systemApi.initializeSystem({
+        clientId: values.clientId,
+        clientSecret: values.clientSecret,
+        redirectUri: values.redirectUri,
+        frontendUrl: values.frontendUrl
+      });
+
+      if (response.success) {
+        message.success('系统初始化成功！');
+        setInitModalVisible(false);
+        initForm.resetFields();
+      } else {
+        message.error(response.message || '初始化失败');
+      }
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('请填写所有必填项');
+      } else {
+        message.error('初始化失败，请稍后重试');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGithubLogin = () => {
-    window.location.href = '/api/oauth2/authorization/github';
+    // OAuth2 端点不在 /api 路径下，需要直接访问后端
+    const backendUrl = import.meta.env.DEV ? 'http://localhost:8080' : '';
+    console.log(`${backendUrl}/oauth2/authorization/github`)
+    window.location.href = `${backendUrl}/oauth2/authorization/github`;
   };
 
   const showLoginModal = () => {
@@ -813,6 +868,93 @@ const Home: React.FC = () => {
             <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}> 服务条款 </a>
             和
             <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}> 隐私政策</a>
+          </Typography.Paragraph>
+        </div>
+      </Modal>
+
+      {/* 系统初始化配置弹窗 */}
+      <Modal
+        title={
+          <div style={{ textAlign: 'center', paddingTop: 8 }}>
+            <SettingOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: 12 }} />
+            <div style={{ fontSize: 20, fontWeight: 600 }}>系统初始化配置</div>
+          </div>
+        }
+        open={initModalVisible}
+        onOk={handleInitSubmit}
+        onCancel={() => {}}
+        closable={false}
+        maskClosable={false}
+        width={500}
+        centered
+        okText="完成初始化"
+        cancelText="稍后配置"
+        confirmLoading={loading}
+        okButtonProps={{ size: 'large' }}
+        cancelButtonProps={{ size: 'large', style: { display: 'none' } }}
+      >
+        <div style={{ padding: '20px 0' }}>
+          <Typography.Paragraph style={{ color: '#666', marginBottom: 24, textAlign: 'center' }}>
+            首次使用需要配置 GitHub OAuth2 认证信息，请填写以下配置项
+          </Typography.Paragraph>
+
+          <Form
+            form={initForm}
+            layout="vertical"
+            initialValues={{
+              redirectUri: 'http://localhost:8080/login/oauth2/code/github',
+              frontendUrl: 'http://localhost:5173/dashboard'
+            }}
+          >
+            <Form.Item
+              label="GitHub OAuth2 Client ID"
+              name="clientId"
+              rules={[{ required: true, message: '请输入 Client ID' }]}
+            >
+              <Input 
+                placeholder="请输入 GitHub OAuth2 Client ID" 
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="GitHub OAuth2 Client Secret"
+              name="clientSecret"
+              rules={[{ required: true, message: '请输入 Client Secret' }]}
+            >
+              <Input.Password 
+                placeholder="请输入 GitHub OAuth2 Client Secret" 
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Redirect URI"
+              name="redirectUri"
+              rules={[{ required: true, message: '请输入 Redirect URI' }]}
+              tooltip="GitHub 回调地址，必须是后端地址"
+            >
+              <Input 
+                placeholder="请输入 Redirect URI" 
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="前端地址"
+              name="frontendUrl"
+              rules={[{ required: true, message: '请输入前端地址' }]}
+              tooltip="登录成功后重定向的前端地址"
+            >
+              <Input 
+                placeholder="请输入前端地址" 
+                size="large"
+              />
+            </Form.Item>
+          </Form>
+
+          <Typography.Paragraph style={{ color: '#999', fontSize: 12, marginTop: 16, marginBottom: 0 }}>
+            提示：请确保在 GitHub OAuth App 设置中配置了正确的 Redirect URI
           </Typography.Paragraph>
         </div>
       </Modal>

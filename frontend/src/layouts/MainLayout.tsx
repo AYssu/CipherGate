@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button } from 'antd';
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Badge, Drawer, List, Tag, Empty, Modal } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   SafetyOutlined,
@@ -7,9 +7,12 @@ import {
   LogoutOutlined,
   BellOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
+import { activityApi } from '../services/activityService';
+import { messageApi, type SystemMessage } from '../services/messageService';
 import type { User, Menu as UserMenu } from '../services/userService';
 
 const { Header, Sider, Content } = Layout;
@@ -20,6 +23,13 @@ const MainLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showBadge, setShowBadge] = useState(false);
+  const [notificationVisible, setNotificationVisible] = useState(false);
+  const [messages, setMessages] = useState<SystemMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<SystemMessage | null>(null);
+  const [messageDetailVisible, setMessageDetailVisible] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -87,7 +97,24 @@ const MainLayout: React.FC = () => {
       }
     };
     
+    const fetchUnreadCount = async () => {
+      try {
+        const result = await activityApi.getUnreadCount();
+        const data = (result as any).data;
+        setUnreadCount(data.total);
+        setShowBadge(data.showBadge);
+      } catch (error) {
+        console.error('获取未读消息数失败:', error);
+      }
+    };
+    
     fetchUserInfo();
+    fetchUnreadCount();
+    
+    // 每30秒刷新一次未读消息数
+    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = async () => {
@@ -102,6 +129,87 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  // 打开通知面板
+  const handleOpenNotification = async () => {
+    setNotificationVisible(true);
+    setLoadingMessages(true);
+    
+    try {
+      const result = await messageApi.getMyMessages(20);
+      setMessages((result as any).data || []);
+    } catch (error) {
+      console.error('获取消息失败:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // 关闭通知面板
+  const handleCloseNotification = () => {
+    setNotificationVisible(false);
+  };
+
+  // 打开消息详情
+  const handleOpenMessageDetail = (message: SystemMessage) => {
+    setSelectedMessage(message);
+    setMessageDetailVisible(true);
+    // 如果是未读消息，标记为已读
+    if (!message.isRead) {
+      handleMarkMessageAsRead(message.id);
+    }
+  };
+
+  // 关闭消息详情
+  const handleCloseMessageDetail = () => {
+    setMessageDetailVisible(false);
+    setSelectedMessage(null);
+  };
+
+  // 标记消息为已读
+  const handleMarkMessageAsRead = async (id: number) => {
+    try {
+      await messageApi.markAsRead(id);
+      // 刷新消息列表
+      const result = await messageApi.getMyMessages(20);
+      setMessages((result as any).data || []);
+      // 刷新未读数
+      const countResult = await activityApi.getUnreadCount();
+      const data = (countResult as any).data;
+      setUnreadCount(data.total);
+      setShowBadge(data.showBadge);
+    } catch (error) {
+      console.error('标记已读失败:', error);
+    }
+  };
+
+  // 格式化时间
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    if (days < 7) return `${days}天前`;
+    return date.toLocaleDateString();
+  };
+
+  // 获取重要程度标签
+  const getImportanceTag = (level: string) => {
+    const levelMap: Record<string, { color: string; text: string }> = {
+      'LOW': { color: 'default', text: '低' },
+      'MEDIUM': { color: 'blue', text: '中' },
+      'HIGH': { color: 'orange', text: '高' },
+      'URGENT': { color: 'red', text: '紧急' }
+    };
+    return levelMap[level] || levelMap['LOW'];
+  };
+
   const userMenuItems = [
     {
       key: 'profile',
@@ -109,6 +217,17 @@ const MainLayout: React.FC = () => {
       label: '个人资料',
       onClick: () => navigate('/profile'),
     },
+    // 只有超级管理员才显示 API 文档入口
+    ...(userInfo?.roles?.some(role => role.roleCode === 'SUPER_ADMIN') ? [{
+      key: 'api-docs',
+      icon: <SafetyOutlined />,
+      label: 'API 文档',
+      onClick: () => {
+        // 在新标签页打开 API 文档
+        const backendUrl = import.meta.env.DEV ? 'http://localhost:8080' : '';
+        window.open(`${backendUrl}/doc.html`, '_blank');
+      },
+    }] : []),
     {
       key: 'divider',
       type: 'divider' as const,
@@ -312,10 +431,20 @@ const MainLayout: React.FC = () => {
             transform: 'translateY(-50%)'
           }}>
             <Space size={12} align="center">
-              <BellOutlined style={{ 
-                fontSize: 16, 
-                cursor: 'pointer'
-              }} />
+              <Badge 
+                count={unreadCount} 
+                size="small"
+                dot={showBadge && unreadCount === 0}
+                offset={[-2, 2]}
+              >
+                <BellOutlined style={{ 
+                  fontSize: 16, 
+                  cursor: 'pointer',
+                  color: showBadge ? '#ff4d4f' : undefined
+                }} 
+                onClick={handleOpenNotification}
+                />
+              </Badge>
               
               <Dropdown
                 menu={{ items: userMenuItems }}
@@ -343,8 +472,183 @@ const MainLayout: React.FC = () => {
           <Outlet context={{ userInfo }} />
         </Content>
       </Layout>
+
+      {/* 消息通知抽屉 */}
+      <Drawer
+        title="系统消息"
+        placement="right"
+        onClose={handleCloseNotification}
+        open={notificationVisible}
+        width={380}
+        styles={{
+          body: { padding: 0 }
+        }}
+      >
+        {messages.length === 0 ? (
+          <div style={{ padding: '80px 24px', textAlign: 'center' }}>
+            <Empty 
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="暂无消息"
+            />
+          </div>
+        ) : (
+          <List
+            loading={loadingMessages}
+            dataSource={messages}
+            renderItem={(message) => {
+              const importanceTag = getImportanceTag(message.importanceLevel);
+              const isUnread = !message.isRead;
+              const isImportant = message.importanceLevel === 'HIGH' || message.importanceLevel === 'URGENT';
+              
+              return (
+                <List.Item
+                  style={{
+                    padding: '14px 20px',
+                    backgroundColor: isUnread ? '#e6f7ff' : '#fff',
+                    borderLeft: isImportant ? `3px solid ${message.importanceLevel === 'URGENT' ? '#ff4d4f' : '#faad14'}` : isUnread ? '3px solid #1890ff' : 'none',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    borderBottom: '1px solid #f0f0f0'
+                  }}
+                  onClick={() => handleOpenMessageDetail(message)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = isUnread ? '#bae7ff' : '#fafafa';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = isUnread ? '#e6f7ff' : '#fff';
+                  }}
+                >
+                  <div style={{ width: '100%' }}>
+                    {/* 标题行 */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: 6
+                    }}>
+                      <Space size={6}>
+                        {isUnread && (
+                          <Badge 
+                            status="processing" 
+                            text=""
+                          />
+                        )}
+                        <Text 
+                          strong 
+                          style={{ 
+                            fontSize: 14,
+                            color: isUnread ? '#1890ff' : '#262626'
+                          }}
+                        >
+                          {message.title}
+                        </Text>
+                      </Space>
+                      
+                      <Tag 
+                        color={importanceTag.color}
+                        style={{ 
+                          margin: 0,
+                          fontSize: 12
+                        }}
+                      >
+                        {importanceTag.text}
+                      </Tag>
+                    </div>
+                    
+                    {/* 消息内容预览 */}
+                    <Text 
+                      style={{ 
+                        fontSize: 13, 
+                        display: 'block', 
+                        marginBottom: 8,
+                        color: '#595959',
+                        lineHeight: '1.6',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {message.content}
+                    </Text>
+                    
+                    {/* 时间 */}
+                    <Space size={4}>
+                      <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {formatTime(message.createdTime)}
+                      </Text>
+                    </Space>
+                  </div>
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Drawer>
+
+      {/* 消息详情弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <Text strong style={{ fontSize: 16 }}>消息详情</Text>
+            {selectedMessage && !selectedMessage.isRead && (
+              <Badge status="processing" text="未读" />
+            )}
+          </Space>
+        }
+        open={messageDetailVisible}
+        onCancel={handleCloseMessageDetail}
+        footer={[
+          <Button key="close" type="primary" onClick={handleCloseMessageDetail}>
+            关闭
+          </Button>
+        ]}
+        width={600}
+      >
+        {selectedMessage && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Text type="secondary">重要程度：</Text>
+                <Tag color={getImportanceTag(selectedMessage.importanceLevel).color}>
+                  {getImportanceTag(selectedMessage.importanceLevel).text}
+                </Tag>
+              </Space>
+            </div>
+            
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
+                {selectedMessage.title}
+              </Text>
+            </div>
+            
+            <div style={{ 
+              marginBottom: 16,
+              padding: 16,
+              backgroundColor: '#fafafa',
+              borderRadius: 4,
+              lineHeight: '1.8'
+            }}>
+              <Text style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                {selectedMessage.content}
+              </Text>
+            </div>
+            
+            <div>
+              <Space size={4}>
+                <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {new Date(selectedMessage.createdTime).toLocaleString('zh-CN')}
+                </Text>
+              </Space>
+            </div>
+          </div>
+        )}
+      </Modal>
     </Layout>
   );
 };
+
+
 
 export default MainLayout;

@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Role;
@@ -34,6 +35,7 @@ public class RoleController {
      */
     @PostMapping
     @RequirePermission(value = "ROLE_CREATE", description = "创建角色")
+    @ActivityLog(actionType = "CREATE", actionTarget = "ROLE_MANAGEMENT", description = "创建角色")
     public Result<Role> createRole(@RequestBody Role role) {
         boolean success = roleService.save(role);
         if (success) {
@@ -48,6 +50,7 @@ public class RoleController {
      */
     @PutMapping("/{id}")
     @RequirePermission(value = "ROLE_UPDATE", description = "更新角色")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "ROLE_MANAGEMENT", description = "更新角色")
     public Result<Role> updateRole(@PathVariable Long id, @RequestBody Role role) {
         role.setId(id);
         boolean success = roleService.updateById(role);
@@ -63,6 +66,7 @@ public class RoleController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission(value = "ROLE_DELETE", description = "删除角色")
+    @ActivityLog(actionType = "DELETE", actionTarget = "ROLE_MANAGEMENT", description = "删除角色")
     public Result<String> deleteRole(@PathVariable Long id) {
         boolean success = roleService.removeById(id);
         if (success) {

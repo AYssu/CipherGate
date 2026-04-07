@@ -14,23 +14,43 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
     
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/error", "/webjars/**").permitAll()
+                        .requestMatchers("/", "/login", "/error", "/webjars/**", 
+                                "/api/config/init/**",
+                                "/api/user/status",
+                                "/oauth2/authorization/**",
+                                "/login/oauth2/code/**").permitAll()
+                        // Knife4j 文档只允许超级管理员访问
+                        .requestMatchers("/doc.html",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService))
                         .successHandler(oAuth2LoginSuccessHandler)
-                        .failureUrl("/?error=true")
+                        .failureHandler(oAuth2LoginFailureHandler)
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/")
                         .invalidateHttpSession(true)
                         .deleteCookies("CIPHERGATE_SESSION")
+                )
+                .exceptionHandling(exception -> exception
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(403);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"code\":403,\"message\":\"权限不足，只有超级管理员可以访问 API 文档\"}");
+                        })
                 );
 
         return http.build();

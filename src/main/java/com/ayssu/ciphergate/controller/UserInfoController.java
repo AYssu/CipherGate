@@ -25,6 +25,22 @@ public class UserInfoController {
     private final UserService userService;
     
     /**
+     * 检查登录状态（无需权限）
+     */
+    @GetMapping("/status")
+    public Result<User> checkLoginStatus(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error("未登录");
+        }
+        
+        // 清除敏感信息
+        user.setAccessToken(null);
+        
+        return Result.success(user);
+    }
+    
+    /**
      * 获取当前用户信息（包含角色、权限、菜单）
      */
     @GetMapping("/info")

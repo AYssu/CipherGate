@@ -111,6 +111,11 @@ INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type,
 ('查看系统配置', 'CONFIG_LIST', 'API', '/api/config', 'GET', '查看系统配置'),
 ('更新系统配置', 'CONFIG_UPDATE', 'API', '/api/config', 'PUT', '更新系统配置'),
 
+-- 系统消息权限
+('查看消息列表', 'MESSAGE_LIST', 'API', '/api/messages', 'GET', '查看系统消息列表'),
+('创建系统消息', 'MESSAGE_CREATE', 'API', '/api/messages', 'POST', '创建系统消息'),
+('删除系统消息', 'MESSAGE_DELETE', 'API', '/api/messages/*', 'DELETE', '删除系统消息'),
+
 -- 个人信息权限
 ('查看个人信息', 'PROFILE_VIEW', 'API', '/api/user/info,/api/user/profile', 'GET', '查看个人信息'),
 ('更新个人信息', 'PROFILE_UPDATE', 'API', '/api/user/profile', 'PUT', '更新个人信息');
@@ -240,3 +245,56 @@ CREATE TABLE IF NOT EXISTS SPRING_SESSION_ATTRIBUTES (
 -- 标记系统已完成初始化（只在首次运行时插入）
 INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES 
 ('SYSTEM_INITIALIZED', 'true', '系统初始化标记，用于判断是否已完成首次初始化');
+
+-- 活动日志表
+CREATE TABLE IF NOT EXISTS activity_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '活动ID',
+    user_id BIGINT COMMENT '操作用户ID',
+    username VARCHAR(100) COMMENT '用户名',
+    action_type VARCHAR(50) NOT NULL COMMENT '操作类型',
+    action_target VARCHAR(100) COMMENT '操作对象',
+    action_description VARCHAR(500) COMMENT '操作描述',
+    ip_address VARCHAR(50) COMMENT '操作IP地址',
+    user_agent VARCHAR(500) COMMENT '用户代理信息',
+    status VARCHAR(20) DEFAULT 'SUCCESS' COMMENT '操作状态',
+    importance_level VARCHAR(20) DEFAULT 'LOW' COMMENT '重要程度：LOW-低，MEDIUM-中，HIGH-高，URGENT-紧急',
+    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读',
+    read_time DATETIME COMMENT '阅读时间',
+    created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_created_time (created_time),
+    INDEX idx_action_type (action_type),
+    INDEX idx_importance_level (importance_level),
+    INDEX idx_is_read (is_read)
+) COMMENT='活动日志表';
+
+-- 系统消息表
+CREATE TABLE IF NOT EXISTS system_message (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '消息ID',
+    message_type VARCHAR(50) NOT NULL COMMENT '消息类型',
+    title VARCHAR(200) NOT NULL COMMENT '消息标题',
+    content TEXT COMMENT '消息内容',
+    importance_level VARCHAR(20) DEFAULT 'LOW' COMMENT '重要程度：LOW-低，MEDIUM-中，HIGH-高，URGENT-紧急',
+    target_type VARCHAR(50) DEFAULT 'ALL' COMMENT '目标类型：ALL-所有用户，USER-指定用户，ROLE-指定角色',
+    target_id BIGINT COMMENT '目标ID',
+    email_sent BOOLEAN DEFAULT FALSE COMMENT '是否已发送邮件',
+    email_sent_time DATETIME COMMENT '邮件发送时间',
+    created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    expire_time DATETIME COMMENT '过期时间',
+    INDEX idx_target (target_type, target_id),
+    INDEX idx_created_time (created_time),
+    INDEX idx_importance_level (importance_level)
+) COMMENT='系统消息表';
+
+-- 用户消息关联表
+CREATE TABLE IF NOT EXISTS user_message (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    message_id BIGINT NOT NULL COMMENT '消息ID',
+    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读',
+    read_time DATETIME COMMENT '阅读时间',
+    created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_user_message (user_id, message_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_message_id (message_id)
+) COMMENT='用户消息关联表';
