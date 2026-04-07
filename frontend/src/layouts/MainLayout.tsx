@@ -294,6 +294,17 @@ const MainLayout: React.FC = () => {
                       routePath = `/system/${cleanKey}`;
                   }
                   navigate(routePath);
+                } else if (menuKey === 'app_management') {
+                  // 处理应用管理菜单
+                  let routePath = '';
+                  switch (childKey) {
+                    case 'app_list_page':
+                      routePath = '/applications/list';
+                      break;
+                    default:
+                      routePath = `/applications/${childKey}`;
+                  }
+                  navigate(routePath);
                 } else {
                   navigate(`/${childKey}`);
                 }

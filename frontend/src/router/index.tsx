@@ -8,6 +8,7 @@ import RoleManagementPage from '../pages/System/RoleManagementPage';
 import MenuManagementPage from '../pages/System/MenuManagementPage';
 import PermissionManagementPage from '../pages/System/PermissionManagementPage';
 import SystemConfigPage from '../pages/System/SystemConfigPage';
+import ApplicationManagementPage from '../pages/Application/ApplicationManagementPage';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,15 @@ export const router = createBrowserRouter([
       {
         path: '/profile',
         element: <ProfilePage />,
+      },
+      {
+        path: '/applications',
+        children: [
+          {
+            path: 'list',
+            element: <ApplicationManagementPage />,
+          },
+        ],
       },
       {
         path: '/system',

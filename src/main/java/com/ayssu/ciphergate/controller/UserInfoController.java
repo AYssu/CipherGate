@@ -44,7 +44,6 @@ public class UserInfoController {
      * 获取当前用户信息（包含角色、权限、菜单）
      */
     @GetMapping("/info")
-    @RequirePermission("PROFILE_VIEW")
     public Result<User> getCurrentUserInfo(HttpSession session) {
         User sessionUser = (User) session.getAttribute("user");
         if (sessionUser == null) {

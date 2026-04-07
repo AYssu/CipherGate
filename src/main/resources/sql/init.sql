@@ -298,3 +298,126 @@ CREATE TABLE IF NOT EXISTS user_message (
     INDEX idx_user_id (user_id),
     INDEX idx_message_id (message_id)
 ) COMMENT='用户消息关联表';
+
+
+-- ========================================
+-- 应用管理模块表
+-- ========================================
+
+-- 应用表
+CREATE TABLE IF NOT EXISTS application (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '应用ID',
+    owner_id BIGINT NOT NULL COMMENT '所属用户ID',
+    app_name VARCHAR(100) NOT NULL COMMENT '应用名称',
+    app_key VARCHAR(64) NOT NULL UNIQUE COMMENT 'API密钥',
+    app_secret VARCHAR(128) NOT NULL COMMENT 'API密钥(加密存储)',
+    
+    -- 基础信息
+    description VARCHAR(500) COMMENT '应用描述',
+    notice TEXT COMMENT '应用公告',
+    category VARCHAR(50) COMMENT '应用分类',
+    tags VARCHAR(255) COMMENT '标签(逗号分隔)',
+    icon_url VARCHAR(255) DEFAULT '/default-app-icon.png' COMMENT '应用图标',
+    
+    -- 业务模式
+    business_model TINYINT NOT NULL DEFAULT 1 COMMENT '业务模式: 1=付费, 2=免费, 3=试用+付费',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1=正常, 2=维护, 3=停用',
+    
+    -- 加密配置
+    encryption_plugin VARCHAR(100) DEFAULT 'rsa-default' COMMENT '加密插件标识',
+    encryption_config JSON COMMENT '加密配置参数',
+    
+    -- 功能开关
+    features JSON COMMENT '功能开关配置',
+    
+    -- 流量统计
+    traffic_limit BIGINT DEFAULT 0 COMMENT '流量限制(字节)',
+    traffic_used BIGINT DEFAULT 0 COMMENT '已使用流量',
+    
+    -- 版本管理
+    current_version VARCHAR(20) COMMENT '当前版本号',
+    min_version VARCHAR(20) COMMENT '最低支持版本',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0=未删除, 1=已删除',
+    
+    INDEX idx_owner (owner_id),
+    INDEX idx_app_key (app_key),
+    INDEX idx_status (status),
+    INDEX idx_deleted (deleted),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用表';
+
+-- 应用操作日志表
+CREATE TABLE IF NOT EXISTS application_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    operator_id BIGINT NOT NULL COMMENT '操作人ID',
+    operator_name VARCHAR(100) COMMENT '操作人名称',
+    operation VARCHAR(50) NOT NULL COMMENT '操作类型',
+    operation_desc VARCHAR(255) COMMENT '操作描述',
+    ip_address VARCHAR(50) COMMENT 'IP地址',
+    user_agent VARCHAR(500) COMMENT 'User Agent',
+    request_params JSON COMMENT '请求参数',
+    response_result VARCHAR(20) COMMENT '响应结果: SUCCESS, FAILED',
+    error_message TEXT COMMENT '错误信息',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    
+    INDEX idx_app (app_id),
+    INDEX idx_operator (operator_id),
+    INDEX idx_created (created_at),
+    INDEX idx_operation (operation)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用操作日志表';
+
+-- 插入应用管理相关权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('应用列表', 'APP_LIST', 'API', '/api/applications', 'GET', '查看应用列表', 1),
+('应用详情', 'APP_DETAIL', 'API', '/api/applications/*', 'GET', '查看应用详情', 1),
+('创建应用', 'APP_CREATE', 'API', '/api/applications', 'POST', '创建新应用', 1),
+('更新应用', 'APP_UPDATE', 'API', '/api/applications/*', 'PUT', '更新应用信息', 1),
+('删除应用', 'APP_DELETE', 'API', '/api/applications/*', 'DELETE', '删除应用', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 为超级管理员角色分配应用管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN ('APP_LIST', 'APP_DETAIL', 'APP_CREATE', 'APP_UPDATE', 'APP_DELETE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户角色分配应用创建和查看权限（如果有 USER 角色）
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN ('APP_LIST', 'APP_DETAIL', 'APP_CREATE', 'APP_UPDATE', 'APP_DELETE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+
+-- 插入应用管理菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('应用管理', 'APP_MANAGEMENT', 0, 1, '/applications', NULL, 'AppstoreOutlined', 2, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 调整其他菜单的顺序
+UPDATE menus SET sort_order = 3 WHERE menu_code = 'SYSTEM_MANAGEMENT';
+UPDATE menus SET sort_order = 4 WHERE menu_code = 'PROFILE';
+
+-- 获取应用管理菜单ID
+SET @app_menu_id = (SELECT id FROM menus WHERE menu_code = 'APP_MANAGEMENT');
+
+-- 插入应用管理子菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('应用列表', 'APP_LIST_PAGE', @app_menu_id, 2, '/applications/list', 'ApplicationList', NULL, 1, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name);
+
+-- 为超级管理员角色分配应用管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code IN ('APP_MANAGEMENT', 'APP_LIST_PAGE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
