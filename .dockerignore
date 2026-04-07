@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Build artifacts (keep only the final JAR)
+.gradle
+build/
+!build/libs/*.jar
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+docs/
+
+# Docker
+Dockerfile
+docker-compose*.yaml
+.dockerignore
+
+# Scripts
+*.sh
+*.bat
+
+# Environment
+.env
+.env.*

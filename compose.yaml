@@ -1,6 +1,7 @@
 services:
   mysql:
     image: 'mysql:latest'
+    container_name: local-mysql
     environment:
       - 'MYSQL_DATABASE=ciphergate'
       - 'MYSQL_PASSWORD=Jx4zx_aYui23'

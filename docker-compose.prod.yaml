@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: ciphergate-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-super_axUobn34U}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciphergate}
+      MYSQL_USER: ${MYSQL_USER:-kersin}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Jx4zx_aYui23}
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    networks:
+      - ciphergate-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-super_axUobn34U}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+
+  # Spring Boot 后端
+  backend:
+    image: ciphergate-backend:latest
+    container_name: ciphergate-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ciphergate}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-kersin}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-Jx4zx_aYui23}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1g}
+      TZ: Asia/Shanghai
+    ports:
+      - "${BACKEND_PORT:-7754}:8080"
+    networks:
+      - ciphergate-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx 前端
+  frontend:
+    image: ciphergate-frontend:latest
+    container_name: ciphergate-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-1123}:80"
+    networks:
+      - ciphergate-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  ciphergate-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local

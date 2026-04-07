@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Build artifacts (keep only dist)
+.cache
+
+# IDE
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Documentation
+*.md
+
+# Config files (keep build configs for Docker build)
+.eslintrc*
+.prettierrc*

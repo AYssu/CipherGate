@@ -17,7 +17,6 @@ import java.util.Properties;
 @Slf4j
 @RestController
 @RequestMapping("/api/system")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequiredArgsConstructor
 public class SystemInfoController {
 

@@ -118,4 +118,10 @@ public class SystemConfigService {
     public String getGithubClientSecret() {
         return getConfigValue("github.oauth2.client-secret", "default-client-secret");
     }
+    /**
+     * 获取 GitHub OAuth2 Redirect URI
+     */
+    public String getGithubRedirectUri() {
+        return getConfigValue("github.oauth2.redirect-uri", "{baseUrl}/login/oauth2/code/{registrationId}");
+    }
 }

@@ -16,7 +16,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/github")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class GitHubInfoController {
 
     @GetMapping("/user/basic")

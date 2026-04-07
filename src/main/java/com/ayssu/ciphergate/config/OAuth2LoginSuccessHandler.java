@@ -57,6 +57,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         log.info("=== OAuth2 登录处理完成 ===");
         
         // 重定向到前端仪表板
-        getRedirectStrategy().sendRedirect(request, response, "http://localhost:5173/dashboard");
+        getRedirectStrategy().sendRedirect(request, response, "/dashboard");
     }
 }

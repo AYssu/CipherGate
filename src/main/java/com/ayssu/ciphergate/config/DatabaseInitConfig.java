@@ -105,6 +105,12 @@ public class DatabaseInitConfig implements CommandLineRunner {
                 log.info("初始化默认 GitHub Client Secret");
             }
             
+            String redirectUri = systemConfigService.getConfigValue("github.oauth2.redirect-uri");
+            if (redirectUri == null) {
+                systemConfigService.setConfigValue("github.oauth2.redirect-uri", "{baseUrl}/login/oauth2/code/{registrationId}", "GitHub OAuth2 Redirect URI", false);
+                log.info("初始化默认 GitHub Redirect URI");
+            }
+            
         } catch (Exception e) {
             log.error("初始化默认配置失败: {}", e.getMessage());
         }

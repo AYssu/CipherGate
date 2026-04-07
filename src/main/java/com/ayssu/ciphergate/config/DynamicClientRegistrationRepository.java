@@ -28,15 +28,16 @@ public class DynamicClientRegistrationRepository implements ClientRegistrationRe
         try {
             String clientId = systemConfigService.getGithubClientId();
             String clientSecret = systemConfigService.getGithubClientSecret();
+            String redirectUri = systemConfigService.getGithubRedirectUri();
             
-            log.debug("创建动态 GitHub OAuth2 客户端注册，Client ID: {}", clientId);
+            log.debug("创建动态 GitHub OAuth2 客户端注册，Client ID: {}, Redirect URI: {}", clientId, redirectUri);
             
             return ClientRegistration.withRegistrationId("github")
                     .clientId(clientId)
                     .clientSecret(clientSecret)
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                    .redirectUri(redirectUri)
                     .scope("user:email", "read:user")
                     .authorizationUri("https://github.com/login/oauth/authorize")
                     .tokenUri("https://github.com/login/oauth/access_token")

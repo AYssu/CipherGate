@@ -21,7 +21,7 @@ const Home: React.FC = () => {
   const [loginModalVisible, setLoginModalVisible] = useState(false);
 
   const handleGithubLogin = () => {
-    window.location.href = 'http://localhost:8080/oauth2/authorization/github';
+    window.location.href = '/api/oauth2/authorization/github';
   };
 
   const showLoginModal = () => {

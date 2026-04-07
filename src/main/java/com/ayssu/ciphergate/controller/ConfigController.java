@@ -12,7 +12,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/config")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequiredArgsConstructor
 public class ConfigController {
     
