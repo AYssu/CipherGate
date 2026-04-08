@@ -8,6 +8,7 @@ import RoleManagementPage from '../pages/System/RoleManagementPage';
 import MenuManagementPage from '../pages/System/MenuManagementPage';
 import PermissionManagementPage from '../pages/System/PermissionManagementPage';
 import SystemConfigPage from '../pages/System/SystemConfigPage';
+import SystemInfoPage from '../pages/System/SystemInfoPage';
 import ApplicationManagementPage from '../pages/Application/ApplicationManagementPage';
 import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
@@ -72,6 +73,10 @@ export const router = createBrowserRouter([
           {
             path: 'permissions',
             element: <PermissionManagementPage />,
+          },
+          {
+            path: 'info',
+            element: <SystemInfoPage />,
           },
           {
             path: 'config',

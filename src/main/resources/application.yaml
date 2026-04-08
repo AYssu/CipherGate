@@ -23,6 +23,12 @@ mybatis-plus:
 server:
   port: 8080
 
+app:
+  site:
+    icp-record-no: ${SITE_ICP_RECORD_NO:}
+    public-security-record-no: ${SITE_PUBLIC_SECURITY_RECORD_NO:}
+    icp-license-no: ${SITE_ICP_LICENSE_NO:}
+
 # Knife4j 配置
 knife4j:
   enable: true

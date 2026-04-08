@@ -44,7 +44,8 @@ const MainLayout: React.FC = () => {
         case 'roles': return 'role_management';
         case 'menus': return 'menu_management';
         case 'permissions': return 'permission_management';
-        case 'config': return 'system_config';
+        case 'info': return 'system_config';
+        case 'config': return 'system_setting';
         default: return 'dashboard';
       }
     }
@@ -85,6 +86,7 @@ const MainLayout: React.FC = () => {
         case 'roles': return '角色管理';
         case 'menus': return '菜单管理';
         case 'permissions': return '权限管理';
+        case 'info': return '系统信息';
         case 'config': return '系统配置';
         default: return '控制台';
       }
@@ -311,6 +313,10 @@ const MainLayout: React.FC = () => {
                       routePath = '/system/permissions';
                       break;
                     case 'system_config':
+                      routePath = '/system/info';
+                      break;
+                    case 'system_setting':
+                    case 'system_settings':
                       routePath = '/system/config';
                       break;
                     default:

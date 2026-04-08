@@ -494,10 +494,6 @@ html {
   }
 }
 
-  /* 内容区域移动端适配 */
-  .ant-layout-content {
-    padding: 16px !important;
-  }
 
   /* 移动端抽屉样式 */
   .ant-drawer-body {
@@ -633,9 +629,6 @@ html {
     padding: 0 20px !important;
   }
 
-  .ant-layout-content {
-    padding: 20px !important;
-  }
 
   .header-left-section .ant-typography {
     font-size: 18px !important;
@@ -662,9 +655,6 @@ html {
     font-size: 12px !important;
   }
 
-  .ant-layout-content {
-    padding: 12px !important;
-  }
 
   .sider-logo {
     padding: 16px 12px !important;

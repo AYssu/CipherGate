@@ -24,21 +24,46 @@ const Home: React.FC = () => {
   const [initModalVisible, setInitModalVisible] = useState(false);
   const [initForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [siteInfo, setSiteInfo] = useState({
+    icpRecordNo: '',
+    publicSecurityRecordNo: '',
+    icpLicenseNo: ''
+  });
 
   // 检查系统是否已初始化
   useEffect(() => {
     checkSystemInit();
+    loadSiteInfo();
   }, []);
 
   const checkSystemInit = async () => {
     try {
       const response = await systemApi.checkInitStatus();
-      if (response.success && !response.initialized) {
+      const initialized = response?.data?.initialized ?? response?.initialized;
+      if (response.success && initialized === false) {
         // 系统未初始化，显示配置弹窗
         setInitModalVisible(true);
       }
     } catch (error) {
       console.error('检查初始化状态失败:', error);
+    }
+  };
+
+  const loadSiteInfo = async () => {
+    try {
+      const response = await systemApi.getPublicSiteInfo();
+      const data = response?.data || {};
+      setSiteInfo({
+        icpRecordNo: (data.icpRecordNo || '').trim(),
+        publicSecurityRecordNo: (data.publicSecurityRecordNo || '').trim(),
+        icpLicenseNo: (data.icpLicenseNo || '').trim()
+      });
+    } catch {
+      setSiteInfo({
+        icpRecordNo: '',
+        publicSecurityRecordNo: '',
+        icpLicenseNo: ''
+      });
     }
   };
 
@@ -89,46 +114,46 @@ const Home: React.FC = () => {
   const features = [
     {
       icon: <SecurityScanOutlined style={{ fontSize: 48, color: '#1890ff' }} />,
-      title: '智能身份验证',
-      description: '支持多种认证方式，包括卡密验证和OAuth登录，确保用户身份安全可靠。',
-      highlight: '多重验证'
+      title: 'OAuth2 登录接入',
+      description: '支持 GitHub OAuth2 登录与 Session 会话管理，初始化后即可完成统一身份接入。',
+      highlight: 'GitHub OAuth2'
     },
     {
       icon: <SafetyOutlined style={{ fontSize: 48, color: '#52c41a' }} />,
-      title: '会话管理',
-      description: '智能会话保持技术，自动维护用户登录状态，提供无缝的用户体验。',
-      highlight: '持久连接'
+      title: 'RBAC 权限模型',
+      description: '内置用户、角色、菜单、权限四层管理，并支持细粒度接口权限校验。',
+      highlight: '细粒度权限'
     },
     {
       icon: <CloudServerOutlined style={{ fontSize: 48, color: '#722ed1' }} />,
-      title: '容器部署',
-      description: '基于Docker容器化部署，支持快速部署和弹性扩展，简化运维管理。',
-      highlight: 'Docker支持'
+      title: '应用与卡密管理',
+      description: '支持应用、卡密、批次、状态等全链路管理，覆盖常见授权运营场景。',
+      highlight: '授权运营'
     },
     {
       icon: <SafetyCertificateOutlined style={{ fontSize: 48, color: '#fa8c16' }} />,
-      title: '安全存储',
-      description: '卡密和用户凭证采用加密存储，多层安全防护，确保敏感信息不被泄露。',
-      highlight: '加密存储'
+      title: '终端用户管理',
+      description: '支持终端用户创建、封禁、密码重置、设备解绑与绑定记录管理。',
+      highlight: '用户生命周期'
     },
     {
       icon: <LockOutlined style={{ fontSize: 48, color: '#eb2f96' }} />,
-      title: '端到端加密',
-      description: '采用RSA非对称加密技术，保护数据在传输和存储过程中的绝对安全。',
-      highlight: 'RSA加密'
+      title: '应用变量管理',
+      description: '支持变量增删改查、批量更新、导入导出与历史记录追踪，便于配置治理。',
+      highlight: '配置治理'
     },
     {
       icon: <MonitorOutlined style={{ fontSize: 48, color: '#13c2c2' }} />,
-      title: '实时监控',
-      description: '实时监控用户连接状态和系统运行情况，及时发现异常并自动处理。',
-      highlight: '实时监控'
+      title: '审计与系统消息',
+      description: '关键操作支持活动日志审计，并可向目标用户推送站内通知消息。',
+      highlight: '可追踪可通知'
     },
   ];
   const stats = [
-    { title: '企业客户', value: 2000, suffix: '+', prefix: <TeamOutlined /> },
-    { title: '防护设备', value: 50000, suffix: '+', prefix: <SafetyOutlined /> },
-    { title: '威胁拦截', value: 99.9, suffix: '%', prefix: <SecurityScanOutlined /> },
-    { title: '服务可用性', value: 99.99, suffix: '%', prefix: <CheckCircleOutlined /> },
+    { title: '核心管理模块', value: 8, suffix: '+', prefix: <TeamOutlined /> },
+    { title: '权限控制接口', value: 30, suffix: '+', prefix: <SafetyOutlined /> },
+    { title: '已覆盖审计操作', value: 20, suffix: '+', prefix: <SecurityScanOutlined /> },
+    { title: '统一返回契约', value: 100, suffix: '%', prefix: <CheckCircleOutlined /> },
   ];
 
   return (
@@ -222,14 +247,17 @@ const Home: React.FC = () => {
           </div>
         </div>
       </Header>
-      <Content style={{ marginTop: 64 }}>
+      <Content style={{ marginTop: 64, padding: 0 }}>
         {/* Hero Section */}
         <div style={{ 
           background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
           color: 'white',
-          padding: window.innerWidth < 768 ? '177px 0 80px' : '252px 0 120px',
+          minHeight: window.innerWidth < 768 ? 'calc(100vh - 64px)' : 'calc(100vh - 64px)',
+          padding: window.innerWidth < 768 ? '96px 0 48px' : '120px 0 64px',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center'
         }}>
           {/* 动态网格背景 */}
           <div style={{ 
@@ -359,9 +387,9 @@ const Home: React.FC = () => {
                     letterSpacing: '-1px',
                     textAlign: window.innerWidth < 768 ? 'center' : 'left'
                   }}>
-                    企业级网络安全
+                    企业级授权与配置
                     <br />
-                    <span style={{ color: '#00d4aa' }}>智能防护平台</span>
+                    <span style={{ color: '#00d4aa' }}>统一管理平台</span>
                   </Title>
                   
                   <Paragraph style={{ 
@@ -373,8 +401,8 @@ const Home: React.FC = () => {
                     textAlign: window.innerWidth < 768 ? 'center' : 'left',
                     margin: window.innerWidth < 768 ? '0 auto 32px' : '0 0 48px 0'
                   }}>
-                    CipherGate 为全球2000+个人开发者提供安全认证解决方案，
-                    支持卡密验证和OAuth登录，实现安全可靠的用户身份管理。
+                    CipherGate 聚焦应用授权、终端用户与配置治理，
+                    提供 OAuth2 登录、RBAC 权限、卡密管理、变量管理与审计能力的一体化后台。
                   </Paragraph>
                   
                   <div style={{ 
@@ -450,6 +478,7 @@ const Home: React.FC = () => {
               </Col>
             </Row>
           </div>
+
         </div>
         {/* Stats Section */}
         <div style={{ padding: window.innerWidth < 768 ? '60px 0' : '80px 0', background: '#fafafa' }}>
@@ -469,7 +498,7 @@ const Home: React.FC = () => {
                 margin: '0 auto',
                 padding: '0 16px'
               }}>
-                我们用数据说话，用实力证明专业能力
+                以下能力均可在当前版本中直接使用与验证
               </Paragraph>
             </div>
             
@@ -525,8 +554,7 @@ const Home: React.FC = () => {
                 padding: '0 16px',
                 lineHeight: 1.6
               }}>
-                我们提供完整的网络安全产品矩阵，覆盖从预防到检测、响应的全生命周期安全管理，
-                为企业构建坚不可摧的安全防线
+                聚焦“可落地”的授权与管理能力，覆盖鉴权、权限、配置、审计与消息通知等核心场景
               </Paragraph>
             </div>
             
@@ -728,8 +756,10 @@ const Home: React.FC = () => {
           
           <div style={{ textAlign: 'center' }}>
             <Text style={{ color: 'rgba(255,255,255,0.45)' }}>
-              CipherGate ©{new Date().getFullYear()} Created by Ayssu. 专业的网络安全解决方案提供商 | 
-              京ICP备12345678号 | 网络文化经营许可证
+              CipherGate ©{new Date().getFullYear()} Created by Ayssu. 专业的网络安全解决方案提供商
+              {siteInfo.publicSecurityRecordNo ? ` | ${siteInfo.publicSecurityRecordNo}` : ''}
+              {siteInfo.icpLicenseNo ? ` | ${siteInfo.icpLicenseNo}` : ''}
+              {siteInfo.icpRecordNo ? ` | ${siteInfo.icpRecordNo}` : ''}
             </Text>
           </div>
         </div>

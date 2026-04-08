@@ -15,6 +15,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -32,6 +33,15 @@ public class ConfigController {
     
     @Value("${app.security.init-reset-token:}")
     private String initResetToken;
+
+    @Value("${app.site.icp-record-no:}")
+    private String icpRecordNo;
+
+    @Value("${app.site.public-security-record-no:}")
+    private String publicSecurityRecordNo;
+
+    @Value("${app.site.icp-license-no:}")
+    private String icpLicenseNo;
     
     @GetMapping("/{configKey}")
     @RequirePermission("CONFIG_LIST")
@@ -141,6 +151,98 @@ public class ConfigController {
             return Result.error("检查初始化状态失败: " + e.getMessage());
         }
     }
+
+    @GetMapping("/public/site-info")
+    @Operation(summary = "获取站点公共展示信息")
+    public Result<Map<String, Object>> getPublicSiteInfo() {
+        String siteIcpRecordNo = systemConfigService.getConfigValue("site.icp-record-no", icpRecordNo);
+        String sitePublicSecurityRecordNo = systemConfigService.getConfigValue("site.public-security-record-no", publicSecurityRecordNo);
+        String siteIcpLicenseNo = systemConfigService.getConfigValue("site.icp-license-no", icpLicenseNo);
+        return Result.success(Map.of(
+                "icpRecordNo", siteIcpRecordNo == null ? "" : siteIcpRecordNo,
+                "publicSecurityRecordNo", sitePublicSecurityRecordNo == null ? "" : sitePublicSecurityRecordNo,
+                "icpLicenseNo", siteIcpLicenseNo == null ? "" : siteIcpLicenseNo
+        ));
+    }
+
+    @GetMapping("/settings")
+    @RequirePermission("CONFIG_LIST")
+    @Operation(summary = "获取系统配置中心信息")
+    public Result<Map<String, Object>> getSettings() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("githubClientId", systemConfigService.getConfigValue("github.oauth2.client-id", ""));
+        data.put("githubRedirectUri", systemConfigService.getConfigValue("github.oauth2.redirect-uri", ""));
+        data.put("frontendUrl", systemConfigService.getConfigValue("frontend.url", ""));
+        data.put("sitePublicSecurityRecordNo", systemConfigService.getConfigValue("site.public-security-record-no", ""));
+        data.put("siteIcpLicenseNo", systemConfigService.getConfigValue("site.icp-license-no", ""));
+        data.put("siteIcpRecordNo", systemConfigService.getConfigValue("site.icp-record-no", ""));
+        data.put("emailSmtpHost", systemConfigService.getConfigValue("email.smtp.host", ""));
+        data.put("emailSmtpPort", systemConfigService.getConfigValue("email.smtp.port", ""));
+        data.put("emailSmtpUsername", systemConfigService.getConfigValue("email.smtp.username", ""));
+        data.put("emailFrom", systemConfigService.getConfigValue("email.from", ""));
+        data.put("emailEnabled", "true".equalsIgnoreCase(systemConfigService.getConfigValue("email.enabled", "false")));
+        data.put("emailPasswordSet", StringUtils.hasText(systemConfigService.getConfigValue("email.smtp.password", "")));
+        return Result.success(data);
+    }
+
+    @PostMapping("/settings/github")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新GitHub OAuth配置")
+    @Operation(summary = "更新GitHub OAuth配置")
+    public Result<Void> updateGithubSettings(@RequestBody Map<String, String> request) {
+        String clientId = request.get("clientId");
+        String redirectUri = request.get("redirectUri");
+        String frontendUrl = request.get("frontendUrl");
+        String clientSecret = request.get("clientSecret");
+
+        if (!StringUtils.hasText(clientId) || !StringUtils.hasText(redirectUri) || !StringUtils.hasText(frontendUrl)) {
+            return Result.error("Client ID、Redirect URI、前端地址不能为空");
+        }
+
+        systemConfigService.setConfigValue("github.oauth2.client-id", clientId.trim(), "GitHub OAuth2 Client ID", false);
+        systemConfigService.setConfigValue("github.oauth2.redirect-uri", redirectUri.trim(), "GitHub OAuth2 Redirect URI", false);
+        systemConfigService.setConfigValue("frontend.url", frontendUrl.trim(), "前端地址", false);
+        if (StringUtils.hasText(clientSecret)) {
+            systemConfigService.setConfigValue("github.oauth2.client-secret", clientSecret.trim(), "GitHub OAuth2 Client Secret", true);
+        }
+        return Result.success("GitHub 配置更新成功", null);
+    }
+
+    @PostMapping("/settings/site")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新站点备案配置")
+    @Operation(summary = "更新站点备案配置")
+    public Result<Void> updateSiteSettings(@RequestBody Map<String, String> request) {
+        systemConfigService.setConfigValue("site.public-security-record-no",
+                toSafeValue(request.get("publicSecurityRecordNo")), "站点公网安备号", false);
+        systemConfigService.setConfigValue("site.icp-license-no",
+                toSafeValue(request.get("icpLicenseNo")), "站点ICP证号", false);
+        systemConfigService.setConfigValue("site.icp-record-no",
+                toSafeValue(request.get("icpRecordNo")), "站点ICP备案号", false);
+        return Result.success("站点备案配置更新成功", null);
+    }
+
+    @PostMapping("/settings/email")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新邮箱配置")
+    @Operation(summary = "更新邮箱配置")
+    public Result<Void> updateEmailSettings(@RequestBody Map<String, Object> request) {
+        systemConfigService.setConfigValue("email.smtp.host",
+                toSafeValue((String) request.get("smtpHost")), "SMTP 主机", false);
+        systemConfigService.setConfigValue("email.smtp.port",
+                toSafeValue((String) request.get("smtpPort")), "SMTP 端口", false);
+        systemConfigService.setConfigValue("email.smtp.username",
+                toSafeValue((String) request.get("smtpUsername")), "SMTP 用户名", false);
+        if (request.get("smtpPassword") instanceof String pwd && StringUtils.hasText(pwd)) {
+            systemConfigService.setConfigValue("email.smtp.password", pwd.trim(), "SMTP 密码", true);
+        }
+        systemConfigService.setConfigValue("email.from",
+                toSafeValue((String) request.get("fromEmail")), "发件人邮箱", false);
+        Object enabledObj = request.get("enabled");
+        boolean enabled = enabledObj instanceof Boolean b && b;
+        systemConfigService.setConfigValue("email.enabled", String.valueOf(enabled), "邮箱通知开关", false);
+        return Result.success("邮箱配置更新成功", null);
+    }
     
     /**
      * 初始化系统配置（无需权限，但只能在默认配置时使用）
@@ -228,5 +330,9 @@ public class ConfigController {
             return "***";
         }
         return value.substring(0, 4) + "***" + value.substring(value.length() - 4);
+    }
+
+    private String toSafeValue(String value) {
+        return value == null ? "" : value.trim();
     }
 }

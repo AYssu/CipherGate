@@ -24,6 +24,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/login", "/error", "/webjars/**", 
                                 "/api/config/init/status",
                                 "/api/config/init",
+                                "/api/config/public/site-info",
                                 "/api/user/status",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()

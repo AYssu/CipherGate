@@ -188,7 +188,30 @@ INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, comp
 ('角色管理', 'ROLE_MANAGEMENT', @system_management_id, 2, '/system?tab=roles', 'SystemManagement', 'safety', 2, 1, 1),
 ('菜单管理', 'MENU_MANAGEMENT', @system_management_id, 2, '/system?tab=menus', 'SystemManagement', 'menu', 3, 1, 1),
 ('权限管理', 'PERMISSION_MANAGEMENT', @system_management_id, 2, '/system?tab=permissions', 'SystemManagement', 'lock', 4, 1, 1),
-('系统配置', 'SYSTEM_CONFIG', @system_management_id, 2, '/system?tab=config', 'SystemManagement', 'tool', 5, 1, 1);
+('系统信息', 'SYSTEM_CONFIG', @system_management_id, 2, '/system/info', 'SystemManagement', 'tool', 5, 1, 1),
+('系统配置', 'SYSTEM_SETTING', @system_management_id, 2, '/system/config', 'SystemManagement', 'setting', 6, 1, 1);
+
+-- 兼容存量数据：确保系统信息/系统配置菜单存在并命名正确
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('系统信息', 'SYSTEM_CONFIG', @system_management_id, 2, '/system/info', 'SystemManagement', 'tool', 5, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    menu_name = VALUES(menu_name),
+    path = VALUES(path),
+    sort_order = VALUES(sort_order);
+
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('系统配置', 'SYSTEM_SETTING', @system_management_id, 2, '/system/config', 'SystemManagement', 'setting', 6, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    menu_name = VALUES(menu_name),
+    path = VALUES(path),
+    sort_order = VALUES(sort_order);
+
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+  AND m.menu_code = 'SYSTEM_SETTING'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
 
 
 -- 检查是否是首次初始化，如果是则分配默认菜单权限
