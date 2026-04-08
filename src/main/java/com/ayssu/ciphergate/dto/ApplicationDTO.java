@@ -24,6 +24,12 @@ public class ApplicationDTO {
     @Schema(description = "应用公告")
     private String notice;
     
+    @Schema(description = "更新公告")
+    private String updateNotice;
+    
+    @Schema(description = "更新文件存储Key(MinIO)")
+    private String updateFileStorageKey;
+    
     @Schema(description = "应用分类", example = "游戏")
     private String category;
     

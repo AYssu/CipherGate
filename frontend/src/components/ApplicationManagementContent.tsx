@@ -19,7 +19,9 @@ import {
   Divider,
   Badge,
   Dropdown,
+  Upload,
   type MenuProps,
+  type UploadProps,
 } from 'antd';
 import {
   PlusOutlined,
@@ -39,6 +41,7 @@ import {
   CloudOutlined,
   DatabaseOutlined,
   SafetyOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import {
   getApplicationList,
@@ -105,6 +108,7 @@ const ApplicationManagementContent: React.FC = () => {
         appName: app.appName,
         description: app.description,
         notice: app.notice,
+        updateNotice: app.updateNotice,
         category: app.category,
         tags: app.tags,
         businessModel: app.businessModel,
@@ -516,7 +520,39 @@ const ApplicationManagementContent: React.FC = () => {
         width={700}
         okText="确定"
         cancelText="取消"
+        className="app-edit-modal"
       >
+        <style>{`
+          /* Modal 滚动条样式 */
+          .app-edit-modal .ant-modal-body::-webkit-scrollbar {
+            width: 6px;
+          }
+          .app-edit-modal .ant-modal-body::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb {
+            background-color: #d9d9d9;
+            border-radius: 3px;
+          }
+          .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+            background-color: #bfbfbf;
+          }
+          
+          /* TextArea 滚动条样式 */
+          .app-edit-modal textarea::-webkit-scrollbar {
+            width: 6px;
+          }
+          .app-edit-modal textarea::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .app-edit-modal textarea::-webkit-scrollbar-thumb {
+            background-color: #d9d9d9;
+            border-radius: 3px;
+          }
+          .app-edit-modal textarea::-webkit-scrollbar-thumb:hover {
+            background-color: #bfbfbf;
+          }
+        `}</style>
         <Form
           form={form}
           layout="vertical"
@@ -542,7 +578,10 @@ const ApplicationManagementContent: React.FC = () => {
             name="description"
             rules={[{ max: 500, message: '描述不能超过500个字符' }]}
           >
-            <TextArea rows={3} placeholder="请输入应用描述" />
+            <TextArea 
+              placeholder="请输入应用描述"
+              autoSize={{ minRows: 3, maxRows: 10 }}
+            />
           </Form.Item>
 
           <Row gutter={16}>
@@ -619,7 +658,29 @@ const ApplicationManagementContent: React.FC = () => {
           </Row>
 
           <Form.Item label="应用公告" name="notice">
-            <TextArea rows={4} placeholder="请输入应用公告" />
+            <TextArea 
+              placeholder="请输入应用公告"
+              autoSize={{ minRows: 4, maxRows: 15 }}
+            />
+          </Form.Item>
+
+          <Form.Item label="更新公告" name="updateNotice">
+            <TextArea 
+              placeholder="请输入更新公告，描述最新版本的更新内容"
+              autoSize={{ minRows: 4, maxRows: 15 }}
+            />
+          </Form.Item>
+
+          <Form.Item label="更新文件" name="updateFile" tooltip="上传应用更新文件（暂未启用MinIO，功能预留）">
+            <Upload
+              maxCount={1}
+              beforeUpload={() => {
+                message.info('MinIO文件上传功能暂未启用，敬请期待');
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />} disabled>上传更新文件（功能开发中）</Button>
+            </Upload>
           </Form.Item>
         </Form>
       </Modal>

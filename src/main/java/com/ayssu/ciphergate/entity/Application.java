@@ -51,6 +51,16 @@ public class Application implements Serializable {
     private String notice;
     
     /**
+     * 更新公告
+     */
+    private String updateNotice;
+    
+    /**
+     * 更新文件存储Key(MinIO)
+     */
+    private String updateFileStorageKey;
+    
+    /**
      * 应用分类
      */
     private String category;

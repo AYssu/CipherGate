@@ -48,6 +48,15 @@ const MainLayout: React.FC = () => {
         default: return 'dashboard';
       }
     }
+    if (pathname.startsWith('/applications/')) {
+      const appPath = pathname.replace('/applications/', '');
+      switch (appPath) {
+        case 'list': return 'app_list_page';
+        case 'licenses': return 'license_management';
+        case 'users': return 'app_user_management';
+        default: return 'dashboard';
+      }
+    }
     return 'dashboard';
   };
 
@@ -55,8 +64,12 @@ const MainLayout: React.FC = () => {
 
   // 根据当前选中的菜单自动设置展开的父菜单
   useEffect(() => {
-    if (selectedMenu?.includes('_management')) {
+    if (selectedMenu?.includes('_management') && !selectedMenu?.startsWith('app_') && selectedMenu !== 'license_management' && selectedMenu !== 'app_user_management') {
       setOpenKeys(['system_management']);
+    } else if (selectedMenu?.includes('_config')) {
+      setOpenKeys(['system_management']);
+    } else if (selectedMenu?.startsWith('app_') || selectedMenu === 'license_management' || selectedMenu === 'app_user_management') {
+      setOpenKeys(['app_management']);
     }
   }, [selectedMenu]);
 
@@ -73,6 +86,15 @@ const MainLayout: React.FC = () => {
         case 'permissions': return '权限管理';
         case 'config': return '系统配置';
         default: return '控制台';
+      }
+    }
+    if (pathname.startsWith('/applications/')) {
+      const appPath = pathname.replace('/applications/', '');
+      switch (appPath) {
+        case 'list': return '应用列表';
+        case 'licenses': return '卡密管理';
+        case 'users': return '终端用户';
+        default: return '应用管理';
       }
     }
     return '控制台';
@@ -300,6 +322,12 @@ const MainLayout: React.FC = () => {
                   switch (childKey) {
                     case 'app_list_page':
                       routePath = '/applications/list';
+                      break;
+                    case 'license_management':
+                      routePath = '/applications/licenses';
+                      break;
+                    case 'app_user_management':
+                      routePath = '/applications/users';
                       break;
                     default:
                       routePath = `/applications/${childKey}`;

@@ -6,3 +6,5 @@ export { default as SystemConfigContent } from './SystemConfigContent';
 export { default as ProfileContent } from './ProfileContent';
 export { default as DashboardContent } from './DashboardContent';
 export { default as ApplicationManagementContent } from './ApplicationManagementContent';
+export { default as LicenseManagementContent } from './LicenseManagementContent';
+export { default as AppUserManagementContent } from './AppUserManagementContent';

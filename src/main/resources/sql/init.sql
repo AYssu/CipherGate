@@ -315,6 +315,8 @@ CREATE TABLE IF NOT EXISTS application (
     -- 基础信息
     description VARCHAR(500) COMMENT '应用描述',
     notice TEXT COMMENT '应用公告',
+    update_notice TEXT COMMENT '更新公告',
+    update_file_storage_key VARCHAR(255) COMMENT '更新文件存储Key(MinIO)',
     category VARCHAR(50) COMMENT '应用分类',
     tags VARCHAR(255) COMMENT '标签(逗号分隔)',
     icon_url VARCHAR(255) DEFAULT '/default-app-icon.png' COMMENT '应用图标',
@@ -420,4 +422,316 @@ SELECT r.id, m.id
 FROM roles r, menus m
 WHERE r.role_code = 'SUPER_ADMIN'
 AND m.menu_code IN ('APP_MANAGEMENT', 'APP_LIST_PAGE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+
+
+
+
+-- 卡密表
+CREATE TABLE IF NOT EXISTS license_key (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '卡密ID',
+    app_id BIGINT NOT NULL COMMENT '所属应用ID',
+    owner_id BIGINT NOT NULL COMMENT '创建者ID',
+    key_code VARCHAR(128) NOT NULL UNIQUE COMMENT '卡密码',
+    
+    -- 卡密类型
+    key_type VARCHAR(20) NOT NULL COMMENT '卡密类型: DAY,WEEK,MONTH,QUARTER,HALF_YEAR,YEAR,PERMANENT,CUSTOM',
+    duration_value INT COMMENT '时长数值',
+    duration_unit VARCHAR(10) COMMENT '时长单位: HOUR,DAY,MONTH',
+    
+    -- 批次管理
+    batch_id BIGINT COMMENT '批次ID',
+    source VARCHAR(50) DEFAULT 'MANUAL' COMMENT '来源: MANUAL,BATCH,API,IMPORT',
+    
+    -- 绑定信息
+    bind_device_id VARCHAR(255) COMMENT '绑定设备标识',
+    bind_ip VARCHAR(50) COMMENT '绑定IP',
+    bind_user_id BIGINT COMMENT '绑定的终端用户ID',
+    
+    -- 时间管理
+    first_used_at DATETIME COMMENT '首次使用时间',
+    last_used_at DATETIME COMMENT '最后使用时间',
+    expires_at DATETIME COMMENT '到期时间',
+    
+    -- 使用限制
+    use_count INT DEFAULT 0 COMMENT '使用次数',
+    use_limit INT DEFAULT 0 COMMENT '使用次数限制(0=不限)',
+    unbind_count INT DEFAULT 0 COMMENT '解绑次数',
+    unbind_limit INT DEFAULT 0 COMMENT '解绑次数限制(0=不限)',
+    
+    -- 时间段限制
+    use_time_start TIME COMMENT '可使用时间段-开始',
+    use_time_end TIME COMMENT '可使用时间段-结束',
+    
+    -- 验证开关
+    device_check_enabled BOOLEAN DEFAULT TRUE COMMENT '是否验证设备',
+    ip_check_enabled BOOLEAN DEFAULT FALSE COMMENT '是否验证IP',
+    
+    -- WebSocket 相关
+    last_heartbeat_at DATETIME COMMENT '最后心跳时间',
+    heartbeat_interval INT DEFAULT 60 COMMENT '心跳间隔(秒)',
+    connection_id VARCHAR(64) COMMENT '当前连接ID',
+    is_online BOOLEAN DEFAULT FALSE COMMENT '是否在线',
+    
+    -- 扩展字段
+    remark VARCHAR(500) COMMENT '备注',
+    core_data TEXT COMMENT '核心标记数据',
+    metadata JSON COMMENT '扩展元数据',
+    
+    -- 状态
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1=未使用, 2=使用中, 3=已过期, 4=已禁用',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0=未删除, 1=已删除',
+    
+    INDEX idx_app (app_id),
+    INDEX idx_owner (owner_id),
+    INDEX idx_batch (batch_id),
+    INDEX idx_bind_user (bind_user_id),
+    INDEX idx_status (status),
+    INDEX idx_expires (expires_at),
+    INDEX idx_deleted (deleted),
+    INDEX idx_heartbeat (last_heartbeat_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='卡密表';
+
+-- 卡密批次表
+CREATE TABLE IF NOT EXISTS license_batch (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '批次ID',
+    app_id BIGINT NOT NULL COMMENT '所属应用ID',
+    creator_id BIGINT NOT NULL COMMENT '创建者ID',
+    batch_name VARCHAR(100) NOT NULL COMMENT '批次名称',
+    batch_code VARCHAR(50) NOT NULL UNIQUE COMMENT '批次编号',
+    
+    -- 批次配置
+    key_type VARCHAR(20) NOT NULL COMMENT '卡密类型',
+    duration_value INT COMMENT '时长数值',
+    duration_unit VARCHAR(10) COMMENT '时长单位: HOUR,DAY,MONTH,YEAR',
+    total_count INT NOT NULL COMMENT '生成总数',
+    used_count INT DEFAULT 0 COMMENT '已使用数量',
+    
+    -- 批次配置（继承到卡密）
+    use_limit INT DEFAULT 0 COMMENT '使用次数限制',
+    unbind_limit INT DEFAULT 0 COMMENT '解绑次数限制',
+    device_check_enabled BOOLEAN DEFAULT TRUE COMMENT '是否验证设备',
+    ip_check_enabled BOOLEAN DEFAULT FALSE COMMENT '是否验证IP',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    remark VARCHAR(500) COMMENT '备注',
+    
+    INDEX idx_app (app_id),
+    INDEX idx_creator (creator_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='卡密批次表';
+
+-- 插入卡密管理权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('卡密列表', 'LICENSE_LIST', 'API', '/api/licenses', 'GET', '查看卡密列表', 1),
+('卡密详情', 'LICENSE_DETAIL', 'API', '/api/licenses/*', 'GET', '查看卡密详情', 1),
+('创建卡密', 'LICENSE_CREATE', 'API', '/api/licenses', 'POST', '创建卡密', 1),
+('批量生成卡密', 'LICENSE_BATCH_CREATE', 'API', '/api/licenses/batch', 'POST', '批量生成卡密', 1),
+('编辑卡密', 'LICENSE_UPDATE', 'API', '/api/licenses/*', 'PUT', '编辑卡密', 1),
+('删除卡密', 'LICENSE_DELETE', 'API', '/api/licenses/*', 'DELETE', '删除卡密', 1),
+('导出卡密', 'LICENSE_EXPORT', 'API', '/api/licenses/export', 'GET', '导出卡密', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 为超级管理员分配卡密权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN ('LICENSE_LIST', 'LICENSE_DETAIL', 'LICENSE_CREATE', 'LICENSE_BATCH_CREATE', 'LICENSE_UPDATE', 'LICENSE_DELETE', 'LICENSE_EXPORT')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配基础卡密权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN ('LICENSE_LIST', 'LICENSE_DETAIL', 'LICENSE_CREATE', 'LICENSE_BATCH_CREATE', 'LICENSE_UPDATE', 'LICENSE_DELETE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 插入卡密管理菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('卡密管理', 'LICENSE_MANAGEMENT', (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'APP_MANAGEMENT') AS tmp), 2, '/applications/licenses', 'LicenseManagement', NULL, 2, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 为超级管理员分配卡密管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code = 'LICENSE_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配卡密管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'USER'
+AND m.menu_code = 'LICENSE_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+
+-- ========================================
+-- 终端用户管理模块表
+-- ========================================
+
+-- 应用终端用户表（按应用隔离）
+CREATE TABLE IF NOT EXISTS app_user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
+    app_id BIGINT NOT NULL COMMENT '所属应用ID',
+    
+    -- 账号信息
+    username VARCHAR(50) NOT NULL COMMENT '用户名',
+    email VARCHAR(100) COMMENT '邮箱',
+    phone VARCHAR(20) COMMENT '手机号',
+    password VARCHAR(128) COMMENT '密码(加密存储)',
+    
+    -- 基础信息
+    nickname VARCHAR(50) COMMENT '昵称',
+    avatar_url VARCHAR(255) COMMENT '头像URL',
+    signature VARCHAR(200) COMMENT '个性签名',
+    
+    -- 统计信息
+    login_count INT DEFAULT 0 COMMENT '登录次数',
+    last_login_at DATETIME COMMENT '最后登录时间',
+    last_login_ip VARCHAR(50) COMMENT '最后登录IP',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0=未删除, 1=已删除',
+    
+    UNIQUE KEY uk_app_username (app_id, username),
+    UNIQUE KEY uk_app_email (app_id, email),
+    INDEX idx_app (app_id),
+    INDEX idx_phone (phone),
+    INDEX idx_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用终端用户表';
+
+-- 应用用户绑定表（用户与设备的绑定关系）
+CREATE TABLE IF NOT EXISTS app_user_binding (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '绑定ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    user_id BIGINT NOT NULL COMMENT '终端用户ID',
+    
+    -- 绑定类型
+    bind_type VARCHAR(20) NOT NULL COMMENT '绑定类型: LICENSE=卡密绑定, TRIAL=试用, VIP=会员',
+    license_key_id BIGINT COMMENT '关联的卡密ID(bind_type=LICENSE时)',
+    
+    -- 设备信息
+    device_id VARCHAR(255) NOT NULL COMMENT '设备标识',
+    device_name VARCHAR(100) COMMENT '设备名称',
+    device_os VARCHAR(50) COMMENT '设备系统',
+    device_ip VARCHAR(50) COMMENT '设备IP',
+    
+    -- 时间管理
+    expires_at DATETIME COMMENT '到期时间',
+    first_bind_at DATETIME COMMENT '首次绑定时间',
+    last_active_at DATETIME COMMENT '最后活跃时间',
+    
+    -- 使用统计
+    use_count INT DEFAULT 0 COMMENT '使用次数',
+    unbind_count INT DEFAULT 0 COMMENT '解绑次数',
+    
+    -- 试用相关
+    is_trial BOOLEAN DEFAULT FALSE COMMENT '是否试用',
+    trial_expires_at DATETIME COMMENT '试用到期时间',
+    
+    -- 权限控制
+    allow_unbind BOOLEAN DEFAULT TRUE COMMENT '允许解绑',
+    is_banned BOOLEAN DEFAULT FALSE COMMENT '是否封禁',
+    ban_reason VARCHAR(255) COMMENT '封禁原因',
+    ban_at DATETIME COMMENT '封禁时间',
+    
+    -- 扩展字段
+    remark VARCHAR(500) COMMENT '备注',
+    metadata JSON COMMENT '扩展元数据',
+    
+    -- 状态
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1=正常, 2=已过期, 3=已封禁, 4=已解绑',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0=未删除, 1=已删除',
+    
+    UNIQUE KEY uk_app_user_device (app_id, user_id, device_id),
+    INDEX idx_app (app_id),
+    INDEX idx_user (user_id),
+    INDEX idx_license (license_key_id),
+    INDEX idx_device (device_id),
+    INDEX idx_expires (expires_at),
+    INDEX idx_status (status),
+    INDEX idx_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用用户绑定表';
+
+-- 用户试用记录表（记录每个用户在每个应用的试用情况）
+CREATE TABLE IF NOT EXISTS app_user_trial (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    
+    -- 试用信息
+    trial_started_at DATETIME NOT NULL COMMENT '试用开始时间',
+    trial_expires_at DATETIME NOT NULL COMMENT '试用到期时间',
+    device_id VARCHAR(255) COMMENT '试用设备',
+    
+    -- 审计字段
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    
+    UNIQUE KEY uk_app_user (app_id, user_id),
+    INDEX idx_app (app_id),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户试用记录表';
+
+-- 插入终端用户管理权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('终端用户列表', 'APP_USER_LIST', 'API', '/api/app-users', 'GET', '查看终端用户列表', 1),
+('终端用户详情', 'APP_USER_DETAIL', 'API', '/api/app-users/*', 'GET', '查看终端用户详情', 1),
+('创建终端用户', 'APP_USER_CREATE', 'API', '/api/app-users', 'POST', '创建终端用户', 1),
+('编辑终端用户', 'APP_USER_UPDATE', 'API', '/api/app-users/*', 'PUT', '编辑终端用户', 1),
+('删除终端用户', 'APP_USER_DELETE', 'API', '/api/app-users/*', 'DELETE', '删除终端用户', 1),
+('重置用户密码', 'APP_USER_RESET_PWD', 'API', '/api/app-users/*/reset-password', 'POST', '重置用户密码', 1),
+('封禁用户', 'APP_USER_BAN', 'API', '/api/app-users/*/ban', 'POST', '封禁用户', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 为超级管理员分配终端用户管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN ('APP_USER_LIST', 'APP_USER_DETAIL', 'APP_USER_CREATE', 'APP_USER_UPDATE', 'APP_USER_DELETE', 'APP_USER_RESET_PWD', 'APP_USER_BAN')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配终端用户管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN ('APP_USER_LIST', 'APP_USER_DETAIL', 'APP_USER_CREATE', 'APP_USER_UPDATE', 'APP_USER_DELETE', 'APP_USER_RESET_PWD', 'APP_USER_BAN')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 插入终端用户管理菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('终端用户', 'APP_USER_MANAGEMENT', (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'APP_MANAGEMENT') AS tmp), 2, '/applications/users', 'AppUserManagement', NULL, 3, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 为超级管理员分配终端用户管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code = 'APP_USER_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配终端用户管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'USER'
+AND m.menu_code = 'APP_USER_MANAGEMENT'
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);

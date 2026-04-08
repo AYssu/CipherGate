@@ -9,6 +9,8 @@ import MenuManagementPage from '../pages/System/MenuManagementPage';
 import PermissionManagementPage from '../pages/System/PermissionManagementPage';
 import SystemConfigPage from '../pages/System/SystemConfigPage';
 import ApplicationManagementPage from '../pages/Application/ApplicationManagementPage';
+import LicenseManagementPage from '../pages/License/LicenseManagementPage';
+import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +38,14 @@ export const router = createBrowserRouter([
           {
             path: 'list',
             element: <ApplicationManagementPage />,
+          },
+          {
+            path: 'licenses',
+            element: <LicenseManagementPage />,
+          },
+          {
+            path: 'users',
+            element: <AppUserManagementPage />,
           },
         ],
       },

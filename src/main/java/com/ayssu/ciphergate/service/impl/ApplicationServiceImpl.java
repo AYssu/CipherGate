@@ -193,6 +193,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (dto.getNotice() != null) {
             application.setNotice(dto.getNotice());
         }
+        if (dto.getUpdateNotice() != null) {
+            application.setUpdateNotice(dto.getUpdateNotice());
+        }
+        if (dto.getUpdateFileStorageKey() != null) {
+            application.setUpdateFileStorageKey(dto.getUpdateFileStorageKey());
+        }
         if (dto.getCategory() != null) {
             application.setCategory(dto.getCategory());
         }

@@ -18,3 +18,6 @@ export * from './systemService';
 // 从 activityService 导出
 export { activityApi } from './activityService';
 export type { ActivityLog, PageResult } from './activityService';
+
+// 从 appUserService 导出
+export * from './appUserService';

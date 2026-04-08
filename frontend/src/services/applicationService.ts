@@ -9,6 +9,8 @@ export interface Application {
   appSecret?: string;
   description?: string;
   notice?: string;
+  updateNotice?: string;
+  updateFileStorageKey?: string;
   category?: string;
   tags?: string;
   iconUrl?: string;
@@ -40,6 +42,8 @@ export interface ApplicationDTO {
   appName: string;
   description?: string;
   notice?: string;
+  updateNotice?: string;
+  updateFileStorageKey?: string;
   category?: string;
   tags?: string;
   iconUrl?: string;
