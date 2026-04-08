@@ -13,6 +13,7 @@ import ApplicationManagementPage from '../pages/Application/ApplicationManagemen
 import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
 import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
+import PluginManagementPage from '../pages/Plugin/PluginManagementPage';
 
 export const router = createBrowserRouter([
   {
@@ -81,6 +82,15 @@ export const router = createBrowserRouter([
           {
             path: 'config',
             element: <SystemConfigPage />,
+          },
+        ],
+      },
+      {
+        path: '/plugins',
+        children: [
+          {
+            path: 'list',
+            element: <PluginManagementPage />,
           },
         ],
       },

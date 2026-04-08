@@ -21,3 +21,6 @@ export type { ActivityLog, PageResult } from './activityService';
 
 // 从 appUserService 导出
 export * from './appUserService';
+
+// 从 pluginService 导出
+export * from './pluginService';

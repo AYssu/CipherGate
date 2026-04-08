@@ -344,6 +344,16 @@ const MainLayout: React.FC = () => {
                       routePath = `/applications/${childKey}`;
                   }
                   navigate(routePath);
+                } else if (menuKey === 'plugin_management') {
+                  let routePath = '';
+                  switch (childKey) {
+                    case 'plugin_list_page':
+                      routePath = '/plugins/list';
+                      break;
+                    default:
+                      routePath = `/plugins/${childKey}`;
+                  }
+                  navigate(routePath);
                 } else {
                   navigate(`/${childKey}`);
                 }

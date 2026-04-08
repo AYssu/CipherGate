@@ -872,3 +872,74 @@ FROM roles r, menus m
 WHERE r.role_code = 'USER'
 AND m.menu_code = 'APP_VARIABLE_MANAGEMENT'
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- ========================================
+-- 插件管理权限与菜单（与系统管理/应用管理同级）
+-- ========================================
+
+-- 插件管理权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('插件列表', 'PLUGIN_LIST', 'API', '/api/plugins', 'GET', '查看插件列表', 1),
+('上传插件', 'PLUGIN_UPLOAD', 'API', '/api/plugins/upload', 'POST', '上传插件包', 1),
+('启用插件', 'PLUGIN_ENABLE', 'API', '/api/plugins/*/enable', 'POST', '启用插件', 1),
+('停用插件', 'PLUGIN_DISABLE', 'API', '/api/plugins/*/disable', 'POST', '停用插件', 1),
+('删除插件', 'PLUGIN_DELETE', 'API', '/api/plugins/*', 'DELETE', '删除插件', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 为超级管理员和管理员分配插件管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+  AND p.permission_code IN ('PLUGIN_LIST', 'PLUGIN_UPLOAD', 'PLUGIN_ENABLE', 'PLUGIN_DISABLE', 'PLUGIN_DELETE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 插入顶级菜单：插件管理（和系统管理、应用管理同级）
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('插件管理', 'PLUGIN_MANAGEMENT', 0, 1, '/plugins', NULL, 'tool', 3, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 调整顶级菜单顺序，确保插件管理与系统管理/应用管理同级展示
+UPDATE menus SET sort_order = 2 WHERE menu_code = 'APP_MANAGEMENT';
+UPDATE menus SET sort_order = 3 WHERE menu_code = 'PLUGIN_MANAGEMENT';
+UPDATE menus SET sort_order = 4 WHERE menu_code = 'SYSTEM_MANAGEMENT';
+UPDATE menus SET sort_order = 5 WHERE menu_code = 'PROFILE';
+
+-- 获取插件管理菜单ID
+SET @plugin_menu_id = (SELECT id FROM menus WHERE menu_code = 'PLUGIN_MANAGEMENT');
+
+-- 插件管理子菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('插件列表', 'PLUGIN_LIST_PAGE', @plugin_menu_id, 2, '/plugins/list', 'PluginManagement', NULL, 1, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name);
+
+-- 为超级管理员和管理员分配插件管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+  AND m.menu_code IN ('PLUGIN_MANAGEMENT', 'PLUGIN_LIST_PAGE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- ========================================
+-- 插件管理模块表
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS plugin_module (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '插件记录ID',
+    plugin_id VARCHAR(100) NOT NULL COMMENT '插件标识',
+    plugin_name VARCHAR(200) COMMENT '插件名称',
+    plugin_version VARCHAR(50) NOT NULL COMMENT '插件版本',
+    bucket_name VARCHAR(100) NOT NULL COMMENT '对象存储桶',
+    object_key VARCHAR(255) NOT NULL COMMENT '对象存储路径',
+    sha256 VARCHAR(64) NOT NULL COMMENT '文件摘要',
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '状态:0=已上传,1=已启用,2=已停用,3=加载失败',
+    loaded_plugin_id VARCHAR(150) COMMENT 'PF4J运行时插件ID',
+    remark VARCHAR(500) COMMENT '备注',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+    UNIQUE KEY uk_plugin_version (plugin_id, plugin_version, deleted),
+    INDEX idx_status (status),
+    INDEX idx_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='插件模块表';

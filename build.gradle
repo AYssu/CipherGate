@@ -47,9 +47,10 @@ dependencies {
     
     // Knife4j API 文档
     implementation 'com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.5.0'
+    implementation 'org.pf4j:pf4j:3.14.1'
+    implementation 'io.minio:minio:8.6.0'
     
     compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

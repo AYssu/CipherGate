@@ -179,23 +179,8 @@ public class ApplicationController {
     }
     
     /**
-     * 生成加密密钥对
-     */
-    @PostMapping("/generate-encryption-keys")
-    @RequirePermission("APP_CREATE")
-    public Result<Map<String, String>> generateEncryptionKeys(@RequestParam String pluginId) {
-        try {
-            Map<String, String> keys = applicationService.generateEncryptionKeys(pluginId);
-            return Result.success(keys);
-        } catch (Exception e) {
-            log.error("生成加密密钥失败", e);
-            return Result.error("生成加密密钥失败: " + e.getMessage());
-        }
-    }
-    
-    /**
      * 更新应用状态
-     */
+    */
     @PutMapping("/{id}/status")
     @RequirePermission("APP_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "更新应用状态")

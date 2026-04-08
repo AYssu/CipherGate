@@ -9,3 +9,14 @@ services:
       - 'MYSQL_USER=kersin'
     ports:
       - '13306:3306'
+
+  minio:
+    image: 'minio/minio:latest'
+    container_name: local-minio
+    environment:
+      - 'MINIO_ROOT_USER=ciphergate_minio'
+      - 'MINIO_ROOT_PASSWORD=ciphergate_minio123'
+    command: server /data --console-address ":9001"
+    ports:
+      - '19000:9000'
+      - '19001:9001'

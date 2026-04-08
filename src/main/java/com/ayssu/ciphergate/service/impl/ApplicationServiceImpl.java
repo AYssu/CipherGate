@@ -23,11 +23,12 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 应用服务实现类
@@ -319,30 +320,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         // 记录日志
         logOperation(id, userId, "RESET_KEYS", "重置应用密钥: " + application.getAppName(), 
                     "SUCCESS", null, null);
-        
-        return keys;
-    }
-    
-    @Override
-    public Map<String, String> generateEncryptionKeys(String pluginId) {
-        Map<String, String> keys = new HashMap<>();
-        
-        try {
-            if ("rsa-default".equals(pluginId)) {
-                // 生成 RSA 密钥对
-                KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-                generator.initialize(2048);
-                KeyPair keyPair = generator.generateKeyPair();
-                
-                keys.put("rsaPublic", Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
-                keys.put("rsaPrivate", Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded()));
-            } else {
-                throw new RuntimeException("不支持的加密插件: " + pluginId);
-            }
-        } catch (Exception e) {
-            log.error("生成加密密钥失败", e);
-            throw new RuntimeException("生成加密密钥失败: " + e.getMessage());
-        }
         
         return keys;
     }

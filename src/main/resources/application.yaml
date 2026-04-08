@@ -1,6 +1,9 @@
 spring:
   application:
     name: CipherGate
+  devtools:
+    restart:
+      enabled: false
 
   datasource:
     url: jdbc:mysql://localhost:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -28,6 +31,14 @@ app:
     icp-record-no: ${SITE_ICP_RECORD_NO:}
     public-security-record-no: ${SITE_PUBLIC_SECURITY_RECORD_NO:}
     icp-license-no: ${SITE_ICP_LICENSE_NO:}
+  plugin:
+    temp-dir: ${PLUGIN_TEMP_DIR:${java.io.tmpdir}/ciphergate-plugins}
+  minio:
+    enabled: ${MINIO_ENABLED:true}
+    endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
+    access-key: ${MINIO_ACCESS_KEY:ciphergate_minio}
+    secret-key: ${MINIO_SECRET_KEY:ciphergate_minio123}
+    bucket: ${MINIO_BUCKET:ciphergate-plugins}
 
 # Knife4j 配置
 knife4j:

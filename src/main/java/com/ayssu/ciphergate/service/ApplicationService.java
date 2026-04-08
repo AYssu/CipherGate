@@ -48,11 +48,6 @@ public interface ApplicationService {
     Map<String, String> resetAppKeys(Long id, Long userId);
     
     /**
-     * 生成加密密钥对
-     */
-    Map<String, String> generateEncryptionKeys(String pluginId);
-    
-    /**
      * 更新应用状态
      */
     void updateStatus(Long id, Integer status, Long userId);
