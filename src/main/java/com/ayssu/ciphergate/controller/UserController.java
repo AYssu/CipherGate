@@ -6,6 +6,8 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.UserService;
 import com.ayssu.ciphergate.service.RoleService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Tag(name = "用户管理", description = "系统用户维护接口")
 public class UserController {
     
     private final UserService userService;
@@ -31,6 +34,7 @@ public class UserController {
     @GetMapping
     @RequirePermission("USER_LIST")
     @ActivityLog(actionType = "VIEW", actionTarget = "USER_MANAGEMENT", description = "查看用户列表")
+    @Operation(summary = "获取用户列表")
     public Result<List<User>> getUsers() {
         try {
             List<User> users = userService.getAllUsersWithRoles();
@@ -46,6 +50,7 @@ public class UserController {
      */
     @GetMapping("/{id}")
     @RequirePermission("USER_DETAIL")
+    @Operation(summary = "获取用户详情")
     public Result<User> getUserById(@PathVariable Long id) {
         try {
             User user = userService.getUserWithRolesPermissionsAndMenus(id);
@@ -67,6 +72,7 @@ public class UserController {
     @PutMapping("/{id}")
     @RequirePermission("USER_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "USER_MANAGEMENT", description = "更新用户信息")
+    @Operation(summary = "更新用户状态与角色")
     public Result<String> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> updateData) {
         try {
             User user = userService.getById(id);
@@ -107,6 +113,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @RequirePermission("USER_DELETE")
     @ActivityLog(actionType = "DELETE", actionTarget = "USER_MANAGEMENT", description = "删除用户")
+    @Operation(summary = "删除用户")
     public Result<String> deleteUser(@PathVariable Long id) {
         try {
             User user = userService.getById(id);
@@ -136,6 +143,7 @@ public class UserController {
      */
     @PutMapping("/{id}/status")
     @RequirePermission("USER_UPDATE")
+    @Operation(summary = "启用或禁用用户")
     public Result<String> updateUserStatus(@PathVariable Long id, @RequestParam Integer status) {
         try {
             User user = userService.getById(id);

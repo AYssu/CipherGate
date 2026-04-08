@@ -9,6 +9,7 @@ import com.ayssu.ciphergate.mapper.ApplicationLogMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.ApplicationService;
+import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -40,6 +41,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ApplicationLogMapper applicationLogMapper;
     private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
+    private final SystemMessageService systemMessageService;
     
     @Override
     public Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO) {
@@ -110,10 +112,13 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
     
     @Override
-    public Application getApplicationById(Long id) {
+    public Application getApplicationById(Long id, Long userId) {
         Application application = applicationMapper.selectById(id);
         if (application == null) {
             throw new RuntimeException("应用不存在");
+        }
+        if (!hasPermission(id, userId, false)) {
+            throw new RuntimeException("无权限查看此应用");
         }
         
         // 填充所属用户名称
@@ -262,6 +267,16 @@ public class ApplicationServiceImpl implements ApplicationService {
         // 记录日志
         logOperation(id, userId, "DELETE", "删除应用: " + application.getAppName(), 
                     "SUCCESS", null, null);
+
+        // 给操作用户发送站内通知（用于前端角标）
+        systemMessageService.createMessage(
+                "APP_DELETE",
+                "应用删除成功",
+                "你已删除应用「" + application.getAppName() + "」(ID: " + id + ")。",
+                "MEDIUM",
+                "USER",
+                userId
+        );
     }
     
     @Override

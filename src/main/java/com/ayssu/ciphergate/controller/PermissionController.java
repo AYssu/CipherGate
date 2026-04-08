@@ -1,11 +1,14 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Permission;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.PermissionService;
 import com.ayssu.ciphergate.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
+@Tag(name = "权限管理", description = "系统权限维护接口")
 public class PermissionController {
     
     private final PermissionService permissionService;
@@ -30,6 +34,7 @@ public class PermissionController {
      */
     @GetMapping
     @RequirePermission("PERMISSION_LIST")
+    @Operation(summary = "获取权限列表")
     public Result<List<Permission>> getAllPermissions() {
         List<Permission> permissions = permissionService.getAllPermissions();
         return Result.success(permissions);
@@ -40,6 +45,7 @@ public class PermissionController {
      */
     @GetMapping("/{id}")
     @RequirePermission("PERMISSION_LIST")
+    @Operation(summary = "获取权限详情")
     public Result<Permission> getPermissionById(@PathVariable Long id) {
         Permission permission = permissionService.getById(id);
         if (permission == null) {
@@ -53,6 +59,8 @@ public class PermissionController {
      */
     @PostMapping
     @RequirePermission("PERMISSION_CREATE")
+    @ActivityLog(actionType = "CREATE", actionTarget = "PERMISSION", description = "创建权限")
+    @Operation(summary = "创建权限")
     public Result<String> createPermission(@RequestBody Permission permission) {
         try {
             // 验证权限编码唯一性
@@ -77,6 +85,8 @@ public class PermissionController {
      */
     @PutMapping("/{id}")
     @RequirePermission("PERMISSION_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "PERMISSION", description = "更新权限")
+    @Operation(summary = "更新权限")
     public Result<String> updatePermission(@PathVariable Long id, @RequestBody Permission permission) {
         try {
             permission.setId(id);
@@ -104,6 +114,8 @@ public class PermissionController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission("PERMISSION_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "PERMISSION", description = "删除权限")
+    @Operation(summary = "删除权限")
     public Result<String> deletePermission(@PathVariable Long id) {
         try {
             // 检查权限是否被角色使用
@@ -128,6 +140,8 @@ public class PermissionController {
      */
     @DeleteMapping("/batch")
     @RequirePermission("PERMISSION_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "PERMISSION", description = "批量删除权限")
+    @Operation(summary = "批量删除权限")
     public Result<String> batchDeletePermissions(@RequestBody List<Long> ids) {
         try {
             boolean success = permissionService.batchDeletePermissions(ids);
@@ -147,6 +161,7 @@ public class PermissionController {
      */
     @GetMapping("/resource-types")
     @RequirePermission("PERMISSION_LIST")
+    @Operation(summary = "获取资源类型选项")
     public Result<List<String>> getResourceTypes() {
         List<String> resourceTypes = List.of("API", "MENU", "BUTTON", "DATA");
         return Result.success(resourceTypes);
@@ -157,6 +172,7 @@ public class PermissionController {
      */
     @GetMapping("/http-methods")
     @RequirePermission("PERMISSION_LIST")
+    @Operation(summary = "获取HTTP方法选项")
     public Result<List<String>> getHttpMethods() {
         List<String> httpMethods = List.of("GET", "POST", "PUT", "DELETE", "PATCH");
         return Result.success(httpMethods);

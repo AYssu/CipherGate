@@ -320,6 +320,45 @@ html {
   display: none; /* Chrome, Safari and Opera */
 }
 
+/* 全局滚动条美化（弹窗内容区 + 输入域） */
+.ant-modal .ant-modal-body,
+.ant-modal textarea,
+.ant-drawer .ant-drawer-body,
+.ant-drawer textarea {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #d9d9d9 transparent; /* Firefox */
+}
+
+.ant-modal .ant-modal-body::-webkit-scrollbar,
+.ant-modal textarea::-webkit-scrollbar,
+.ant-drawer .ant-drawer-body::-webkit-scrollbar,
+.ant-drawer textarea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ant-modal .ant-modal-body::-webkit-scrollbar-track,
+.ant-modal textarea::-webkit-scrollbar-track,
+.ant-drawer .ant-drawer-body::-webkit-scrollbar-track,
+.ant-drawer textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ant-modal .ant-modal-body::-webkit-scrollbar-thumb,
+.ant-modal textarea::-webkit-scrollbar-thumb,
+.ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb,
+.ant-drawer textarea::-webkit-scrollbar-thumb {
+  background-color: #d9d9d9;
+  border-radius: 3px;
+}
+
+.ant-modal .ant-modal-body::-webkit-scrollbar-thumb:hover,
+.ant-modal textarea::-webkit-scrollbar-thumb:hover,
+.ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb:hover,
+.ant-drawer textarea::-webkit-scrollbar-thumb:hover {
+  background-color: #bfbfbf;
+}
+
 /* 侧边栏折叠样式 */
 .ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon {
   margin-right: 0 !important;

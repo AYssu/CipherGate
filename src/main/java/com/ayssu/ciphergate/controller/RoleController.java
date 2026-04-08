@@ -5,6 +5,8 @@ import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Role;
 import com.ayssu.ciphergate.service.RoleService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/roles")
+@Tag(name = "角色管理", description = "系统角色与授权关系维护接口")
 public class RoleController {
     
     @Autowired
@@ -25,6 +28,7 @@ public class RoleController {
      */
     @GetMapping
     @RequirePermission(value = "ROLE_LIST", description = "查看角色列表")
+    @Operation(summary = "获取角色列表")
     public Result<List<Role>> getRoles() {
         List<Role> roles = roleService.getRolesWithPermissions();
         return Result.success(roles);
@@ -36,6 +40,7 @@ public class RoleController {
     @PostMapping
     @RequirePermission(value = "ROLE_CREATE", description = "创建角色")
     @ActivityLog(actionType = "CREATE", actionTarget = "ROLE_MANAGEMENT", description = "创建角色")
+    @Operation(summary = "创建角色")
     public Result<Role> createRole(@RequestBody Role role) {
         boolean success = roleService.save(role);
         if (success) {
@@ -51,6 +56,7 @@ public class RoleController {
     @PutMapping("/{id}")
     @RequirePermission(value = "ROLE_UPDATE", description = "更新角色")
     @ActivityLog(actionType = "UPDATE", actionTarget = "ROLE_MANAGEMENT", description = "更新角色")
+    @Operation(summary = "更新角色")
     public Result<Role> updateRole(@PathVariable Long id, @RequestBody Role role) {
         role.setId(id);
         boolean success = roleService.updateById(role);
@@ -67,6 +73,7 @@ public class RoleController {
     @DeleteMapping("/{id}")
     @RequirePermission(value = "ROLE_DELETE", description = "删除角色")
     @ActivityLog(actionType = "DELETE", actionTarget = "ROLE_MANAGEMENT", description = "删除角色")
+    @Operation(summary = "删除角色")
     public Result<String> deleteRole(@PathVariable Long id) {
         boolean success = roleService.removeById(id);
         if (success) {
@@ -81,6 +88,7 @@ public class RoleController {
      */
     @PostMapping("/assign")
     @RequirePermission(value = "ROLE_UPDATE", description = "分配角色")
+    @Operation(summary = "为用户分配角色")
     public Result<String> assignRoles(@RequestParam Long userId, @RequestParam List<Long> roleIds) {
         boolean success = roleService.assignRolesToUser(userId, roleIds);
         if (success) {
@@ -95,6 +103,7 @@ public class RoleController {
      */
     @GetMapping("/{id}/menus")
     @RequirePermission(value = "ROLE_LIST", description = "查看角色菜单权限")
+    @Operation(summary = "获取角色菜单权限")
     public Result<List<Long>> getRoleMenus(@PathVariable Long id) {
         List<Long> menuIds = roleService.getRoleMenuIds(id);
         return Result.success(menuIds);
@@ -105,6 +114,7 @@ public class RoleController {
      */
     @PostMapping("/{id}/menus")
     @RequirePermission(value = "ROLE_UPDATE", description = "分配角色菜单权限")
+    @Operation(summary = "为角色分配菜单权限")
     public Result<String> assignMenusToRole(@PathVariable Long id, @RequestBody List<Long> menuIds) {
         boolean success = roleService.assignMenusToRole(id, menuIds);
         if (success) {
@@ -119,6 +129,7 @@ public class RoleController {
      */
     @GetMapping("/{id}/permissions")
     @RequirePermission(value = "ROLE_LIST", description = "查看角色API权限")
+    @Operation(summary = "获取角色API权限")
     public Result<List<Long>> getRolePermissions(@PathVariable Long id) {
         List<Long> permissionIds = roleService.getRolePermissionIds(id);
         return Result.success(permissionIds);
@@ -129,6 +140,7 @@ public class RoleController {
      */
     @PostMapping("/{id}/permissions")
     @RequirePermission(value = "ROLE_UPDATE", description = "分配角色API权限")
+    @Operation(summary = "为角色分配API权限")
     public Result<String> assignPermissionsToRole(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
         boolean success = roleService.assignPermissionsToRole(id, permissionIds);
         if (success) {

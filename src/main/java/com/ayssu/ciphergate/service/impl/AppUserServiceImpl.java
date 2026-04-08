@@ -10,6 +10,7 @@ import com.ayssu.ciphergate.mapper.AppUserBindingMapper;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.AppUserService;
+import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,9 +35,19 @@ public class AppUserServiceImpl implements AppUserService {
     private final AppUserBindingMapper appUserBindingMapper;
     private final ApplicationMapper applicationMapper;
     private final SecurityUtils securityUtils;
+    private final SystemMessageService systemMessageService;
     
     @Override
-    public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO) {
+    public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
+        if (!securityUtils.isAdmin(operatorId)) {
+            if (queryDTO.getAppId() == null) {
+                throw new RuntimeException("非管理员查询需指定应用ID");
+            }
+            if (!hasPermission(queryDTO.getAppId(), operatorId)) {
+                throw new RuntimeException("无权限查询此应用的终端用户");
+            }
+        }
+        
         Page<AppUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
@@ -57,10 +68,13 @@ public class AppUserServiceImpl implements AppUserService {
     }
     
     @Override
-    public AppUser getAppUserById(Long id) {
+    public AppUser getAppUserById(Long id, Long operatorId) {
         AppUser appUser = appUserMapper.selectById(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
+        }
+        if (!hasPermission(appUser.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限查看此用户");
         }
         
         fillRelatedInfo(appUser);
@@ -194,6 +208,22 @@ public class AppUserServiceImpl implements AppUserService {
         
         log.info("删除终端用户成功: id={}, username={}, operatorId={}", 
                 id, appUser.getUsername(), operatorId);
+
+        String appName = "未知应用";
+        Application application = applicationMapper.selectById(appUser.getAppId());
+        if (application != null && StringUtils.hasText(application.getAppName())) {
+            appName = application.getAppName();
+        }
+
+        // 给操作用户发送站内通知（用于前端角标）
+        systemMessageService.createMessage(
+                "APP_USER_DELETE",
+                "终端用户删除成功",
+                "你已删除应用「" + appName + "」下的用户「" + appUser.getUsername() + "」(ID: " + id + ")。",
+                "LOW",
+                "USER",
+                operatorId
+        );
     }
     
     @Override
@@ -260,6 +290,77 @@ public class AppUserServiceImpl implements AppUserService {
         
         log.info("{}用户成功: id={}, username={}, operatorId={}", 
                 ban ? "封禁" : "解封", id, appUser.getUsername(), operatorId);
+    }
+    
+    @Override
+    public Page<AppUserBinding> getUserBindings(Long userId, Integer current, Integer size, Long operatorId) {
+        // 验证用户是否存在
+        AppUser appUser = appUserMapper.selectById(userId);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!hasPermission(appUser.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限查看此用户绑定信息");
+        }
+        
+        Page<AppUserBinding> page = new Page<>(current, size);
+        
+        LambdaQueryWrapper<AppUserBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AppUserBinding::getUserId, userId)
+               .eq(AppUserBinding::getDeleted, 0)
+               .orderByDesc(AppUserBinding::getCreatedAt);
+        
+        Page<AppUserBinding> result = appUserBindingMapper.selectPage(page, wrapper);
+        
+        // 填充用户名和卡密码信息
+        result.getRecords().forEach(binding -> {
+            binding.setUsername(appUser.getUsername());
+            // 这里可以根据需要填充更多关联信息，比如卡密码等
+        });
+        
+        return result;
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unbindDevice(Long userId, Long bindingId, String reason, Long operatorId) {
+        // 验证用户是否存在
+        AppUser appUser = appUserMapper.selectById(userId);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        // 检查权限
+        if (!hasPermission(appUser.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限操作此用户");
+        }
+        
+        // 验证绑定记录是否存在
+        AppUserBinding binding = appUserBindingMapper.selectById(bindingId);
+        if (binding == null || binding.getDeleted() == 1) {
+            throw new RuntimeException("绑定记录不存在");
+        }
+        
+        if (!binding.getUserId().equals(userId)) {
+            throw new RuntimeException("绑定记录不属于该用户");
+        }
+        
+        // 检查是否允许解绑
+        if (binding.getAllowUnbind() != null && !binding.getAllowUnbind()) {
+            throw new RuntimeException("该设备不允许解绑");
+        }
+        
+        // 更新解绑次数和状态
+        binding.setUnbindCount(binding.getUnbindCount() + 1);
+        binding.setStatus(4); // 4=已解绑
+        binding.setRemark(reason);
+        binding.setUpdatedAt(LocalDateTime.now());
+        binding.setDeleted(1); // 软删除
+        
+        appUserBindingMapper.updateById(binding);
+        
+        log.info("解绑用户设备成功: userId={}, bindingId={}, deviceId={}, operatorId={}", 
+                userId, bindingId, binding.getDeviceId(), operatorId);
     }
     
     /**

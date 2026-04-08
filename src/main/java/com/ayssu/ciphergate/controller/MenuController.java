@@ -1,10 +1,13 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Menu;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.MenuService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/menus")
 @RequiredArgsConstructor
+@Tag(name = "菜单管理", description = "系统菜单维护接口")
 public class MenuController {
     
     private final MenuService menuService;
@@ -27,6 +31,7 @@ public class MenuController {
      * 获取当前用户的菜单树
      */
     @GetMapping("/user")
+    @Operation(summary = "获取当前用户菜单树")
     public Result<List<Menu>> getUserMenus(HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user == null) {
@@ -42,6 +47,7 @@ public class MenuController {
      */
     @GetMapping("/all")
     @RequirePermission("MENU_LIST")
+    @Operation(summary = "获取全部菜单树")
     public Result<List<Menu>> getAllMenus() {
         List<Menu> menuTree = menuService.getAllMenuTree();
         return Result.success(menuTree);
@@ -52,6 +58,7 @@ public class MenuController {
      */
     @GetMapping("/{id}")
     @RequirePermission("MENU_LIST")
+    @Operation(summary = "获取菜单详情")
     public Result<Menu> getMenuById(@PathVariable Long id) {
         Menu menu = menuService.getById(id);
         if (menu == null) {
@@ -65,6 +72,7 @@ public class MenuController {
      */
     @GetMapping("/parent-options")
     @RequirePermission("MENU_LIST")
+    @Operation(summary = "获取父菜单选项")
     public Result<List<Menu>> getParentMenuOptions() {
         List<Menu> parentOptions = menuService.getParentMenuOptions();
         return Result.success(parentOptions);
@@ -75,6 +83,8 @@ public class MenuController {
      */
     @PostMapping
     @RequirePermission("MENU_CREATE")
+    @ActivityLog(actionType = "CREATE", actionTarget = "MENU", description = "创建菜单")
+    @Operation(summary = "创建菜单")
     public Result<String> createMenu(@RequestBody Menu menu) {
         try {
             // 验证菜单编码唯一性
@@ -99,6 +109,8 @@ public class MenuController {
      */
     @PutMapping("/{id}")
     @RequirePermission("MENU_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "MENU", description = "更新菜单")
+    @Operation(summary = "更新菜单")
     public Result<String> updateMenu(@PathVariable Long id, @RequestBody Menu menu) {
         try {
             menu.setId(id);
@@ -126,6 +138,8 @@ public class MenuController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission("MENU_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "MENU", description = "删除菜单")
+    @Operation(summary = "删除菜单")
     public Result<String> deleteMenu(@PathVariable Long id) {
         try {
             // 检查是否有子菜单
@@ -150,6 +164,8 @@ public class MenuController {
      */
     @DeleteMapping("/batch")
     @RequirePermission("MENU_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "MENU", description = "批量删除菜单")
+    @Operation(summary = "批量删除菜单")
     public Result<String> batchDeleteMenus(@RequestBody List<Long> ids) {
         try {
             boolean success = menuService.batchDeleteMenus(ids);

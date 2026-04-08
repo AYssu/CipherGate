@@ -4,6 +4,8 @@ import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
+@Tag(name = "当前用户信息", description = "当前登录用户资料与权限信息接口")
 public class UserInfoController {
     
     private final UserService userService;
@@ -28,6 +31,7 @@ public class UserInfoController {
      * 检查登录状态（无需权限）
      */
     @GetMapping("/status")
+    @Operation(summary = "检查登录状态")
     public Result<User> checkLoginStatus(HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user == null) {
@@ -44,6 +48,7 @@ public class UserInfoController {
      * 获取当前用户信息（包含角色、权限、菜单）
      */
     @GetMapping("/info")
+    @Operation(summary = "获取当前用户完整信息")
     public Result<User> getCurrentUserInfo(HttpSession session) {
         User sessionUser = (User) session.getAttribute("user");
         if (sessionUser == null) {
@@ -79,6 +84,7 @@ public class UserInfoController {
      */
     @GetMapping("/profile")
     @RequirePermission("PROFILE_VIEW")
+    @Operation(summary = "获取当前用户基本资料")
     public Result<User> getCurrentUserProfile(HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user == null) {
@@ -96,6 +102,7 @@ public class UserInfoController {
      */
     @PutMapping("/profile")
     @RequirePermission("PROFILE_UPDATE")
+    @Operation(summary = "更新当前用户基本资料")
     public Result<User> updateCurrentUserProfile(@RequestBody User updateUser, HttpSession session) {
         User sessionUser = (User) session.getAttribute("user");
         if (sessionUser == null) {

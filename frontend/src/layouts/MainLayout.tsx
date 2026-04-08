@@ -54,6 +54,7 @@ const MainLayout: React.FC = () => {
         case 'list': return 'app_list_page';
         case 'licenses': return 'license_management';
         case 'users': return 'app_user_management';
+        case 'variables': return 'app_variable_management';
         default: return 'dashboard';
       }
     }
@@ -94,6 +95,7 @@ const MainLayout: React.FC = () => {
         case 'list': return '应用列表';
         case 'licenses': return '卡密管理';
         case 'users': return '终端用户';
+        case 'variables': return '变量管理';
         default: return '应用管理';
       }
     }
@@ -328,6 +330,9 @@ const MainLayout: React.FC = () => {
                       break;
                     case 'app_user_management':
                       routePath = '/applications/users';
+                      break;
+                    case 'app_variable_management':
+                      routePath = '/applications/variables';
                       break;
                     default:
                       routePath = `/applications/${childKey}`;

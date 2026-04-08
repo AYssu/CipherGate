@@ -20,7 +20,7 @@ public interface ApplicationService {
     /**
      * 根据ID获取应用详情
      */
-    Application getApplicationById(Long id);
+    Application getApplicationById(Long id, Long userId);
     
     /**
      * 创建应用

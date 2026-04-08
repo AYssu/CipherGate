@@ -84,7 +84,8 @@ public class ApplicationController {
     @ActivityLog(actionType = "VIEW", actionTarget = "APPLICATION", description = "查看应用详情")
     public Result<Application> getApplicationById(@PathVariable Long id) {
         try {
-            Application application = applicationService.getApplicationById(id);
+            User currentUser = getCurrentUser();
+            Application application = applicationService.getApplicationById(id, currentUser.getId());
             return Result.success(application);
         } catch (Exception e) {
             log.error("获取应用详情失败", e);

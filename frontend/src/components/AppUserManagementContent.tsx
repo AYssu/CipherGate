@@ -24,8 +24,8 @@ import {
   MoreOutlined,
   LockOutlined,
   StopOutlined,
-  CheckCircleOutlined,
   UserOutlined,
+  MobileOutlined,
 } from '@ant-design/icons';
 import {
   getAppUserList,
@@ -34,8 +34,10 @@ import {
   deleteAppUser,
   resetPassword,
   banUser,
+  getUserBindings,
+  unbindDevice,
   type AppUser,
-  type AppUserDTO,
+  type AppUserBinding,
 } from '../services/appUserService';
 import { getApplicationList, type Application } from '../services/applicationService';
 
@@ -48,8 +50,12 @@ const AppUserManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [bindingsModalVisible, setBindingsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userBindings, setUserBindings] = useState<AppUserBinding[]>([]);
+  const [bindingsLoading, setBindingsLoading] = useState(false);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const [pagination, setPagination] = useState({
@@ -230,9 +236,64 @@ const AppUserManagementContent: React.FC = () => {
     });
   };
 
+  // 获取用户绑定设备列表
+  const fetchUserBindings = async (userId: number) => {
+    setBindingsLoading(true);
+    try {
+      const result: any = await getUserBindings(userId, 1, 100);
+      if (result.code === 200 && result.data) {
+        setUserBindings(result.data.records || []);
+      }
+    } catch (error) {
+      message.error('获取设备列表失败');
+      console.error('获取设备列表失败:', error);
+    } finally {
+      setBindingsLoading(false);
+    }
+  };
+
+  // 打开设备列表弹窗
+  const handleOpenBindingsModal = (userId: number) => {
+    setSelectedUserId(userId);
+    setBindingsModalVisible(true);
+    fetchUserBindings(userId);
+  };
+
+  // 解绑设备
+  const handleUnbindDevice = (userId: number, bindingId: number, deviceId: string) => {
+    Modal.confirm({
+      title: '确认解绑',
+      content: `确定要解绑设备 "${deviceId}" 吗？此操作不可恢复。`,
+      okText: '确定',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          const result: any = await unbindDevice(userId, bindingId, '管理员解绑');
+          if (result.code === 200) {
+            message.success('解绑成功');
+            fetchUserBindings(userId); // 刷新设备列表
+            fetchUsers(pagination.current, pagination.pageSize, filters); // 刷新用户列表
+          } else {
+            message.error(result.message || '解绑失败');
+          }
+        } catch (error) {
+          message.error('解绑失败');
+          console.error('解绑失败:', error);
+        }
+      },
+    });
+  };
+
   // 操作菜单
   const getActionMenu = (record: AppUser): MenuProps => ({
     items: [
+      {
+        key: 'view-devices',
+        icon: <MobileOutlined />,
+        label: '查看设备',
+        onClick: () => handleOpenBindingsModal(record.id),
+      },
       {
         key: 'edit',
         icon: <EditOutlined />,
@@ -312,8 +373,15 @@ const AppUserManagementContent: React.FC = () => {
       key: 'bindingCount',
       width: 100,
       align: 'center' as const,
-      render: (count: number) => (
-        <Tag color={count > 0 ? 'green' : 'default'}>{count || 0}</Tag>
+      render: (count: number, record: AppUser) => (
+        <Button
+          type="link"
+          size="small"
+          onClick={() => handleOpenBindingsModal(record.id)}
+          style={{ padding: 0 }}
+        >
+          <Tag color={count > 0 ? 'green' : 'default'}>{count || 0}</Tag>
+        </Button>
       ),
     },
     {
@@ -617,6 +685,168 @@ const AppUserManagementContent: React.FC = () => {
             <Input.Password placeholder="再次输入新密码" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 用户绑定设备列表弹窗 */}
+      <Modal
+        title="用户绑定设备列表"
+        open={bindingsModalVisible}
+        onCancel={() => {
+          setBindingsModalVisible(false);
+          setSelectedUserId(null);
+          setUserBindings([]);
+        }}
+        footer={[
+          <Button key="close" onClick={() => {
+            setBindingsModalVisible(false);
+            setSelectedUserId(null);
+            setUserBindings([]);
+          }}>
+            关闭
+          </Button>
+        ]}
+        width={1000}
+      >
+        <Table
+          columns={[
+            {
+              title: '设备ID',
+              dataIndex: 'deviceId',
+              key: 'deviceId',
+              width: 180,
+              render: (text: string) => (
+                <Text code style={{ fontSize: 12 }}>{text}</Text>
+              ),
+            },
+            {
+              title: '设备名称',
+              dataIndex: 'deviceName',
+              key: 'deviceName',
+              width: 120,
+              render: (text: string) => text || '-',
+            },
+            {
+              title: '系统',
+              dataIndex: 'deviceOs',
+              key: 'deviceOs',
+              width: 80,
+              render: (text: string) => (
+                <Tag color="blue">{text || '-'}</Tag>
+              ),
+            },
+            {
+              title: '绑定类型',
+              dataIndex: 'bindType',
+              key: 'bindType',
+              width: 100,
+              render: (text: string) => {
+                const colorMap: { [key: string]: string } = {
+                  'LICENSE': 'green',
+                  'TRIAL': 'orange',
+                  'VIP': 'purple'
+                };
+                return <Tag color={colorMap[text] || 'default'}>{text}</Tag>;
+              },
+            },
+            {
+              title: '使用次数',
+              dataIndex: 'useCount',
+              key: 'useCount',
+              width: 80,
+              align: 'center' as const,
+              render: (count: number) => <Text>{count || 0}</Text>,
+            },
+            {
+              title: '解绑次数',
+              dataIndex: 'unbindCount',
+              key: 'unbindCount',
+              width: 80,
+              align: 'center' as const,
+              render: (count: number) => <Text>{count || 0}</Text>,
+            },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              key: 'status',
+              width: 80,
+              render: (status: number, record: AppUserBinding) => {
+                if (record.isBanned) {
+                  return <Tag color="red">已封禁</Tag>;
+                }
+                const statusMap: { [key: number]: { text: string; color: string } } = {
+                  1: { text: '正常', color: 'green' },
+                  2: { text: '已过期', color: 'orange' },
+                  3: { text: '已封禁', color: 'red' },
+                  4: { text: '已解绑', color: 'default' }
+                };
+                const statusInfo = statusMap[status] || { text: '未知', color: 'default' };
+                return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>;
+              },
+            },
+            {
+              title: '最后活跃',
+              dataIndex: 'lastActiveAt',
+              key: 'lastActiveAt',
+              width: 140,
+              render: (text: string) => (
+                text ? (
+                  <Text style={{ fontSize: 12 }}>
+                    {new Date(text).toLocaleString('zh-CN', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                ) : '-'
+              ),
+            },
+            {
+              title: '绑定时间',
+              dataIndex: 'firstBindAt',
+              key: 'firstBindAt',
+              width: 140,
+              render: (text: string) => (
+                text ? (
+                  <Text style={{ fontSize: 12 }}>
+                    {new Date(text).toLocaleString('zh-CN', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                ) : '-'
+              ),
+            },
+            {
+              title: '操作',
+              key: 'action',
+              width: 80,
+              fixed: 'right' as const,
+              render: (_: any, record: AppUserBinding) => (
+                <Space size="small">
+                  {record.status !== 4 && !record.isBanned && (
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      onClick={() => selectedUserId && handleUnbindDevice(selectedUserId, record.id, record.deviceId)}
+                    >
+                      解绑
+                    </Button>
+                  )}
+                </Space>
+              ),
+            },
+          ]}
+          dataSource={userBindings}
+          rowKey="id"
+          loading={bindingsLoading}
+          pagination={false}
+          scroll={{ x: 900 }}
+          size="small"
+        />
       </Modal>
     </Card>
   );

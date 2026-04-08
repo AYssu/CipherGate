@@ -8,3 +8,4 @@ export { default as DashboardContent } from './DashboardContent';
 export { default as ApplicationManagementContent } from './ApplicationManagementContent';
 export { default as LicenseManagementContent } from './LicenseManagementContent';
 export { default as AppUserManagementContent } from './AppUserManagementContent';
+export { default as AppVariableManagementContent } from './AppVariableManagementContent';

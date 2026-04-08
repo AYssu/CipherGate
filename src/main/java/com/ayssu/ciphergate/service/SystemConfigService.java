@@ -136,10 +136,17 @@ public class SystemConfigService {
      * 检查系统是否已初始化（是否还在使用默认配置）
      */
     public boolean isSystemInitialized() {
+        String initializedFlag = getConfigValue("SYSTEM_INITIALIZED", "false");
+        if ("true".equalsIgnoreCase(initializedFlag)) {
+            return true;
+        }
+        
+        // 兼容历史数据：即使未写入 SYSTEM_INITIALIZED，只要不再是默认 OAuth 配置也视为已初始化
         String currentClientId = getGithubClientId();
         String currentClientSecret = getGithubClientSecret();
-        return isDefaultConfig("github.oauth2.client-id", currentClientId) &&
+        boolean githubStillDefault = isDefaultConfig("github.oauth2.client-id", currentClientId) &&
                 isDefaultConfig("github.oauth2.client-secret", currentClientSecret);
+        return !githubStillDefault;
     }
     
     /**
@@ -161,15 +168,7 @@ public class SystemConfigService {
      * 初始化系统配置（仅在使用默认配置时可用）
      */
     public boolean initializeSystemConfig(String clientId, String clientSecret, String redirectUri, String frontendUrl) {
-        // 检查当前配置是否为默认值
-        String currentClientId = getGithubClientId();
-        String currentClientSecret = getGithubClientSecret();
-        String currentRedirectUri = getGithubRedirectUri();
-        
-        boolean isDefault = isDefaultConfig("github.oauth2.client-id", currentClientId) &&
-                           isDefaultConfig("github.oauth2.client-secret", currentClientSecret);
-        
-        if (!isDefault) {
+        if (isSystemInitialized()) {
             log.warn("系统已初始化，无法重复初始化");
             return false;
         }

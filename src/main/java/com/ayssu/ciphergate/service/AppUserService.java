@@ -3,6 +3,7 @@ package com.ayssu.ciphergate.service;
 import com.ayssu.ciphergate.dto.AppUserDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.entity.AppUser;
+import com.ayssu.ciphergate.entity.AppUserBinding;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
@@ -13,12 +14,12 @@ public interface AppUserService {
     /**
      * 分页查询终端用户
      */
-    Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO);
+    Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId);
     
     /**
      * 根据ID查询终端用户
      */
-    AppUser getAppUserById(Long id);
+    AppUser getAppUserById(Long id, Long operatorId);
     
     /**
      * 创建终端用户
@@ -44,4 +45,14 @@ public interface AppUserService {
      * 封禁/解封用户
      */
     void banUser(Long id, Long bindingId, Boolean ban, String reason, Long operatorId);
+    
+    /**
+     * 获取用户绑定设备列表
+     */
+    Page<AppUserBinding> getUserBindings(Long userId, Integer current, Integer size, Long operatorId);
+    
+    /**
+     * 解绑用户设备
+     */
+    void unbindDevice(Long userId, Long bindingId, String reason, Long operatorId);
 }

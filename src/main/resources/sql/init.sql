@@ -735,3 +735,117 @@ FROM roles r, menus m
 WHERE r.role_code = 'USER'
 AND m.menu_code = 'APP_USER_MANAGEMENT'
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 应用变量表
+CREATE TABLE IF NOT EXISTS app_variable (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    variable_name VARCHAR(100) NOT NULL COMMENT '变量名称',
+    display_name VARCHAR(200) NOT NULL COMMENT '显示名称',
+    description VARCHAR(500) COMMENT '变量描述',
+    variable_type VARCHAR(20) NOT NULL DEFAULT 'STRING' COMMENT '变量类型: STRING, NUMBER, BOOLEAN, JSON, ARRAY',
+    variable_value TEXT COMMENT '变量值 (JSON格式存储)',
+    required BOOLEAN DEFAULT FALSE COMMENT '是否必填',
+    sort_order INT DEFAULT 0 COMMENT '排序权重',
+    validation_rules TEXT COMMENT '验证规则 (JSON格式)',
+    options TEXT COMMENT '变量选项 (JSON格式)',
+    enabled BOOLEAN DEFAULT TRUE COMMENT '是否启用',
+    version VARCHAR(50) COMMENT '版本号',
+    tags TEXT COMMENT '标签 (JSON数组格式)',
+    metadata JSON COMMENT '扩展元数据',
+    created_by BIGINT COMMENT '创建者ID',
+    updated_by BIGINT COMMENT '更新者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除：0-正常，1-已删除',
+    UNIQUE KEY uk_app_variable_name (app_id, variable_name, deleted),
+    INDEX idx_app_id (app_id),
+    INDEX idx_variable_name (variable_name),
+    INDEX idx_variable_type (variable_type),
+    INDEX idx_enabled (enabled),
+    INDEX idx_created_by (created_by),
+    INDEX idx_created_at (created_at),
+    INDEX idx_deleted (deleted)
+);
+
+-- 应用变量历史记录表
+CREATE TABLE IF NOT EXISTS app_variable_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    variable_id BIGINT NOT NULL COMMENT '变量ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    variable_name VARCHAR(100) NOT NULL COMMENT '变量名称',
+    operation_type VARCHAR(20) NOT NULL COMMENT '操作类型: CREATE, UPDATE, DELETE',
+    old_value TEXT COMMENT '变更前的值 (JSON格式)',
+    new_value TEXT COMMENT '变更后的值 (JSON格式)',
+    change_reason VARCHAR(500) COMMENT '变更原因/备注',
+    operator_id BIGINT COMMENT '操作者ID',
+    operator_ip VARCHAR(50) COMMENT '操作者IP',
+    operated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    version VARCHAR(50) COMMENT '版本号',
+    INDEX idx_variable_id (variable_id),
+    INDEX idx_app_id (app_id),
+    INDEX idx_variable_name (variable_name),
+    INDEX idx_operation_type (operation_type),
+    INDEX idx_operator_id (operator_id),
+    INDEX idx_operated_at (operated_at)
+);
+
+-- 插入变量管理权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('变量列表', 'APP_VARIABLE_LIST', 'API', '/api/app-variables', 'GET', '查看变量列表', 1),
+('变量详情', 'APP_VARIABLE_DETAIL', 'API', '/api/app-variables/*', 'GET', '查看变量详情', 1),
+('创建变量', 'APP_VARIABLE_CREATE', 'API', '/api/app-variables', 'POST', '创建变量', 1),
+('编辑变量', 'APP_VARIABLE_UPDATE', 'API', '/api/app-variables/*', 'PUT', '编辑变量', 1),
+('删除变量', 'APP_VARIABLE_DELETE', 'API', '/api/app-variables/*', 'DELETE', '删除变量', 1),
+('复制变量', 'APP_VARIABLE_COPY', 'API', '/api/app-variables/*/copy', 'POST', '复制变量', 1),
+('批量更新变量', 'APP_VARIABLE_BATCH_UPDATE', 'API', '/api/app-variables/app/*/batch', 'PUT', '批量更新变量', 1),
+('变量历史记录', 'APP_VARIABLE_HISTORY', 'API', '/api/app-variables/*/history', 'GET', '查看变量历史记录', 1),
+('导出变量配置', 'APP_VARIABLE_EXPORT', 'API', '/api/app-variables/app/*/export', 'GET', '导出变量配置', 1),
+('导入变量配置', 'APP_VARIABLE_IMPORT', 'API', '/api/app-variables/app/*/import', 'POST', '导入变量配置', 1),
+('验证变量值', 'APP_VARIABLE_VALIDATE', 'API', '/api/app-variables/*/validate', 'POST', '验证变量值', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 为超级管理员分配变量管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN (
+    'APP_VARIABLE_LIST', 'APP_VARIABLE_DETAIL', 'APP_VARIABLE_CREATE', 'APP_VARIABLE_UPDATE',
+    'APP_VARIABLE_DELETE', 'APP_VARIABLE_COPY', 'APP_VARIABLE_BATCH_UPDATE', 'APP_VARIABLE_HISTORY',
+    'APP_VARIABLE_EXPORT', 'APP_VARIABLE_IMPORT', 'APP_VARIABLE_VALIDATE'
+)
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配变量管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN (
+    'APP_VARIABLE_LIST', 'APP_VARIABLE_DETAIL', 'APP_VARIABLE_CREATE', 'APP_VARIABLE_UPDATE',
+    'APP_VARIABLE_DELETE', 'APP_VARIABLE_COPY', 'APP_VARIABLE_BATCH_UPDATE', 'APP_VARIABLE_HISTORY',
+    'APP_VARIABLE_EXPORT', 'APP_VARIABLE_IMPORT', 'APP_VARIABLE_VALIDATE'
+)
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 插入变量管理菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('变量管理', 'APP_VARIABLE_MANAGEMENT', (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'APP_MANAGEMENT') AS tmp), 2, '/applications/variables', 'AppVariableManagement', NULL, 4, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 为超级管理员分配变量管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code = 'APP_VARIABLE_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 为普通用户分配变量管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'USER'
+AND m.menu_code = 'APP_VARIABLE_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);

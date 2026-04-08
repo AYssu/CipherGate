@@ -1,9 +1,12 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.AppUserDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.entity.AppUser;
+import com.ayssu.ciphergate.entity.AppUserBinding;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
@@ -66,10 +69,12 @@ public class AppUserController {
     }
     
     @GetMapping
+    @RequirePermission("APP_USER_LIST")
     @Operation(summary = "分页查询终端用户")
     public Result<Page<AppUser>> getAppUserList(AppUserQueryDTO queryDTO) {
         try {
-            Page<AppUser> page = appUserService.getAppUserPage(queryDTO);
+            User currentUser = getCurrentUser();
+            Page<AppUser> page = appUserService.getAppUserPage(queryDTO, currentUser.getId());
             return Result.success("查询成功", page);
         } catch (Exception e) {
             log.error("查询终端用户列表失败", e);
@@ -78,10 +83,12 @@ public class AppUserController {
     }
     
     @GetMapping("/{id}")
+    @RequirePermission("APP_USER_DETAIL")
     @Operation(summary = "查询终端用户详情")
     public Result<AppUser> getAppUserById(@PathVariable Long id) {
         try {
-            AppUser appUser = appUserService.getAppUserById(id);
+            User currentUser = getCurrentUser();
+            AppUser appUser = appUserService.getAppUserById(id, currentUser.getId());
             return Result.success("查询成功", appUser);
         } catch (Exception e) {
             log.error("查询终端用户详情失败: id={}", id, e);
@@ -90,6 +97,8 @@ public class AppUserController {
     }
     
     @PostMapping
+    @RequirePermission("APP_USER_CREATE")
+    @ActivityLog(actionType = "CREATE", actionTarget = "APP_USER", description = "创建终端用户")
     @Operation(summary = "创建终端用户")
     public Result<AppUser> createAppUser(@RequestBody AppUserDTO dto) {
         try {
@@ -103,6 +112,8 @@ public class AppUserController {
     }
     
     @PutMapping("/{id}")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "更新终端用户")
     @Operation(summary = "更新终端用户")
     public Result<AppUser> updateAppUser(
             @PathVariable Long id,
@@ -118,6 +129,8 @@ public class AppUserController {
     }
     
     @DeleteMapping("/{id}")
+    @RequirePermission("APP_USER_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "APP_USER", description = "删除终端用户")
     @Operation(summary = "删除终端用户")
     public Result<Void> deleteAppUser(@PathVariable Long id) {
         try {
@@ -131,6 +144,8 @@ public class AppUserController {
     }
     
     @PostMapping("/{id}/reset-password")
+    @RequirePermission("APP_USER_RESET_PWD")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "重置终端用户密码")
     @Operation(summary = "重置用户密码")
     public Result<Void> resetPassword(
             @PathVariable Long id,
@@ -151,6 +166,8 @@ public class AppUserController {
     }
     
     @PostMapping("/{id}/ban")
+    @RequirePermission("APP_USER_BAN")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "封禁或解封终端用户")
     @Operation(summary = "封禁/解封用户")
     public Result<Void> banUser(
             @PathVariable Long id,
@@ -173,4 +190,42 @@ public class AppUserController {
             return Result.error("操作失败: " + e.getMessage());
         }
     }
+    
+    @GetMapping("/{id}/bindings")
+    @RequirePermission("APP_USER_DETAIL")
+    @Operation(summary = "获取用户绑定设备列表")
+    public Result<Page<AppUserBinding>> getUserBindings(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer current,
+            @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            User currentUser = getCurrentUser();
+            Page<AppUserBinding> page = appUserService.getUserBindings(id, current, size, currentUser.getId());
+            return Result.success("查询成功", page);
+        } catch (Exception e) {
+            log.error("查询用户绑定设备列表失败: userId={}", id, e);
+            return Result.error("查询失败: " + e.getMessage());
+        }
+    }
+    
+    @DeleteMapping("/{userId}/bindings/{bindingId}")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER_BINDING", description = "解绑终端用户设备")
+    @Operation(summary = "解绑用户设备")
+    public Result<Void> unbindDevice(
+            @PathVariable Long userId,
+            @PathVariable Long bindingId,
+            @RequestBody(required = false) Map<String, String> request) {
+        try {
+            String reason = request != null ? request.get("reason") : null;
+            User currentUser = getCurrentUser();
+            appUserService.unbindDevice(userId, bindingId, reason, currentUser.getId());
+            return Result.success("解绑成功", null);
+        } catch (Exception e) {
+            log.error("解绑用户设备失败: userId={}, bindingId={}", userId, bindingId, e);
+            return Result.error("解绑失败: " + e.getMessage());
+        }
+    }
+
+
 }

@@ -1,6 +1,8 @@
 package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.common.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -19,12 +21,14 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/debug")
 @RequiredArgsConstructor
+@Tag(name = "调试接口", description = "调试当前认证与权限信息")
 public class DebugController {
     
     /**
      * 查看当前用户的权限信息
      */
     @GetMapping("/authorities")
+    @Operation(summary = "获取当前用户权限详情")
     public Result<Map<String, Object>> getAuthorities(Authentication authentication) {
         Map<String, Object> result = new HashMap<>();
         

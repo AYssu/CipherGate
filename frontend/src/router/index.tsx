@@ -11,6 +11,7 @@ import SystemConfigPage from '../pages/System/SystemConfigPage';
 import ApplicationManagementPage from '../pages/Application/ApplicationManagementPage';
 import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
+import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
           {
             path: 'users',
             element: <AppUserManagementPage />,
+          },
+          {
+            path: 'variables',
+            element: <AppVariableManagementPage />,
           },
         ],
       },

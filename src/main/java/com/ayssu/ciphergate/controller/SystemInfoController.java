@@ -2,6 +2,8 @@ package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +20,12 @@ import java.util.Properties;
 @RestController
 @RequestMapping("/api/system")
 @RequiredArgsConstructor
+@Tag(name = "系统信息", description = "系统运行状态与环境信息接口")
 public class SystemInfoController {
 
     @GetMapping("/info")
     @RequirePermission("CONFIG_LIST")
+    @Operation(summary = "获取系统信息")
     public Result<Map<String, Object>> getSystemInfo() {
         try {
             Map<String, Object> systemInfo = new HashMap<>();
@@ -85,6 +89,7 @@ public class SystemInfoController {
     
     @GetMapping("/status")
     @RequirePermission("CONFIG_LIST")
+    @Operation(summary = "获取系统运行状态")
     public Result<Map<String, Object>> getSystemStatus() {
         try {
             Map<String, Object> status = new HashMap<>();
