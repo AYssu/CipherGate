@@ -939,7 +939,8 @@ CREATE TABLE IF NOT EXISTS plugin_module (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
-    UNIQUE KEY uk_plugin_version (plugin_id, plugin_version, deleted),
+    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '逻辑删除时间',
+    UNIQUE KEY uk_plugin_version (plugin_id, plugin_version, deleted, deleted_at),
     INDEX idx_status (status),
     INDEX idx_updated_at (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='插件模块表';

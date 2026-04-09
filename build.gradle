@@ -44,6 +44,9 @@ dependencies {
     
     // Hutool 工具类
     implementation 'cn.hutool:hutool-all:5.8.25'
+
+    // Support Java 8+ date/time types (LocalDateTime, etc.) in Jackson
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     
     // Knife4j API 文档
     implementation 'com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.5.0'

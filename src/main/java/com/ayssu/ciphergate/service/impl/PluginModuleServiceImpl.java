@@ -169,7 +169,10 @@ public class PluginModuleServiceImpl implements PluginModuleService {
             log.warn("删除 MinIO 对象失败，继续删除数据库记录: bucket={}, objectKey={}",
                     pluginModule.getBucketName(), pluginModule.getObjectKey(), e);
         }
-        pluginModuleMapper.deleteById(id);
+        int updated = pluginModuleMapper.softDeleteWithTimestamp(id);
+        if (updated <= 0) {
+            throw new RuntimeException("删除插件失败：记录不存在或已删除");
+        }
         log.info("删除插件成功: id={}, pluginId={}, loadedPluginId={}",
                 id, pluginModule.getPluginId(), pluginModule.getLoadedPluginId());
         logLoadedPluginSummary("deletePlugin");

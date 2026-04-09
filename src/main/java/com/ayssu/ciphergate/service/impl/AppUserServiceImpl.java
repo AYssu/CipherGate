@@ -192,7 +192,7 @@ public class AppUserServiceImpl implements AppUserService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteAppUser(Long id, Long operatorId) {
         AppUser appUser = appUserMapper.selectById(id);
-        if (appUser == null || appUser.getDeleted() == 1) {
+        if (appUser == null) {
             throw new RuntimeException("用户不存在");
         }
         
@@ -201,10 +201,11 @@ public class AppUserServiceImpl implements AppUserService {
             throw new RuntimeException("无权限操作此用户");
         }
         
-        // 软删除
-        appUser.setDeleted(1);
-        appUser.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(appUser);
+        // 逻辑删除（由 @TableLogic + MyBatis-Plus 统一处理）
+        int affected = appUserMapper.deleteById(id);
+        if (affected <= 0) {
+            throw new RuntimeException("删除失败，记录不存在或已删除");
+        }
         
         log.info("删除终端用户成功: id={}, username={}, operatorId={}", 
                 id, appUser.getUsername(), operatorId);

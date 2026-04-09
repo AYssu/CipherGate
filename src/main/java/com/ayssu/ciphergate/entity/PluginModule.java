@@ -32,4 +32,6 @@ public class PluginModule implements Serializable {
 
     @TableLogic
     private Integer deleted;
+
+    private LocalDateTime deletedAt;
 }

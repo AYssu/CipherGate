@@ -45,6 +45,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     @Override
     public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO) {
         Page<LicenseKey> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
         
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(queryDTO.getAppId() != null, LicenseKey::getAppId, queryDTO.getAppId())
@@ -53,8 +54,16 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
                .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
                .eq(queryDTO.getOwnerId() != null, LicenseKey::getOwnerId, queryDTO.getOwnerId())
-               .eq(queryDTO.getIsOnline() != null, LicenseKey::getIsOnline, queryDTO.getIsOnline())
                .orderByDesc(LicenseKey::getCreatedAt);
+        if (queryDTO.getIsOnline() != null) {
+            if (Boolean.TRUE.equals(queryDTO.getIsOnline())) {
+                wrapper.ge(LicenseKey::getLastUsedAt, onlineCutoff);
+            } else {
+                wrapper.and(w -> w.isNull(LicenseKey::getLastUsedAt)
+                        .or()
+                        .lt(LicenseKey::getLastUsedAt, onlineCutoff));
+            }
+        }
         
         Page<LicenseKey> result = licenseKeyMapper.selectPage(page, wrapper);
         
@@ -424,6 +433,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
      * 填充关联信息
      */
     private void fillRelatedInfo(LicenseKey licenseKey) {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(5);
+        boolean online = licenseKey.getLastUsedAt() != null && licenseKey.getLastUsedAt().isAfter(cutoff);
+        licenseKey.setIsOnline(online);
+
         // 填充应用名称
         if (licenseKey.getAppId() != null) {
             Application application = applicationMapper.selectById(licenseKey.getAppId());

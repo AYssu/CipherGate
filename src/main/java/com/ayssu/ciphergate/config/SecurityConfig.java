@@ -7,6 +7,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyAuthFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -16,6 +19,7 @@ public class SecurityConfig {
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final ThirdPartyAuthFilter thirdPartyAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -26,6 +30,7 @@ public class SecurityConfig {
                                 "/api/config/init",
                                 "/api/config/public/site-info",
                                 "/api/user/status",
+                                "/api/v1/**",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
                         // Knife4j 文档只允许超级管理员访问
@@ -54,6 +59,8 @@ public class SecurityConfig {
                             response.getWriter().write("{\"code\":403,\"message\":\"权限不足，只有超级管理员可以访问 API 文档\"}");
                         })
                 );
+
+        http.addFilterBefore(thirdPartyAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
