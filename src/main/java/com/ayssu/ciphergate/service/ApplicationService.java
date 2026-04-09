@@ -56,4 +56,8 @@ public interface ApplicationService {
      * 获取应用统计信息
      */
     Map<String, Object> getApplicationStats(Long id);
+
+    Map<String, Object> getEncryptionConfig(Long id, Long userId);
+
+    void updateEncryptionConfig(Long id, Map<String, Object> encryptionConfig, Long userId);
 }

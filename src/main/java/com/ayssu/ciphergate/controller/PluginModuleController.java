@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -79,6 +80,40 @@ public class PluginModuleController {
         } catch (Exception e) {
             log.error("删除插件失败", e);
             return Result.error("删除插件失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/config-schema")
+    @RequirePermission("PLUGIN_LIST")
+    public Result<Map<String, Object>> getConfigSchema(@PathVariable Long id) {
+        try {
+            return Result.success(pluginModuleService.getPluginConfigSchema(id));
+        } catch (Exception e) {
+            log.error("查询插件配置Schema失败", e);
+            return Result.error("查询插件配置Schema失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/config")
+    @RequirePermission("PLUGIN_LIST")
+    public Result<Map<String, Object>> getConfig(@PathVariable Long id) {
+        try {
+            return Result.success(pluginModuleService.getPluginConfig(id));
+        } catch (Exception e) {
+            log.error("查询插件配置失败", e);
+            return Result.error("查询插件配置失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/config")
+    @RequirePermission("PLUGIN_ENABLE")
+    public Result<String> updateConfig(@PathVariable Long id, @RequestBody Map<String, Object> configValues) {
+        try {
+            pluginModuleService.updatePluginConfig(id, configValues);
+            return Result.success("插件配置保存成功", "OK");
+        } catch (Exception e) {
+            log.error("保存插件配置失败", e);
+            return Result.error("保存插件配置失败: " + e.getMessage());
         }
     }
 }

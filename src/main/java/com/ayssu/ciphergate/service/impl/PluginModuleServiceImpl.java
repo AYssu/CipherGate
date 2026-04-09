@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -25,6 +26,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -77,6 +79,12 @@ public class PluginModuleServiceImpl implements PluginModuleService {
         pluginModule.setSha256(sha256);
         pluginModule.setStatus(0);
         pluginModule.setRemark(remark);
+        pluginModule.setConfigSchema(metadata.configSchema());
+        pluginModule.setConfigDefaults(metadata.configDefaults());
+        // initialize config values with defaults on upload if not set yet
+        if (!StringUtils.hasText(pluginModule.getConfigValues()) && StringUtils.hasText(metadata.configDefaults())) {
+            pluginModule.setConfigValues(metadata.configDefaults());
+        }
         pluginModule.setUpdatedAt(LocalDateTime.now());
 
         if (pluginModule.getId() == null) {
@@ -90,23 +98,40 @@ public class PluginModuleServiceImpl implements PluginModuleService {
     private PluginJarMetadata readPluginMetadata(MultipartFile file) {
         try (JarInputStream jarInputStream = new JarInputStream(file.getInputStream())) {
             JarEntry entry;
+            String pluginId = null;
+            String pluginVersion = null;
+            String configSchema = null;
+            String configDefaults = null;
             while ((entry = jarInputStream.getNextJarEntry()) != null) {
                 if ("plugin.properties".equals(entry.getName())) {
                     Properties properties = new Properties();
                     properties.load(jarInputStream);
-                    return new PluginJarMetadata(
-                            properties.getProperty("plugin.id"),
-                            properties.getProperty("plugin.version")
-                    );
+                    pluginId = properties.getProperty("plugin.id");
+                    pluginVersion = properties.getProperty("plugin.version");
+                } else if ("plugin-config.schema.json".equals(entry.getName())) {
+                    configSchema = readJarEntryText(jarInputStream);
+                } else if ("plugin-config.defaults.json".equals(entry.getName())) {
+                    configDefaults = readJarEntryText(jarInputStream);
                 }
             }
-            throw new RuntimeException("jar 中未找到 plugin.properties");
+            if (!StringUtils.hasText(pluginId) || !StringUtils.hasText(pluginVersion)) {
+                throw new RuntimeException("jar 中未找到 plugin.properties");
+            }
+            return new PluginJarMetadata(pluginId, pluginVersion, configSchema, configDefaults);
         } catch (Exception e) {
             throw new RuntimeException("解析插件元数据失败: " + e.getMessage(), e);
         }
     }
 
-    private record PluginJarMetadata(String pluginId, String pluginVersion) {
+    private String readJarEntryText(JarInputStream jarInputStream) {
+        try {
+            return new String(jarInputStream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("读取插件配置文件失败", e);
+        }
+    }
+
+    private record PluginJarMetadata(String pluginId, String pluginVersion, String configSchema, String configDefaults) {
     }
 
     @Override
@@ -200,6 +225,55 @@ public class PluginModuleServiceImpl implements PluginModuleService {
             }
         }
         logLoadedPluginSummary("startup");
+    }
+
+    @Override
+    public Map<String, Object> getPluginConfigSchema(Long id) {
+        PluginModule pluginModule = pluginModuleMapper.selectById(id);
+        if (pluginModule == null) {
+            throw new RuntimeException("插件不存在");
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("pluginId", pluginModule.getPluginId());
+        out.put("pluginVersion", pluginModule.getPluginVersion());
+        out.put("configSchema", pluginModule.getConfigSchema());
+        out.put("configDefaults", pluginModule.getConfigDefaults());
+        return out;
+    }
+
+    @Override
+    public Map<String, Object> getPluginConfig(Long id) {
+        PluginModule pluginModule = pluginModuleMapper.selectById(id);
+        if (pluginModule == null) {
+            throw new RuntimeException("插件不存在");
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("pluginId", pluginModule.getPluginId());
+        out.put("pluginVersion", pluginModule.getPluginVersion());
+        out.put("configSchema", pluginModule.getConfigSchema());
+        out.put("configDefaults", pluginModule.getConfigDefaults());
+        out.put("configValues", pluginModule.getConfigValues());
+        return out;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePluginConfig(Long id, Map<String, Object> configValues) {
+        PluginModule pluginModule = pluginModuleMapper.selectById(id);
+        if (pluginModule == null) {
+            throw new RuntimeException("插件不存在");
+        }
+        try {
+            // store raw JSON string to keep schema-driven flexibility
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                    configValues == null ? Map.of() : configValues
+            );
+            pluginModule.setConfigValues(json);
+            pluginModule.setUpdatedAt(LocalDateTime.now());
+            pluginModuleMapper.updateById(pluginModule);
+        } catch (Exception e) {
+            throw new RuntimeException("保存插件配置失败: " + e.getMessage(), e);
+        }
     }
 
     private PluginModule getByPluginIdAndVersion(String pluginId, String pluginVersion) {

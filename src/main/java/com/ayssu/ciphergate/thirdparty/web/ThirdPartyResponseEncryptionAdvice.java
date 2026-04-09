@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -40,17 +41,17 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
     private final ObjectMapper objectMapper;
 
     @Override
-    public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+    public boolean supports(@NonNull MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
         return true;
     }
 
     @Override
     public Object beforeBodyWrite(Object body,
-                                  MethodParameter returnType,
-                                  MediaType selectedContentType,
-                                  Class<? extends HttpMessageConverter<?>> selectedConverterType,
-                                  ServerHttpRequest request,
-                                  ServerHttpResponse response) {
+                                  @NonNull MethodParameter returnType,
+                                  @NonNull MediaType selectedContentType,
+                                  @NonNull Class<? extends HttpMessageConverter<?>> selectedConverterType,
+                                  @NonNull ServerHttpRequest request,
+                                  @NonNull ServerHttpResponse response) {
         if (!(body instanceof Result<?> r)) {
             return body;
         }
@@ -63,9 +64,17 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
 
         String pluginId = null;
         String appSecret = null;
+        Map<String, Object> encryptionConfig = null;
         if (request instanceof org.springframework.http.server.ServletServerHttpRequest servletReq) {
             pluginId = (String) servletReq.getServletRequest().getAttribute(ThirdPartyHeaders.ATTR_ENCRYPTION_PLUGIN_ID);
             appSecret = (String) servletReq.getServletRequest().getAttribute(ThirdPartyHeaders.ATTR_APP_SECRET);
+            Object cfg = servletReq.getServletRequest().getAttribute(ThirdPartyHeaders.ATTR_ENCRYPTION_CONFIG);
+            if (cfg instanceof Map<?, ?> m) {
+                encryptionConfig = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> e : m.entrySet()) {
+                    encryptionConfig.put(String.valueOf(e.getKey()), e.getValue());
+                }
+            }
         }
 
         Map<String, Object> plainMap = objectMapper.convertValue(r.getData(), new TypeReference<>() {});
@@ -74,7 +83,7 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
         }
         plainMap = normalizeTemporalFields(plainMap);
 
-        CryptoEncryptedPayload payload = cryptoRuntimeService.encryptPayloadFromMap(pluginId, plainMap);
+        CryptoEncryptedPayload payload = cryptoRuntimeService.encryptPayloadFromMap(pluginId, plainMap, encryptionConfig);
         ThirdPartyEncryptedData encryptedData = new ThirdPartyEncryptedData();
         encryptedData.setData(payload.data());
         encryptedData.setPluginId(payload.pluginId());

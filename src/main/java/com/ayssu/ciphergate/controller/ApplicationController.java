@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * 应用管理控制器
@@ -210,6 +211,32 @@ public class ApplicationController {
         } catch (Exception e) {
             log.error("获取应用统计信息失败", e);
             return Result.error("获取应用统计信息失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/encryption-config")
+    @RequirePermission("APP_DETAIL")
+    public Result<Map<String, Object>> getEncryptionConfig(@PathVariable Long id) {
+        try {
+            User currentUser = getCurrentUser();
+            Map<String, Object> cfg = applicationService.getEncryptionConfig(id, currentUser.getId());
+            return Result.success(cfg == null ? new LinkedHashMap<>() : cfg);
+        } catch (Exception e) {
+            log.error("获取加密配置失败", e);
+            return Result.error("获取加密配置失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/encryption-config")
+    @RequirePermission("APP_UPDATE")
+    public Result<String> updateEncryptionConfig(@PathVariable Long id, @RequestBody Map<String, Object> encryptionConfig) {
+        try {
+            User currentUser = getCurrentUser();
+            applicationService.updateEncryptionConfig(id, encryptionConfig, currentUser.getId());
+            return Result.success("加密配置更新成功", "OK");
+        } catch (Exception e) {
+            log.error("更新加密配置失败", e);
+            return Result.error("更新加密配置失败: " + e.getMessage());
         }
     }
 }

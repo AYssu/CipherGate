@@ -148,6 +148,7 @@ public class ThirdPartyAuthFilter extends OncePerRequestFilter {
             request.setAttribute(ThirdPartyHeaders.ATTR_APP_KEY, app.getAppKey());
             request.setAttribute(ThirdPartyHeaders.ATTR_ENCRYPTION_PLUGIN_ID, app.getEncryptionPlugin());
             request.setAttribute(ThirdPartyHeaders.ATTR_APP_SECRET, app.getAppSecret());
+            request.setAttribute(ThirdPartyHeaders.ATTR_ENCRYPTION_CONFIG, app.getEncryptionConfig());
 
             byte[] replaced = decryptedBody.getBytes(StandardCharsets.UTF_8);
             CachedBodyHttpServletRequest wrapped = new CachedBodyHttpServletRequest(request, replaced);

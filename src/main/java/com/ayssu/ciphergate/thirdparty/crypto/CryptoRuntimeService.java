@@ -71,7 +71,14 @@ public class CryptoRuntimeService {
     }
 
     public CryptoEncryptedPayload encryptPayloadFromMap(String pluginId, Map<String, Object> plain) {
-        Map<String, Object> safePlain = plain == null ? Map.of() : new LinkedHashMap<>(plain);
+        return encryptPayloadFromMap(pluginId, plain, null);
+    }
+
+    public CryptoEncryptedPayload encryptPayloadFromMap(String pluginId, Map<String, Object> plain, Map<String, Object> encryptionConfig) {
+        Map<String, Object> safePlain = new java.util.HashMap<>(plain == null ? Map.of() : new LinkedHashMap<>(plain));
+        if (encryptionConfig != null && !encryptionConfig.isEmpty()) {
+            safePlain.put("encryptionConfig", encryptionConfig);
+        }
 
         List<CryptoPlugin> extensions = pluginManager.getExtensions(CryptoPlugin.class);
         List<CryptoPluginEncryptor> encryptorExtensions = extensions.stream()

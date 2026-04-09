@@ -20,8 +20,11 @@ import {
   disablePlugin,
   deletePlugin,
   enablePlugin,
+  getPluginConfig,
+  getPluginConfigSchema,
   listPlugins,
   type PluginModule,
+  updatePluginConfig,
   uploadPlugin,
 } from '../../services/pluginService';
 
@@ -40,6 +43,13 @@ const PluginManagementPage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [form] = Form.useForm();
 
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [activePlugin, setActivePlugin] = useState<PluginModule | null>(null);
+  const [pluginSchema, setPluginSchema] = useState<string>('');
+  const [pluginDefaults, setPluginDefaults] = useState<string>('');
+  const [configJson, setConfigJson] = useState<string>('{}');
+
   const loadPlugins = async () => {
     setLoading(true);
     try {
@@ -53,6 +63,50 @@ const PluginManagementPage = () => {
   useEffect(() => {
     loadPlugins();
   }, []);
+
+  const openConfig = async (plugin: PluginModule) => {
+    setActivePlugin(plugin);
+    setConfigOpen(true);
+    try {
+      const [schemaRes, cfgRes]: any = await Promise.all([
+        getPluginConfigSchema(plugin.id),
+        getPluginConfig(plugin.id),
+      ]);
+      const schemaPayload = schemaRes.data || {};
+      const cfgPayload = cfgRes.data || {};
+      setPluginSchema(schemaPayload.configSchema || '');
+      setPluginDefaults(schemaPayload.configDefaults || '');
+      if (cfgPayload.configValues) {
+        setConfigJson(JSON.stringify(JSON.parse(cfgPayload.configValues), null, 2));
+      } else if (schemaPayload.configDefaults) {
+        setConfigJson(schemaPayload.configDefaults);
+      } else {
+        setConfigJson('{}');
+      }
+    } finally {
+    }
+  };
+
+  const savePluginConfig = async () => {
+    if (!activePlugin) {
+      message.warning('未选择插件');
+      return;
+    }
+    let obj: any;
+    try {
+      obj = JSON.parse(configJson || '{}');
+    } catch (e) {
+      message.error('配置不是合法JSON');
+      return;
+    }
+    setConfigSaving(true);
+    try {
+      await updatePluginConfig(activePlugin.id, obj);
+      message.success('已保存插件配置');
+    } finally {
+      setConfigSaving(false);
+    }
+  };
 
   const columns: ColumnsType<PluginModule> = useMemo(
     () => [
@@ -81,9 +135,12 @@ const PluginManagementPage = () => {
       {
         title: '操作',
         key: 'actions',
-        width: 220,
+        width: 300,
         render: (_, record) => (
           <Space>
+            <Button size="small" onClick={() => openConfig(record)}>
+              配置
+            </Button>
             <Button
               type="primary"
               size="small"
@@ -222,6 +279,60 @@ const PluginManagementPage = () => {
             </Upload>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`插件配置${activePlugin ? ` - ${activePlugin.pluginId}@${activePlugin.pluginVersion}` : ''}`}
+        open={configOpen}
+        onCancel={() => {
+          setConfigOpen(false);
+          setActivePlugin(null);
+        }}
+        footer={null}
+        width={900}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="说明"
+            description="这里展示插件的配置Schema/默认值，并保存插件配置值(JSON)。"
+          />
+
+          <Card size="small" title="保存插件配置">
+            <Button type="primary" loading={configSaving} onClick={savePluginConfig}>
+              保存配置
+            </Button>
+          </Card>
+
+          <Card size="small" title="插件配置 Schema (只读)">
+            <Input.TextArea
+              value={pluginSchema}
+              readOnly
+              autoSize={{ minRows: 10, maxRows: 18 }}
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+            />
+          </Card>
+
+          <Card size="small" title="插件默认配置 (只读)">
+            <Input.TextArea
+              value={pluginDefaults}
+              readOnly
+              autoSize={{ minRows: 6, maxRows: 12 }}
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+            />
+          </Card>
+
+          <Card size="small" title="插件 configValues (可编辑JSON)">
+            <Input.TextArea
+              value={configJson}
+              onChange={(e) => setConfigJson(e.target.value)}
+              autoSize={{ minRows: 12, maxRows: 22 }}
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+              placeholder='例如：{"aesKey":"cg_demo_key_1234"}'
+            />
+          </Card>
+        </Space>
       </Modal>
     </Space>
   );

@@ -36,3 +36,15 @@ export const disablePlugin = (id: number) => {
 export const deletePlugin = (id: number) => {
   return request.delete(`/plugins/${id}`);
 };
+
+export const getPluginConfigSchema = (id: number) => {
+  return request.get(`/plugins/${id}/config-schema`);
+};
+
+export const getPluginConfig = (id: number) => {
+  return request.get(`/plugins/${id}/config`);
+};
+
+export const updatePluginConfig = (id: number, configValues: Record<string, any>) => {
+  return request.put(`/plugins/${id}/config`, configValues);
+};

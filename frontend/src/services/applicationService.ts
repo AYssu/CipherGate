@@ -130,3 +130,11 @@ export const updateApplicationStatus = (id: number, status: number) => {
 export const getApplicationStats = (id: number) => {
   return request.get(`/applications/${id}/stats`);
 };
+
+export const getEncryptionConfig = (id: number) => {
+  return request.get(`/applications/${id}/encryption-config`);
+};
+
+export const updateEncryptionConfig = (id: number, encryptionConfig: Record<string, any>) => {
+  return request.put(`/applications/${id}/encryption-config`, encryptionConfig);
+};

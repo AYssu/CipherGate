@@ -17,5 +17,6 @@ public final class ThirdPartyHeaders {
     public static final String ATTR_APP_KEY = "thirdParty.appKey";
     public static final String ATTR_ENCRYPTION_PLUGIN_ID = "thirdParty.encryptionPluginId";
     public static final String ATTR_APP_SECRET = "thirdParty.appSecret";
+    public static final String ATTR_ENCRYPTION_CONFIG = "thirdParty.encryptionConfig";
 }
 

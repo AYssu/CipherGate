@@ -27,6 +27,9 @@ public class PluginModule implements Serializable {
     private Integer status;
     private String loadedPluginId;
     private String remark;
+    private String configSchema;
+    private String configDefaults;
+    private String configValues;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

@@ -25,6 +25,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -368,6 +369,28 @@ public class ApplicationServiceImpl implements ApplicationService {
         // TODO: 添加更多统计信息（卡密数量、用户数量、登录次数等）
         
         return stats;
+    }
+
+    @Override
+    public Map<String, Object> getEncryptionConfig(Long id, Long userId) {
+        Application application = getApplicationById(id, userId);
+        Map<String, Object> cfg = application.getEncryptionConfig();
+        return cfg == null ? new LinkedHashMap<>() : new LinkedHashMap<>(cfg);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateEncryptionConfig(Long id, Map<String, Object> encryptionConfig, Long userId) {
+        Application application = applicationMapper.selectById(id);
+        if (application == null) {
+            throw new RuntimeException("应用不存在");
+        }
+        if (!hasPermission(id, userId, false)) {
+            throw new RuntimeException("无权限操作此应用");
+        }
+        application.setEncryptionConfig(encryptionConfig);
+        application.setUpdatedAt(LocalDateTime.now());
+        applicationMapper.updateById(application);
     }
     
     /**
