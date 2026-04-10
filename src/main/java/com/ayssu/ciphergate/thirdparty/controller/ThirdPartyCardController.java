@@ -4,6 +4,7 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyHeaders;
 import com.ayssu.ciphergate.thirdparty.dto.*;
 import com.ayssu.ciphergate.thirdparty.service.ThirdPartyCardService;
+import com.ayssu.ciphergate.thirdparty.service.ThirdPartyCardRateLimitService;
 import com.ayssu.ciphergate.util.IpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "三方卡密登录", description = "第三方平台基于 appKey/appSecret 的卡密登录接口")
 public class ThirdPartyCardController {
     private final ThirdPartyCardService thirdPartyCardService;
+    private final ThirdPartyCardRateLimitService thirdPartyCardRateLimitService;
 
     @PostMapping("/card/login")
     @Operation(summary = "卡密登录")
@@ -27,12 +29,16 @@ public class ThirdPartyCardController {
         if (appId == null) {
             return Result.unauthorized("未识别应用");
         }
+        String clientIp = IpUtil.getIpAddr(http);
         try {
-            String clientIp = IpUtil.getIpAddr(http);
-            return Result.success(thirdPartyCardService.login(appId, req, clientIp));
+            thirdPartyCardRateLimitService.checkBeforeLogin(appId, clientIp, req == null ? null : req.getCardCode());
+            CardLoginResponse resp = thirdPartyCardService.login(appId, req, clientIp);
+            thirdPartyCardRateLimitService.markResult(appId, clientIp, true);
+            return Result.success(resp);
         } catch (Exception e) {
+            thirdPartyCardRateLimitService.markResult(appId, clientIp, false);
             log.warn("login failed: appId={}, msg={}", appId, e.getMessage());
-            return Result.error(e.getMessage());
+            return Result.error("卡密校验失败");
         }
     }
 }

@@ -4,6 +4,12 @@ spring:
   devtools:
     restart:
       enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
+      database: ${REDIS_DB:0}
+      timeout: ${REDIS_TIMEOUT:3s}
 
   datasource:
     url: jdbc:mysql://localhost:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true

@@ -1,14 +1,18 @@
 package com.ayssu.ciphergate.thirdparty.service;
 
 import com.ayssu.ciphergate.entity.LicenseKey;
+import com.ayssu.ciphergate.entity.AppVariable;
+import com.ayssu.ciphergate.mapper.AppVariableMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.thirdparty.dto.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -21,6 +25,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ThirdPartyCardService {
     private final LicenseKeyMapper licenseKeyMapper;
+    private final AppVariableMapper appVariableMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
@@ -80,14 +86,58 @@ public class ThirdPartyCardService {
         key.setUpdatedAt(LocalDateTime.now());
         licenseKeyMapper.updateById(key);
 
+        Map<String, Object> variables = getAppVariablesForThirdParty(appId);
+
         CardLoginResponse resp = new CardLoginResponse();
         resp.setAppId(appId);
+        resp.setCardId(key.getId());
+        resp.setCardCode(key.getKeyCode());
         resp.setExpiresAt(key.getExpiresAt());
+        resp.setBindNumber(key.getUseCount());
+        resp.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
+        resp.setVariables(variables);
         LocalDateTime lastUsedAt = key.getLastUsedAt();
         boolean online = lastUsedAt != null
                 && ChronoUnit.MINUTES.between(lastUsedAt, LocalDateTime.now()) < 5;
         resp.setOnline(online);
         return resp;
+    }
+
+    private Long resolveAvailableSeconds(LocalDateTime expiresAt) {
+        if (expiresAt == null) {
+            return null;
+        }
+        long seconds = Duration.between(LocalDateTime.now(), expiresAt).getSeconds();
+        return Math.max(0L, seconds);
+    }
+
+    private Map<String, Object> getAppVariablesForThirdParty(Long appId) {
+        List<AppVariable> variables = appVariableMapper.selectList(new LambdaQueryWrapper<AppVariable>()
+                .eq(AppVariable::getAppId, appId)
+                .eq(AppVariable::getEnabled, true)
+                .eq(AppVariable::getDeleted, 0));
+        Map<String, Object> result = new HashMap<>();
+        for (AppVariable v : variables) {
+            result.put(v.getVariableName(), convertVariableValue(v.getVariableValue(), v.getVariableType()));
+        }
+        return result;
+    }
+
+    private Object convertVariableValue(String value, String type) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return switch (type == null ? "" : type) {
+                case "NUMBER" -> Double.parseDouble(value);
+                case "BOOLEAN" -> Boolean.parseBoolean(value);
+                case "JSON" -> objectMapper.readTree(value);
+                case "ARRAY" -> objectMapper.readValue(value, List.class);
+                default -> value;
+            };
+        } catch (Exception e) {
+            return value;
+        }
     }
 
     @SuppressWarnings("unchecked")

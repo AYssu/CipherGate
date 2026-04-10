@@ -105,6 +105,78 @@ public class Knife4jConfig {
                 .pathsToMatch("/api/applications/**")
                 .build();
     }
+
+    /**
+     * 应用变量 API 分组
+     */
+    @Bean
+    public GroupedOpenApi appVariableApi() {
+        return GroupedOpenApi.builder()
+                .group("6. 应用变量")
+                .pathsToMatch("/api/app-variables/**")
+                .build();
+    }
+
+    /**
+     * 应用终端用户 API 分组
+     */
+    @Bean
+    public GroupedOpenApi appUserApi() {
+        return GroupedOpenApi.builder()
+                .group("7. 终端用户")
+                .pathsToMatch("/api/app-users/**")
+                .build();
+    }
+
+    /**
+     * 卡密管理 API 分组
+     */
+    @Bean
+    public GroupedOpenApi licenseApi() {
+        return GroupedOpenApi.builder()
+                .group("8. 卡密管理")
+                .pathsToMatch("/api/licenses/**")
+                .build();
+    }
+
+    /**
+     * 插件模块 API 分组
+     */
+    @Bean
+    public GroupedOpenApi pluginApi() {
+        return GroupedOpenApi.builder()
+                .group("9. 插件模块")
+                .pathsToMatch("/api/plugins/**", "/api/plugin-test/**")
+                .build();
+    }
+
+    /**
+     * 三方接口 API 分组
+     */
+    @Bean
+    public GroupedOpenApi thirdPartyApi() {
+        return GroupedOpenApi.builder()
+                .group("10. 三方接口")
+                .pathsToMatch("/api/v1/**")
+                .build();
+    }
+
+    /**
+     * 运维与调试 API 分组
+     */
+    @Bean
+    public GroupedOpenApi opsApi() {
+        return GroupedOpenApi.builder()
+                .group("98. 运维与调试")
+                .pathsToMatch(
+                        "/api/system/**",
+                        "/api/github/**",
+                        "/api/debug/**",
+                        "/api/oauth2/test/**",
+                        "/api/test"
+                )
+                .build();
+    }
     
     /**
      * 其他 API 分组
@@ -112,14 +184,21 @@ public class Knife4jConfig {
     @Bean
     public GroupedOpenApi otherApi() {
         return GroupedOpenApi.builder()
-                .group("9. 其他接口")
+                .group("99. 其他接口")
                 .pathsToMatch("/api/**")
                 .pathsToExclude(
                         "/api/user/**", "/api/users/**",
                         "/api/roles/**", "/api/menus/**", "/api/permissions/**", "/api/config/**",
                         "/api/activity/**",
                         "/api/messages/**",
-                        "/api/applications/**"
+                        "/api/applications/**",
+                        "/api/app-variables/**",
+                        "/api/app-users/**",
+                        "/api/licenses/**",
+                        "/api/plugins/**", "/api/plugin-test/**",
+                        "/api/v1/**",
+                        "/api/system/**", "/api/github/**", "/api/debug/**", "/api/oauth2/test/**",
+                        "/api/test"
                 )
                 .build();
     }
