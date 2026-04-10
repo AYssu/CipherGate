@@ -43,36 +43,3 @@ app:
     access-key: ${MINIO_ACCESS_KEY:ciphergate_minio}
     secret-key: ${MINIO_SECRET_KEY:ciphergate_minio123}
     bucket: ${MINIO_BUCKET:ciphergate-plugins}
-
-# Knife4j 配置
-knife4j:
-  enable: true
-  setting:
-    language: zh_cn
-    enable-swagger-models: true
-    enable-document-manage: true
-    swagger-model-name: 实体类列表
-    enable-version: false
-    enable-reload-cache-parameter: false
-    enable-after-script: true
-    enable-filter-multipart-api-method-type: POST
-    enable-filter-multipart-apis: false
-    enable-request-cache: true
-    enable-host: false
-    enable-host-text: ""
-    enable-home-custom: true
-    home-custom-path: classpath:markdown/home.md
-    enable-search: true
-    enable-footer: true
-    enable-footer-custom: true
-    footer-custom-content: "Copyright © 2024 CipherGate | MIT License"
-    enable-dynamic-parameter: false
-    enable-debug: true
-    enable-open-api: false
-    enable-group: true
-  cors: false
-  production: false
-  basic:
-    enable: false
-    username: admin
-    password: 123456
