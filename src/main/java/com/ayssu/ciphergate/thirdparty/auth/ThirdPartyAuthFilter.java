@@ -40,7 +40,16 @@ public class ThirdPartyAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path == null || !path.startsWith("/api/v1/");
+        if (path == null || !path.startsWith("/api/v1/")) {
+            return true;
+        }
+        // WebSocket endpoint uses its own HELLO/AUTH inside WS frames.
+        if (path.startsWith("/api/v1/ws")) {
+            return true;
+        }
+        // Also skip WebSocket upgrade requests (defensive).
+        String upgrade = request.getHeader("Upgrade");
+        return upgrade != null && "websocket".equalsIgnoreCase(upgrade);
     }
 
     @Override
