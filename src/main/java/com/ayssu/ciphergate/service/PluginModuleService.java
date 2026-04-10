@@ -24,4 +24,10 @@ public interface PluginModuleService {
     Map<String, Object> getPluginConfig(Long id);
 
     void updatePluginConfig(Long id, Map<String, Object> configValues);
+
+    /**
+     * 按逻辑 pluginId（与 {@code Application.encryptionPlugin} / PF4J {@code plugin.id} 一致）从库表 {@code plugin_module.config_values} 解析 JSON。
+     * 优先取已启用（status=1）记录，否则取同 pluginId 下最近更新的一条。
+     */
+    Map<String, Object> resolveRuntimeConfigValues(String pluginId);
 }

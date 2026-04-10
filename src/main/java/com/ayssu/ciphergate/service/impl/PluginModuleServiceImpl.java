@@ -15,8 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -33,6 +37,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PluginModuleServiceImpl implements PluginModuleService {
+
+    private static final ObjectMapper CONFIG_OBJECT_MAPPER = new ObjectMapper();
 
     private final PluginModuleMapper pluginModuleMapper;
     private final MinioObjectService minioObjectService;
@@ -254,6 +260,37 @@ public class PluginModuleServiceImpl implements PluginModuleService {
         out.put("configDefaults", pluginModule.getConfigDefaults());
         out.put("configValues", pluginModule.getConfigValues());
         return out;
+    }
+
+    @Override
+    public Map<String, Object> resolveRuntimeConfigValues(String pluginId) {
+        if (!StringUtils.hasText(pluginId)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<PluginModule> enabled = new LambdaQueryWrapper<>();
+        enabled.eq(PluginModule::getPluginId, pluginId.trim())
+                .eq(PluginModule::getStatus, 1)
+                .orderByDesc(PluginModule::getUpdatedAt)
+                .last("limit 1");
+        PluginModule row = pluginModuleMapper.selectOne(enabled);
+        if (row == null) {
+            LambdaQueryWrapper<PluginModule> any = new LambdaQueryWrapper<>();
+            any.eq(PluginModule::getPluginId, pluginId.trim())
+                    .orderByDesc(PluginModule::getUpdatedAt)
+                    .last("limit 1");
+            row = pluginModuleMapper.selectOne(any);
+        }
+        if (row == null || !StringUtils.hasText(row.getConfigValues())) {
+            return Collections.emptyMap();
+        }
+        try {
+            Map<String, Object> parsed = CONFIG_OBJECT_MAPPER.readValue(
+                    row.getConfigValues(), new TypeReference<>() {});
+            return parsed == null || parsed.isEmpty() ? Collections.emptyMap() : new java.util.LinkedHashMap<>(parsed);
+        } catch (Exception e) {
+            log.warn("解析插件 config_values 失败: pluginId={}", pluginId, e);
+            return Collections.emptyMap();
+        }
     }
 
     @Override

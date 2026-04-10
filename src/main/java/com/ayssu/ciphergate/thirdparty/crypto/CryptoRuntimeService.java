@@ -1,11 +1,13 @@
 package com.ayssu.ciphergate.thirdparty.crypto;
 
+import com.ayssu.ciphergate.service.PluginModuleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.PluginManager;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,8 +20,24 @@ public class CryptoRuntimeService {
 
     private final List<CryptoPlugin> localPlugins;
     private final PluginManager pluginManager;
+    private final PluginModuleService pluginModuleService;
+
+    /**
+     * 将 {@code plugin_module.config_values} 注入到加解密入参 Map，键名为 {@code pluginConfig}（与 {@code encryptionConfig} 区分）。
+     */
+    private void mergePluginRuntimeConfig(Map<String, Object> map, String logicalPluginId) {
+        if (map == null || !StringUtils.hasText(logicalPluginId)) {
+            return;
+        }
+        Map<String, Object> fromDb = pluginModuleService.resolveRuntimeConfigValues(logicalPluginId);
+        if (!fromDb.isEmpty()) {
+            map.put("pluginConfig", fromDb);
+            log.debug("已合并插件库表配置到入参: logicalPluginId={}, keys={}", logicalPluginId, fromDb.keySet());
+        }
+    }
 
     public Map<String, Object> decryptToMap(String pluginId, Map<String, Object> input) {
+        Map<String, Object> work = new LinkedHashMap<>(input == null ? Map.of() : input);
         List<CryptoPlugin> extensions = pluginManager.getExtensions(CryptoPlugin.class);
         log.info("CryptoPlugin自动模式: pluginExtensionsCount={}, localPluginsCount={}",
                 extensions.size(), localPlugins.size());
@@ -37,7 +55,8 @@ public class CryptoRuntimeService {
                 CryptoPlugin picked = extensions.get(0);
                 log.info("CryptoPlugin自动模式命中插件实现: class={}, pluginId={}",
                         picked.getClass().getName(), picked.pluginId());
-                return picked.decryptToMap(input);
+                mergePluginRuntimeConfig(work, picked.pluginId());
+                return picked.decryptToMap(work);
             }
             pluginId = DEFAULT_LOCAL_PLUGIN_ID;
         }
@@ -46,7 +65,8 @@ public class CryptoRuntimeService {
             if (pluginId.equals(ext.pluginId())) {
                 log.info("CryptoPlugin命中插件实现: class={}, pluginId={}",
                         ext.getClass().getName(), ext.pluginId());
-                return ext.decryptToMap(input);
+                mergePluginRuntimeConfig(work, ext.pluginId());
+                return ext.decryptToMap(work);
             }
         }
 
@@ -54,7 +74,8 @@ public class CryptoRuntimeService {
             if (pluginId.equals(local.pluginId())) {
                 log.info("CryptoPlugin回退本地实现: class={}, pluginId={}",
                         local.getClass().getName(), local.pluginId());
-                return local.decryptToMap(input);
+                mergePluginRuntimeConfig(work, local.pluginId());
+                return local.decryptToMap(work);
             }
         }
 
@@ -75,7 +96,7 @@ public class CryptoRuntimeService {
     }
 
     public CryptoEncryptedPayload encryptPayloadFromMap(String pluginId, Map<String, Object> plain, Map<String, Object> encryptionConfig) {
-        Map<String, Object> safePlain = new java.util.HashMap<>(plain == null ? Map.of() : new LinkedHashMap<>(plain));
+        Map<String, Object> safePlain = new HashMap<>(plain == null ? Map.of() : new LinkedHashMap<>(plain));
         if (encryptionConfig != null && !encryptionConfig.isEmpty()) {
             safePlain.put("encryptionConfig", encryptionConfig);
         }
@@ -92,6 +113,7 @@ public class CryptoRuntimeService {
                 CryptoPluginEncryptor picked = encryptorExtensions.get(0);
                 log.info("CryptoPlugin出站自动模式命中插件实现: class={}, pluginId={}",
                         picked.getClass().getName(), picked.pluginId());
+                mergePluginRuntimeConfig(safePlain, picked.pluginId());
                 return new CryptoEncryptedPayload(picked.pluginId(), picked.encryptFromMap(safePlain));
             }
             pluginId = DEFAULT_LOCAL_PLUGIN_ID;
@@ -101,6 +123,7 @@ public class CryptoRuntimeService {
             if (pluginId.equals(ext.pluginId())) {
                 log.info("CryptoPlugin出站命中插件实现: class={}, pluginId={}",
                         ext.getClass().getName(), ext.pluginId());
+                mergePluginRuntimeConfig(safePlain, ext.pluginId());
                 return new CryptoEncryptedPayload(ext.pluginId(), ext.encryptFromMap(safePlain));
             }
         }
@@ -109,6 +132,7 @@ public class CryptoRuntimeService {
             if (pluginId.equals(local.pluginId()) && local instanceof CryptoPluginEncryptor enc) {
                 log.info("CryptoPlugin出站回退本地实现: class={}, pluginId={}",
                         local.getClass().getName(), local.pluginId());
+                mergePluginRuntimeConfig(safePlain, local.pluginId());
                 return new CryptoEncryptedPayload(local.pluginId(), enc.encryptFromMap(safePlain));
             }
         }
