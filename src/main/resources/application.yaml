@@ -26,6 +26,10 @@ mybatis-plus:
 server:
   port: 8080
 
+springdoc:
+  # 规避部分 Spring / springdoc 组合下的 NoSuchMethodError（通用响应覆盖逻辑）
+  override-with-generic-response: false
+
 app:
   site:
     icp-record-no: ${SITE_ICP_RECORD_NO:}

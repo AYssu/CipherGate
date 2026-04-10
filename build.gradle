@@ -21,6 +21,8 @@ configurations {
 }
 
 repositories {
+    // 备用镜像（国内网络更稳），mavenCentral 兜底
+    maven { url 'https://maven.aliyun.com/repository/public' }
     mavenCentral()
 }
 
@@ -36,20 +38,24 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    implementation 'org.springframework.session:spring-session-jdbc'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    implementation 'org.springframework.boot:spring-boot-starter-aop:3.5.11'
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-webclient'
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj'
+
+    // Swagger (OpenAPI 3) - Springdoc 官方 Swagger UI
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14"
+    // Knife4j UI（仅前端资源），不引入其 Spring Boot Starter，避免与 Spring Boot 4/Spring 7 不兼容
+    implementation "com.github.xiaoymin:knife4j-openapi3-ui:4.5.0"
+    implementation "org.webjars:webjars-locator-lite:1.0.0"
     implementation 'com.baomidou:mybatis-plus-spring-boot4-starter'
     implementation 'com.baomidou:mybatis-plus-jsqlparser'
     
     // Hutool 工具类
-    implementation 'cn.hutool:hutool-all:5.8.25'
+    implementation 'cn.hutool:hutool-all:5.8.40'
 
-    // Support Java 8+ date/time types (LocalDateTime, etc.) in Jackson
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     
-    // Knife4j API 文档
-    implementation 'com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.5.0'
+
     implementation 'org.pf4j:pf4j:3.14.1'
     implementation 'io.minio:minio:8.6.0'
     

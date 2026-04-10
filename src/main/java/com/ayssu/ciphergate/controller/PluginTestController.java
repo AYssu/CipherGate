@@ -2,6 +2,8 @@ package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.service.TextProviderRuntimeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/plugin-test")
 @RequiredArgsConstructor
+@Tag(name = "插件测试", description = "插件运行时能力验证接口")
 public class PluginTestController {
 
     private final TextProviderRuntimeService textProviderRuntimeService;
@@ -25,6 +28,7 @@ public class PluginTestController {
      * 指定 pluginId 后可命中插件实现。
      */
     @GetMapping("/text")
+    @Operation(summary = "获取插件文本输出", description = "不传 pluginId 时使用自动覆盖策略，传 pluginId 时调用指定插件实现")
     public Result<Map<String, String>> getText(@RequestParam(required = false) String pluginId) {
         try {
             boolean useAutoOverride = (pluginId == null || pluginId.isBlank());

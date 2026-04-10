@@ -4,6 +4,8 @@ import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.PluginModule;
 import com.ayssu.ciphergate.service.PluginModuleService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +18,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/plugins")
 @RequiredArgsConstructor
+@Tag(name = "插件模块管理", description = "插件上传、启停、配置相关接口")
 public class PluginModuleController {
 
     private final PluginModuleService pluginModuleService;
 
     @PostMapping("/upload")
     @RequirePermission("PLUGIN_UPLOAD")
+    @Operation(summary = "上传插件", description = "上传插件包并注册插件元信息，可选覆盖插件标识、名称、版本和备注")
     public Result<PluginModule> uploadPlugin(@RequestPart("file") MultipartFile file,
                                              @RequestParam(required = false) String pluginId,
                                              @RequestParam(required = false) String pluginVersion,
@@ -38,6 +42,7 @@ public class PluginModuleController {
 
     @GetMapping
     @RequirePermission("PLUGIN_LIST")
+    @Operation(summary = "查询插件列表")
     public Result<List<PluginModule>> listPlugins() {
         try {
             return Result.success(pluginModuleService.listPlugins());
@@ -49,6 +54,7 @@ public class PluginModuleController {
 
     @PostMapping("/{id}/enable")
     @RequirePermission("PLUGIN_ENABLE")
+    @Operation(summary = "启用插件")
     public Result<String> enablePlugin(@PathVariable Long id) {
         try {
             pluginModuleService.enablePlugin(id);
@@ -61,6 +67,7 @@ public class PluginModuleController {
 
     @PostMapping("/{id}/disable")
     @RequirePermission("PLUGIN_DISABLE")
+    @Operation(summary = "停用插件")
     public Result<String> disablePlugin(@PathVariable Long id) {
         try {
             pluginModuleService.disablePlugin(id);
@@ -73,6 +80,7 @@ public class PluginModuleController {
 
     @DeleteMapping("/{id}")
     @RequirePermission("PLUGIN_DELETE")
+    @Operation(summary = "删除插件")
     public Result<String> deletePlugin(@PathVariable Long id) {
         try {
             pluginModuleService.deletePlugin(id);
@@ -85,6 +93,7 @@ public class PluginModuleController {
 
     @GetMapping("/{id}/config-schema")
     @RequirePermission("PLUGIN_LIST")
+    @Operation(summary = "获取插件配置结构")
     public Result<Map<String, Object>> getConfigSchema(@PathVariable Long id) {
         try {
             return Result.success(pluginModuleService.getPluginConfigSchema(id));
@@ -96,6 +105,7 @@ public class PluginModuleController {
 
     @GetMapping("/{id}/config")
     @RequirePermission("PLUGIN_LIST")
+    @Operation(summary = "获取插件配置")
     public Result<Map<String, Object>> getConfig(@PathVariable Long id) {
         try {
             return Result.success(pluginModuleService.getPluginConfig(id));
@@ -107,6 +117,7 @@ public class PluginModuleController {
 
     @PutMapping("/{id}/config")
     @RequirePermission("PLUGIN_ENABLE")
+    @Operation(summary = "更新插件配置")
     public Result<String> updateConfig(@PathVariable Long id, @RequestBody Map<String, Object> configValues) {
         try {
             pluginModuleService.updatePluginConfig(id, configValues);

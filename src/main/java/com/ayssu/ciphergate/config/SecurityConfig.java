@@ -33,9 +33,8 @@ public class SecurityConfig {
                                 "/api/v1/**",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
-                        // Knife4j 文档只允许超级管理员访问
-                        .requestMatchers("/doc.html",
-                                "/v3/api-docs/**",
+                        // Swagger(OpenAPI) 文档只允许超级管理员访问
+                        .requestMatchers("/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-resources/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .anyRequest().authenticated()

@@ -55,12 +55,6 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
         if (!(body instanceof Result<?> r)) {
             return body;
         }
-        if (r.getCode() == null || r.getCode() != 200) {
-            return body;
-        }
-        if (r.getData() == null) {
-            return body;
-        }
 
         String pluginId = null;
         String appSecret = null;

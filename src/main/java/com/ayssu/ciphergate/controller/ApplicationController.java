@@ -11,6 +11,8 @@ import com.ayssu.ciphergate.service.ApplicationService;
 import com.ayssu.ciphergate.service.UserService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -28,6 +30,7 @@ import java.util.LinkedHashMap;
 @RestController
 @RequestMapping("/api/applications")
 @RequiredArgsConstructor
+@Tag(name = "应用管理", description = "应用的增删改查、密钥与加密配置管理接口")
 public class ApplicationController {
     
     private final ApplicationService applicationService;
@@ -60,6 +63,7 @@ public class ApplicationController {
     @GetMapping
     @RequirePermission("APP_LIST")
     @ActivityLog(actionType = "VIEW", actionTarget = "APPLICATION", description = "查看应用列表")
+    @Operation(summary = "分页查询应用列表")
     public Result<Page<Application>> getApplications(ApplicationQueryDTO queryDTO) {
         try {
             User currentUser = getCurrentUser();
@@ -83,6 +87,7 @@ public class ApplicationController {
     @GetMapping("/{id}")
     @RequirePermission("APP_DETAIL")
     @ActivityLog(actionType = "VIEW", actionTarget = "APPLICATION", description = "查看应用详情")
+    @Operation(summary = "查询应用详情")
     public Result<Application> getApplicationById(@PathVariable Long id) {
         try {
             User currentUser = getCurrentUser();
@@ -100,6 +105,7 @@ public class ApplicationController {
     @PostMapping
     @RequirePermission("APP_CREATE")
     @ActivityLog(actionType = "CREATE", actionTarget = "APPLICATION", description = "创建应用")
+    @Operation(summary = "创建应用")
     public Result<Application> createApplication(@RequestBody ApplicationDTO dto) {
         try {
             User currentUser = getCurrentUser();
@@ -117,6 +123,7 @@ public class ApplicationController {
     @PutMapping("/{id}")
     @RequirePermission("APP_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "更新应用")
+    @Operation(summary = "更新应用")
     public Result<Application> updateApplication(
             @PathVariable Long id,
             @RequestBody ApplicationDTO dto) {
@@ -136,6 +143,7 @@ public class ApplicationController {
     @DeleteMapping("/{id}")
     @RequirePermission("APP_DELETE")
     @ActivityLog(actionType = "DELETE", actionTarget = "APPLICATION", description = "删除应用")
+    @Operation(summary = "删除应用")
     public Result<String> deleteApplication(@PathVariable Long id) {
         try {
             User currentUser = getCurrentUser();
@@ -152,6 +160,7 @@ public class ApplicationController {
      */
     @PostMapping("/generate-keys")
     @RequirePermission("APP_CREATE")
+    @Operation(summary = "生成应用密钥")
     public Result<Map<String, String>> generateAppKeys() {
         try {
             Map<String, String> keys = applicationService.generateAppKeys();
@@ -168,6 +177,7 @@ public class ApplicationController {
     @PostMapping("/{id}/reset-keys")
     @RequirePermission("APP_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "重置应用密钥")
+    @Operation(summary = "重置应用密钥")
     public Result<Map<String, String>> resetAppKeys(@PathVariable Long id) {
         try {
             User currentUser = getCurrentUser();
@@ -185,6 +195,7 @@ public class ApplicationController {
     @PutMapping("/{id}/status")
     @RequirePermission("APP_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "更新应用状态")
+    @Operation(summary = "更新应用状态")
     public Result<String> updateStatus(
             @PathVariable Long id,
             @RequestParam Integer status) {
@@ -204,6 +215,7 @@ public class ApplicationController {
      */
     @GetMapping("/{id}/stats")
     @RequirePermission("APP_DETAIL")
+    @Operation(summary = "获取应用统计信息")
     public Result<Map<String, Object>> getApplicationStats(@PathVariable Long id) {
         try {
             Map<String, Object> stats = applicationService.getApplicationStats(id);
@@ -216,6 +228,7 @@ public class ApplicationController {
 
     @GetMapping("/{id}/encryption-config")
     @RequirePermission("APP_DETAIL")
+    @Operation(summary = "获取应用加密配置")
     public Result<Map<String, Object>> getEncryptionConfig(@PathVariable Long id) {
         try {
             User currentUser = getCurrentUser();
@@ -229,6 +242,7 @@ public class ApplicationController {
 
     @PutMapping("/{id}/encryption-config")
     @RequirePermission("APP_UPDATE")
+    @Operation(summary = "更新应用加密配置")
     public Result<String> updateEncryptionConfig(@PathVariable Long id, @RequestBody Map<String, Object> encryptionConfig) {
         try {
             User currentUser = getCurrentUser();
