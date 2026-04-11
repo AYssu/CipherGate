@@ -105,7 +105,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             return true;
         }
         
-        // 检查是否是管理员
+        // 管理员（ADMIN / SUPER_ADMIN）可操作任意应用
         if (securityUtils.isAdmin(userId)) {
             return true;
         }

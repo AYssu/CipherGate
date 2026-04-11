@@ -2,10 +2,16 @@ package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
+import com.ayssu.ciphergate.entity.User;
+import com.ayssu.ciphergate.service.UserService;
+import com.ayssu.ciphergate.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.lang.management.ManagementFactory;
@@ -23,11 +29,36 @@ import java.util.Properties;
 @Tag(name = "系统信息", description = "系统运行状态与环境信息接口")
 public class SystemInfoController {
 
+    private final UserService userService;
+    private final SecurityUtils securityUtils;
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new SecurityException("用户未登录");
+        }
+        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+        String githubId = oauth2User.getAttribute("id").toString();
+        User user = userService.getUserByGithubId(githubId);
+        if (user == null) {
+            throw new SecurityException("用户不存在");
+        }
+        return user;
+    }
+
+    private void requireSuperAdmin() {
+        User user = getCurrentUser();
+        if (!securityUtils.isSuperAdmin(user.getId())) {
+            throw new SecurityException("仅超级管理员可操作");
+        }
+    }
+
     @GetMapping("/info")
     @RequirePermission("CONFIG_LIST")
     @Operation(summary = "获取系统信息")
     public Result<Map<String, Object>> getSystemInfo() {
         try {
+            requireSuperAdmin();
             Map<String, Object> systemInfo = new HashMap<>();
             
             // 获取系统基本信息
@@ -92,6 +123,7 @@ public class SystemInfoController {
     @Operation(summary = "获取系统运行状态")
     public Result<Map<String, Object>> getSystemStatus() {
         try {
+            requireSuperAdmin();
             Map<String, Object> status = new HashMap<>();
             
             RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();

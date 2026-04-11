@@ -16,12 +16,12 @@ public interface LicenseKeyService {
     /**
      * 分页查询卡密列表
      */
-    Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO);
+    Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId);
     
     /**
      * 根据ID获取卡密详情
      */
-    LicenseKey getLicenseKeyById(Long id);
+    LicenseKey getLicenseKeyById(Long id, Long operatorId);
     
     /**
      * 根据卡密码获取卡密
@@ -61,5 +61,5 @@ public interface LicenseKeyService {
     /**
      * 导出卡密
      */
-    List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO);
+    List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO, Long operatorId);
 }

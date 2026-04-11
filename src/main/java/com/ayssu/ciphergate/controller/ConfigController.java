@@ -3,8 +3,10 @@ package com.ayssu.ciphergate.controller;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
-import com.ayssu.ciphergate.entity.SystemConfig;
+import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.SystemConfigService;
+import com.ayssu.ciphergate.service.UserService;
+import com.ayssu.ciphergate.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +32,8 @@ public class ConfigController {
     
     private final SystemConfigService systemConfigService;
     private final Environment environment;
+    private final UserService userService;
+    private final SecurityUtils securityUtils;
     
     @Value("${app.security.init-reset-enabled:false}")
     private boolean initResetEnabled;
@@ -48,6 +55,7 @@ public class ConfigController {
     @Operation(summary = "查询配置项")
     public Result<Map<String, Object>> getConfig(@PathVariable String configKey) {
         try {
+            requireSuperAdmin();
             String value = systemConfigService.getConfigValue(configKey);
             if (value != null) {
                 // 如果是敏感信息，只显示部分内容
@@ -72,6 +80,7 @@ public class ConfigController {
             @PathVariable String configKey,
             @RequestBody Map<String, Object> request) {
         try {
+            requireSuperAdmin();
             String configValue = (String) request.get("configValue");
             String description = (String) request.get("description");
             Boolean isEncrypted = (Boolean) request.getOrDefault("isEncrypted", false);
@@ -90,6 +99,7 @@ public class ConfigController {
     @Operation(summary = "获取GitHub OAuth2配置")
     public Result<Map<String, Object>> getGithubOAuth2Config() {
         try {
+            requireSuperAdmin();
             String clientId = systemConfigService.getGithubClientId();
             String clientSecret = systemConfigService.getGithubClientSecret();
             
@@ -109,6 +119,7 @@ public class ConfigController {
     @Operation(summary = "刷新配置缓存")
     public Result<Void> refreshCache() {
         try {
+            requireSuperAdmin();
             systemConfigService.refreshCache();
             return Result.success("配置缓存已刷新", null);
         } catch (Exception e) {
@@ -122,6 +133,7 @@ public class ConfigController {
     @Operation(summary = "获取数据库配置状态")
     public Result<Map<String, Object>> getDatabaseStatus() {
         try {
+            requireSuperAdmin();
             return Result.success(Map.of(
                 "message", "数据库状态检查",
                 "configService", "正常",
@@ -169,20 +181,25 @@ public class ConfigController {
     @RequirePermission("CONFIG_LIST")
     @Operation(summary = "获取系统配置中心信息")
     public Result<Map<String, Object>> getSettings() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("githubClientId", systemConfigService.getConfigValue("github.oauth2.client-id", ""));
-        data.put("githubRedirectUri", systemConfigService.getConfigValue("github.oauth2.redirect-uri", ""));
-        data.put("frontendUrl", systemConfigService.getConfigValue("frontend.url", ""));
-        data.put("sitePublicSecurityRecordNo", systemConfigService.getConfigValue("site.public-security-record-no", ""));
-        data.put("siteIcpLicenseNo", systemConfigService.getConfigValue("site.icp-license-no", ""));
-        data.put("siteIcpRecordNo", systemConfigService.getConfigValue("site.icp-record-no", ""));
-        data.put("emailSmtpHost", systemConfigService.getConfigValue("email.smtp.host", ""));
-        data.put("emailSmtpPort", systemConfigService.getConfigValue("email.smtp.port", ""));
-        data.put("emailSmtpUsername", systemConfigService.getConfigValue("email.smtp.username", ""));
-        data.put("emailFrom", systemConfigService.getConfigValue("email.from", ""));
-        data.put("emailEnabled", "true".equalsIgnoreCase(systemConfigService.getConfigValue("email.enabled", "false")));
-        data.put("emailPasswordSet", StringUtils.hasText(systemConfigService.getConfigValue("email.smtp.password", "")));
-        return Result.success(data);
+        try {
+            requireSuperAdmin();
+            Map<String, Object> data = new HashMap<>();
+            data.put("githubClientId", systemConfigService.getConfigValue("github.oauth2.client-id", ""));
+            data.put("githubRedirectUri", systemConfigService.getConfigValue("github.oauth2.redirect-uri", ""));
+            data.put("frontendUrl", systemConfigService.getConfigValue("frontend.url", ""));
+            data.put("sitePublicSecurityRecordNo", systemConfigService.getConfigValue("site.public-security-record-no", ""));
+            data.put("siteIcpLicenseNo", systemConfigService.getConfigValue("site.icp-license-no", ""));
+            data.put("siteIcpRecordNo", systemConfigService.getConfigValue("site.icp-record-no", ""));
+            data.put("emailSmtpHost", systemConfigService.getConfigValue("email.smtp.host", ""));
+            data.put("emailSmtpPort", systemConfigService.getConfigValue("email.smtp.port", ""));
+            data.put("emailSmtpUsername", systemConfigService.getConfigValue("email.smtp.username", ""));
+            data.put("emailFrom", systemConfigService.getConfigValue("email.from", ""));
+            data.put("emailEnabled", "true".equalsIgnoreCase(systemConfigService.getConfigValue("email.enabled", "false")));
+            data.put("emailPasswordSet", StringUtils.hasText(systemConfigService.getConfigValue("email.smtp.password", "")));
+            return Result.success(data);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @PostMapping("/settings/github")
@@ -190,22 +207,27 @@ public class ConfigController {
     @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新GitHub OAuth配置")
     @Operation(summary = "更新GitHub OAuth配置")
     public Result<Void> updateGithubSettings(@RequestBody Map<String, String> request) {
-        String clientId = request.get("clientId");
-        String redirectUri = request.get("redirectUri");
-        String frontendUrl = request.get("frontendUrl");
-        String clientSecret = request.get("clientSecret");
+        try {
+            requireSuperAdmin();
+            String clientId = request.get("clientId");
+            String redirectUri = request.get("redirectUri");
+            String frontendUrl = request.get("frontendUrl");
+            String clientSecret = request.get("clientSecret");
 
-        if (!StringUtils.hasText(clientId) || !StringUtils.hasText(redirectUri) || !StringUtils.hasText(frontendUrl)) {
-            return Result.error("Client ID、Redirect URI、前端地址不能为空");
-        }
+            if (!StringUtils.hasText(clientId) || !StringUtils.hasText(redirectUri) || !StringUtils.hasText(frontendUrl)) {
+                return Result.error("Client ID、Redirect URI、前端地址不能为空");
+            }
 
-        systemConfigService.setConfigValue("github.oauth2.client-id", clientId.trim(), "GitHub OAuth2 Client ID", false);
-        systemConfigService.setConfigValue("github.oauth2.redirect-uri", redirectUri.trim(), "GitHub OAuth2 Redirect URI", false);
-        systemConfigService.setConfigValue("frontend.url", frontendUrl.trim(), "前端地址", false);
-        if (StringUtils.hasText(clientSecret)) {
-            systemConfigService.setConfigValue("github.oauth2.client-secret", clientSecret.trim(), "GitHub OAuth2 Client Secret", true);
+            systemConfigService.setConfigValue("github.oauth2.client-id", clientId.trim(), "GitHub OAuth2 Client ID", false);
+            systemConfigService.setConfigValue("github.oauth2.redirect-uri", redirectUri.trim(), "GitHub OAuth2 Redirect URI", false);
+            systemConfigService.setConfigValue("frontend.url", frontendUrl.trim(), "前端地址", false);
+            if (StringUtils.hasText(clientSecret)) {
+                systemConfigService.setConfigValue("github.oauth2.client-secret", clientSecret.trim(), "GitHub OAuth2 Client Secret", true);
+            }
+            return Result.success("GitHub 配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
         }
-        return Result.success("GitHub 配置更新成功", null);
     }
 
     @PostMapping("/settings/site")
@@ -213,13 +235,18 @@ public class ConfigController {
     @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新站点备案配置")
     @Operation(summary = "更新站点备案配置")
     public Result<Void> updateSiteSettings(@RequestBody Map<String, String> request) {
-        systemConfigService.setConfigValue("site.public-security-record-no",
-                toSafeValue(request.get("publicSecurityRecordNo")), "站点公网安备号", false);
-        systemConfigService.setConfigValue("site.icp-license-no",
-                toSafeValue(request.get("icpLicenseNo")), "站点ICP证号", false);
-        systemConfigService.setConfigValue("site.icp-record-no",
-                toSafeValue(request.get("icpRecordNo")), "站点ICP备案号", false);
-        return Result.success("站点备案配置更新成功", null);
+        try {
+            requireSuperAdmin();
+            systemConfigService.setConfigValue("site.public-security-record-no",
+                    toSafeValue(request.get("publicSecurityRecordNo")), "站点公网安备号", false);
+            systemConfigService.setConfigValue("site.icp-license-no",
+                    toSafeValue(request.get("icpLicenseNo")), "站点ICP证号", false);
+            systemConfigService.setConfigValue("site.icp-record-no",
+                    toSafeValue(request.get("icpRecordNo")), "站点ICP备案号", false);
+            return Result.success("站点备案配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @PostMapping("/settings/email")
@@ -227,21 +254,26 @@ public class ConfigController {
     @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新邮箱配置")
     @Operation(summary = "更新邮箱配置")
     public Result<Void> updateEmailSettings(@RequestBody Map<String, Object> request) {
-        systemConfigService.setConfigValue("email.smtp.host",
-                toSafeValue((String) request.get("smtpHost")), "SMTP 主机", false);
-        systemConfigService.setConfigValue("email.smtp.port",
-                toSafeValue((String) request.get("smtpPort")), "SMTP 端口", false);
-        systemConfigService.setConfigValue("email.smtp.username",
-                toSafeValue((String) request.get("smtpUsername")), "SMTP 用户名", false);
-        if (request.get("smtpPassword") instanceof String pwd && StringUtils.hasText(pwd)) {
-            systemConfigService.setConfigValue("email.smtp.password", pwd.trim(), "SMTP 密码", true);
+        try {
+            requireSuperAdmin();
+            systemConfigService.setConfigValue("email.smtp.host",
+                    toSafeValue((String) request.get("smtpHost")), "SMTP 主机", false);
+            systemConfigService.setConfigValue("email.smtp.port",
+                    toSafeValue((String) request.get("smtpPort")), "SMTP 端口", false);
+            systemConfigService.setConfigValue("email.smtp.username",
+                    toSafeValue((String) request.get("smtpUsername")), "SMTP 用户名", false);
+            if (request.get("smtpPassword") instanceof String pwd && StringUtils.hasText(pwd)) {
+                systemConfigService.setConfigValue("email.smtp.password", pwd.trim(), "SMTP 密码", true);
+            }
+            systemConfigService.setConfigValue("email.from",
+                    toSafeValue((String) request.get("fromEmail")), "发件人邮箱", false);
+            Object enabledObj = request.get("enabled");
+            boolean enabled = enabledObj instanceof Boolean b && b;
+            systemConfigService.setConfigValue("email.enabled", String.valueOf(enabled), "邮箱通知开关", false);
+            return Result.success("邮箱配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
         }
-        systemConfigService.setConfigValue("email.from",
-                toSafeValue((String) request.get("fromEmail")), "发件人邮箱", false);
-        Object enabledObj = request.get("enabled");
-        boolean enabled = enabledObj instanceof Boolean b && b;
-        systemConfigService.setConfigValue("email.enabled", String.valueOf(enabled), "邮箱通知开关", false);
-        return Result.success("邮箱配置更新成功", null);
     }
     
     /**
@@ -298,6 +330,7 @@ public class ConfigController {
     @Operation(summary = "重置系统初始化配置")
     public Result<Void> resetSystemConfig(@RequestBody(required = false) Map<String, String> request) {
         try {
+            requireSuperAdmin();
             boolean isDevProfile = environment.acceptsProfiles(Profiles.of("dev"));
             if (!isDevProfile && !initResetEnabled) {
                 return Result.error("当前环境不允许重置初始化配置");
@@ -325,6 +358,28 @@ public class ConfigController {
         }
     }
     
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new SecurityException("用户未登录");
+        }
+        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+        String githubId = oauth2User.getAttribute("id").toString();
+        User user = userService.getUserByGithubId(githubId);
+        if (user == null) {
+            throw new SecurityException("用户不存在");
+        }
+        return user;
+    }
+
+    /** 系统配置类接口仅 SUPER_ADMIN 可访问（与拥有 CONFIG_* 权限的 ADMIN 区分） */
+    private void requireSuperAdmin() {
+        User user = getCurrentUser();
+        if (!securityUtils.isSuperAdmin(user.getId())) {
+            throw new SecurityException("仅超级管理员可操作");
+        }
+    }
+
     private String maskSensitiveValue(String value) {
         if (value == null || value.length() <= 8) {
             return "***";

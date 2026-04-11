@@ -68,7 +68,7 @@ public class ApplicationController {
         try {
             User currentUser = getCurrentUser();
             
-            // 如果不是管理员，只能查看自己创建的应用
+            // 非管理员只能查看自己创建的应用（管理员含 ADMIN / SUPER_ADMIN）
             if (!securityUtils.isAdmin(currentUser.getId())) {
                 queryDTO.setOwnerId(currentUser.getId());
             }

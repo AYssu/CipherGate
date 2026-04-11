@@ -43,17 +43,16 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     private final SecurityUtils securityUtils;
     
     @Override
-    public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO) {
+    public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         Page<LicenseKey> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
         
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(queryDTO.getAppId() != null, LicenseKey::getAppId, queryDTO.getAppId())
-               .like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
+        applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
+        wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
                .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
-               .eq(queryDTO.getOwnerId() != null, LicenseKey::getOwnerId, queryDTO.getOwnerId())
                .orderByDesc(LicenseKey::getCreatedAt);
         if (queryDTO.getIsOnline() != null) {
             if (Boolean.TRUE.equals(queryDTO.getIsOnline())) {
@@ -74,10 +73,13 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     }
     
     @Override
-    public LicenseKey getLicenseKeyById(Long id) {
+    public LicenseKey getLicenseKeyById(Long id, Long operatorId) {
         LicenseKey licenseKey = licenseKeyMapper.selectById(id);
         if (licenseKey == null) {
             throw new RuntimeException("卡密不存在");
+        }
+        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限查看此卡密");
         }
         
         fillRelatedInfo(licenseKey);
@@ -403,14 +405,13 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     }
     
     @Override
-    public List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO) {
+    public List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(queryDTO.getAppId() != null, LicenseKey::getAppId, queryDTO.getAppId())
-               .like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
+        applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
+        wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
                .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
-               .eq(queryDTO.getOwnerId() != null, LicenseKey::getOwnerId, queryDTO.getOwnerId())
                .orderByDesc(LicenseKey::getCreatedAt);
         
         return licenseKeyMapper.selectList(wrapper);
@@ -425,8 +426,40 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             return false;
         }
         
-        // 应用所有者或管理员可以操作
+        // 应用所有者或管理员（ADMIN / SUPER_ADMIN）可以操作
         return application.getOwnerId().equals(userId) || securityUtils.isAdmin(userId);
+    }
+    
+    private List<Long> listOwnedApplicationIds(Long userId) {
+        return applicationMapper.selectList(
+                new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                .stream()
+                .map(Application::getId)
+                .toList();
+    }
+    
+    /**
+     * 非管理员仅能查询/导出本人拥有应用下的卡密；客户端传入的 ownerId 对非管理员不生效。
+     */
+    private void applyApplicationScopeForLicenseQuery(LambdaQueryWrapper<LicenseKey> wrapper,
+                                                      LicenseKeyQueryDTO queryDTO,
+                                                      Long operatorId) {
+        if (securityUtils.isAdmin(operatorId)) {
+            wrapper.eq(queryDTO.getAppId() != null, LicenseKey::getAppId, queryDTO.getAppId())
+                   .eq(queryDTO.getOwnerId() != null, LicenseKey::getOwnerId, queryDTO.getOwnerId());
+            return;
+        }
+        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+        if (queryDTO.getAppId() != null) {
+            if (!ownedAppIds.contains(queryDTO.getAppId())) {
+                throw new RuntimeException("无权限查询该应用");
+            }
+            wrapper.eq(LicenseKey::getAppId, queryDTO.getAppId());
+        } else if (ownedAppIds.isEmpty()) {
+            wrapper.apply("1=0");
+        } else {
+            wrapper.in(LicenseKey::getAppId, ownedAppIds);
+        }
     }
     
     /**

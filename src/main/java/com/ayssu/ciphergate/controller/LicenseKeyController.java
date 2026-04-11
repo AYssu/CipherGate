@@ -64,7 +64,8 @@ public class LicenseKeyController {
     @Operation(summary = "查询卡密列表")
     public Result<Page<LicenseKey>> getLicenseKeys(LicenseKeyQueryDTO queryDTO) {
         try {
-            Page<LicenseKey> page = licenseKeyService.getLicenseKeyPage(queryDTO);
+            User currentUser = getCurrentUser();
+            Page<LicenseKey> page = licenseKeyService.getLicenseKeyPage(queryDTO, currentUser.getId());
             return Result.success(page);
         } catch (Exception e) {
             log.error("获取卡密列表失败", e);
@@ -81,7 +82,8 @@ public class LicenseKeyController {
     @Operation(summary = "查询卡密详情")
     public Result<LicenseKey> getLicenseKeyById(@PathVariable Long id) {
         try {
-            LicenseKey licenseKey = licenseKeyService.getLicenseKeyById(id);
+            User currentUser = getCurrentUser();
+            LicenseKey licenseKey = licenseKeyService.getLicenseKeyById(id, currentUser.getId());
             return Result.success(licenseKey);
         } catch (Exception e) {
             log.error("获取卡密详情失败", e);
@@ -193,7 +195,8 @@ public class LicenseKeyController {
     @Operation(summary = "导出卡密")
     public Result<List<LicenseKey>> exportLicenseKeys(LicenseKeyQueryDTO queryDTO) {
         try {
-            List<LicenseKey> licenseKeys = licenseKeyService.exportLicenseKeys(queryDTO);
+            User currentUser = getCurrentUser();
+            List<LicenseKey> licenseKeys = licenseKeyService.exportLicenseKeys(queryDTO, currentUser.getId());
             return Result.success(licenseKeys);
         } catch (Exception e) {
             log.error("导出卡密失败", e);

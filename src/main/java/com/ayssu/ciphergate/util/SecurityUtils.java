@@ -39,6 +39,14 @@ public class SecurityUtils {
     }
     
     /**
+     * 是否为超级管理员（仅 SUPER_ADMIN）。
+     * 用于系统配置、运行信息等「系统设置」类接口；业务上应用/卡密/终端用户等跨租户能力请用 {@link #isAdmin}。
+     */
+    public boolean isSuperAdmin(Long userId) {
+        return hasRole(userId, "SUPER_ADMIN");
+    }
+    
+    /**
      * 判断用户是否有指定角色
      * @param userId 用户ID
      * @param roleCode 角色编码
