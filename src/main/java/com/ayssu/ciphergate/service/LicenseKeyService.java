@@ -1,5 +1,7 @@
 package com.ayssu.ciphergate.service;
 
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
@@ -59,7 +61,29 @@ public interface LicenseKeyService {
     String generateKeyCode();
     
     /**
-     * 导出卡密
+     * 导出卡密为 Excel（.xlsx）
      */
-    List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO, Long operatorId);
+    byte[] exportLicenseKeysExcel(LicenseKeyQueryDTO queryDTO, Long operatorId);
+
+    /**
+     * 批量延长到期时间：仅已激活（已首次使用）的卡密处理；未激活的返回失败原因「该卡密未激活」。
+     */
+    LicenseBatchAddTimeResultDTO batchAddExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId);
+
+    /**
+     * 若已设置到期时间且当前时间已超过到期时间，且卡密非「已禁用」，则将状态落库为已过期（3）。
+     * 用于列表/详情展示与三方登录前与数据库保持一致。
+     */
+    void syncExpiredStatusIfNeeded(LicenseKey licenseKey);
+
+    /**
+     * 解绑设备（清空 bindDeviceId），受 unbindLimit 约束（0 表示不限制）。
+     * 解绑后用户下次卡密登录可绑定新设备（需开启设备校验时生效）。
+     */
+    LicenseKey unbindDevice(Long id, Long operatorId);
+
+    /**
+     * 解绑 IP（清空 bindIp），受 unbindLimit 约束（0 表示不限制）。
+     */
+    LicenseKey unbindIp(Long id, Long operatorId);
 }

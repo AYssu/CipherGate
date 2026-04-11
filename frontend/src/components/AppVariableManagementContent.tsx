@@ -17,6 +17,8 @@ import {
   Tooltip,
   Typography,
   Divider,
+  Badge,
+  Popover,
   type MenuProps,
 } from 'antd';
 import {
@@ -29,6 +31,7 @@ import {
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { getApplicationList, type Application } from '../services/applicationService';
 import {
@@ -65,8 +68,9 @@ const AppVariableManagementContent: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  const [queryForm] = Form.useForm<AppVariableQuery>();
+  const [listFilterForm] = Form.useForm<Pick<AppVariableQuery, 'appId' | 'variableType'>>();
   const [editForm] = Form.useForm<AppVariableDTO>();
+  const [listFilters, setListFilters] = useState<Pick<AppVariableQuery, 'appId' | 'variableType'>>({});
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -87,6 +91,12 @@ const AppVariableManagementContent: React.FC = () => {
   const [exportVisible, setExportVisible] = useState(false);
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
+  const [variableNameInput, setVariableNameInput] = useState('');
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+
+  const activeAdvancedFilterCount = [listFilters.appId, listFilters.variableType].filter(
+    (v) => v !== undefined && v !== null && v !== ''
+  ).length;
 
   const fetchApplications = async () => {
     try {
@@ -99,12 +109,27 @@ const AppVariableManagementContent: React.FC = () => {
     }
   };
 
-  const fetchVariables = async (page = pagination.current, size = pagination.pageSize) => {
+  type FetchVariablesOpts = {
+    listFiltersOverride?: Pick<AppVariableQuery, 'appId' | 'variableType'>;
+    variableNameOverride?: string;
+  };
+
+  const fetchVariables = async (
+    page = pagination.current,
+    size = pagination.pageSize,
+    opts?: FetchVariablesOpts
+  ) => {
     setLoading(true);
     try {
-      const values = queryForm.getFieldsValue();
+      const lf = opts?.listFiltersOverride ?? listFilters;
+      const nameTrim =
+        opts?.variableNameOverride !== undefined
+          ? opts.variableNameOverride.trim()
+          : variableNameInput.trim();
       const params: AppVariableQuery = {
-        ...values,
+        appId: lf.appId,
+        variableType: lf.variableType,
+        ...(nameTrim ? { variableName: nameTrim } : {}),
         current: page,
         size,
       };
@@ -131,6 +156,42 @@ const AppVariableManagementContent: React.FC = () => {
     fetchVariables(1, pagination.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const syncListFilterFormFromListFilters = () => {
+    listFilterForm.setFieldsValue({
+      appId: listFilters.appId,
+      variableType: listFilters.variableType,
+    });
+  };
+
+  const handleAdvancedFilterQuery = async () => {
+    const v = await listFilterForm.validateFields();
+    const next: Pick<AppVariableQuery, 'appId' | 'variableType'> = {};
+    if (v.appId != null && v.appId !== '') {
+      next.appId = v.appId;
+    }
+    if (v.variableType) {
+      next.variableType = v.variableType;
+    }
+    setListFilters(next);
+    setSelectedRowKeys([]);
+    fetchVariables(1, pagination.pageSize, { listFiltersOverride: next });
+    setFilterPopoverOpen(false);
+  };
+
+  const handleAdvancedFilterReset = () => {
+    listFilterForm.resetFields();
+    setListFilters({});
+    setSelectedRowKeys([]);
+    fetchVariables(1, pagination.pageSize, { listFiltersOverride: {} });
+  };
+
+  const applyVariableNameSearch = () => {
+    setSelectedRowKeys([]);
+    fetchVariables(1, pagination.pageSize, {
+      variableNameOverride: variableNameInput,
+    });
+  };
 
   const appOptions = useMemo(
     () =>
@@ -326,7 +387,7 @@ const AppVariableManagementContent: React.FC = () => {
   };
 
   const handleExport = async () => {
-    const { appId } = queryForm.getFieldsValue();
+    const appId = listFilters.appId;
     if (!appId) {
       message.warning('请先在筛选条件中选择应用');
       return;
@@ -346,7 +407,7 @@ const AppVariableManagementContent: React.FC = () => {
   };
 
   const handleImport = async () => {
-    const { appId } = queryForm.getFieldsValue();
+    const appId = listFilters.appId;
     if (!appId) {
       message.warning('请先在筛选条件中选择应用');
       return;
@@ -544,6 +605,9 @@ const AppVariableManagementContent: React.FC = () => {
               <Button icon={<ReloadOutlined />} onClick={() => fetchVariables(pagination.current, pagination.pageSize)}>
                 刷新
               </Button>
+              <Button danger disabled={selectedRowKeys.length === 0} onClick={handleBatchDelete}>
+                批量删除
+              </Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenEdit()}>
                 新建变量
               </Button>
@@ -551,51 +615,80 @@ const AppVariableManagementContent: React.FC = () => {
           </Col>
         </Row>
 
-        <Card size="small">
-          <Form form={queryForm} layout="inline" initialValues={{ enabled: undefined }}>
-            <Form.Item label="应用" name="appId">
-              <Select
+        {/* 主搜索（变量名）+ 高级筛选 */}
+        <Row gutter={12} align="middle" wrap>
+          <Col flex="none">
+            <Space.Compact
+              style={{
+                width: 360,
+                maxWidth: 'calc(100vw - 120px)',
+              }}
+            >
+              <Input
+                placeholder="变量名模糊匹配"
                 allowClear
-                showSearch
-                optionFilterProp="label"
-                placeholder="选择应用"
-                style={{ width: 260 }}
-                options={appOptions}
+                value={variableNameInput}
+                onChange={(e) => setVariableNameInput(e.target.value)}
+                onPressEnter={() => applyVariableNameSearch()}
+                style={{ minWidth: 0 }}
               />
-            </Form.Item>
-            <Form.Item label="变量名" name="variableName">
-              <Input placeholder="模糊匹配" style={{ width: 180 }} allowClear />
-            </Form.Item>
-            <Form.Item label="类型" name="variableType">
-              <Select allowClear placeholder="类型" style={{ width: 140 }} options={VARIABLE_TYPE_OPTIONS} />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button
-                  type="primary"
-                  onClick={() => {
-                    setSelectedRowKeys([]);
-                    fetchVariables(1, pagination.pageSize);
-                  }}
-                >
-                  查询
-                </Button>
-                <Button
-                  onClick={() => {
-                    queryForm.resetFields();
-                    setSelectedRowKeys([]);
-                    fetchVariables(1, pagination.pageSize);
-                  }}
-                >
-                  重置
-                </Button>
-                <Button danger disabled={selectedRowKeys.length === 0} onClick={handleBatchDelete}>
-                  批量删除
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Card>
+              <Button type="primary" onClick={() => applyVariableNameSearch()}>
+                搜索
+              </Button>
+            </Space.Compact>
+          </Col>
+          <Col flex="none">
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (open) {
+                  syncListFilterFormFromListFilters();
+                }
+              }}
+              content={
+                <div style={{ width: 420, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={16}>
+                      <Col span={24}>
+                        <Form.Item label="应用" name="appId">
+                          <Select
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            placeholder="选择应用"
+                            options={appOptions}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item label="类型" name="variableType">
+                          <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col>
+                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                      </Col>
+                      <Col>
+                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                          查询
+                        </Button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
+              }
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />}>筛选</Button>
+              </Badge>
+            </Popover>
+          </Col>
+        </Row>
 
         <Table
           columns={columns as any}

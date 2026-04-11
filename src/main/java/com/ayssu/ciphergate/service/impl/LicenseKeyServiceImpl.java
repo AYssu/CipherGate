@@ -1,5 +1,8 @@
 package com.ayssu.ciphergate.service.impl;
 
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeFailItem;
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
@@ -13,7 +16,11 @@ import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.LicenseKeyService;
 import com.ayssu.ciphergate.util.SecurityUtils;
+import cn.hutool.poi.excel.ExcelUtil;
+import cn.hutool.poi.excel.ExcelWriter;
+import org.apache.poi.ss.usermodel.Sheet;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +29,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -66,7 +76,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         Page<LicenseKey> result = licenseKeyMapper.selectPage(page, wrapper);
         
-        // 填充关联信息
+        // 填充关联信息（含到期自动更正状态）
         result.getRecords().forEach(this::fillRelatedInfo);
         
         return result;
@@ -164,6 +174,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (StringUtils.hasText(dto.getDurationUnit())) {
             licenseKey.setDurationUnit(dto.getDurationUnit());
         }
+        ensurePresetDurationUnitStored(licenseKey);
         
         // 设置默认值
         if (licenseKey.getUseLimit() == null) {
@@ -253,6 +264,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             licenseKey.setIpCheckEnabled(batch.getIpCheckEnabled());
             licenseKey.setIsOnline(false);
             licenseKey.setHeartbeatInterval(60);
+            ensurePresetDurationUnitStored(licenseKey);
             
             LocalDateTime now = LocalDateTime.now();
             licenseKey.setCreatedAt(now);
@@ -315,6 +327,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         log.info("更新卡密成功: id={}, userId={}", id, userId);
         
+        fillRelatedInfo(licenseKey);
         return licenseKey;
     }
     
@@ -405,7 +418,43 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     }
     
     @Override
-    public List<LicenseKey> exportLicenseKeys(LicenseKeyQueryDTO queryDTO, Long operatorId) {
+    public byte[] exportLicenseKeysExcel(LicenseKeyQueryDTO queryDTO, Long operatorId) {
+        List<LicenseKey> list = queryLicenseKeysForExport(queryDTO, operatorId);
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        ExcelWriter writer = ExcelUtil.getWriter(true);
+        try {
+            writer.writeHeadRow(List.of(
+                    "卡密码", "应用", "类型", "状态", "绑定设备", "绑定IP",
+                    "使用次数", "解绑次数", "到期时间", "创建时间"));
+            for (LicenseKey k : list) {
+                fillRelatedInfo(k);
+                List<Object> row = new ArrayList<>();
+                row.add(k.getKeyCode());
+                row.add(StringUtils.hasText(k.getAppName()) ? k.getAppName() : "");
+                row.add(formatExportKeyType(k));
+                row.add(formatExportStatus(k.getStatus()));
+                row.add(StringUtils.hasText(k.getBindDeviceId()) ? k.getBindDeviceId() : "");
+                row.add(StringUtils.hasText(k.getBindIp()) ? k.getBindIp() : "");
+                int uc = k.getUseCount() == null ? 0 : k.getUseCount();
+                int ul = k.getUseLimit() == null ? 0 : k.getUseLimit();
+                row.add(ul <= 0 ? uc + " / 不限" : uc + " / " + ul);
+                int ubc = k.getUnbindCount() == null ? 0 : k.getUnbindCount();
+                int ubl = k.getUnbindLimit() == null ? 0 : k.getUnbindLimit();
+                row.add(ubl <= 0 ? ubc + " / 不限" : ubc + " / " + ubl);
+                row.add(k.getExpiresAt() != null ? dtf.format(k.getExpiresAt()) : "");
+                row.add(k.getCreatedAt() != null ? dtf.format(k.getCreatedAt()) : "");
+                writer.writeRow(row);
+            }
+            autoSizeExportColumns(writer, 10);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            writer.flush(out, true);
+            return out.toByteArray();
+        } finally {
+            writer.close();
+        }
+    }
+
+    private List<LicenseKey> queryLicenseKeysForExport(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
@@ -413,8 +462,240 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
                .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
                .orderByDesc(LicenseKey::getCreatedAt);
-        
-        return licenseKeyMapper.selectList(wrapper);
+        List<LicenseKey> list = licenseKeyMapper.selectList(wrapper);
+        list.forEach(this::syncExpiredStatusIfNeeded);
+        return list;
+    }
+
+    private static void autoSizeExportColumns(ExcelWriter writer, int columnCount) {
+        try {
+            Sheet sheet = writer.getSheet();
+            for (int i = 0; i < columnCount; i++) {
+                sheet.autoSizeColumn(i);
+            }
+        } catch (Exception ignored) {
+            // 部分环境下 autoSize 可能失败，不影响导出文件可用性
+        }
+    }
+
+    private static String formatExportStatus(Integer status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status) {
+            case 1 -> "未使用";
+            case 2 -> "使用中";
+            case 3 -> "已到期";
+            case 4 -> "已禁用";
+            default -> String.valueOf(status);
+        };
+    }
+
+    private static String formatExportKeyType(LicenseKey k) {
+        String type = k.getKeyType();
+        if (!StringUtils.hasText(type)) {
+            return "";
+        }
+        String t = type.trim().toUpperCase();
+        String base = switch (t) {
+            case "DAY" -> "天卡";
+            case "WEEK" -> "周卡";
+            case "MONTH" -> "月卡";
+            case "QUARTER" -> "季卡";
+            case "HALF_YEAR" -> "半年卡";
+            case "YEAR" -> "年卡";
+            case "PERMANENT" -> "永久卡";
+            case "CUSTOM" -> "自定义";
+            default -> type;
+        };
+        if ("CUSTOM".equals(t) && k.getDurationValue() != null && StringUtils.hasText(k.getDurationUnit())) {
+            String unit = switch (k.getDurationUnit().trim().toUpperCase()) {
+                case "HOUR", "HOURS" -> "小时";
+                case "DAY", "DAYS" -> "天";
+                case "MONTH", "MONTHS" -> "月";
+                case "YEAR", "YEARS" -> "年";
+                default -> k.getDurationUnit();
+            };
+            return k.getDurationValue() + unit;
+        }
+        if (!"PERMANENT".equals(t) && !"CUSTOM".equals(t) && k.getDurationValue() != null) {
+            return k.getDurationValue() + "x" + base;
+        }
+        return base;
+    }
+
+    private static LocalDateTime plusDurationOnBase(LocalDateTime base, int mult, String unit) {
+        if (!StringUtils.hasText(unit)) {
+            return base.plusDays(mult);
+        }
+        String u = unit.trim().toUpperCase();
+        return switch (u) {
+            case "MIN", "MINUTE", "MINUTES" -> base.plusMinutes(mult);
+            case "H", "HOUR", "HOURS" -> base.plusHours(mult);
+            case "D", "DAY", "DAYS" -> base.plusDays(mult);
+            case "W", "WEEK", "WEEKS" -> base.plusWeeks(mult);
+            case "M", "MONTH", "MONTHS" -> base.plusMonths(mult);
+            case "Y", "YEAR", "YEARS" -> base.plusYears(mult);
+            default -> base.plusDays(mult);
+        };
+    }
+
+    @Override
+    public LicenseBatchAddTimeResultDTO batchAddExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId) {
+        LicenseBatchAddTimeResultDTO result = new LicenseBatchAddTimeResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条卡密");
+        }
+        Integer dv = dto.getDurationValue();
+        if (dv == null || dv < 1) {
+            throw new RuntimeException("加时数值必须大于0");
+        }
+        if (!StringUtils.hasText(dto.getDurationUnit())) {
+            throw new RuntimeException("请选择加时单位");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            LicenseKey key = licenseKeyMapper.selectById(id);
+            if (key == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, null, "卡密不存在"));
+                continue;
+            }
+            if (!hasPermission(key.getAppId(), operatorId)) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "无权限操作该卡密"));
+                continue;
+            }
+            if (key.getFirstUsedAt() == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密未激活"));
+                continue;
+            }
+            if (key.getStatus() != null && key.getStatus() == 4) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密已禁用"));
+                continue;
+            }
+            if (key.getExpiresAt() == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密无到期时间，无法加时"));
+                continue;
+            }
+            LocalDateTime base = key.getExpiresAt();
+            if (!base.isAfter(now)) {
+                base = now;
+            }
+            LocalDateTime newExp = plusDurationOnBase(base, dv, dto.getDurationUnit());
+            key.setExpiresAt(newExp);
+            if (key.getStatus() != null && key.getStatus() == 3 && newExp.isAfter(now)) {
+                key.setStatus(2);
+            }
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+            success++;
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("卡密批量加时: operatorId={}, success={}, fail={}", operatorId, success, result.getFailCount());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseKey unbindDevice(Long id, Long operatorId) {
+        LicenseKey licenseKey = licenseKeyMapper.selectById(id);
+        if (licenseKey == null) {
+            throw new RuntimeException("卡密不存在");
+        }
+        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限操作此卡密");
+        }
+        if (!StringUtils.hasText(licenseKey.getBindDeviceId())) {
+            throw new RuntimeException("当前未绑定设备");
+        }
+        ensureUnbindQuota(licenseKey);
+        bumpUnbindCount(licenseKey);
+        LocalDateTime now = LocalDateTime.now();
+        // updateById 默认忽略 null 字段，无法清空 bind_device_id，必须用 UpdateWrapper 显式置空
+        licenseKeyMapper.update(null, new LambdaUpdateWrapper<LicenseKey>()
+                .eq(LicenseKey::getId, licenseKey.getId())
+                .set(LicenseKey::getBindDeviceId, null)
+                .set(LicenseKey::getUnbindCount, licenseKey.getUnbindCount())
+                .set(LicenseKey::getUpdatedAt, now));
+        licenseKey.setBindDeviceId(null);
+        licenseKey.setUpdatedAt(now);
+        log.info("卡密解绑设备: id={}, keyCode={}, operatorId={}", id, licenseKey.getKeyCode(), operatorId);
+        fillRelatedInfo(licenseKey);
+        return licenseKey;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseKey unbindIp(Long id, Long operatorId) {
+        LicenseKey licenseKey = licenseKeyMapper.selectById(id);
+        if (licenseKey == null) {
+            throw new RuntimeException("卡密不存在");
+        }
+        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限操作此卡密");
+        }
+        if (!StringUtils.hasText(licenseKey.getBindIp())) {
+            throw new RuntimeException("当前未绑定IP");
+        }
+        ensureUnbindQuota(licenseKey);
+        bumpUnbindCount(licenseKey);
+        LocalDateTime now = LocalDateTime.now();
+        licenseKeyMapper.update(null, new LambdaUpdateWrapper<LicenseKey>()
+                .eq(LicenseKey::getId, licenseKey.getId())
+                .set(LicenseKey::getBindIp, null)
+                .set(LicenseKey::getUnbindCount, licenseKey.getUnbindCount())
+                .set(LicenseKey::getUpdatedAt, now));
+        licenseKey.setBindIp(null);
+        licenseKey.setUpdatedAt(now);
+        log.info("卡密解绑IP: id={}, keyCode={}, operatorId={}", id, licenseKey.getKeyCode(), operatorId);
+        fillRelatedInfo(licenseKey);
+        return licenseKey;
+    }
+
+    private void ensureUnbindQuota(LicenseKey key) {
+        int limit = key.getUnbindLimit() == null ? 0 : key.getUnbindLimit();
+        if (limit <= 0) {
+            return;
+        }
+        int used = key.getUnbindCount() == null ? 0 : key.getUnbindCount();
+        if (used >= limit) {
+            throw new RuntimeException("解绑次数已达上限（" + limit + " 次），无法继续解绑");
+        }
+    }
+
+    private void bumpUnbindCount(LicenseKey key) {
+        int used = key.getUnbindCount() == null ? 0 : key.getUnbindCount();
+        key.setUnbindCount(used + 1);
+    }
+
+    @Override
+    public void syncExpiredStatusIfNeeded(LicenseKey licenseKey) {
+        if (licenseKey == null || licenseKey.getId() == null) {
+            return;
+        }
+        if (licenseKey.getStatus() != null && licenseKey.getStatus() == 4) {
+            return;
+        }
+        if (licenseKey.getExpiresAt() == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (licenseKey.getExpiresAt().isAfter(now)) {
+            return;
+        }
+        // 已到期：到期时间 <= 当前时间（含刚好到期）
+        if (licenseKey.getStatus() != null && licenseKey.getStatus() == 3) {
+            return;
+        }
+        licenseKey.setStatus(3);
+        licenseKey.setUpdatedAt(now);
+        licenseKeyMapper.updateById(licenseKey);
     }
     
     /**
@@ -465,7 +746,36 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     /**
      * 填充关联信息
      */
+    /**
+     * 预设卡密类型在创建时若未带 durationUnit，写入与类型一致的单位，便于展示与到期计算一致。
+     */
+    private void ensurePresetDurationUnitStored(LicenseKey licenseKey) {
+        if (licenseKey == null || !StringUtils.hasText(licenseKey.getKeyType())) {
+            return;
+        }
+        String kt = licenseKey.getKeyType().trim().toUpperCase();
+        if ("CUSTOM".equals(kt) || "PERMANENT".equals(kt)) {
+            return;
+        }
+        if (StringUtils.hasText(licenseKey.getDurationUnit())) {
+            return;
+        }
+        String unit = switch (kt) {
+            case "DAY" -> "DAY";
+            case "WEEK" -> "WEEK";
+            case "MONTH" -> "MONTH";
+            case "QUARTER" -> "QUARTER";
+            case "HALF_YEAR" -> "HALF_YEAR";
+            case "YEAR" -> "YEAR";
+            default -> null;
+        };
+        if (unit != null) {
+            licenseKey.setDurationUnit(unit);
+        }
+    }
+
     private void fillRelatedInfo(LicenseKey licenseKey) {
+        syncExpiredStatusIfNeeded(licenseKey);
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(5);
         boolean online = licenseKey.getLastUsedAt() != null && licenseKey.getLastUsedAt().isAfter(cutoff);
         licenseKey.setIsOnline(online);

@@ -3,6 +3,8 @@ package com.ayssu.ciphergate.controller;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
@@ -11,15 +13,23 @@ import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.LicenseKeyService;
 import com.ayssu.ciphergate.service.UserService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -29,11 +39,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/licenses")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "卡密管理", description = "卡密管理相关接口")
 public class LicenseKeyController {
     
     private final LicenseKeyService licenseKeyService;
     private final UserService userService;
+    private final ObjectMapper objectMapper;
     
     /**
      * 获取当前登录用户
@@ -126,6 +138,24 @@ public class LicenseKeyController {
             return Result.error("批量生成卡密失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 批量加时（仅已激活且有到期时间的卡密；未激活返回「该卡密未激活」等明细）
+     */
+    @PostMapping("/batch-add-time")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量加时")
+    @Operation(summary = "卡密批量加时")
+    public Result<LicenseBatchAddTimeResultDTO> batchAddExpiryTime(@Valid @RequestBody LicenseBatchAddTimeDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchAddTimeResultDTO r = licenseKeyService.batchAddExpiryTime(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量加时失败", e);
+            return Result.error("卡密批量加时失败: " + e.getMessage());
+        }
+    }
     
     /**
      * 更新卡密
@@ -178,29 +208,80 @@ public class LicenseKeyController {
         try {
             User currentUser = getCurrentUser();
             licenseKeyService.updateStatus(id, status, currentUser.getId());
-            String statusDesc = status == 1 ? "未使用" : (status == 2 ? "使用中" : (status == 3 ? "已过期" : "已禁用"));
+            String statusDesc = status == 1 ? "未使用" : (status == 2 ? "使用中" : (status == 3 ? "已到期" : "已禁用"));
             return Result.success("卡密状态已更新为: " + statusDesc);
         } catch (Exception e) {
             log.error("更新卡密状态失败", e);
             return Result.error("更新卡密状态失败: " + e.getMessage());
         }
     }
-    
+
     /**
-     * 导出卡密
+     * 解绑设备（下次卡密登录可绑定新设备）
      */
-    @GetMapping("/export")
-    @RequirePermission("LICENSE_EXPORT")
-    @ActivityLog(actionType = "EXPORT", actionTarget = "LICENSE", description = "导出卡密")
-    @Operation(summary = "导出卡密")
-    public Result<List<LicenseKey>> exportLicenseKeys(LicenseKeyQueryDTO queryDTO) {
+    @PostMapping("/{id}/unbind-device")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密解绑设备")
+    @Operation(summary = "卡密解绑设备")
+    public Result<LicenseKey> unbindDevice(@PathVariable Long id) {
         try {
             User currentUser = getCurrentUser();
-            List<LicenseKey> licenseKeys = licenseKeyService.exportLicenseKeys(queryDTO, currentUser.getId());
-            return Result.success(licenseKeys);
+            LicenseKey key = licenseKeyService.unbindDevice(id, currentUser.getId());
+            return Result.success("已解绑设备", key);
+        } catch (Exception e) {
+            log.error("卡密解绑设备失败: id={}", id, e);
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 解绑 IP
+     */
+    @PostMapping("/{id}/unbind-ip")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密解绑IP")
+    @Operation(summary = "卡密解绑IP")
+    public Result<LicenseKey> unbindIp(@PathVariable Long id) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseKey key = licenseKeyService.unbindIp(id, currentUser.getId());
+            return Result.success("已解绑IP", key);
+        } catch (Exception e) {
+            log.error("卡密解绑IP失败: id={}", id, e);
+            return Result.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 导出卡密（Excel .xlsx，Hutool POI）
+     */
+    @GetMapping(value = "/export", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    @RequirePermission("LICENSE_EXPORT")
+    @ActivityLog(actionType = "EXPORT", actionTarget = "LICENSE", description = "导出卡密")
+    @Operation(summary = "导出卡密为Excel")
+    public void exportLicenseKeys(LicenseKeyQueryDTO queryDTO, HttpServletResponse response) {
+        try {
+            User currentUser = getCurrentUser();
+            byte[] bytes = licenseKeyService.exportLicenseKeysExcel(queryDTO, currentUser.getId());
+            String name = "卡密导出_" + LocalDate.now() + ".xlsx";
+            String encoded = URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded);
+            response.setContentLength(bytes.length);
+            response.getOutputStream().write(bytes);
+            response.getOutputStream().flush();
         } catch (Exception e) {
             log.error("导出卡密失败", e);
-            return Result.error("导出卡密失败: " + e.getMessage());
+            try {
+                response.reset();
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.setContentType("application/json;charset=UTF-8");
+                objectMapper.writeValue(response.getOutputStream(),
+                        Result.error("导出卡密失败: " + e.getMessage()));
+            } catch (Exception ex) {
+                log.error("写入导出错误响应失败", ex);
+            }
         }
     }
 }

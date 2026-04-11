@@ -168,7 +168,7 @@ public class LicenseKey implements Serializable {
     private Map<String, Object> metadata;
     
     /**
-     * 状态: 1=未使用, 2=使用中, 3=已过期, 4=已禁用
+     * 状态: 1=未使用, 2=使用中, 3=已到期(已过期), 4=已禁用
      */
     private Integer status;
     

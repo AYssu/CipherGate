@@ -22,6 +22,9 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
     const { data } = response;
     
     // 如果后端返回的数据结构是 { success: boolean, data: any, message: string }

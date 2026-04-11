@@ -20,6 +20,7 @@ import {
   TimePicker,
   Switch,
   Tooltip,
+  Popover,
 } from 'antd';
 import {
   PlusOutlined,
@@ -34,15 +35,20 @@ import {
   AppstoreOutlined,
   KeyOutlined,
   ClockCircleOutlined,
+  DisconnectOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   getLicenseList,
   createLicense,
   batchCreateLicenses,
+  batchAddLicenseTime,
   updateLicense,
   deleteLicense,
   updateLicenseStatus,
+  unbindLicenseDevice,
+  unbindLicenseIp,
   exportLicenses,
   type LicenseKey,
   type LicenseKeyDTO,
@@ -50,7 +56,7 @@ import {
 } from '../services/licenseService';
 import { getApplicationList, type Application } from '../services/applicationService';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -60,15 +66,27 @@ const LicenseManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
+  const [batchAddTimeVisible, setBatchAddTimeVisible] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [editingLicense, setEditingLicense] = useState<LicenseKey | null>(null);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
+  const [addTimeForm] = Form.useForm();
+  const [listFilterForm] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
   const [filters, setFilters] = useState<any>({});
+  const [keyCodeInput, setKeyCodeInput] = useState('');
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+
+  const activeAdvancedFilterCount = [
+    filters.appId,
+    filters.keyType,
+    filters.status,
+  ].filter((v) => v !== undefined && v !== null && v !== '').length;
 
   // 卡密类型选项
   const keyTypeOptions = [
@@ -125,6 +143,63 @@ const LicenseManagementContent: React.FC = () => {
     fetchLicenses();
   }, []);
 
+  useEffect(() => {
+    setKeyCodeInput(filters.keyCode ?? '');
+  }, [filters.keyCode]);
+
+  const syncListFilterFormFromFilters = () => {
+    listFilterForm.setFieldsValue({
+      appId: filters.appId,
+      keyType: filters.keyType,
+      status: filters.status,
+    });
+  };
+
+  const handleAdvancedFilterQuery = async () => {
+    const v = await listFilterForm.validateFields();
+    const next = { ...filters };
+    if (v.appId != null && v.appId !== '') {
+      next.appId = v.appId;
+    } else {
+      delete next.appId;
+    }
+    if (v.keyType) {
+      next.keyType = v.keyType;
+    } else {
+      delete next.keyType;
+    }
+    if (v.status != null && v.status !== '') {
+      next.status = v.status;
+    } else {
+      delete next.status;
+    }
+    setFilters(next);
+    fetchLicenses(1, pagination.pageSize, next);
+    setFilterPopoverOpen(false);
+  };
+
+  const handleAdvancedFilterReset = () => {
+    listFilterForm.resetFields();
+    const next = { ...filters };
+    delete next.appId;
+    delete next.keyType;
+    delete next.status;
+    setFilters(next);
+    fetchLicenses(1, pagination.pageSize, next);
+  };
+
+  const applyKeyCodeSearch = (raw?: string) => {
+    const trimmed = (raw ?? keyCodeInput).trim();
+    const next = { ...filters };
+    if (trimmed) {
+      next.keyCode = trimmed;
+    } else {
+      delete next.keyCode;
+    }
+    setFilters(next);
+    fetchLicenses(1, pagination.pageSize, next);
+  };
+
   // 打开创建/编辑弹窗
   const handleOpenModal = (license?: LicenseKey) => {
     setEditingLicense(license || null);
@@ -178,6 +253,11 @@ const LicenseManagementContent: React.FC = () => {
       };
 
       if (editingLicense) {
+        // 类型与时长生成后固定，不参与更新请求
+        delete (dto as any).keyType;
+        delete (dto as any).durationValue;
+        delete (dto as any).durationUnit;
+        delete (dto as any).appId;
         await updateLicense(editingLicense.id, dto);
         message.success('卡密更新成功');
       } else {
@@ -190,6 +270,58 @@ const LicenseManagementContent: React.FC = () => {
     } catch (error: any) {
       console.error('操作失败:', error);
       message.error(error.response?.data?.message || '操作失败');
+    }
+  };
+
+  const openBatchAddTimeModal = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要加时的卡密');
+      return;
+    }
+    addTimeForm.setFieldsValue({ durationValue: 1, durationUnit: 'DAY' });
+    setBatchAddTimeVisible(true);
+  };
+
+  const handleBatchAddTimeSubmit = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要加时的卡密');
+      return;
+    }
+    try {
+      const values = await addTimeForm.validateFields();
+      const result: any = await batchAddLicenseTime({
+        ids: selectedRowKeys.map((k) => Number(k)),
+        durationValue: values.durationValue,
+        durationUnit: values.durationUnit,
+      });
+      if (result.code === 200 && result.data) {
+        const r = result.data;
+        setBatchAddTimeVisible(false);
+        setSelectedRowKeys([]);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        message.success(`加时完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        if (r.failures?.length) {
+          Modal.warning({
+            title: '以下卡密未加时',
+            width: 600,
+            content: (
+              <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
+                {r.failures.map((f: { keyCode?: string; id: number; reason: string }, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <Tag>{f.keyCode || `#${f.id}`}</Tag>：{f.reason}
+                  </li>
+                ))}
+              </ul>
+            ),
+          });
+        }
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量加时失败:', error);
+      message.error(error.response?.data?.message || '批量加时失败');
     }
   };
 
@@ -237,44 +369,109 @@ const LicenseManagementContent: React.FC = () => {
     }
   };
 
+  const unbindQuotaHint = (record: LicenseKey) => {
+    const limit = record.unbindLimit ?? 0;
+    const count = record.unbindCount ?? 0;
+    if (limit <= 0) {
+      return '解绑次数未设上限。每次解绑设备或解绑 IP 各计 1 次解绑次数。';
+    }
+    return `解绑次数：已用 ${count} / 上限 ${limit}。本次操作将占用 1 次。`;
+  };
+
+  const handleUnbindDevice = async (id: number) => {
+    try {
+      const result: any = await unbindLicenseDevice(id);
+      if (result.code === 200) {
+        message.success(result.message || '已解绑设备');
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+      } else {
+        message.error(result.message || '解绑设备失败');
+      }
+    } catch (error: any) {
+      console.error('解绑设备失败:', error);
+      message.error(error.response?.data?.message || '解绑设备失败');
+    }
+  };
+
+  const handleUnbindIp = async (id: number) => {
+    try {
+      const result: any = await unbindLicenseIp(id);
+      if (result.code === 200) {
+        message.success(result.message || '已解绑IP');
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+      } else {
+        message.error(result.message || '解绑IP失败');
+      }
+    } catch (error: any) {
+      console.error('解绑IP失败:', error);
+      message.error(error.response?.data?.message || '解绑IP失败');
+    }
+  };
+
   // 复制卡密
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     message.success(`${label}已复制到剪贴板`);
   };
 
-  // 导出卡密
-  const handleExport = async () => {
-    try {
-      const result: any = await exportLicenses(filters);
-      if (result.code === 200 && result.data) {
-        // 转换为CSV格式
-        const csvContent = convertToCSV(result.data);
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `licenses_${new Date().getTime()}.csv`;
-        link.click();
-        message.success('导出成功');
+  const parseExportFilename = (contentDisposition: string | undefined): string | null => {
+    if (!contentDisposition) return null;
+    const star = contentDisposition.match(/filename\*=UTF-8''([^;\s]+)/i);
+    if (star) {
+      try {
+        return decodeURIComponent(star[1].trim());
+      } catch {
+        return star[1];
       }
-    } catch (error) {
-      console.error('导出失败:', error);
-      message.error('导出失败');
     }
+    const quoted = contentDisposition.match(/filename="([^"]+)"/i);
+    return quoted ? quoted[1] : null;
   };
 
-  // 转换为CSV
-  const convertToCSV = (data: LicenseKey[]) => {
-    const headers = ['卡密码', '应用', '类型', '状态', '创建时间'];
-    const rows = data.map(item => [
-      item.keyCode,
-      item.appName || '',
-      getKeyTypeLabel(item.keyType),
-      getStatusLabel(item.status),
-      item.createdAt,
-    ]);
-    
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
+  // 导出卡密（后端 Hutool 生成 .xlsx）
+  const handleExport = async () => {
+    try {
+      const res = await exportLicenses(filters);
+      const blob = res.data;
+      if (!(blob instanceof Blob)) {
+        message.error('导出失败');
+        return;
+      }
+      if (blob.type && blob.type.includes('application/json')) {
+        const text = await blob.text();
+        try {
+          const j = JSON.parse(text);
+          message.error(j.message || '导出失败');
+        } catch {
+          message.error('导出失败');
+        }
+        return;
+      }
+      const name =
+        parseExportFilename(res.headers['content-disposition']) ||
+        `卡密导出_${Date.now()}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(url);
+      message.success('导出成功');
+    } catch (error: any) {
+      console.error('导出失败:', error);
+      let msg = '导出失败';
+      const d = error.response?.data;
+      if (d instanceof Blob) {
+        try {
+          const t = await d.text();
+          const j = JSON.parse(t);
+          msg = j.message || msg;
+        } catch {
+          /* ignore */
+        }
+      }
+      message.error(msg);
+    }
   };
 
   // 获取卡密类型标签
@@ -283,23 +480,12 @@ const LicenseManagementContent: React.FC = () => {
     return option ? option.label : type;
   };
 
-  // 获取状态标签
-  const getStatusLabel = (status: number) => {
-    const map: Record<number, string> = {
-      1: '未使用',
-      2: '使用中',
-      3: '已过期',
-      4: '已禁用',
-    };
-    return map[status] || '未知';
-  };
-
   // 获取状态Badge
   const getStatusBadge = (status: number) => {
     const map: Record<number, { text: string; status: 'success' | 'processing' | 'error' | 'default' }> = {
       1: { text: '未使用', status: 'default' },
       2: { text: '使用中', status: 'processing' },
-      3: { text: '已过期', status: 'error' },
+      3: { text: '已到期', status: 'error' },
       4: { text: '已禁用', status: 'error' },
     };
     const item = map[status] || { text: '未知', status: 'default' };
@@ -372,6 +558,31 @@ const LicenseManagementContent: React.FC = () => {
       render: (isOnline: boolean) => (
         isOnline ? <Badge status="success" text="在线" /> : <Badge status="default" text="离线" />
       ),
+    },
+    {
+      title: '绑定设备',
+      dataIndex: 'bindDeviceId',
+      key: 'bindDeviceId',
+      width: 200,
+      ellipsis: true,
+      render: (_: string, record: LicenseKey) => {
+        const dev = record.bindDeviceId?.trim();
+        if (!dev) {
+          return <Text type="secondary">-</Text>;
+        }
+        const ipHint = record.bindIp?.trim()
+          ? `绑定 IP：${record.bindIp}`
+          : undefined;
+        const inner = (
+          <Text
+            copyable={{ text: dev, tooltips: ['复制设备码', '已复制'] }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12 }}
+          >
+            {dev}
+          </Text>
+        );
+        return ipHint ? <Tooltip title={ipHint}>{inner}</Tooltip> : inner;
+      },
     },
     {
       title: '使用次数',
@@ -449,9 +660,55 @@ const LicenseManagementContent: React.FC = () => {
               });
             },
           },
-          {
-            type: 'divider',
-          },
+        ];
+        if (record.bindDeviceId?.trim()) {
+          menuItems.push({
+            key: 'unbindDevice',
+            icon: <DisconnectOutlined />,
+            label: '解绑设备',
+            onClick: () => {
+              Modal.confirm({
+                title: '解绑设备',
+                content: (
+                  <div>
+                    <p>
+                      确定解绑卡密「{record.keyCode}」的当前设备吗？解绑后用户可使用新设备再次通过卡密登录完成绑定（需该卡密开启设备校验）。
+                    </p>
+                    <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+                  </div>
+                ),
+                okText: '解绑',
+                cancelText: '取消',
+                onOk: () => handleUnbindDevice(record.id),
+              });
+            },
+          });
+        }
+        if (record.bindIp?.trim()) {
+          menuItems.push({
+            key: 'unbindIp',
+            icon: <DisconnectOutlined />,
+            label: '解绑IP',
+            onClick: () => {
+              Modal.confirm({
+                title: '解绑IP',
+                content: (
+                  <div>
+                    <p>
+                      确定解绑卡密「{record.keyCode}」的当前绑定 IP 吗？解绑后用户可在新 IP 下再次登录绑定（需该卡密开启 IP 校验）。
+                    </p>
+                    <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+                  </div>
+                ),
+                okText: '解绑',
+                cancelText: '取消',
+                onOk: () => handleUnbindIp(record.id),
+              });
+            },
+          });
+        }
+        menuItems.push(
+          { type: 'divider' },
           {
             key: 'delete',
             icon: <DeleteOutlined />,
@@ -467,8 +724,8 @@ const LicenseManagementContent: React.FC = () => {
                 onOk: () => handleDelete(record.id),
               });
             },
-          },
-        ];
+          }
+        );
 
         return (
           <Space size="small">
@@ -506,6 +763,13 @@ const LicenseManagementContent: React.FC = () => {
                 导出
               </Button>
               <Button
+                icon={<ClockCircleOutlined />}
+                disabled={selectedRowKeys.length === 0}
+                onClick={openBatchAddTimeModal}
+              >
+                批量加时
+              </Button>
+              <Button
                 icon={<ReloadOutlined />}
                 onClick={() => fetchLicenses(pagination.current, pagination.pageSize, filters)}
               >
@@ -528,67 +792,100 @@ const LicenseManagementContent: React.FC = () => {
           </Col>
         </Row>
 
-        {/* 筛选栏 */}
-        <Row gutter={16}>
-          <Col span={6}>
-            <Select
-              placeholder="选择应用"
-              allowClear
-              style={{ width: '100%' }}
-              onChange={(value) => {
-                const newFilters = { ...filters, appId: value };
-                setFilters(newFilters);
-                fetchLicenses(1, pagination.pageSize, newFilters);
+        {/* 主搜索 + 高级筛选（搜索框固定常规宽度，不占满整行） */}
+        <Row gutter={12} align="middle" wrap>
+          <Col flex="none">
+            <Space.Compact
+              style={{
+                width: 360,
+                maxWidth: 'calc(100vw - 120px)',
               }}
             >
-              {applications.map(app => (
-                <Option key={app.id} value={app.id}>{app.appName}</Option>
-              ))}
-            </Select>
+              <Input
+                placeholder="搜索卡密"
+                allowClear
+                value={keyCodeInput}
+                onChange={(e) => setKeyCodeInput(e.target.value)}
+                onPressEnter={() => applyKeyCodeSearch()}
+                style={{ minWidth: 0 }}
+              />
+              <Button type="primary" onClick={() => applyKeyCodeSearch()}>
+                搜索
+              </Button>
+            </Space.Compact>
           </Col>
-          <Col span={6}>
-            <Select
-              placeholder="卡密类型"
-              allowClear
-              style={{ width: '100%' }}
-              onChange={(value) => {
-                const newFilters = { ...filters, keyType: value };
-                setFilters(newFilters);
-                fetchLicenses(1, pagination.pageSize, newFilters);
+          <Col flex="none">
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (open) {
+                  syncListFilterFormFromFilters();
+                }
               }}
+              content={
+                <div style={{ width: 420, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="应用" name="appId">
+                          <Select
+                            allowClear
+                            placeholder="选择应用"
+                            options={applications.map((app) => ({
+                              label: app.appName,
+                              value: app.id,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="卡密类型" name="keyType">
+                          <Select
+                            allowClear
+                            placeholder="卡密类型"
+                            options={keyTypeOptions.map((opt) => ({
+                              label: opt.label,
+                              value: opt.value,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="状态" name="status">
+                          <Select
+                            allowClear
+                            placeholder="状态"
+                            options={[
+                              { label: '未使用', value: 1 },
+                              { label: '使用中', value: 2 },
+                              { label: '已到期', value: 3 },
+                              { label: '已禁用', value: 4 },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col>
+                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                      </Col>
+                      <Col>
+                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                          查询
+                        </Button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
+              }
             >
-              {keyTypeOptions.map(opt => (
-                <Option key={opt.value} value={opt.value}>{opt.label}</Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={6}>
-            <Select
-              placeholder="状态"
-              allowClear
-              style={{ width: '100%' }}
-              onChange={(value) => {
-                const newFilters = { ...filters, status: value };
-                setFilters(newFilters);
-                fetchLicenses(1, pagination.pageSize, newFilters);
-              }}
-            >
-              <Option value={1}>未使用</Option>
-              <Option value={2}>使用中</Option>
-              <Option value={3}>已过期</Option>
-              <Option value={4}>已禁用</Option>
-            </Select>
-          </Col>
-          <Col span={6}>
-            <Input
-              placeholder="搜索卡密码"
-              allowClear
-              onPressEnter={(e: any) => {
-                const newFilters = { ...filters, keyCode: e.target.value };
-                setFilters(newFilters);
-                fetchLicenses(1, pagination.pageSize, newFilters);
-              }}
-            />
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />}>筛选</Button>
+              </Badge>
+            </Popover>
           </Col>
         </Row>
 
@@ -598,6 +895,11 @@ const LicenseManagementContent: React.FC = () => {
           dataSource={licenses}
           rowKey="id"
           loading={loading}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+            preserveSelectedRowKeys: true,
+          }}
           pagination={{
             ...pagination,
             showSizeChanger: true,
@@ -606,7 +908,7 @@ const LicenseManagementContent: React.FC = () => {
               fetchLicenses(page, pageSize, filters);
             },
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1620 }}
         />
       </Space>
 
@@ -695,6 +997,7 @@ const LicenseManagementContent: React.FC = () => {
           <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.keyType !== currentValues.keyType}>
             {({ getFieldValue }) => {
               const keyType = getFieldValue('keyType');
+              const durationLocked = !!editingLicense;
               
               // 如果是自定义类型，显示自定义时长配置
               if (keyType === 'CUSTOM') {
@@ -704,12 +1007,13 @@ const LicenseManagementContent: React.FC = () => {
                       <Form.Item
                         label="时长数值"
                         name="durationValue"
-                        rules={[{ required: true, message: '请输入时长数值' }]}
+                        rules={[{ required: !durationLocked, message: '请输入时长数值' }]}
                       >
                         <InputNumber 
                           min={1} 
                           style={{ width: '100%' }} 
                           placeholder="例如：3、100、365"
+                          disabled={durationLocked}
                         />
                       </Form.Item>
                     </Col>
@@ -717,9 +1021,9 @@ const LicenseManagementContent: React.FC = () => {
                       <Form.Item
                         label="时长单位"
                         name="durationUnit"
-                        rules={[{ required: true, message: '请选择时长单位' }]}
+                        rules={[{ required: !durationLocked, message: '请选择时长单位' }]}
                       >
-                        <Select placeholder="选择单位">
+                        <Select placeholder="选择单位" disabled={durationLocked}>
                           <Option value="HOUR">小时</Option>
                           <Option value="DAY">天</Option>
                           <Option value="MONTH">月</Option>
@@ -738,13 +1042,14 @@ const LicenseManagementContent: React.FC = () => {
                     label="倍数"
                     name="durationValue"
                     tooltip="例如：3天卡输入3，5月卡输入5"
-                    rules={[{ required: true, message: '请输入倍数' }]}
+                    rules={[{ required: !durationLocked, message: '请输入倍数' }]}
                   >
                     <InputNumber 
                       min={1} 
                       max={999}
                       style={{ width: '100%' }} 
                       placeholder="输入倍数，例如：1、3、5、10"
+                      disabled={durationLocked}
                     />
                   </Form.Item>
                 );
@@ -1006,6 +1311,50 @@ const LicenseManagementContent: React.FC = () => {
           >
             <TextArea rows={3} placeholder="输入批次备注信息" />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量加时"
+        open={batchAddTimeVisible}
+        onOk={handleBatchAddTimeSubmit}
+        onCancel={() => setBatchAddTimeVisible(false)}
+        okText="确定加时"
+        cancelText="取消"
+        width={520}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密延长到期时间。
+          仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+        </Paragraph>
+        <Form form={addTimeForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="延长数值"
+                name="durationValue"
+                rules={[{ required: true, message: '请输入延长数值' }]}
+              >
+                <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="durationUnit"
+                rules={[{ required: true, message: '请选择单位' }]}
+              >
+                <Select placeholder="选择单位">
+                  <Option value="MINUTE">分钟</Option>
+                  <Option value="HOUR">小时</Option>
+                  <Option value="DAY">天</Option>
+                  <Option value="WEEK">周</Option>
+                  <Option value="MONTH">月</Option>
+                  <Option value="YEAR">年</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </Card>

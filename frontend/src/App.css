@@ -492,8 +492,6 @@ html {
     margin: 0 !important;
     line-height: 1 !important;
   }
-}
-
 
   /* 移动端抽屉样式 */
   .ant-drawer-body {
@@ -622,6 +620,7 @@ html {
   .dashboard-sidebar-menu .ant-menu-submenu-title:active {
     background-color: #e6f7ff !important;
   }
+}
 
 /* 平板端适配 (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {

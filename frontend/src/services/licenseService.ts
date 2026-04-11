@@ -68,6 +68,24 @@ export interface LicenseKeyDTO {
   metadata?: Record<string, any>;
 }
 
+export interface LicenseBatchAddTimeDTO {
+  ids: number[];
+  durationValue: number;
+  durationUnit: string;
+}
+
+export interface LicenseBatchAddTimeFailItem {
+  id: number;
+  keyCode?: string;
+  reason: string;
+}
+
+export interface LicenseBatchAddTimeResult {
+  successCount: number;
+  failCount: number;
+  failures: LicenseBatchAddTimeFailItem[];
+}
+
 export interface LicenseBatchCreateDTO {
   appId: number;
   batchName: string;
@@ -109,6 +127,11 @@ export const batchCreateLicenses = (data: LicenseBatchCreateDTO) => {
   return request.post('/licenses/batch', data);
 };
 
+/** 批量加时（仅已激活卡密） */
+export const batchAddLicenseTime = (data: LicenseBatchAddTimeDTO) => {
+  return request.post('/licenses/batch-add-time', data);
+};
+
 /**
  * 更新卡密
  */
@@ -132,9 +155,19 @@ export const updateLicenseStatus = (id: number, status: number) => {
   });
 };
 
+/** 解绑设备（清空绑定，下次卡密登录可绑新设备） */
+export const unbindLicenseDevice = (id: number) => {
+  return request.post(`/licenses/${id}/unbind-device`);
+};
+
+/** 解绑 IP */
+export const unbindLicenseIp = (id: number) => {
+  return request.post(`/licenses/${id}/unbind-ip`);
+};
+
 /**
- * 导出卡密
+ * 导出卡密（Excel .xlsx 二进制流）
  */
 export const exportLicenses = (params: LicenseKeyQuery) => {
-  return request.get('/licenses/export', { params });
+  return request.get<Blob>('/licenses/export', { params, responseType: 'blob' });
 };

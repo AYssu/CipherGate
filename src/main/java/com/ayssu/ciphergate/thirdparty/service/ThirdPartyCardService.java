@@ -4,6 +4,7 @@ import com.ayssu.ciphergate.entity.LicenseKey;
 import com.ayssu.ciphergate.entity.AppVariable;
 import com.ayssu.ciphergate.mapper.AppVariableMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
+import com.ayssu.ciphergate.service.LicenseKeyService;
 import com.ayssu.ciphergate.thirdparty.dto.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +28,7 @@ public class ThirdPartyCardService {
     private final LicenseKeyMapper licenseKeyMapper;
     private final AppVariableMapper appVariableMapper;
     private final ObjectMapper objectMapper;
+    private final LicenseKeyService licenseKeyService;
 
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
@@ -43,11 +45,21 @@ public class ThirdPartyCardService {
         if (key == null) {
             throw new RuntimeException("卡密不存在");
         }
+        licenseKeyService.syncExpiredStatusIfNeeded(key);
         if (key.getStatus() != null && key.getStatus() == 4) {
             throw new RuntimeException("卡密已禁用");
         }
-        if (key.getExpiresAt() != null && key.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (key.getStatus() != null && key.getStatus() == 3) {
             throw new RuntimeException("卡密已过期");
+        }
+        if (key.getExpiresAt() != null && !key.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("卡密已过期");
+        }
+
+        int limit = key.getUseLimit() == null ? 0 : key.getUseLimit();
+        int used = key.getUseCount() == null ? 0 : key.getUseCount();
+        if (limit > 0 && used >= limit) {
+            throw new RuntimeException("卡密已达到最大使用次数");
         }
 
         // device/ip optional check: if license requires, enforce on login
@@ -71,6 +83,14 @@ public class ThirdPartyCardService {
                 key.setExpiresAt(resolveExpiry(key));
             }
             key.setStatus(2);
+        } else {
+            // 管理员解绑后：已激活卡密在 bindDeviceId/bindIp 为空时允许再次写入绑定信息
+            if (Boolean.TRUE.equals(key.getDeviceCheckEnabled()) && !StringUtils.hasText(key.getBindDeviceId())) {
+                key.setBindDeviceId(req.getDeviceId());
+            }
+            if (Boolean.TRUE.equals(key.getIpCheckEnabled()) && !StringUtils.hasText(key.getBindIp()) && StringUtils.hasText(clientIp)) {
+                key.setBindIp(clientIp);
+            }
         }
 
         // 无论是否开启IP校验，都记录IP统计；仅在未开启IP校验时允许更新绑定IP
@@ -223,22 +243,45 @@ public class ThirdPartyCardService {
             return key.getExpiresAt();
         }
         Integer v = key.getDurationValue();
-        String unit = key.getDurationUnit();
+        int mult = (v == null || v <= 0) ? 1 : v;
         LocalDateTime now = LocalDateTime.now();
-        if (v == null || v <= 0) {
-            return now.plusYears(100);
+        String unit = key.getDurationUnit();
+        if (StringUtils.hasText(unit)) {
+            String u = unit.trim().toUpperCase();
+            return switch (u) {
+                case "MIN", "MINUTE", "MINUTES" -> now.plusMinutes(mult);
+                case "H", "HOUR", "HOURS" -> now.plusHours(mult);
+                case "D", "DAY", "DAYS" -> now.plusDays(mult);
+                case "W", "WEEK", "WEEKS" -> now.plusWeeks(mult);
+                case "M", "MONTH", "MONTHS" -> now.plusMonths(mult);
+                case "QUARTER" -> now.plusMonths(3L * mult);
+                case "HALF_YEAR" -> now.plusMonths(6L * mult);
+                case "Y", "YEAR", "YEARS" -> now.plusYears(mult);
+                default -> now.plusDays(mult);
+            };
         }
-        if (!StringUtils.hasText(unit)) {
-            return now.plusDays(v);
-        }
-        String u = unit.trim().toUpperCase();
-        return switch (u) {
-            case "MIN", "MINUTE", "MINUTES" -> now.plusMinutes(v);
-            case "H", "HOUR", "HOURS" -> now.plusHours(v);
-            case "D", "DAY", "DAYS" -> now.plusDays(v);
-            case "M", "MONTH", "MONTHS" -> now.plusMonths(v);
-            case "Y", "YEAR", "YEARS" -> now.plusYears(v);
-            default -> now.plusDays(v);
+        // 未写 durationUnit 时按卡密类型推算（与后台创建/批量生成表单一致）
+        String kt = key.getKeyType() != null ? key.getKeyType().trim().toUpperCase() : "";
+        return switch (kt) {
+            case "PERMANENT" -> now.plusYears(100);
+            case "DAY" -> now.plusDays(mult);
+            case "WEEK" -> now.plusWeeks(mult);
+            case "MONTH" -> now.plusMonths(mult);
+            case "QUARTER" -> now.plusMonths(3L * mult);
+            case "HALF_YEAR" -> now.plusMonths(6L * mult);
+            case "YEAR" -> now.plusYears(mult);
+            case "CUSTOM" -> {
+                if (v == null || v <= 0) {
+                    yield now.plusYears(100);
+                }
+                yield now.plusDays(mult);
+            }
+            default -> {
+                if (v == null || v <= 0) {
+                    yield now.plusYears(100);
+                }
+                yield now.plusDays(mult);
+            }
         };
     }
 }

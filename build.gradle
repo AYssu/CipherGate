@@ -52,8 +52,9 @@ dependencies {
     implementation 'com.baomidou:mybatis-plus-spring-boot4-starter'
     implementation 'com.baomidou:mybatis-plus-jsqlparser'
     
-    // Hutool 工具类
+    // Hutool 工具类（Excel 导出依赖 POI）
     implementation 'cn.hutool:hutool-all:5.8.40'
+    implementation 'org.apache.poi:poi-ooxml:5.4.0'
 
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     

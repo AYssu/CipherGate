@@ -16,6 +16,8 @@ import {
   Row,
   Col,
   Dropdown,
+  Badge,
+  Popover,
   type MenuProps,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -30,6 +32,7 @@ import {
   UserOutlined,
   MobileOutlined,
   CrownOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import {
   getAppUserList,
@@ -80,12 +83,21 @@ const AppUserManagementContent: React.FC = () => {
   const [passwordForm] = Form.useForm();
   const [extendForm] = Form.useForm();
   const [memberExpForm] = Form.useForm();
+  const [listFilterForm] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
   const [filters, setFilters] = useState<any>({});
+  const [usernameInput, setUsernameInput] = useState('');
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+
+  const activeAdvancedFilterCount = [
+    filters.appId,
+    filters.email,
+    filters.phone,
+  ].filter((v) => v !== undefined && v !== null && v !== '').length;
 
   // 获取应用列表
   const fetchApplications = async () => {
@@ -129,6 +141,65 @@ const AppUserManagementContent: React.FC = () => {
     fetchApplications();
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    setUsernameInput(filters.username ?? '');
+  }, [filters.username]);
+
+  const syncListFilterFormFromFilters = () => {
+    listFilterForm.setFieldsValue({
+      appId: filters.appId,
+      email: filters.email,
+      phone: filters.phone,
+    });
+  };
+
+  const handleAdvancedFilterQuery = async () => {
+    const v = await listFilterForm.validateFields();
+    const next = { ...filters };
+    if (v.appId != null && v.appId !== '') {
+      next.appId = v.appId;
+    } else {
+      delete next.appId;
+    }
+    const emailTrim = (v.email ?? '').trim();
+    if (emailTrim) {
+      next.email = emailTrim;
+    } else {
+      delete next.email;
+    }
+    const phoneTrim = (v.phone ?? '').trim();
+    if (phoneTrim) {
+      next.phone = phoneTrim;
+    } else {
+      delete next.phone;
+    }
+    setFilters(next);
+    fetchUsers(1, pagination.pageSize, next);
+    setFilterPopoverOpen(false);
+  };
+
+  const handleAdvancedFilterReset = () => {
+    listFilterForm.resetFields();
+    const next = { ...filters };
+    delete next.appId;
+    delete next.email;
+    delete next.phone;
+    setFilters(next);
+    fetchUsers(1, pagination.pageSize, next);
+  };
+
+  const applyUsernameSearch = (raw?: string) => {
+    const trimmed = (raw ?? usernameInput).trim();
+    const next = { ...filters };
+    if (trimmed) {
+      next.username = trimmed;
+    } else {
+      delete next.username;
+    }
+    setFilters(next);
+    fetchUsers(1, pagination.pageSize, next);
+  };
 
   // 定时刷新列表，使「在线 / 在线时长」接近实时（依赖管理端轮询）
   useEffect(() => {
@@ -582,7 +653,7 @@ const AppUserManagementContent: React.FC = () => {
       dataIndex: 'lastLoginIp',
       key: 'lastLoginIp',
       width: 130,
-      render: (ip: string) => (ip ? <Text code style={{ fontSize: 11 }}>{ip}</Text> : '-'),
+      render: (ip: string) => (ip ? <Tag style={{ fontSize: 11, margin: 0 }}>{ip}</Tag> : '-'),
     },
     {
       title: '最后登录设备',
@@ -590,7 +661,7 @@ const AppUserManagementContent: React.FC = () => {
       key: 'lastDeviceId',
       width: 160,
       ellipsis: true,
-      render: (id: string) => (id ? <Text code style={{ fontSize: 11 }}>{id}</Text> : '-'),
+      render: (id: string) => (id ? <Tag style={{ fontSize: 11, margin: 0 }}>{id}</Tag> : '-'),
     },
     {
       title: '创建时间',
@@ -649,56 +720,84 @@ const AppUserManagementContent: React.FC = () => {
           </Col>
         </Row>
 
-        {/* 筛选栏 */}
-        <Row gutter={16}>
-          <Col span={6}>
-            <Select
-              placeholder="选择应用"
-              allowClear
-              style={{ width: '100%' }}
-              onChange={(value) => {
-                const newFilters = { ...filters, appId: value };
-                setFilters(newFilters);
-                fetchUsers(1, pagination.pageSize, newFilters);
+        {/* 主搜索（用户名）+ 高级筛选 */}
+        <Row gutter={12} align="middle" wrap>
+          <Col flex="none">
+            <Space.Compact
+              style={{
+                width: 360,
+                maxWidth: 'calc(100vw - 120px)',
               }}
             >
-              {applications.map(app => (
-                <Option key={app.id} value={app.id}>{app.appName}</Option>
-              ))}
-            </Select>
+              <Input
+                placeholder="搜索用户名"
+                allowClear
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                onPressEnter={() => applyUsernameSearch()}
+                style={{ minWidth: 0 }}
+              />
+              <Button type="primary" onClick={() => applyUsernameSearch()}>
+                搜索
+              </Button>
+            </Space.Compact>
           </Col>
-          <Col span={6}>
-            <Input
-              placeholder="搜索用户名"
-              allowClear
-              onPressEnter={(e: any) => {
-                const newFilters = { ...filters, username: e.target.value };
-                setFilters(newFilters);
-                fetchUsers(1, pagination.pageSize, newFilters);
+          <Col flex="none">
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (open) {
+                  syncListFilterFormFromFilters();
+                }
               }}
-            />
-          </Col>
-          <Col span={6}>
-            <Input
-              placeholder="搜索邮箱"
-              allowClear
-              onPressEnter={(e: any) => {
-                const newFilters = { ...filters, email: e.target.value };
-                setFilters(newFilters);
-                fetchUsers(1, pagination.pageSize, newFilters);
-              }}
-            />
-          </Col>
-          <Col span={6}>
-            <Input
-              placeholder="搜索手机号"
-              allowClear
-              onPressEnter={(e: any) => {
-                const newFilters = { ...filters, phone: e.target.value };
-                setFilters(newFilters);
-                fetchUsers(1, pagination.pageSize, newFilters);
-              }}
-            />
+              content={
+                <div style={{ width: 420, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={16}>
+                      <Col span={24}>
+                        <Form.Item label="应用" name="appId">
+                          <Select
+                            allowClear
+                            placeholder="选择应用"
+                            options={applications.map((app) => ({
+                              label: app.appName,
+                              value: app.id,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item label="邮箱" name="email">
+                          <Input allowClear placeholder="搜索邮箱" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item label="手机号" name="phone">
+                          <Input allowClear placeholder="搜索手机号" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col>
+                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                      </Col>
+                      <Col>
+                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                          查询
+                        </Button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
+              }
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />}>筛选</Button>
+              </Badge>
+            </Popover>
           </Col>
         </Row>
 
@@ -965,7 +1064,7 @@ const AppUserManagementContent: React.FC = () => {
               key: 'deviceId',
               width: 180,
               render: (text: string) => (
-                <Text code style={{ fontSize: 12 }}>{text}</Text>
+                <Tag style={{ fontSize: 12, margin: 0 }}>{text}</Tag>
               ),
             },
             {
