@@ -5,6 +5,8 @@ import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.AppUserDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
+import com.ayssu.ciphergate.dto.ExtendMemberDaysDTO;
+import com.ayssu.ciphergate.dto.MemberExpiresAtDTO;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
 import com.ayssu.ciphergate.entity.User;
@@ -21,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 /**
@@ -227,5 +230,40 @@ public class AppUserController {
         }
     }
 
+    @PostMapping("/{id}/extend-member")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "延长终端用户会员")
+    @Operation(summary = "延长会员（按天累加到到期时间）")
+    public Result<AppUser> extendMember(
+            @PathVariable Long id,
+            @Valid @RequestBody ExtendMemberDaysDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUser updated = appUserService.extendMemberByDays(id, body.getDays(), currentUser.getId());
+            return Result.success("延长成功", updated);
+        } catch (Exception e) {
+            log.error("延长会员失败: id={}", id, e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/member-expires")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "设置终端用户会员到期")
+    @Operation(summary = "设置/清空会员到期时间")
+    public Result<AppUser> setMemberExpires(
+            @PathVariable Long id,
+            @RequestBody MemberExpiresAtDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUser updated = appUserService.setMemberExpiresAt(id,
+                    body != null ? body.getMemberExpiresAt() : null,
+                    currentUser.getId());
+            return Result.success("保存成功", updated);
+        } catch (Exception e) {
+            log.error("设置会员到期失败: id={}", id, e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
 
 }

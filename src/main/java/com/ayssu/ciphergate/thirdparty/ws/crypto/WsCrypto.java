@@ -76,6 +76,18 @@ public final class WsCrypto {
         }
     }
 
+    /**
+     * 从 WS 会话主密钥派生「单包」变量载荷密钥（每 HEARTBEAT 递增 varPacketSeq）。
+     * 客户端在 TEE 内持有 sessionKey 时，用相同算法派生子密钥再 AES-GCM 解密。
+     */
+    public static byte[] deriveWsVariablePacketSubKey(byte[] sessionMaster32, long varPacketSeq) {
+        if (sessionMaster32 == null || sessionMaster32.length != 32) {
+            throw new IllegalArgumentException("sessionMaster32 must be 32 bytes");
+        }
+        byte[] info = utf8("cg-ws-var-packet-v1|" + varPacketSeq);
+        return hkdfSha256(sessionMaster32, utf8("cg-ws-var-packet-salt-v1"), info, 32);
+    }
+
     public static AesGcmPack aesGcmEncrypt(byte[] key32, byte[] plain, byte[] aad) {
         try {
             byte[] iv = new byte[12];

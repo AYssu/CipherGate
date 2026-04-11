@@ -11,6 +11,8 @@ public class WsEnvelope {
     private String connId;
     private Long ts;
     private Long seq;
+    /** HEARTBEAT：变量包序号（与 HKDF 子密钥派生一致，明文）。 */
+    private Long varPacketSeq;
     private String nonce;
 
     // HELLO fields

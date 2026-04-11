@@ -35,7 +35,7 @@ public class AppUserBinding implements Serializable {
     private Long userId;
     
     /**
-     * 绑定类型: LICENSE=卡密绑定, TRIAL=试用, VIP=会员
+     * 绑定类型: LICENSE=卡密绑定, TRIAL=试用, VIP=会员, ACCOUNT=账号口令(WS)登录设备
      */
     private String bindType;
     

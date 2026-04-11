@@ -6,6 +6,8 @@ import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
+import java.time.LocalDateTime;
+
 /**
  * 应用终端用户服务接口
  */
@@ -55,4 +57,14 @@ public interface AppUserService {
      * 解绑用户设备
      */
     void unbindDevice(Long userId, Long bindingId, String reason, Long operatorId);
+
+    /**
+     * 在 max(当前时间, 原到期时间) 基础上增加会员天数（充值渠道可复用）
+     */
+    AppUser extendMemberByDays(Long id, int days, Long operatorId);
+
+    /**
+     * 直接设置或清空会员到期时间（null 表示清空）
+     */
+    AppUser setMemberExpiresAt(Long id, LocalDateTime memberExpiresAt, Long operatorId);
 }

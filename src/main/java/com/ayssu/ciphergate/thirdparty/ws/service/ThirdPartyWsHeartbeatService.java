@@ -2,7 +2,9 @@ package com.ayssu.ciphergate.thirdparty.ws.service;
 
 import com.ayssu.ciphergate.entity.AppVariable;
 import com.ayssu.ciphergate.entity.Application;
+import com.ayssu.ciphergate.entity.VariableSecurityTier;
 import com.ayssu.ciphergate.mapper.AppVariableMapper;
+import com.ayssu.ciphergate.thirdparty.ws.ThirdPartyWsHandler;
 import com.ayssu.ciphergate.thirdparty.ws.crypto.WsCrypto;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsCipher;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsEnvelope;
@@ -17,7 +19,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,11 +29,11 @@ import java.util.Map;
 public class ThirdPartyWsHeartbeatService {
     private static final long INTERVAL_MS = 5_000L;
 
-    // MUST match handler attribute keys
     private static final String ATTR_CONN_ID = "cg.ws.connId";
     private static final String ATTR_APP = "cg.ws.app";
     private static final String ATTR_SESSION_KEY = "cg.ws.sessionKey";
     private static final String ATTR_AUTHED = "cg.ws.authed";
+    private static final String ATTR_VAR_PACKET_SEQ = ThirdPartyWsHandler.ATTR_VAR_PACKET_SEQ;
 
     private final ThirdPartyWsSessionRegistry sessionRegistry;
     private final AppVariableMapper appVariableMapper;
@@ -56,13 +58,22 @@ public class ThirdPartyWsHeartbeatService {
                     continue;
                 }
 
-                Map<String, Object> variables = getAppVariables(app.getId());
-                Map<String, Object> payload = new HashMap<>();
+                long lastPacket = session.getAttributes().get(ATTR_VAR_PACKET_SEQ) instanceof Long l ? l : 0L;
+                long varPacketSeq = lastPacket + 1;
+                session.getAttributes().put(ATTR_VAR_PACKET_SEQ, varPacketSeq);
+
+                byte[] subKey = WsCrypto.deriveWsVariablePacketSubKey(sessionKey, varPacketSeq);
+
+                Map<String, Map<String, Object>> byTier = variablesByTier(app.getId());
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("v", 1);
                 payload.put("ts", now);
-                payload.put("variables", variables);
+                payload.put("varPacketSeq", varPacketSeq);
+                payload.put("variablesByTier", byTier);
 
                 byte[] plain = objectMapper.writeValueAsBytes(payload);
-                WsCrypto.AesGcmPack enc = WsCrypto.aesGcmEncrypt(sessionKey, plain, null);
+                byte[] aad = WsCrypto.utf8(connId + "|" + varPacketSeq + "|" + now);
+                WsCrypto.AesGcmPack enc = WsCrypto.aesGcmEncrypt(subKey, plain, aad);
 
                 WsCipher cipher = new WsCipher();
                 cipher.setAlg("AES-256-GCM");
@@ -74,6 +85,7 @@ public class ThirdPartyWsHeartbeatService {
                 env.setType("HEARTBEAT");
                 env.setConnId(connId);
                 env.setTs(now);
+                env.setVarPacketSeq(varPacketSeq);
                 env.setCipher(cipher);
 
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(env)));
@@ -83,16 +95,37 @@ public class ThirdPartyWsHeartbeatService {
         }
     }
 
-    private Map<String, Object> getAppVariables(Long appId) {
+    private Map<String, Map<String, Object>> variablesByTier(Long appId) {
         List<AppVariable> vars = appVariableMapper.selectList(new LambdaQueryWrapper<AppVariable>()
                 .eq(AppVariable::getAppId, appId)
                 .eq(AppVariable::getEnabled, true)
                 .eq(AppVariable::getDeleted, 0));
-        Map<String, Object> out = new HashMap<>();
+        Map<String, Map<String, Object>> out = new LinkedHashMap<>();
+        out.put(VariableSecurityTier.bucketName(VariableSecurityTier.STANDARD), new LinkedHashMap<>());
+        out.put(VariableSecurityTier.bucketName(VariableSecurityTier.SENSITIVE), new LinkedHashMap<>());
+        out.put(VariableSecurityTier.bucketName(VariableSecurityTier.CRITICAL), new LinkedHashMap<>());
         for (AppVariable v : vars) {
-            out.put(v.getVariableName(), v.getVariableValue());
+            int tier = VariableSecurityTier.normalize(v.getSecurityTier());
+            String bucket = VariableSecurityTier.bucketName(tier);
+            out.get(bucket).put(v.getVariableName(), convertVariableValue(v.getVariableValue(), v.getVariableType()));
         }
         return out;
     }
-}
 
+    private Object convertVariableValue(String value, String type) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return switch (type == null ? "" : type) {
+                case "NUMBER" -> Double.parseDouble(value);
+                case "BOOLEAN" -> Boolean.parseBoolean(value);
+                case "JSON" -> objectMapper.readTree(value);
+                case "ARRAY" -> objectMapper.readValue(value, List.class);
+                default -> value;
+            };
+        } catch (Exception e) {
+            return value;
+        }
+    }
+}

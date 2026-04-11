@@ -76,6 +76,16 @@ public class AppUser implements Serializable {
      * 最后登录IP
      */
     private String lastLoginIp;
+
+    /**
+     * 最后登录设备标识（WS AUTH 上报的 deviceId）
+     */
+    private String lastDeviceId;
+
+    /**
+     * 会员到期时间；null 表示未开通会员。充值或管理员加时长时更新。
+     */
+    private LocalDateTime memberExpiresAt;
     
     /**
      * 创建时间
@@ -104,4 +114,24 @@ public class AppUser implements Serializable {
      */
     @TableField(exist = false)
     private Integer bindingCount;
+
+    /** 当前是否有 WS 会话在线（非数据库字段） */
+    @TableField(exist = false)
+    private Boolean wsOnline;
+
+    /** 当前 WS 连接数（非数据库字段） */
+    @TableField(exist = false)
+    private Integer wsSessionCount;
+
+    /** 最早一条当前 WS 会话连接时间（epoch 毫秒，非数据库字段） */
+    @TableField(exist = false)
+    private Long wsEarliestConnectedAtEpochMs;
+
+    /** 相对最早会话的在线秒数（非数据库字段，列表/详情接口计算） */
+    @TableField(exist = false)
+    private Long wsOnlineSeconds;
+
+    /** 当前是否在会员有效期内（非数据库字段） */
+    @TableField(exist = false)
+    private Boolean memberActive;
 }

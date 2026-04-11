@@ -622,6 +622,8 @@ CREATE TABLE IF NOT EXISTS app_user (
     login_count INT DEFAULT 0 COMMENT '登录次数',
     last_login_at DATETIME COMMENT '最后登录时间',
     last_login_ip VARCHAR(50) COMMENT '最后登录IP',
+    last_device_id VARCHAR(255) COMMENT '最后登录设备标识(WS)',
+    member_expires_at DATETIME COMMENT '会员到期时间（空=未开通会员；充值/管理员加时长后写入）',
     
     -- 审计字段
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -632,7 +634,8 @@ CREATE TABLE IF NOT EXISTS app_user (
     UNIQUE KEY uk_app_email (app_id, email),
     INDEX idx_app (app_id),
     INDEX idx_phone (phone),
-    INDEX idx_deleted (deleted)
+    INDEX idx_deleted (deleted),
+    INDEX idx_member_expires (member_expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用终端用户表';
 
 -- 应用用户绑定表（用户与设备的绑定关系）
@@ -642,7 +645,7 @@ CREATE TABLE IF NOT EXISTS app_user_binding (
     user_id BIGINT NOT NULL COMMENT '终端用户ID',
     
     -- 绑定类型
-    bind_type VARCHAR(20) NOT NULL COMMENT '绑定类型: LICENSE=卡密绑定, TRIAL=试用, VIP=会员',
+    bind_type VARCHAR(20) NOT NULL COMMENT '绑定类型: LICENSE=卡密, TRIAL=试用, VIP=会员, ACCOUNT=WS账号登录设备',
     license_key_id BIGINT COMMENT '关联的卡密ID(bind_type=LICENSE时)',
     
     -- 设备信息
@@ -781,6 +784,7 @@ CREATE TABLE IF NOT EXISTS app_variable (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除：0-正常，1-已删除',
+    security_tier INT NOT NULL DEFAULT 2 COMMENT '安全分级: 0=STANDARD 1=SENSITIVE 2=CRITICAL（WS 分桶；新建默认最高档）',
     UNIQUE KEY uk_app_variable_name (app_id, variable_name, deleted),
     INDEX idx_app_id (app_id),
     INDEX idx_variable_name (variable_name),

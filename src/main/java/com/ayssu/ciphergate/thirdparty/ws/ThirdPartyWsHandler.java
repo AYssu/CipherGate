@@ -8,8 +8,12 @@ import com.ayssu.ciphergate.thirdparty.ws.model.WsCipher;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsEnvelope;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsAuthPayload;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsAuthService;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsDeviceBindService;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsLoginRecorder;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsSessionRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
+import com.ayssu.ciphergate.thirdparty.ws.util.WsClientIp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +27,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +38,7 @@ import java.util.UUID;
  * Flow:
  * 1) HELLO (plain): appKey + clientPubKey(x509,b64) + ts/nonce/seq
  * 2) HELLO_ACK (plain): connId + serverPubKey + serverNonce
- * 3) AUTH (encrypted): {appKey, appSig, username, password, ts, nonce, seq}
+ * 3) AUTH (encrypted): {appKey, appSig, username, password, deviceId, deviceName, deviceOs, ts, nonce, seq}
  */
 @Slf4j
 @Component
@@ -51,17 +56,27 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private static final String ATTR_SESSION_KEY = "cg.ws.sessionKey";
     private static final String ATTR_AUTHED = "cg.ws.authed";
     private static final String ATTR_LAST_SEQ = "cg.ws.lastSeq";
+    /** 单调递增；每发一条变量 HEARTBEAT +1，用于 HKDF 子密钥。 */
+    public static final String ATTR_VAR_PACKET_SEQ = "cg.ws.varPacketSeq";
+    private static final String ATTR_APP_USER_ID = "cg.ws.appUserId";
+    private static final String ATTR_WS_CONNECTED_AT_MS = "cg.ws.connectedAtMs";
+    /** 建连时解析的客户端 IP（升级请求 RemoteAddress / X-Forwarded-For 等），AUTH 与绑定复用 */
+    private static final String ATTR_CLIENT_IP = "cg.ws.clientIp";
 
     private final ObjectMapper objectMapper;
     private final AppUserWsAuthService appUserWsAuthService;
     private final WsNonceService wsNonceService;
     private final ThirdPartyWsSessionRegistry sessionRegistry;
+    private final AppUserWsLoginRecorder appUserWsLoginRecorder;
+    private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
+    private final AppUserWsDeviceBindService appUserWsDeviceBindService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String connId = UUID.randomUUID().toString().replace("-", "");
         session.getAttributes().put(ATTR_CONN_ID, connId);
         session.getAttributes().put(ATTR_AUTHED, false);
+        session.getAttributes().put(ATTR_CLIENT_IP, WsClientIp.resolve(session));
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                 "type", "CONNECTED",
                 "connId", connId,
@@ -74,6 +89,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         Object connIdObj = session.getAttributes().get(ATTR_CONN_ID);
         if (connIdObj instanceof String connId) {
             sessionRegistry.remove(connId);
+            appUserWsPresenceRegistry.unregister(connId);
         }
         super.afterConnectionClosed(session, status);
     }
@@ -148,6 +164,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         session.getAttributes().put(ATTR_SERVER_NONCE, WsCrypto.b64(serverNonce));
         session.getAttributes().put(ATTR_SESSION_KEY, sessionKey);
         session.getAttributes().put(ATTR_LAST_SEQ, 0L);
+        session.getAttributes().put(ATTR_VAR_PACKET_SEQ, 0L);
 
         WsEnvelope ack = new WsEnvelope();
         ack.setType("HELLO_ACK");
@@ -230,6 +247,16 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             return;
         }
 
+        String deviceId = StringUtils.hasText(payload.getDeviceId()) ? payload.getDeviceId().trim() : null;
+        String deviceName = StringUtils.hasText(payload.getDeviceName()) ? payload.getDeviceName().trim() : null;
+        String deviceOs = StringUtils.hasText(payload.getDeviceOs()) ? payload.getDeviceOs().trim() : null;
+        if (!StringUtils.hasText(deviceId) || deviceId.length() > 255
+                || !StringUtils.hasText(deviceName) || deviceName.length() > 100
+                || !StringUtils.hasText(deviceOs) || deviceOs.length() > 50) {
+            close(session, 1008, "BAD_DEVICE");
+            return;
+        }
+
         // verify AppUser credentials under appId
         AppUser u;
         try {
@@ -239,8 +266,41 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             return;
         }
 
+        // 会员：未设置到期时间视为未开通；到期时间不晚于当前时刻视为已过期
+        LocalDateTime memberExp = u.getMemberExpiresAt();
+        LocalDateTime nowLdt = LocalDateTime.now();
+        if (memberExp == null || !memberExp.isAfter(nowLdt)) {
+            close(session, 1008, "MEMBER_EXPIRED");
+            return;
+        }
+
+        String clientIp = clientIpFromSession(session);
+        try {
+            appUserWsDeviceBindService.bindOrTouchOnWsLogin(app.getId(), u.getId(), deviceId, deviceName, deviceOs, clientIp);
+        } catch (IllegalStateException e) {
+            String code = e.getMessage();
+            if ("DEVICE_BANNED".equals(code)) {
+                close(session, 1008, "DEVICE_BANNED");
+            } else if ("DEVICE_CONFLICT".equals(code)) {
+                close(session, 1008, "DEVICE_CONFLICT");
+            } else {
+                close(session, 1008, "BIND_FAIL");
+            }
+            return;
+        } catch (Exception e) {
+            log.warn("ws device bind failed: {}", e.getMessage());
+            close(session, 1008, "BIND_FAIL");
+            return;
+        }
+
         session.getAttributes().put(ATTR_AUTHED, true);
         sessionRegistry.add(connId, session);
+
+        long connectedAtMs = Instant.now().toEpochMilli();
+        appUserWsLoginRecorder.recordSuccessfulLogin(u.getId(), clientIp, deviceId);
+        appUserWsPresenceRegistry.register(connId, u.getId(), deviceId, clientIp, connectedAtMs);
+        session.getAttributes().put(ATTR_APP_USER_ID, u.getId());
+        session.getAttributes().put(ATTR_WS_CONNECTED_AT_MS, connectedAtMs);
 
         Map<String, Object> ok = new LinkedHashMap<>();
         ok.put("type", "AUTH_OK");
@@ -275,6 +335,14 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         byte[] b = new byte[16];
         new java.security.SecureRandom().nextBytes(b);
         return b;
+    }
+
+    private static String clientIpFromSession(WebSocketSession session) {
+        Object o = session.getAttributes().get(ATTR_CLIENT_IP);
+        if (o instanceof String s && StringUtils.hasText(s)) {
+            return s;
+        }
+        return WsClientIp.resolve(session);
     }
 
     private void close(WebSocketSession session, int code, String reason) {

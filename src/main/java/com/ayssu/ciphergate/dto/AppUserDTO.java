@@ -3,6 +3,8 @@ package com.ayssu.ciphergate.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
  * 应用终端用户DTO
  */
@@ -36,4 +38,7 @@ public class AppUserDTO {
     
     @Schema(description = "个性签名")
     private String signature;
+
+    @Schema(description = "会员到期时间（创建/更新时可选；后续建议用延长接口或 member-expires 接口）")
+    private LocalDateTime memberExpiresAt;
 }

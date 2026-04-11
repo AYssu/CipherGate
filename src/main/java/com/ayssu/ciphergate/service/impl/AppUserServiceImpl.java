@@ -11,6 +11,7 @@ import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.AppUserService;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * 应用终端用户服务实现类
@@ -36,6 +38,7 @@ public class AppUserServiceImpl implements AppUserService {
     private final ApplicationMapper applicationMapper;
     private final SecurityUtils securityUtils;
     private final SystemMessageService systemMessageService;
+    private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
@@ -178,6 +181,9 @@ public class AppUserServiceImpl implements AppUserService {
         }
         if (StringUtils.hasText(dto.getSignature())) {
             appUser.setSignature(dto.getSignature());
+        }
+        if (dto.getMemberExpiresAt() != null) {
+            appUser.setMemberExpiresAt(dto.getMemberExpiresAt());
         }
         
         appUser.setUpdatedAt(LocalDateTime.now());
@@ -395,5 +401,75 @@ public class AppUserServiceImpl implements AppUserService {
                .eq(AppUserBinding::getDeleted, 0);
         long count = appUserBindingMapper.selectCount(wrapper);
         appUser.setBindingCount((int) count);
+
+        enrichMemberStatus(appUser);
+        enrichWsPresence(appUser);
+    }
+
+    private void enrichMemberStatus(AppUser appUser) {
+        LocalDateTime me = appUser.getMemberExpiresAt();
+        appUser.setMemberActive(me != null && me.isAfter(LocalDateTime.now()));
+    }
+
+    private void enrichWsPresence(AppUser appUser) {
+        if (appUser == null || appUser.getId() == null) {
+            return;
+        }
+        AppUserWsPresenceRegistry.PresenceSnapshot snap = appUserWsPresenceRegistry.snapshot(appUser.getId());
+        appUser.setWsOnline(snap.isOnline());
+        appUser.setWsSessionCount(snap.getSessionCount());
+        if (snap.isOnline()) {
+            appUser.setWsEarliestConnectedAtEpochMs(snap.getEarliestConnectedAtEpochMs());
+            long sec = (System.currentTimeMillis() - snap.getEarliestConnectedAtEpochMs()) / 1000L;
+            appUser.setWsOnlineSeconds(Math.max(0L, sec));
+        } else {
+            appUser.setWsEarliestConnectedAtEpochMs(null);
+            appUser.setWsOnlineSeconds(null);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUser extendMemberByDays(Long id, int days, Long operatorId) {
+        if (days < 1) {
+            throw new RuntimeException("延长天数至少为 1");
+        }
+        AppUser appUser = appUserMapper.selectById(id);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!hasPermission(appUser.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限操作此用户");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime base = appUser.getMemberExpiresAt();
+        if (base == null || base.isBefore(now) || base.isEqual(now)) {
+            base = now;
+        }
+        LocalDateTime newExp = base.plus(days, ChronoUnit.DAYS);
+        appUser.setMemberExpiresAt(newExp);
+        appUser.setUpdatedAt(now);
+        appUserMapper.updateById(appUser);
+        log.info("延长会员: userId={}, days={}, newExpiresAt={}, operatorId={}", id, days, newExp, operatorId);
+        fillRelatedInfo(appUser);
+        return appUser;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUser setMemberExpiresAt(Long id, LocalDateTime memberExpiresAt, Long operatorId) {
+        AppUser appUser = appUserMapper.selectById(id);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        if (!hasPermission(appUser.getAppId(), operatorId)) {
+            throw new RuntimeException("无权限操作此用户");
+        }
+        appUser.setMemberExpiresAt(memberExpiresAt);
+        appUser.setUpdatedAt(LocalDateTime.now());
+        appUserMapper.updateById(appUser);
+        log.info("设置会员到期: userId={}, memberExpiresAt={}, operatorId={}", id, memberExpiresAt, operatorId);
+        fillRelatedInfo(appUser);
+        return appUser;
     }
 }

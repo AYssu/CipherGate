@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ayssu.ciphergate.mapper.AppUserBindingMapper">
+
+    <select id="selectByAppUserDeviceRaw" resultType="com.ayssu.ciphergate.entity.AppUserBinding">
+        SELECT *
+        FROM app_user_binding
+        WHERE app_id = #{appId}
+          AND user_id = #{userId}
+          AND device_id = #{deviceId}
+        LIMIT 1
+    </select>
+
+    <!-- 按主键更新，避免逻辑删除插件在 WHERE 中追加 deleted=0 导致无法恢复软删行 -->
+    <update id="updateWsAccountDeviceTouchById">
+        UPDATE app_user_binding
+        SET deleted = 0,
+            status = 1,
+            bind_type = #{bindType},
+            device_name = #{deviceName},
+            device_os = #{deviceOs},
+            device_ip = #{deviceIp},
+            last_active_at = #{lastActive},
+            use_count = COALESCE(use_count, 0) + 1,
+            updated_at = #{lastActive},
+            first_bind_at = COALESCE(first_bind_at, #{lastActive})
+        WHERE id = #{id}
+    </update>
+</mapper>

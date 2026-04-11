@@ -9,6 +9,8 @@ import {
   Modal,
   Form,
   Input,
+  InputNumber,
+  DatePicker,
   Select,
   message,
   Row,
@@ -16,6 +18,7 @@ import {
   Dropdown,
   type MenuProps,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   PlusOutlined,
   EditOutlined,
@@ -26,6 +29,7 @@ import {
   StopOutlined,
   UserOutlined,
   MobileOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import {
   getAppUserList,
@@ -36,6 +40,8 @@ import {
   banUser,
   getUserBindings,
   unbindDevice,
+  extendMemberDays,
+  setMemberExpiresAt,
   type AppUser,
   type AppUserBinding,
 } from '../services/appUserService';
@@ -43,6 +49,16 @@ import { getApplicationList, type Application } from '../services/applicationSer
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+function formatOnlineSeconds(sec?: number | null): string {
+  if (sec == null || sec < 0) return '-';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  if (h > 0) return `${h}时${m}分`;
+  if (m > 0) return `${m}分${s}秒`;
+  return `${s}秒`;
+}
 
 const AppUserManagementContent: React.FC = () => {
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -56,8 +72,14 @@ const AppUserManagementContent: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [userBindings, setUserBindings] = useState<AppUserBinding[]>([]);
   const [bindingsLoading, setBindingsLoading] = useState(false);
+  const [extendModalVisible, setExtendModalVisible] = useState(false);
+  const [extendUserId, setExtendUserId] = useState<number | null>(null);
+  const [memberExpModalVisible, setMemberExpModalVisible] = useState(false);
+  const [memberExpUser, setMemberExpUser] = useState<AppUser | null>(null);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [extendForm] = Form.useForm();
+  const [memberExpForm] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -108,6 +130,14 @@ const AppUserManagementContent: React.FC = () => {
     fetchUsers();
   }, []);
 
+  // 定时刷新列表，使「在线 / 在线时长」接近实时（依赖管理端轮询）
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      fetchUsers(pagination.current, pagination.pageSize, filters);
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [pagination.current, pagination.pageSize, filters]);
+
   // 打开创建/编辑弹窗
   const handleOpenModal = (user?: AppUser) => {
     setEditingUser(user || null);
@@ -143,8 +173,12 @@ const AppUserManagementContent: React.FC = () => {
           message.error(result.message || '更新失败');
         }
       } else {
+        const createValues: any = { ...values };
+        if (createValues.memberExpiresAt && dayjs.isDayjs(createValues.memberExpiresAt)) {
+          createValues.memberExpiresAt = createValues.memberExpiresAt.format('YYYY-MM-DDTHH:mm:ss');
+        }
         // 创建
-        const result: any = await createAppUser(values);
+        const result: any = await createAppUser(createValues);
         if (result.code === 200) {
           message.success('创建成功');
           setModalVisible(false);
@@ -252,6 +286,67 @@ const AppUserManagementContent: React.FC = () => {
     }
   };
 
+  const handleExtendMemberOk = async () => {
+    try {
+      const { days } = await extendForm.validateFields();
+      if (!extendUserId) return;
+      const result: any = await extendMemberDays(extendUserId, days);
+      if (result.code === 200) {
+        message.success('会员已延长');
+        setExtendModalVisible(false);
+        setExtendUserId(null);
+        fetchUsers(pagination.current, pagination.pageSize, filters);
+      } else {
+        message.error(result.message || '操作失败');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMemberExpiresOk = async () => {
+    try {
+      const { expires } = await memberExpForm.validateFields();
+      if (!memberExpUser) return;
+      if (!expires) {
+        message.warning('请选择到期时间，或使用下方「清空会员」');
+        return;
+      }
+      const iso = dayjs(expires).format('YYYY-MM-DDTHH:mm:ss');
+      const result: any = await setMemberExpiresAt(memberExpUser.id, iso);
+      if (result.code === 200) {
+        message.success('已保存');
+        setMemberExpModalVisible(false);
+        setMemberExpUser(null);
+        fetchUsers(pagination.current, pagination.pageSize, filters);
+      } else {
+        message.error(result.message || '操作失败');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearMemberExpires = async () => {
+    if (!memberExpUser) return;
+    Modal.confirm({
+      title: '清空会员',
+      content: '确定取消该用户的会员到期时间？',
+      onOk: async () => {
+        const result: any = await setMemberExpiresAt(memberExpUser.id, null);
+        if (result.code === 200) {
+          message.success('已清空');
+          setMemberExpModalVisible(false);
+          setMemberExpUser(null);
+          memberExpForm.resetFields();
+          fetchUsers(pagination.current, pagination.pageSize, filters);
+        } else {
+          message.error(result.message || '操作失败');
+        }
+      },
+    });
+  };
+
   // 打开设备列表弹窗
   const handleOpenBindingsModal = (userId: number) => {
     setSelectedUserId(userId);
@@ -293,6 +388,28 @@ const AppUserManagementContent: React.FC = () => {
         icon: <MobileOutlined />,
         label: '查看设备',
         onClick: () => handleOpenBindingsModal(record.id),
+      },
+      {
+        key: 'extend-member',
+        icon: <CrownOutlined />,
+        label: '延长会员',
+        onClick: () => {
+          setExtendUserId(record.id);
+          extendForm.setFieldsValue({ days: 30 });
+          setExtendModalVisible(true);
+        },
+      },
+      {
+        key: 'set-member-expires',
+        icon: <CrownOutlined />,
+        label: '设置会员到期',
+        onClick: () => {
+          setMemberExpUser(record);
+          memberExpForm.setFieldsValue({
+            expires: record.memberExpiresAt ? dayjs(record.memberExpiresAt) : undefined,
+          });
+          setMemberExpModalVisible(true);
+        },
       },
       {
         key: 'edit',
@@ -385,6 +502,55 @@ const AppUserManagementContent: React.FC = () => {
       ),
     },
     {
+      title: '会员',
+      key: 'member',
+      width: 120,
+      render: (_: unknown, record: AppUser) => {
+        const active = record.memberActive;
+        const exp = record.memberExpiresAt;
+        return (
+          <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
+            <Tag color={active ? 'gold' : exp ? 'default' : 'blue'}>
+              {active ? '会员有效' : exp ? '已过期' : '未开通'}
+            </Tag>
+            {exp ? (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {dayjs(exp).format('YYYY-MM-DD HH:mm')}
+              </Text>
+            ) : null}
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'WS在线',
+      dataIndex: 'wsOnline',
+      key: 'wsOnline',
+      width: 88,
+      align: 'center' as const,
+      render: (online: boolean | undefined, record: AppUser) => (
+        <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
+          <Tag color={online ? 'success' : 'default'}>{online ? '在线' : '离线'}</Tag>
+          {online && record.wsSessionCount != null && record.wsSessionCount > 1 ? (
+            <Text type="secondary">{record.wsSessionCount} 会话</Text>
+          ) : null}
+        </Space>
+      ),
+    },
+    {
+      title: '在线时长',
+      dataIndex: 'wsOnlineSeconds',
+      key: 'wsOnlineSeconds',
+      width: 100,
+      align: 'center' as const,
+      render: (_: unknown, record: AppUser) =>
+        record.wsOnline ? (
+          <Text style={{ fontSize: 12 }}>{formatOnlineSeconds(record.wsOnlineSeconds)}</Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
+    },
+    {
       title: '登录次数',
       dataIndex: 'loginCount',
       key: 'loginCount',
@@ -410,6 +576,21 @@ const AppUserManagementContent: React.FC = () => {
           </Text>
         ) : '-'
       ),
+    },
+    {
+      title: '最后登录IP',
+      dataIndex: 'lastLoginIp',
+      key: 'lastLoginIp',
+      width: 130,
+      render: (ip: string) => (ip ? <Text code style={{ fontSize: 11 }}>{ip}</Text> : '-'),
+    },
+    {
+      title: '最后登录设备',
+      dataIndex: 'lastDeviceId',
+      key: 'lastDeviceId',
+      width: 160,
+      ellipsis: true,
+      render: (id: string) => (id ? <Text code style={{ fontSize: 11 }}>{id}</Text> : '-'),
     },
     {
       title: '创建时间',
@@ -535,7 +716,7 @@ const AppUserManagementContent: React.FC = () => {
               fetchUsers(page, pageSize, filters);
             },
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1920 }}
         />
       </Space>
 
@@ -634,6 +815,75 @@ const AppUserManagementContent: React.FC = () => {
             name="signature"
           >
             <Input.TextArea rows={3} placeholder="输入个性签名" />
+          </Form.Item>
+
+          {!editingUser && (
+            <Form.Item label="会员到期（可选）" name="memberExpiresAt">
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD HH:mm:ss"
+                placeholder="不选表示暂不开通会员"
+              />
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
+
+      <Modal
+        title="延长会员"
+        open={extendModalVisible}
+        onOk={handleExtendMemberOk}
+        onCancel={() => {
+          setExtendModalVisible(false);
+          setExtendUserId(null);
+        }}
+        okText="确定"
+        cancelText="取消"
+      >
+        <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            label="增加天数"
+            name="days"
+            rules={[{ required: true, message: '请输入天数' }]}
+            initialValue={30}
+          >
+            <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+          </Form.Item>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            在「当前时间」与「原到期时间」中较晚的时间点上累加天数；未开通则从当前时间起算。
+          </Text>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="设置会员到期"
+        open={memberExpModalVisible}
+        onOk={handleMemberExpiresOk}
+        onCancel={() => {
+          setMemberExpModalVisible(false);
+          setMemberExpUser(null);
+        }}
+        footer={[
+          <Button key="clear" danger onClick={handleClearMemberExpires}>
+            清空会员
+          </Button>,
+          <Button key="cancel" onClick={() => { setMemberExpModalVisible(false); setMemberExpUser(null); }}>
+            取消
+          </Button>,
+          <Button key="ok" type="primary" onClick={handleMemberExpiresOk}>
+            保存
+          </Button>,
+        ]}
+      >
+        <Form form={memberExpForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label="到期时间" name="expires">
+            <DatePicker
+              showTime
+              style={{ width: '100%' }}
+              format="YYYY-MM-DD HH:mm:ss"
+              placeholder="选择日期时间"
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -743,7 +993,8 @@ const AppUserManagementContent: React.FC = () => {
                 const colorMap: { [key: string]: string } = {
                   'LICENSE': 'green',
                   'TRIAL': 'orange',
-                  'VIP': 'purple'
+                  'VIP': 'purple',
+                  'ACCOUNT': 'cyan',
                 };
                 return <Tag color={colorMap[text] || 'default'}>{text}</Tag>;
               },

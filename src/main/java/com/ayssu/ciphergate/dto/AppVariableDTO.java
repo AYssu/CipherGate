@@ -2,6 +2,8 @@ package com.ayssu.ciphergate.dto;
 
 import lombok.Data;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -53,6 +55,13 @@ public class AppVariableDTO {
     private String tags;
     
     private Map<String, Object> metadata;
+
+    /**
+     * 安全分级：0=STANDARD，1=SENSITIVE，2=CRITICAL（默认 2）
+     */
+    @Min(0)
+    @Max(2)
+    private Integer securityTier = 2;
     
     @Size(max = 500, message = "变更原因长度不能超过500位")
     private String changeReason;

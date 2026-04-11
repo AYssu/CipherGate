@@ -4,6 +4,7 @@ import com.ayssu.ciphergate.dto.AppVariableDTO;
 import com.ayssu.ciphergate.dto.AppVariableQueryDTO;
 import com.ayssu.ciphergate.entity.AppVariable;
 import com.ayssu.ciphergate.entity.AppVariableHistory;
+import com.ayssu.ciphergate.entity.VariableSecurityTier;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.mapper.AppVariableHistoryMapper;
 import com.ayssu.ciphergate.mapper.AppVariableMapper;
@@ -132,6 +133,7 @@ public class AppVariableServiceImpl implements AppVariableService {
         
         AppVariable variable = new AppVariable();
         BeanUtils.copyProperties(dto, variable);
+        variable.setSecurityTier(VariableSecurityTier.normalize(variable.getSecurityTier()));
         
         variable.setDeleted(0);
         variable.setCreatedBy(operatorId);
@@ -209,6 +211,9 @@ public class AppVariableServiceImpl implements AppVariableService {
         }
         if (dto.getMetadata() != null) {
             variable.setMetadata(dto.getMetadata());
+        }
+        if (dto.getSecurityTier() != null) {
+            variable.setSecurityTier(VariableSecurityTier.normalize(dto.getSecurityTier()));
         }
         
         variable.setUpdatedBy(operatorId);

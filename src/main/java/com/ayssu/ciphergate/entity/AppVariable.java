@@ -121,6 +121,11 @@ public class AppVariable implements Serializable {
      * 逻辑删除
      */
     private Integer deleted;
+
+    /**
+     * 安全分级：0=STANDARD，1=SENSITIVE，2=CRITICAL（WS 分桶；库表与 DTO 默认 2=CRITICAL；null 按 CRITICAL 处理）
+     */
+    private Integer securityTier;
     
     /**
      * 应用名称（非数据库字段）

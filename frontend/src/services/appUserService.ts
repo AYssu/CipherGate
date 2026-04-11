@@ -13,10 +13,22 @@ export interface AppUser {
   loginCount: number;
   lastLoginAt?: string;
   lastLoginIp?: string;
+  /** 最后 WS 登录上报的 deviceId */
+  lastDeviceId?: string;
   createdAt: string;
   updatedAt: string;
   appName?: string;
   bindingCount?: number;
+  /** 当前是否有第三方 WS 会话（服务端内存，多机未聚合） */
+  wsOnline?: boolean;
+  wsSessionCount?: number;
+  wsEarliestConnectedAtEpochMs?: number;
+  /** 相对最早会话的在线秒数 */
+  wsOnlineSeconds?: number;
+  /** 会员到期时间 */
+  memberExpiresAt?: string;
+  /** 当前是否在会员有效期内 */
+  memberActive?: boolean;
 }
 
 export interface AppUserDTO {
@@ -29,6 +41,7 @@ export interface AppUserDTO {
   nickname?: string;
   avatarUrl?: string;
   signature?: string;
+  memberExpiresAt?: string;
 }
 
 export interface AppUserQueryDTO {
@@ -118,4 +131,14 @@ export const unbindDevice = (userId: number, bindingId: number, reason?: string)
   return request.delete(`/app-users/${userId}/bindings/${bindingId}`, {
     data: { reason }
   });
+};
+
+/** 延长会员天数（在「当前时间」与「原到期时间」中较晚者基础上累加） */
+export const extendMemberDays = (id: number, days: number) => {
+  return request.post(`/app-users/${id}/extend-member`, { days });
+};
+
+/** 直接设置或清空会员到期；memberExpiresAt 为 null 表示清空 */
+export const setMemberExpiresAt = (id: number, memberExpiresAt: string | null) => {
+  return request.put(`/app-users/${id}/member-expires`, { memberExpiresAt });
 };
