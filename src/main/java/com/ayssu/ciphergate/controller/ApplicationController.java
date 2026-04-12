@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -251,6 +252,21 @@ public class ApplicationController {
         } catch (Exception e) {
             log.error("更新加密配置失败", e);
             return Result.error("更新加密配置失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping(value = "/{id}/update-package", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequirePermission("APP_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "上传应用更新包到 MinIO")
+    @Operation(summary = "上传应用更新包", description = "写入 MinIO 默认桶，路径 app-updates/{appId}/...，并更新 update_file_storage_key")
+    public Result<Application> uploadUpdatePackage(@PathVariable Long id, @RequestPart("file") MultipartFile file) {
+        try {
+            User currentUser = getCurrentUser();
+            Application app = applicationService.uploadUpdatePackage(id, file, currentUser.getId());
+            return Result.success("更新包上传成功", app);
+        } catch (Exception e) {
+            log.error("上传应用更新包失败", e);
+            return Result.error("上传更新包失败: " + e.getMessage());
         }
     }
 }

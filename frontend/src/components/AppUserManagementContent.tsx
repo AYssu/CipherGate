@@ -575,21 +575,23 @@ const AppUserManagementContent: React.FC = () => {
     {
       title: '会员',
       key: 'member',
-      width: 120,
+      width: 156,
       render: (_: unknown, record: AppUser) => {
         const active = record.memberActive;
         const exp = record.memberExpiresAt;
         return (
-          <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
-            <Tag color={active ? 'gold' : exp ? 'default' : 'blue'}>
+          <div style={{ minWidth: 0, lineHeight: 1.45 }}>
+            <Tag color={active ? 'gold' : exp ? 'default' : 'blue'} style={{ marginInlineEnd: 0 }}>
               {active ? '会员有效' : exp ? '已过期' : '未开通'}
             </Tag>
             {exp ? (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                {dayjs(exp).format('YYYY-MM-DD HH:mm')}
-              </Text>
+              <div style={{ marginTop: 6 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', whiteSpace: 'nowrap' }}>
+                  到期 {dayjs(exp).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              </div>
             ) : null}
-          </Space>
+          </div>
         );
       },
     },
@@ -659,9 +661,26 @@ const AppUserManagementContent: React.FC = () => {
       title: '最后登录设备',
       dataIndex: 'lastDeviceId',
       key: 'lastDeviceId',
-      width: 160,
+      width: 200,
       ellipsis: true,
-      render: (id: string) => (id ? <Tag style={{ fontSize: 11, margin: 0 }}>{id}</Tag> : '-'),
+      render: (id: string) =>
+        id ? (
+          <Text
+            copyable={{ text: id, tooltips: ['复制设备 ID', '已复制'] }}
+            ellipsis={{ tooltip: id }}
+            style={{
+              display: 'block',
+              maxWidth: '100%',
+              fontSize: 12,
+              fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+              lineHeight: 1.45,
+            }}
+          >
+            {id}
+          </Text>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '创建时间',

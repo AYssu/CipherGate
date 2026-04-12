@@ -45,7 +45,7 @@ public class ApplicationDTO {
     @Schema(description = "状态: 1=正常, 2=维护, 3=停用", example = "1")
     private Integer status;
     
-    @Schema(description = "加密插件标识", example = "rsa-default")
+    @Schema(description = "加密插件标识", example = "aes-default")
     private String encryptionPlugin;
     
     @Schema(description = "加密配置参数")

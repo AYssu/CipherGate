@@ -138,3 +138,8 @@ export const getEncryptionConfig = (id: number) => {
 export const updateEncryptionConfig = (id: number, encryptionConfig: Record<string, any>) => {
   return request.put(`/applications/${id}/encryption-config`, encryptionConfig);
 };
+
+/** 上传应用更新包到 MinIO（multipart，字段名 file） */
+export const uploadApplicationUpdatePackage = (id: number, formData: FormData) => {
+  return request.post(`/applications/${id}/update-package`, formData);
+};

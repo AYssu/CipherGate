@@ -14,7 +14,7 @@
 ## 3. 签名原文与算法
 
 ### 3.1 bodyDigest
-`bodyDigest = SHA256(解密后的明文 JSON 字符串)`（hex）
+`bodyDigest = SHA256(原始 HTTP 请求体字节，UTF-8)`（hex）。与报文是否加密无关，**按线上实际发送的 body 原文**计算。
 
 ### 3.2 signString
 按如下格式拼接（注意换行符 `\\n`）：
@@ -41,12 +41,17 @@ randomNonce123
 `X-Signature = HMAC-SHA256(appSecret, signString)`（hex）
 
 ## 4. 报文加解密（插件）
-- 服务端会把 **请求头 + 原始请求体** 组装成一个 `Map` 交给应用绑定的 `encryptionPlugin` 去做解密。\n
-- 你方只需要保证：**签名基于“解密后的明文 JSON”计算**。
+- 服务端会把 **请求头 + 原始请求体** 等放入 `Map`，交给应用绑定的 `encryptionPlugin` 解密；**请求签名的 bodyDigest 始终基于原始 body**（见 3.1）。
+- 默认内置插件 **`aes-default`**（新建应用的 `encryptionPlugin` 默认值），与独立插件工程 **EncryptionModule / `aes-data-v1`** 算法一致（Hutool 默认 **AES/ECB/PKCS5Padding**）：
+  - **密钥**（UTF-8 长度须为 **16 / 24 / 32** 字节）：优先读应用 `encryptionConfig` 的 **`aesKey`** 或 **`secretKey`**，否则读插件库 **`pluginConfig.aesKey`**，再否则读服务端内置 `aes-default.defaults.json`（仅便于本地联调，生产请务必配置）。
+  - 业务明文为 **canonical 字符串**：`key=value&key2=value2`（**按 key 字典序**拼接，与 EncryptionModule 相同）。
+  - 请求体 JSON 根级字段 **`data`**：**上述明文的 AES 密文的十六进制（HEX）**。
+  - 响应同样通过 `data` 返回 HEX 密文；`pluginId` 为 `aes-default`。
+- 其它算法可通过 PF4J 扩展实现，并在应用上配置对应 `encryptionPlugin` 标识。
 
 ## 5. 接口
 
-### 5.1 卡密登录（唯一接口）
+### 5.1 卡密登录
 - `POST /api/v1/card/login`
 
 请求体（解密后）：
@@ -64,6 +69,22 @@ randomNonce123
 - 首次登录会自动创建绑定并激活卡密（写入 `firstUsedAt`）。
 - 后续登录会复用已存在绑定，只要未过期即可登录。
 - 不返回登录 token，也不包含心跳接口。
+
+### 5.2 软件公告
+- `POST /api/v1/app/notice`
+- 请求头、签名、`bodyDigest`、报文 **AES（`aes-default`）加解密** 与 5.1 及第 4 节一致。
+- 解密后业务体带客户端 **`version`**。规则：
+  - 若 **`version` 为三位数字段 `x.x.x`**（如 `1.0.0`，每段为非负整数）：与服务端应用配置的 **`min_version`（低）～`current_version`（高）** 做闭区间比较；仅当两端在库里也是合法 `x.x.x` 时才参与该侧边界；越界返回错误文案（过低/过高）。
+  - 若 **不是** 上述格式：视为「按当前版本=三方所传」语义，**不做** 区间判断，直接返回公告数据。
+- 响应见 `AppNoticeResponse`：
+  - **`isLatestVersion`**：当客户端与服务的 `current_version` 均为合法 `x.x.x` 且相等时为 `true`，否则在无法比较时也为 `true`（仅返回软件公告）。
+  - **`true`**：填充 **`notice`**（软件公告），`updateNotice` / `updateDownloadUrl` 为空。
+  - **`false`**（客户端版本低于主线）：填充 **`updateNotice`**；若应用在库中配置了 **`update_file_storage_key`** 且 MinIO 默认桶内对象存在，则 **`updateDownloadUrl`** 为 **本服务** `GET /api/v1/app/update-package?ticket=...` 的完整 URL（短时 **ticket**，默认 **5 分钟**有效，HMAC 绑定 `appSecret`），否则为空。客户端可只代理你的后端域名，**无需直连 MinIO**。
+- 若经网关暴露，建议配置 **`app.third-party.public-base-url`**（或环境变量 **`THIRD_PARTY_PUBLIC_BASE_URL`**）为对外前缀（无末尾 `/`），用于生成上述链接；不配则按当前请求的 Host/端口/ContextPath 拼接（请确保反向代理转发 `Host`/`X-Forwarded-*` 或显式配置此前缀）。
+
+### 5.3 更新包下载（不走三方请求体签名）
+- `GET /api/v1/app/update-package?ticket=<urlencode>`
+- 使用 5.2 返回的 `ticket`；校验通过则从 MinIO 读取 `update_file_storage_key` 并以 `application/octet-stream` 附件下载。
 
 ## 6. WebSocket 用户登录（AUTH 明文载荷）
 

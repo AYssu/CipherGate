@@ -4,6 +4,7 @@ import com.ayssu.ciphergate.dto.ApplicationDTO;
 import com.ayssu.ciphergate.dto.ApplicationQueryDTO;
 import com.ayssu.ciphergate.entity.Application;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -60,4 +61,9 @@ public interface ApplicationService {
     Map<String, Object> getEncryptionConfig(Long id, Long userId);
 
     void updateEncryptionConfig(Long id, Map<String, Object> encryptionConfig, Long userId);
+
+    /**
+     * 上传应用更新包到 MinIO，并写入 {@code update_file_storage_key}（覆盖旧对象）。
+     */
+    Application uploadUpdatePackage(Long id, MultipartFile file, Long userId);
 }

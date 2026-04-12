@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS application (
     status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1=正常, 2=维护, 3=停用',
     
     -- 加密配置
-    encryption_plugin VARCHAR(100) DEFAULT 'rsa-default' COMMENT '加密插件标识',
+    encryption_plugin VARCHAR(100) DEFAULT 'aes-default' COMMENT '加密插件标识',
     encryption_config JSON COMMENT '加密配置参数',
     
     -- 功能开关

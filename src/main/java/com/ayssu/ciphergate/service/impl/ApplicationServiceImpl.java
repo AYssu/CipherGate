@@ -8,7 +8,9 @@ import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.ApplicationLogMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
+import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.service.ApplicationService;
+import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,12 +41,16 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
+
+    private static final long MAX_UPDATE_PACKAGE_BYTES = 512L * 1024 * 1024;
     
     private final ApplicationMapper applicationMapper;
     private final ApplicationLogMapper applicationLogMapper;
     private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
     private final SystemMessageService systemMessageService;
+    private final MinioObjectService minioObjectService;
+    private final MinioProperties minioProperties;
     
     @Override
     public Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO) {
@@ -154,7 +161,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setStatus(1);
         }
         if (application.getEncryptionPlugin() == null) {
-            application.setEncryptionPlugin("rsa-default");
+            application.setEncryptionPlugin("aes-default");
         }
         if (application.getTrafficLimit() == null) {
             application.setTrafficLimit(0L);
@@ -391,6 +398,57 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setEncryptionConfig(encryptionConfig);
         application.setUpdatedAt(LocalDateTime.now());
         applicationMapper.updateById(application);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Application uploadUpdatePackage(Long id, MultipartFile file, Long userId) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("请选择文件");
+        }
+        if (file.getSize() > MAX_UPDATE_PACKAGE_BYTES) {
+            throw new RuntimeException("文件过大，单文件最大 512MB");
+        }
+        Application application = applicationMapper.selectById(id);
+        if (application == null) {
+            throw new RuntimeException("应用不存在");
+        }
+        if (!hasPermission(id, userId, false)) {
+            throw new RuntimeException("无权限操作此应用");
+        }
+        String safeName = sanitizeUpdateFilename(file.getOriginalFilename());
+        String objectKey = "app-updates/" + id + "/" + UUID.randomUUID() + "_" + safeName;
+        String oldKey = application.getUpdateFileStorageKey();
+        minioObjectService.uploadBinaryDefaultBucket(objectKey, file, null);
+        if (StringUtils.hasText(oldKey) && !oldKey.trim().equals(objectKey)) {
+            try {
+                minioObjectService.deleteObject(minioProperties.getBucket(), oldKey.trim());
+            } catch (Exception e) {
+                log.warn("删除旧更新包失败（可忽略）: {}", oldKey, e);
+            }
+        }
+        application.setUpdateFileStorageKey(objectKey);
+        application.setUpdatedAt(LocalDateTime.now());
+        applicationMapper.updateById(application);
+        logOperation(id, userId, "UPLOAD", "上传应用更新包: " + objectKey, "SUCCESS", null,
+                Map.of("objectKey", objectKey, "size", file.getSize()));
+        return applicationMapper.selectById(id);
+    }
+
+    private static String sanitizeUpdateFilename(String original) {
+        if (!StringUtils.hasText(original)) {
+            return "package.bin";
+        }
+        String base = original.trim().replace('\\', '/');
+        int slash = base.lastIndexOf('/');
+        if (slash >= 0 && slash < base.length() - 1) {
+            base = base.substring(slash + 1);
+        }
+        base = base.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (base.length() > 180) {
+            base = base.substring(0, 180);
+        }
+        return base.isEmpty() ? "package.bin" : base;
     }
     
     /**

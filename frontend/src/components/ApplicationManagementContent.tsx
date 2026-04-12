@@ -42,6 +42,7 @@ import {
   DatabaseOutlined,
   SafetyOutlined,
   UploadOutlined,
+  SlidersOutlined,
 } from '@ant-design/icons';
 import {
   getApplicationList,
@@ -51,6 +52,9 @@ import {
   generateAppKeys,
   resetAppKeys,
   updateApplicationStatus,
+  getEncryptionConfig,
+  updateEncryptionConfig,
+  uploadApplicationUpdatePackage,
   type Application,
   type ApplicationDTO,
 } from '../services/applicationService';
@@ -70,6 +74,12 @@ const ApplicationManagementContent: React.FC = () => {
     total: 0,
   });
   const [showSecret, setShowSecret] = useState<Record<number, boolean>>({});
+  const [encryptionModalVisible, setEncryptionModalVisible] = useState(false);
+  const [encryptionApp, setEncryptionApp] = useState<Application | null>(null);
+  const [encryptionConfigJson, setEncryptionConfigJson] = useState('{}');
+  const [encryptionLoading, setEncryptionLoading] = useState(false);
+  const [encryptionSaving, setEncryptionSaving] = useState(false);
+  const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
 
   // 获取应用列表
   const fetchApplications = async (page = 1, size = 10) => {
@@ -121,6 +131,27 @@ const ApplicationManagementContent: React.FC = () => {
       form.resetFields();
     }
     setModalVisible(true);
+  };
+
+  const handleUploadUpdatePackage = async (file: File) => {
+    if (!editingApp) return;
+    setUpdatePackageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res: any = await uploadApplicationUpdatePackage(editingApp.id, fd);
+      if (res.code === 200 && res.data) {
+        message.success('更新包已上传到 MinIO');
+        setEditingApp({ ...editingApp, ...res.data });
+        fetchApplications(pagination.current, pagination.pageSize);
+      } else {
+        message.error(res.message || '上传失败');
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUpdatePackageUploading(false);
+    }
   };
 
   // 提交表单
@@ -208,6 +239,60 @@ const ApplicationManagementContent: React.FC = () => {
     navigator.clipboard.writeText(text).then(() => {
       message.success(`${label}已复制到剪贴板`);
     });
+  };
+
+  const openEncryptionConfigModal = async (record: Application) => {
+    setEncryptionApp(record);
+    setEncryptionModalVisible(true);
+    setEncryptionLoading(true);
+    setEncryptionConfigJson('{}');
+    try {
+      const res: any = await getEncryptionConfig(record.id);
+      if (res.code === 200 && res.data && typeof res.data === 'object') {
+        setEncryptionConfigJson(JSON.stringify(res.data, null, 2));
+      } else {
+        setEncryptionConfigJson('{}');
+      }
+    } catch (e) {
+      console.error(e);
+      message.error('加载加密配置失败');
+      setEncryptionConfigJson('{}');
+    } finally {
+      setEncryptionLoading(false);
+    }
+  };
+
+  const handleSaveEncryptionConfig = async () => {
+    if (!encryptionApp) return;
+    let parsed: Record<string, unknown>;
+    try {
+      const raw = (encryptionConfigJson || '').trim();
+      parsed = raw === '' ? {} : JSON.parse(raw);
+    } catch {
+      message.error('JSON 格式不正确，请检查括号与引号');
+      return;
+    }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      message.error('加密配置须为 JSON 对象，例如 {}');
+      return;
+    }
+    setEncryptionSaving(true);
+    try {
+      const res: any = await updateEncryptionConfig(encryptionApp.id, parsed as Record<string, any>);
+      if (res.code === 200) {
+        message.success('加密配置已保存');
+        setEncryptionModalVisible(false);
+        setEncryptionApp(null);
+        fetchApplications(pagination.current, pagination.pageSize);
+      } else {
+        message.error(res.message || '保存失败');
+      }
+    } catch (e) {
+      console.error(e);
+      message.error('保存加密配置失败');
+    } finally {
+      setEncryptionSaving(false);
+    }
   };
 
   // 切换密钥显示
@@ -386,6 +471,12 @@ const ApplicationManagementContent: React.FC = () => {
             icon: <EditOutlined />,
             label: '编辑',
             onClick: () => handleOpenModal(record),
+          },
+          {
+            key: 'encryptionConfig',
+            icon: <SlidersOutlined />,
+            label: '加密配置',
+            onClick: () => void openEncryptionConfigModal(record),
           },
           {
             key: 'resetKeys',
@@ -671,18 +762,90 @@ const ApplicationManagementContent: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="更新文件" name="updateFile" tooltip="上传应用更新文件（暂未启用MinIO，功能预留）">
-            <Upload
-              maxCount={1}
-              beforeUpload={() => {
-                message.info('MinIO文件上传功能暂未启用，敬请期待');
-                return false;
-              }}
-            >
-              <Button icon={<UploadOutlined />} disabled>上传更新文件（功能开发中）</Button>
-            </Upload>
+          <Form.Item
+            label="更新包"
+            tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
+          >
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Upload
+                maxCount={1}
+                showUploadList={false}
+                disabled={!editingApp || updatePackageUploading}
+                beforeUpload={(file) => {
+                  if (!editingApp) {
+                    message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
+                    return Upload.LIST_IGNORE;
+                  }
+                  void handleUploadUpdatePackage(file as File);
+                  return false;
+                }}
+              >
+                <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
+                  上传到 MinIO
+                </Button>
+              </Upload>
+              {editingApp?.updateFileStorageKey ? (
+                <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
+                  当前对象键：{editingApp.updateFileStorageKey}
+                </Text>
+              ) : editingApp ? (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  尚未上传更新包
+                </Text>
+              ) : null}
+            </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={
+          encryptionApp ? (
+            <Space>
+              <SlidersOutlined />
+              <span>加密配置</span>
+              <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
+                {encryptionApp.appName} (ID: {encryptionApp.id})
+              </Text>
+            </Space>
+          ) : (
+            '加密配置'
+          )
+        }
+        open={encryptionModalVisible}
+        onCancel={() => {
+          setEncryptionModalVisible(false);
+          setEncryptionApp(null);
+        }}
+        width={720}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={encryptionSaving}
+        onOk={() => void handleSaveEncryptionConfig()}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
+          （JSON 对象）。默认三方卡密接口插件为 AES（
+          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>aes-default</Tag>
+          ），请至少配置{' '}
+          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>aesKey</Tag>
+          （或 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>secretKey</Tag>
+          ）作为 AES 密钥（UTF-8 长度须为 16 / 24 / 32 字节）。报文体{' '}
+          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>data</Tag>
+          为 Hutool AES 的十六进制密文，明文为按 key 排序的 canonical 字符串（与 EncryptionModule / aes-data-v1 一致）。解密时还会合并插件管理中的
+          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>pluginConfig</Tag>
+          一并传入插件。密钥类参数建议只放在此处，勿写入全局插件配置。
+        </Text>
+        <TextArea
+          value={encryptionConfigJson}
+          onChange={(e) => setEncryptionConfigJson(e.target.value)}
+          placeholder='{}'
+          autoSize={{ minRows: 14, maxRows: 22 }}
+          spellCheck={false}
+          style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}
+          disabled={encryptionLoading}
+        />
       </Modal>
     </Card>
   );

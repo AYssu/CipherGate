@@ -16,7 +16,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CryptoRuntimeService {
-    private static final String DEFAULT_LOCAL_PLUGIN_ID = "rsa-default";
+    private static final String DEFAULT_LOCAL_PLUGIN_ID = "aes-default";
 
     private final List<CryptoPlugin> localPlugins;
     private final PluginManager pluginManager;
