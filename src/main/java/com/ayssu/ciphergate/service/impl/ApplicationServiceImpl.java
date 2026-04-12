@@ -169,6 +169,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (application.getTrafficUsed() == null) {
             application.setTrafficUsed(0L);
         }
+        if (application.getUnbindTimeDeductMode() == null || application.getUnbindTimeDeductMode().isBlank()) {
+            application.setUnbindTimeDeductMode("NONE");
+        }
+        if ("NONE".equalsIgnoreCase(application.getUnbindTimeDeductMode())) {
+            application.setUnbindTimeDeductValue(null);
+        }
         
         // 设置时间
         LocalDateTime now = LocalDateTime.now();
@@ -245,6 +251,15 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         if (dto.getMinVersion() != null) {
             application.setMinVersion(dto.getMinVersion());
+        }
+        if (dto.getUnbindTimeDeductMode() != null) {
+            String raw = dto.getUnbindTimeDeductMode().trim();
+            application.setUnbindTimeDeductMode(raw.isEmpty() ? "NONE" : raw.toUpperCase());
+        }
+        if ("NONE".equalsIgnoreCase(application.getUnbindTimeDeductMode())) {
+            application.setUnbindTimeDeductValue(null);
+        } else if (dto.getUnbindTimeDeductValue() != null) {
+            application.setUnbindTimeDeductValue(dto.getUnbindTimeDeductValue());
         }
         
         application.setUpdatedAt(LocalDateTime.now());

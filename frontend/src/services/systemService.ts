@@ -57,6 +57,8 @@ export interface SystemSettings {
   emailSmtpPort: string;
   emailSmtpUsername: string;
   emailFrom: string;
+  /** 收件方看到的「发件人」名称，可选 */
+  emailFromDisplayName: string;
   emailEnabled: boolean;
   emailPasswordSet: boolean;
 }
@@ -105,6 +107,7 @@ export const systemApi = {
     smtpUsername: string;
     smtpPassword?: string;
     fromEmail: string;
+    fromDisplayName?: string;
     enabled: boolean;
   }) => {
     return request.post('/config/settings/email', data);

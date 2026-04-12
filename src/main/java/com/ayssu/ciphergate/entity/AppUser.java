@@ -134,4 +134,10 @@ public class AppUser implements Serializable {
     /** 当前是否在会员有效期内（非数据库字段） */
     @TableField(exist = false)
     private Boolean memberActive;
+
+    /**
+     * 是否存在至少一条未删除且已封禁的绑定（非数据库字段，列表/详情由服务填充）
+     */
+    @TableField(exist = false)
+    private Boolean isBanned;
 }

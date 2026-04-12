@@ -675,6 +675,9 @@ const LicenseManagementContent: React.FC = () => {
                       确定解绑卡密「{record.keyCode}」的当前设备吗？解绑后用户可使用新设备再次通过卡密登录完成绑定（需该卡密开启设备校验）。
                     </p>
                     <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+                    <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+                      管理员解绑不会缩短卡密到期时间；若应用开启换绑扣时，仅三方接口换绑设备时会扣时。
+                    </p>
                   </div>
                 ),
                 okText: '解绑',
@@ -698,6 +701,9 @@ const LicenseManagementContent: React.FC = () => {
                       确定解绑卡密「{record.keyCode}」的当前绑定 IP 吗？解绑后用户可在新 IP 下再次登录绑定（需该卡密开启 IP 校验）。
                     </p>
                     <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+                    <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+                      管理员解绑不会缩短卡密到期时间；若应用开启换绑扣时，仅三方接口换绑设备时会扣时。
+                    </p>
                   </div>
                 ),
                 okText: '解绑',

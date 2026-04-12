@@ -60,18 +60,41 @@ randomNonce123
 - `ip`: 可选（用于 IP 校验）
 - `appUserId`: 可选；不传时服务端会按卡密自动生成内部用户标识
 
-响应：
-- `appId`
-- `userId` / `bindId`
-- `expiresAt`: 卡密授权到期时间
+响应（见 `CardLoginResponse`）：
+- `appId`、`cardId`、`cardCode`、`expiresAt`、`available`、`bindNumber`、`online`
+- **`variables`**：当前应用下 **已启用** 变量的键值映射（与 5.5 专用查询接口返回的 `variables` 语义一致）
 
 说明：
 - 首次登录会自动创建绑定并激活卡密（写入 `firstUsedAt`）。
 - 后续登录会复用已存在绑定，只要未过期即可登录。
 - 不返回登录 token，也不包含心跳接口。
 
-### 5.2 软件公告
-- `POST /api/v1/app/notice`
+### 5.1.1 卡密换绑设备
+- `POST /api/v1/card/rebind`
+- 请求头、签名、`bodyDigest`、报文 **AES（`aes-default`）加解密** 与 5.1 及第 4 节一致（签名 PATH 为 `/api/v1/card/rebind`）。
+- 解密后业务体：
+  - **`cardCode`**：卡密（必填）
+  - **`deviceId`**：新的设备标识（必填）
+- 规则：
+  - 卡密须已激活（曾成功登录过）；未激活返回错误，请走 5.1 登录完成首次绑定。
+  - 若当前绑定设备（trim 后）与 **`deviceId` 相同**：返回错误 **`换绑失败，设备一致`**。
+  - 否则将卡密绑定设备更新为新的 **`deviceId`**。
+  - **扣时**：若换绑前**已有非空设备绑定**，则按应用在管理端配置的「卡密换绑扣时」（百分比或固定小时）从 **`expires_at` 扣减**；**管理员后台解绑设备/IP 不触发扣时**。原先无设备绑定（例如管理员解绑后为空）时，本次仅写入新设备，**不扣时**。无到期时间的卡密不扣时。
+- 响应见 `CardRebindResponse`：`appId`、`cardId`、`cardCode`、`deviceId`、`expiresAt`、`available`、`variables`（与登录接口变量语义一致）。
+- 限流策略与 5.1 登录相同（`appId + ip` 与 `appId + ip + cardCode`）。
+
+### 5.2 仅应用公告（不含版本校验与更新信息）
+- `POST /api/v1/app/announcement`
+- 请求头、签名、`bodyDigest`、报文 **AES（`aes-default`）加解密** 与 5.1 及第 4 节一致。
+- 解密后业务体须 **非空**（与空 canonical 会触发 `DECRYPT_EMPTY`）；推荐固定传 **`ping=1`** 作为占位字段，服务端不读取其值。
+- 响应字段：
+  - **`notice`**：管理端「应用公告」全文
+  - **`currentVersion`** / **`minVersion`**：与服务端应用配置一致，便于客户端自行展示或比对
+- **不做** `x.x.x` 区间校验，**不返回** `updateNotice`、`updateDownloadUrl`。若需要版本判断与更新包地址，请使用 5.3。
+
+### 5.3 检查更新（版本、公告与安装包）
+- **推荐** `POST /api/v1/app/update-check`
+- **兼容** `POST /api/v1/app/notice`（与上者逻辑相同；**签名原文中的 PATH 必须与实际请求的 URL 路径一致**，迁移后请改用 `update-check`）
 - 请求头、签名、`bodyDigest`、报文 **AES（`aes-default`）加解密** 与 5.1 及第 4 节一致。
 - 解密后业务体带客户端 **`version`**。规则：
   - 若 **`version` 为三位数字段 `x.x.x`**（如 `1.0.0`，每段为非负整数）：与服务端应用配置的 **`min_version`（低）～`current_version`（高）** 做闭区间比较；仅当两端在库里也是合法 `x.x.x` 时才参与该侧边界；越界返回错误文案（过低/过高）。
@@ -82,9 +105,17 @@ randomNonce123
   - **`false`**（客户端版本低于主线）：填充 **`updateNotice`**；若应用在库中配置了 **`update_file_storage_key`** 且 MinIO 默认桶内对象存在，则 **`updateDownloadUrl`** 为 **本服务** `GET /api/v1/app/update-package?ticket=...` 的完整 URL（短时 **ticket**，默认 **5 分钟**有效，HMAC 绑定 `appSecret`），否则为空。客户端可只代理你的后端域名，**无需直连 MinIO**。
 - 若经网关暴露，建议配置 **`app.third-party.public-base-url`**（或环境变量 **`THIRD_PARTY_PUBLIC_BASE_URL`**）为对外前缀（无末尾 `/`），用于生成上述链接；不配则按当前请求的 Host/端口/ContextPath 拼接（请确保反向代理转发 `Host`/`X-Forwarded-*` 或显式配置此前缀）。
 
-### 5.3 更新包下载（不走三方请求体签名）
+### 5.4 更新包下载（不走三方请求体签名）
 - `GET /api/v1/app/update-package?ticket=<urlencode>`
-- 使用 5.2 返回的 `ticket`；校验通过则从 MinIO 读取 `update_file_storage_key` 并以 `application/octet-stream` 附件下载。
+- 使用 5.3 返回的 `ticket`；校验通过则从 MinIO 读取 `update_file_storage_key` 并以 `application/octet-stream` 附件下载。
+
+### 5.5 查询应用变量
+- `POST /api/v1/app/variables`
+- 请求头、签名、`bodyDigest`、报文 **AES（`aes-default`）加解密** 与 5.1 及第 4 节一致。
+- 解密后业务体须 **非空**；推荐固定传 **`ping=1`** 占位（与 5.2 相同）。
+- 响应见 `AppVariablesResponse`：
+  - **`variables`**：`变量名 → 值`。仅包含 **已启用** 且未删除的变量；`STRING`/`NUMBER`/`BOOLEAN`/`JSON`/`ARRAY` 类型解析规则与卡密登录响应中的 `variables` 一致。
+- **无需卡密**：仅凭 `appKey` + 签名即可拉取（请自行评估是否需在业务层限制调用频率或改为登录后下发）。
 
 ## 6. WebSocket 用户登录（AUTH 明文载荷）
 

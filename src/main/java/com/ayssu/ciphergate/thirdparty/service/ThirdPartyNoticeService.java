@@ -4,6 +4,7 @@ import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.thirdparty.config.ThirdPartyPublicProperties;
+import com.ayssu.ciphergate.thirdparty.dto.AppAnnouncementResponse;
 import com.ayssu.ciphergate.thirdparty.dto.AppNoticeRequest;
 import com.ayssu.ciphergate.thirdparty.dto.AppNoticeResponse;
 import com.ayssu.ciphergate.thirdparty.exception.VersionOutOfRangeException;
@@ -25,6 +26,26 @@ public class ThirdPartyNoticeService {
     private final ThirdPartyUpdateDownloadTicketService updateDownloadTicketService;
     private final ThirdPartyPublicProperties thirdPartyPublicProperties;
 
+    /**
+     * 仅返回「应用公告」及版本元数据，不做客户端版本区间校验，不返回更新说明与下载地址。
+     * 与 {@link #getNotice} 使用相同三方鉴权与双向加密。
+     */
+    public AppAnnouncementResponse getAnnouncementOnly(Long appId) {
+        Application app = applicationMapper.selectById(appId);
+        if (app == null) {
+            throw new RuntimeException("应用不存在");
+        }
+        AppAnnouncementResponse out = new AppAnnouncementResponse();
+        out.setNotice(app.getNotice());
+        out.setCurrentVersion(app.getCurrentVersion());
+        out.setMinVersion(app.getMinVersion());
+        return out;
+    }
+
+    /**
+     * 检查更新：版本区间、最新时返回 {@code notice}，否则返回更新说明与可选下载地址。
+     * 由 {@code POST /api/v1/app/update-check} 与兼容路径 {@code /app/notice} 调用。
+     */
     public AppNoticeResponse getNotice(Long appId, AppNoticeRequest req, HttpServletRequest httpRequest) {
         Application app = applicationMapper.selectById(appId);
         if (app == null) {
@@ -47,7 +68,7 @@ public class ThirdPartyNoticeService {
         if (tripleClient && tripleCurrent) {
             isLatest = SemverThree.compare(clientTrim, currentTrim) == 0;
         } else {
-            // 无法按 x.x.x 与主线比较时，按「视为已对齐」只返回软件公告
+            // 无法按 x.x.x 与主线比较时，按「视为已对齐」只返回应用公告 notice
             isLatest = true;
         }
 

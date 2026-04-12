@@ -362,6 +362,10 @@ CREATE TABLE IF NOT EXISTS application (
     -- 版本管理
     current_version VARCHAR(20) COMMENT '当前版本号',
     min_version VARCHAR(20) COMMENT '最低支持版本',
+
+    -- 卡密解绑扣时（解绑设备或解绑 IP 时，从卡密 expires_at 扣减）
+    unbind_time_deduct_mode VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT '解绑扣时模式: NONE=不扣, PERCENT=按剩余时长百分比, HOURS=固定扣小时',
+    unbind_time_deduct_value DECIMAL(10, 2) NULL COMMENT '扣时数值: PERCENT 为 0-100；HOURS 为小时数(可小数)',
     
     -- 审计字段
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -951,3 +955,14 @@ CREATE TABLE IF NOT EXISTS plugin_module (
     INDEX idx_status (status),
     INDEX idx_updated_at (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='插件模块表';
+
+-- 卡密登录 / 终端用户 WS 登录流水（按次记录，供仪表盘统计）
+CREATE TABLE IF NOT EXISTS access_event (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    event_type VARCHAR(40) NOT NULL COMMENT 'CARD_LOGIN | APP_USER_WS_LOGIN',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    ref_id BIGINT NOT NULL COMMENT 'license_key.id 或 app_user.id',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
+    INDEX idx_type_time (event_type, created_at),
+    INDEX idx_app_time (app_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务访问事件（登录等）';

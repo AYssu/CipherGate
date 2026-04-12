@@ -25,6 +25,13 @@ public class ThirdPartyWsSessionRegistry {
         byId.remove(connId);
     }
 
+    public WebSocketSession get(String connId) {
+        if (connId == null || connId.isBlank()) {
+            return null;
+        }
+        return byId.get(connId);
+    }
+
     public Collection<WebSocketSession> all() {
         return byId.values();
     }

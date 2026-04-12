@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1")
-@Tag(name = "三方卡密登录", description = "第三方平台基于 appKey/appSecret 的卡密登录接口")
+@Tag(name = "三方卡密", description = "第三方基于 appKey/appSecret 的卡密登录与换绑等设备类接口")
 public class ThirdPartyCardController {
     private final ThirdPartyCardService thirdPartyCardService;
     private final ThirdPartyCardRateLimitService thirdPartyCardRateLimitService;
@@ -39,6 +39,30 @@ public class ThirdPartyCardController {
             thirdPartyCardRateLimitService.markResult(appId, clientIp, false);
             log.warn("login failed: appId={}, msg={}", appId, e.getMessage());
             return Result.error("卡密校验失败");
+        }
+    }
+
+    @PostMapping("/card/rebind")
+    @Operation(summary = "卡密换绑设备")
+    public Result<CardRebindResponse> rebind(@RequestBody CardRebindRequest req, HttpServletRequest http) {
+        Long appId = (Long) http.getAttribute(ThirdPartyHeaders.ATTR_APPLICATION_ID);
+        if (appId == null) {
+            return Result.unauthorized("未识别应用");
+        }
+        String clientIp = IpUtil.getIpAddr(http);
+        try {
+            thirdPartyCardRateLimitService.checkBeforeLogin(appId, clientIp, req == null ? null : req.getCardCode());
+            CardRebindResponse resp = thirdPartyCardService.rebindDevice(appId, req);
+            thirdPartyCardRateLimitService.markResult(appId, clientIp, true);
+            return Result.success(resp);
+        } catch (Exception e) {
+            thirdPartyCardRateLimitService.markResult(appId, clientIp, false);
+            log.warn("rebind failed: appId={}, msg={}", appId, e.getMessage());
+            String msg = e.getMessage();
+            if (msg == null || msg.isBlank()) {
+                msg = "换绑失败";
+            }
+            return Result.error(msg);
         }
     }
 }

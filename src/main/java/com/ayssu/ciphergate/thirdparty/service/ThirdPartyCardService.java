@@ -1,13 +1,12 @@
 package com.ayssu.ciphergate.thirdparty.service;
 
 import com.ayssu.ciphergate.entity.LicenseKey;
-import com.ayssu.ciphergate.entity.AppVariable;
-import com.ayssu.ciphergate.mapper.AppVariableMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
+import com.ayssu.ciphergate.service.AccessEventService;
 import com.ayssu.ciphergate.service.LicenseKeyService;
+import com.ayssu.ciphergate.service.LicenseUnbindTimeDeductionService;
 import com.ayssu.ciphergate.thirdparty.dto.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,9 +25,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ThirdPartyCardService {
     private final LicenseKeyMapper licenseKeyMapper;
-    private final AppVariableMapper appVariableMapper;
-    private final ObjectMapper objectMapper;
+    private final ThirdPartyAppVariableService thirdPartyAppVariableService;
     private final LicenseKeyService licenseKeyService;
+    private final LicenseUnbindTimeDeductionService licenseUnbindTimeDeductionService;
+    private final AccessEventService accessEventService;
 
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
@@ -105,8 +105,9 @@ public class ThirdPartyCardService {
         key.setIsOnline(true);
         key.setUpdatedAt(LocalDateTime.now());
         licenseKeyMapper.updateById(key);
+        accessEventService.recordCardLogin(appId, key.getId());
 
-        Map<String, Object> variables = getAppVariablesForThirdParty(appId);
+        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId);
 
         CardLoginResponse resp = new CardLoginResponse();
         resp.setAppId(appId);
@@ -123,41 +124,69 @@ public class ThirdPartyCardService {
         return resp;
     }
 
+    /**
+     * 三方卡密换绑设备：新设备与当前绑定一致则失败；否则更新绑定。
+     * 若此前已有非空设备绑定，按应用「解绑扣时」配置扣减到期时间（管理员后台解绑不扣时）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public CardRebindResponse rebindDevice(Long appId, CardRebindRequest req) {
+        if (!StringUtils.hasText(req.getCardCode()) || !StringUtils.hasText(req.getDeviceId())) {
+            throw new RuntimeException("cardCode 与 deviceId 必填");
+        }
+        String cardCode = req.getCardCode().trim().toUpperCase();
+        String newDeviceId = req.getDeviceId().trim();
+        LicenseKey key = licenseKeyMapper.selectOne(new LambdaQueryWrapper<LicenseKey>()
+                .eq(LicenseKey::getAppId, appId)
+                .eq(LicenseKey::getKeyCode, cardCode)
+                .eq(LicenseKey::getDeleted, 0)
+                .last("limit 1"));
+        if (key == null) {
+            throw new RuntimeException("卡密不存在");
+        }
+        licenseKeyService.syncExpiredStatusIfNeeded(key);
+        if (key.getStatus() != null && key.getStatus() == 4) {
+            throw new RuntimeException("卡密已禁用");
+        }
+        if (key.getStatus() != null && key.getStatus() == 3) {
+            throw new RuntimeException("卡密已过期");
+        }
+        if (key.getExpiresAt() != null && !key.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("卡密已过期");
+        }
+        if (key.getFirstUsedAt() == null) {
+            throw new RuntimeException("卡密尚未激活，请使用登录接口完成首次绑定");
+        }
+        String current = StringUtils.hasText(key.getBindDeviceId()) ? key.getBindDeviceId().trim() : "";
+        if (current.equals(newDeviceId)) {
+            throw new RuntimeException("换绑失败，设备一致");
+        }
+        boolean hadPriorDevice = StringUtils.hasText(current);
+        LocalDateTime now = LocalDateTime.now();
+        key.setBindDeviceId(newDeviceId);
+        if (hadPriorDevice) {
+            licenseUnbindTimeDeductionService.applyIfConfigured(key, now);
+            licenseUnbindTimeDeductionService.refreshStatusIfExpired(key, now);
+        }
+        key.setUpdatedAt(now);
+        licenseKeyMapper.updateById(key);
+
+        CardRebindResponse out = new CardRebindResponse();
+        out.setAppId(appId);
+        out.setCardId(key.getId());
+        out.setCardCode(key.getKeyCode());
+        out.setDeviceId(newDeviceId);
+        out.setExpiresAt(key.getExpiresAt());
+        out.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
+        out.setVariables(thirdPartyAppVariableService.getEnabledVariablesMap(appId));
+        return out;
+    }
+
     private Long resolveAvailableSeconds(LocalDateTime expiresAt) {
         if (expiresAt == null) {
             return null;
         }
         long seconds = Duration.between(LocalDateTime.now(), expiresAt).getSeconds();
         return Math.max(0L, seconds);
-    }
-
-    private Map<String, Object> getAppVariablesForThirdParty(Long appId) {
-        List<AppVariable> variables = appVariableMapper.selectList(new LambdaQueryWrapper<AppVariable>()
-                .eq(AppVariable::getAppId, appId)
-                .eq(AppVariable::getEnabled, true)
-                .eq(AppVariable::getDeleted, 0));
-        Map<String, Object> result = new HashMap<>();
-        for (AppVariable v : variables) {
-            result.put(v.getVariableName(), convertVariableValue(v.getVariableValue(), v.getVariableType()));
-        }
-        return result;
-    }
-
-    private Object convertVariableValue(String value, String type) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        try {
-            return switch (type == null ? "" : type) {
-                case "NUMBER" -> Double.parseDouble(value);
-                case "BOOLEAN" -> Boolean.parseBoolean(value);
-                case "JSON" -> objectMapper.readTree(value);
-                case "ARRAY" -> objectMapper.readValue(value, List.class);
-                default -> value;
-            };
-        } catch (Exception e) {
-            return value;
-        }
     }
 
     @SuppressWarnings("unchecked")

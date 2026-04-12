@@ -2,6 +2,7 @@ package com.ayssu.ciphergate.thirdparty.ws.service;
 
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
+import com.ayssu.ciphergate.service.AccessEventService;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,10 @@ import java.time.LocalDateTime;
 public class AppUserWsLoginRecorder {
 
     private final AppUserMapper appUserMapper;
+    private final AccessEventService accessEventService;
 
     @Transactional(rollbackFor = Exception.class)
-    public void recordSuccessfulLogin(Long appUserId, String clientIp, String deviceId) {
+    public void recordSuccessfulLogin(Long appId, Long appUserId, String clientIp, String deviceId) {
         if (appUserId == null) {
             return;
         }
@@ -38,5 +40,6 @@ public class AppUserWsLoginRecorder {
             uw.set(AppUser::getLastDeviceId, dev);
         }
         appUserMapper.update(null, uw);
+        accessEventService.recordAppUserWsLogin(appId, appUserId);
     }
 }

@@ -601,6 +601,9 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         return result;
     }
 
+    /**
+     * 后台管理员解绑设备：不扣减 {@code expires_at}（与三方换绑扣时无关）。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LicenseKey unbindDevice(Long id, Long operatorId) {
@@ -630,6 +633,9 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         return licenseKey;
     }
 
+    /**
+     * 后台管理员解绑 IP：不扣减 {@code expires_at}。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LicenseKey unbindIp(Long id, Long operatorId) {

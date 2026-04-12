@@ -43,7 +43,7 @@ springdoc:
 
 app:
   third-party:
-    # 选填：对外网关根 URL（无末尾/），用于公告接口返回的更新包下载链接。不配则用当前请求的 Host/端口/ContextPath 拼接。
+    # 选填：对外网关根 URL（无末尾/），用于检查更新接口（/app/update-check）生成的更新包下载链接。不配则用当前请求的 Host/端口/ContextPath 拼接。
     public-base-url: ${THIRD_PARTY_PUBLIC_BASE_URL:}
   site:
     icp-record-no: ${SITE_ICP_RECORD_NO:}

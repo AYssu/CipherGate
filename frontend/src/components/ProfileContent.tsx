@@ -94,17 +94,19 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
             }
             style={{ height: '100%' }}
           >
-            <Descriptions 
-              column={2} 
+            <Descriptions
+              column={2}
               size="middle"
-              labelStyle={{ 
-                fontWeight: 600, 
-                color: '#666',
-                width: '120px'
-              }}
-              contentStyle={{ 
-                color: '#333',
-                fontWeight: 500
+              styles={{
+                label: {
+                  fontWeight: 600,
+                  color: '#666',
+                  width: 120,
+                },
+                content: {
+                  color: '#333',
+                  fontWeight: 500,
+                },
               }}
             >
               <Descriptions.Item label="用户ID">{userInfo?.id}</Descriptions.Item>

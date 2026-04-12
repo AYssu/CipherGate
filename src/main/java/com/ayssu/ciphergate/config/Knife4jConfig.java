@@ -80,7 +80,7 @@ public class Knife4jConfig {
     public GroupedOpenApi activityApi() {
         return GroupedOpenApi.builder()
                 .group("3. 活动日志")
-                .pathsToMatch("/api/activity/**")
+                .pathsToMatch("/api/activity/**", "/api/dashboard/**")
                 .build();
     }
     

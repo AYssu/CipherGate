@@ -11,6 +11,7 @@ import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsAuthService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsDeviceBindService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsLoginRecorder;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
 import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsSessionRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
 import com.ayssu.ciphergate.thirdparty.ws.util.WsClientIp;
@@ -70,6 +71,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private final AppUserWsLoginRecorder appUserWsLoginRecorder;
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     private final AppUserWsDeviceBindService appUserWsDeviceBindService;
+    private final AppUserWsSessionKickService appUserWsSessionKickService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -293,11 +295,14 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             return;
         }
 
+        // 同一终端用户仅保留一条已 AUTH 的 WS：新登录挤掉其它设备/其它连接
+        appUserWsSessionKickService.kickByAppUserId(u.getId(), null, AppUserWsSessionKickService.KICK_LOGIN_ELSEWHERE);
+
         session.getAttributes().put(ATTR_AUTHED, true);
         sessionRegistry.add(connId, session);
 
         long connectedAtMs = Instant.now().toEpochMilli();
-        appUserWsLoginRecorder.recordSuccessfulLogin(u.getId(), clientIp, deviceId);
+        appUserWsLoginRecorder.recordSuccessfulLogin(app.getId(), u.getId(), clientIp, deviceId);
         appUserWsPresenceRegistry.register(connId, u.getId(), deviceId, clientIp, connectedAtMs);
         session.getAttributes().put(ATTR_APP_USER_ID, u.getId());
         session.getAttributes().put(ATTR_WS_CONNECTED_AT_MS, connectedAtMs);

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -121,6 +122,16 @@ public class Application implements Serializable {
      * 最低支持版本
      */
     private String minVersion;
+
+    /**
+     * 解绑扣时模式：NONE（默认）、PERCENT（按剩余时长百分比）、HOURS（固定扣小时）
+     */
+    private String unbindTimeDeductMode;
+
+    /**
+     * 扣时数值：PERCENT 为 0–100；HOURS 为小时数（可小数）；NONE 时忽略
+     */
+    private BigDecimal unbindTimeDeductValue;
     
     /**
      * 创建时间

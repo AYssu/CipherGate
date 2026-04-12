@@ -73,6 +73,7 @@ const AppUserManagementContent: React.FC = () => {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUsername, setSelectedUsername] = useState<string>('');
   const [userBindings, setUserBindings] = useState<AppUserBinding[]>([]);
   const [bindingsLoading, setBindingsLoading] = useState(false);
   const [extendModalVisible, setExtendModalVisible] = useState(false);
@@ -314,22 +315,38 @@ const AppUserManagementContent: React.FC = () => {
     }
   };
 
-  // 封禁/解封用户
-  const handleBanUser = (id: number, username: string, currentBanned: boolean) => {
+  // 封禁/解封用户（不传 bindingId 时对该用户全部绑定生效；传 bindingId 时仅该条绑定）
+  const handleBanUser = (
+    id: number,
+    username: string,
+    currentBanned: boolean,
+    bindingId?: number,
+    deviceId?: string,
+  ) => {
     Modal.confirm({
       title: currentBanned ? '确认解封' : '确认封禁',
-      content: currentBanned 
-        ? `确定要解封用户 "${username}" 吗？` 
+      content: currentBanned
+        ? bindingId && deviceId
+          ? `确定要解封用户 "${username}" 的设备 "${deviceId}" 吗？`
+          : `确定要解封用户 "${username}" 吗？其下所有已封禁的设备绑定将恢复为正常。`
         : `确定要封禁用户 "${username}" 吗？`,
       okText: '确定',
       cancelText: '取消',
       okType: currentBanned ? 'primary' : 'danger',
       onOk: async () => {
         try {
-          const result: any = await banUser(id, !currentBanned, currentBanned ? undefined : '管理员封禁');
+          const result: any = await banUser(
+            id,
+            !currentBanned,
+            currentBanned ? undefined : '管理员封禁',
+            bindingId,
+          );
           if (result.code === 200) {
             message.success(currentBanned ? '解封成功' : '封禁成功');
             fetchUsers(pagination.current, pagination.pageSize, filters);
+            if (bindingsModalVisible && selectedUserId === id) {
+              fetchUserBindings(id);
+            }
           } else {
             message.error(result.message || '操作失败');
           }
@@ -419,8 +436,9 @@ const AppUserManagementContent: React.FC = () => {
   };
 
   // 打开设备列表弹窗
-  const handleOpenBindingsModal = (userId: number) => {
+  const handleOpenBindingsModal = (userId: number, username: string) => {
     setSelectedUserId(userId);
+    setSelectedUsername(username);
     setBindingsModalVisible(true);
     fetchUserBindings(userId);
   };
@@ -458,7 +476,7 @@ const AppUserManagementContent: React.FC = () => {
         key: 'view-devices',
         icon: <MobileOutlined />,
         label: '查看设备',
-        onClick: () => handleOpenBindingsModal(record.id),
+        onClick: () => handleOpenBindingsModal(record.id, record.username),
       },
       {
         key: 'extend-member',
@@ -497,8 +515,9 @@ const AppUserManagementContent: React.FC = () => {
       {
         key: 'ban',
         icon: <StopOutlined />,
-        label: '封禁',
-        onClick: () => handleBanUser(record.id, record.username, false),
+        label: record.isBanned ? '解封' : '封禁',
+        danger: !record.isBanned,
+        onClick: () => handleBanUser(record.id, record.username, !!record.isBanned),
       },
       {
         type: 'divider',
@@ -565,12 +584,24 @@ const AppUserManagementContent: React.FC = () => {
         <Button
           type="link"
           size="small"
-          onClick={() => handleOpenBindingsModal(record.id)}
+          onClick={() => handleOpenBindingsModal(record.id, record.username)}
           style={{ padding: 0 }}
         >
           <Tag color={count > 0 ? 'green' : 'default'}>{count || 0}</Tag>
         </Button>
       ),
+    },
+    {
+      title: '封禁',
+      key: 'banStatus',
+      width: 88,
+      align: 'center' as const,
+      render: (_: unknown, record: AppUser) =>
+        record.isBanned ? (
+          <Tag color="red">已封禁</Tag>
+        ) : (
+          <Tag color="default">正常</Tag>
+        ),
     },
     {
       title: '会员',
@@ -1062,12 +1093,14 @@ const AppUserManagementContent: React.FC = () => {
         onCancel={() => {
           setBindingsModalVisible(false);
           setSelectedUserId(null);
+          setSelectedUsername('');
           setUserBindings([]);
         }}
         footer={[
           <Button key="close" onClick={() => {
             setBindingsModalVisible(false);
             setSelectedUserId(null);
+            setSelectedUsername('');
             setUserBindings([]);
           }}>
             关闭
@@ -1191,10 +1224,27 @@ const AppUserManagementContent: React.FC = () => {
             {
               title: '操作',
               key: 'action',
-              width: 80,
+              width: 140,
               fixed: 'right' as const,
               render: (_: any, record: AppUserBinding) => (
-                <Space size="small">
+                <Space size="small" wrap>
+                  {record.isBanned && record.status !== 4 && selectedUserId != null && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() =>
+                        handleBanUser(
+                          selectedUserId,
+                          selectedUsername || '该用户',
+                          true,
+                          record.id,
+                          record.deviceId,
+                        )
+                      }
+                    >
+                      解封
+                    </Button>
+                  )}
                   {record.status !== 4 && !record.isBanned && (
                     <Button
                       type="link"

@@ -38,6 +38,7 @@ import {
   CheckCircleOutlined,
   ApiOutlined,
   RocketOutlined,
+  UserAddOutlined,
   CloudOutlined,
   DatabaseOutlined,
   SafetyOutlined,
@@ -126,6 +127,9 @@ const ApplicationManagementContent: React.FC = () => {
         trafficLimit: app.trafficLimit,
         currentVersion: app.currentVersion,
         minVersion: app.minVersion,
+        unbindTimeDeductMode: app.unbindTimeDeductMode ?? 'NONE',
+        unbindTimeDeductValue:
+          app.unbindTimeDeductValue != null ? Number(app.unbindTimeDeductValue) : undefined,
       });
     } else {
       form.resetFields();
@@ -158,6 +162,9 @@ const ApplicationManagementContent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      if (values.unbindTimeDeductMode === 'NONE') {
+        values.unbindTimeDeductValue = undefined;
+      }
       const dto: ApplicationDTO = {
         ...values,
       };
@@ -479,6 +486,16 @@ const ApplicationManagementContent: React.FC = () => {
             onClick: () => void openEncryptionConfigModal(record),
           },
           {
+            key: 'appRegister',
+            icon: <UserAddOutlined />,
+            label: '应用注册页',
+            onClick: () => {
+              const base = import.meta.env.BASE_URL || '/';
+              const path = `${base.endsWith('/') ? base : `${base}/`}register?id=${record.id}`;
+              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+            },
+          },
+          {
             key: 'resetKeys',
             icon: <KeyOutlined />,
             label: '重置密钥',
@@ -651,6 +668,7 @@ const ApplicationManagementContent: React.FC = () => {
             businessModel: 1,
             status: 1,
             trafficLimit: 0,
+            unbindTimeDeductMode: 'NONE',
           }}
         >
           <Form.Item
@@ -732,6 +750,62 @@ const ApplicationManagementContent: React.FC = () => {
               placeholder="0 表示不限制"
             />
           </Form.Item>
+
+          <Divider>卡密换绑扣时</Divider>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            仅当终端通过三方接口 <strong>POST /api/v1/card/rebind</strong> 换绑设备时，若该卡密<strong>原先已有设备绑定</strong>，才按此处规则从<strong>到期时间</strong>扣减；管理员在后台「解绑设备 / 解绑 IP」<strong>不扣时</strong>。无到期时间（永久）的卡密不扣时。默认不扣。
+          </Text>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="扣时模式" name="unbindTimeDeductMode">
+                <Select
+                  options={[
+                    { value: 'NONE', label: '不扣' },
+                    { value: 'PERCENT', label: '按剩余时长百分比' },
+                    { value: 'HOURS', label: '固定扣除小时' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.unbindTimeDeductMode !== cur.unbindTimeDeductMode}>
+                {() => {
+                  const mode = form.getFieldValue('unbindTimeDeductMode') as string | undefined;
+                  if (!mode || mode === 'NONE') {
+                    return null;
+                  }
+                  return (
+                    <Form.Item
+                      label={mode === 'PERCENT' ? '扣除比例 (%)' : '扣除小时数'}
+                      name="unbindTimeDeductValue"
+                      rules={[
+                        { required: true, message: '请填写数值' },
+                        {
+                          type: 'number',
+                          min: mode === 'PERCENT' ? 0 : 0,
+                          max: mode === 'PERCENT' ? 100 : undefined,
+                          message:
+                            mode === 'PERCENT' ? '百分比需在 0～100 之间' : '须为非负数',
+                        },
+                      ]}
+                      extra={
+                        mode === 'PERCENT'
+                          ? '例如 10 表示每次三方换绑扣掉「当前剩余有效期」的 10%'
+                          : '支持小数，例如 2.5 表示每次三方换绑扣 2.5 小时'
+                      }
+                    >
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        min={0}
+                        max={mode === 'PERCENT' ? 100 : undefined}
+                        step={mode === 'PERCENT' ? 1 : 0.5}
+                      />
+                    </Form.Item>
+                  );
+                }}
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Divider>版本信息（可选）</Divider>
 

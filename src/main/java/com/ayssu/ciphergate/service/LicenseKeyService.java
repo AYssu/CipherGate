@@ -77,13 +77,15 @@ public interface LicenseKeyService {
     void syncExpiredStatusIfNeeded(LicenseKey licenseKey);
 
     /**
-     * 解绑设备（清空 bindDeviceId），受 unbindLimit 约束（0 表示不限制）。
+     * 管理员解绑设备（清空 bindDeviceId），受 unbindLimit 约束（0 表示不限制）。
      * 解绑后用户下次卡密登录可绑定新设备（需开启设备校验时生效）。
+     * <p><strong>不修改</strong>卡密到期时间；从剩余时长扣时仅由三方接口 {@code POST /api/v1/card/rebind} 在换绑时按应用配置执行。
      */
     LicenseKey unbindDevice(Long id, Long operatorId);
 
     /**
-     * 解绑 IP（清空 bindIp），受 unbindLimit 约束（0 表示不限制）。
+     * 管理员解绑 IP（清空 bindIp），受 unbindLimit 约束（0 表示不限制）。
+     * <p><strong>不修改</strong>卡密到期时间。
      */
     LicenseKey unbindIp(Long id, Long operatorId);
 }

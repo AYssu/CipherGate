@@ -14,21 +14,23 @@ import {
   Modal,
   Pagination
 } from 'antd';
-import { 
-  UserOutlined, 
-  GithubOutlined, 
-  SecurityScanOutlined, 
-  SafetyOutlined, 
-  SettingOutlined, 
+import {
+  UserOutlined,
+  GithubOutlined,
+  SettingOutlined,
   TeamOutlined,
   LockOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  KeyOutlined,
+  LoginOutlined,
+  UserAddOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import type { User } from '../services';
-import { activityApi, type ActivityLog } from '../services';
+import { activityApi, dashboardApi, type ActivityLog, type DashboardTodayStats } from '../services';
 
 const { Title, Text } = Typography;
 
@@ -52,6 +54,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [loadingAllActivities, setLoadingAllActivities] = useState(false);
+  const [todayStats, setTodayStats] = useState<DashboardTodayStats | null>(null);
+  const [loadingTodayStats, setLoadingTodayStats] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -81,13 +85,22 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // 模拟数据
-  const securityStats = {
-    totalThreats: 156,
-    blockedToday: 23,
-    systemHealth: 99.9,
-    activeUsers: 12
-  };
+  useEffect(() => {
+    const loadToday = async () => {
+      setLoadingTodayStats(true);
+      try {
+        const res = (await dashboardApi.getTodayStats()) as unknown as { data: DashboardTodayStats };
+        setTodayStats(res.data);
+      } catch {
+        /* 拦截器已提示 */
+      } finally {
+        setLoadingTodayStats(false);
+      }
+    };
+    void loadToday();
+    const t = window.setInterval(() => void loadToday(), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
 
   // 格式化时间为相对时间
   const formatRelativeTime = (dateString: string) => {
@@ -275,53 +288,83 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Row>
       </Card>
 
-      {/* 统计数据 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
+      {/* 今日业务统计（自然日按服务器时区；卡密/终端登录自 access_event 表，需已执行建表脚本） */}
+      <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+        卡密与终端用户指标仅统计您作为创建者的应用；「今日后台登录」仅管理员可见且为全平台 GitHub 登录次数。
+      </Text>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} wrap>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingTodayStats}>
             <Statistic
-              title="安全事件"
-              value={securityStats.totalThreats}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<SecurityScanOutlined />}
-              suffix="个"
+              title="今日卡密首次激活"
+              value={todayStats?.cardFirstActivatedToday ?? 0}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<KeyOutlined />}
+              suffix="张"
             />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              今日首次绑定/激活的卡密
+            </Text>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingTodayStats}>
             <Statistic
-              title="今日拦截"
-              value={securityStats.blockedToday}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<SafetyOutlined />}
+              title="今日卡密登录次数"
+              value={todayStats?.cardLoginToday ?? 0}
+              valueStyle={{ color: '#13c2c2' }}
+              prefix={<LoginOutlined />}
               suffix="次"
             />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              每次卡密验证成功计一次
+            </Text>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingTodayStats}>
             <Statistic
-              title="系统健康度"
-              value={securityStats.systemHealth}
-              precision={1}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<CheckCircleOutlined />}
-              suffix="%"
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="在线用户"
-              value={securityStats.activeUsers}
+              title="今日终端用户注册"
+              value={todayStats?.appUserRegisteredToday ?? 0}
               valueStyle={{ color: '#722ed1' }}
-              prefix={<UserOutlined />}
+              prefix={<UserAddOutlined />}
               suffix="人"
             />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              含自助注册与后台创建
+            </Text>
           </Card>
         </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingTodayStats}>
+            <Statistic
+              title="今日终端用户登录"
+              value={todayStats?.appUserWsLoginToday ?? 0}
+              valueStyle={{ color: '#fa8c16' }}
+              prefix={<ApiOutlined />}
+              suffix="次"
+            />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              终端 WS 账号登录成功
+            </Text>
+          </Card>
+        </Col>
+        {typeof todayStats?.platformLoginToday === 'number' && (
+          <Col xs={24} sm={12} lg={6}>
+            <Card loading={loadingTodayStats}>
+              <Statistic
+                title="今日后台登录"
+                value={todayStats.platformLoginToday}
+                valueStyle={{ color: '#52c41a' }}
+                prefix={<GithubOutlined />}
+                suffix="次"
+              />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                全平台 GitHub 登录
+              </Text>
+            </Card>
+          </Col>
+        )}
       </Row>
 
       <Row gutter={[16, 16]}>

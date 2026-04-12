@@ -194,6 +194,7 @@ public class ConfigController {
             data.put("emailSmtpPort", systemConfigService.getConfigValue("email.smtp.port", ""));
             data.put("emailSmtpUsername", systemConfigService.getConfigValue("email.smtp.username", ""));
             data.put("emailFrom", systemConfigService.getConfigValue("email.from", ""));
+            data.put("emailFromDisplayName", systemConfigService.getConfigValue("email.from.display-name", ""));
             data.put("emailEnabled", "true".equalsIgnoreCase(systemConfigService.getConfigValue("email.enabled", "false")));
             data.put("emailPasswordSet", StringUtils.hasText(systemConfigService.getConfigValue("email.smtp.password", "")));
             return Result.success(data);
@@ -267,6 +268,8 @@ public class ConfigController {
             }
             systemConfigService.setConfigValue("email.from",
                     toSafeValue((String) request.get("fromEmail")), "发件人邮箱", false);
+            systemConfigService.setConfigValue("email.from.display-name",
+                    toSafeValue((String) request.get("fromDisplayName")), "发件人显示名称", false);
             Object enabledObj = request.get("enabled");
             boolean enabled = enabledObj instanceof Boolean b && b;
             systemConfigService.setConfigValue("email.enabled", String.valueOf(enabled), "邮箱通知开关", false);

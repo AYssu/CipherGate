@@ -36,6 +36,7 @@ const SystemConfigContent: React.FC = () => {
         smtpUsername: data.emailSmtpUsername || '',
         smtpPassword: '',
         fromEmail: data.emailFrom || '',
+        fromDisplayName: data.emailFromDisplayName || '',
         enabled: !!data.emailEnabled
       });
     } catch (error) {
@@ -206,14 +207,25 @@ const SystemConfigContent: React.FC = () => {
                       <Input.Password placeholder="******" />
                     </Form.Item>
                   </Col>
-                  <Col span={10}>
+                  <Col span={8}>
                     <Form.Item name="fromEmail" label="发件人邮箱">
                       <Input placeholder="noreply@example.com" />
                     </Form.Item>
                   </Col>
-                  <Col span={6}>
+                  <Col span={8}>
                     <Form.Item name="enabled" label="启用邮箱通知" valuePropName="checked">
                       <Switch />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="fromDisplayName"
+                      label="发件人显示名称（可选）"
+                      tooltip="收件人列表里看到的名称，可中文；真实发信地址仍为上方「发件人邮箱」"
+                    >
+                      <Input placeholder="例如 CipherGate 或 公司名称" maxLength={100} />
                     </Form.Item>
                   </Col>
                 </Row>

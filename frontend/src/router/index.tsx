@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Home from '../pages/Home';
+import AppUserRegisterPage from '../pages/AppUserRegisterPage';
 import MainLayout from '../layouts/MainLayout';
 import DashboardPage from '../pages/DashboardPage';
 import ProfilePage from '../pages/ProfilePage';
@@ -19,6 +20,10 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Home />,
+  },
+  {
+    path: '/register',
+    element: <AppUserRegisterPage />,
   },
   {
     path: '/login',

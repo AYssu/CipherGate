@@ -23,6 +23,9 @@ export interface Application {
   trafficUsed?: number;
   currentVersion?: string;
   minVersion?: string;
+  /** NONE | PERCENT | HOURS */
+  unbindTimeDeductMode?: string;
+  unbindTimeDeductValue?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +58,9 @@ export interface ApplicationDTO {
   trafficLimit?: number;
   currentVersion?: string;
   minVersion?: string;
+  /** NONE | PERCENT | HOURS */
+  unbindTimeDeductMode?: string;
+  unbindTimeDeductValue?: number;
 }
 
 /**

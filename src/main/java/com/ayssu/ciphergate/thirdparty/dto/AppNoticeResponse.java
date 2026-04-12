@@ -3,7 +3,7 @@ package com.ayssu.ciphergate.thirdparty.dto;
 import lombok.Data;
 
 /**
- * 应用公告与更新信息（出站前由统一 Advice 加密为 data HEX）。
+ * 检查更新接口的响应：公告与安装包信息（出站前由统一 Advice 加密为 data HEX）。
  * <p>
  * 当 {@link #isLatestVersion} 为 true 时仅填充 {@link #notice}；为 false 时填充 {@link #updateNotice} 与可选的 {@link #updateDownloadUrl}。
  */

@@ -29,6 +29,7 @@ public class SecurityConfig {
                                 "/api/config/init/status",
                                 "/api/config/init",
                                 "/api/config/public/site-info",
+                                "/api/public/app-user/register/**",
                                 "/api/user/status",
                                 "/api/v1/**",
                                 "/oauth2/authorization/**",

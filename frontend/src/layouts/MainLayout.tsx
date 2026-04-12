@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Badge, Drawer, List, Tag, Empty, Modal } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { 
-  SafetyOutlined,
-  UserOutlined, 
+import {
+  AppstoreOutlined,
+  AuditOutlined,
+  DashboardOutlined,
+  FolderOutlined,
+  LockOutlined,
   LogoutOutlined,
+  MenuOutlined,
+  SafetyOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  ToolOutlined,
+  UserOutlined,
   BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import { activityApi } from '../services/activityService';
@@ -266,19 +275,25 @@ const MainLayout: React.FC = () => {
     },
   ];
 
-  const getMenuIcon = (iconName: string) => {
+  /**
+   * 与后台 menus.icon 对应（存库多为 Ant Icon 组件名或小写别名）。统一小写匹配；未识别则用中性图标。
+   */
+  const getMenuIcon = (iconName?: string | null) => {
+    const key = (iconName || '').trim().toLowerCase();
     const iconMap: Record<string, React.ReactNode> = {
-      'dashboard': <SafetyOutlined />,
-      'user': <UserOutlined />,
-      'setting': <SafetyOutlined />,
-      'safety': <SafetyOutlined />,
-      'security': <SafetyOutlined />,
-      'team': <UserOutlined />,
-      'menu': <SafetyOutlined />,
-      'lock': <SafetyOutlined />,
-      'tool': <SafetyOutlined />,
+      dashboard: <DashboardOutlined />,
+      user: <UserOutlined />,
+      setting: <SettingOutlined />,
+      safety: <AuditOutlined />,
+      security: <LockOutlined />,
+      team: <TeamOutlined />,
+      menu: <MenuOutlined />,
+      lock: <LockOutlined />,
+      tool: <ToolOutlined />,
+      appstoreoutlined: <AppstoreOutlined />,
+      appstore: <AppstoreOutlined />,
     };
-    return iconMap[iconName] || <SafetyOutlined />;
+    return iconMap[key] || <FolderOutlined />;
   };
 
   const generateSidebarMenus = (menus: UserMenu[]) => {

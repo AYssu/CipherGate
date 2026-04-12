@@ -12,6 +12,7 @@ import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.AppUserService;
 import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -39,6 +42,7 @@ public class AppUserServiceImpl implements AppUserService {
     private final SecurityUtils securityUtils;
     private final SystemMessageService systemMessageService;
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
+    private final AppUserWsSessionKickService appUserWsSessionKickService;
     
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
@@ -278,6 +282,9 @@ public class AppUserServiceImpl implements AppUserService {
                 binding.setStatus(ban ? 3 : 1); // 3=已封禁, 1=正常
                 binding.setUpdatedAt(LocalDateTime.now());
                 appUserBindingMapper.updateById(binding);
+                if (Boolean.TRUE.equals(ban)) {
+                    scheduleKickWsSessionsAfterCommit(id, binding.getDeviceId());
+                }
             }
         } else {
             // 封禁该用户的所有绑定
@@ -293,10 +300,39 @@ public class AppUserServiceImpl implements AppUserService {
                 binding.setUpdatedAt(LocalDateTime.now());
                 appUserBindingMapper.updateById(binding);
             });
+            if (Boolean.TRUE.equals(ban)) {
+                scheduleKickWsSessionsAfterCommit(id, null);
+            }
         }
         
         log.info("{}用户成功: id={}, username={}, operatorId={}", 
                 ban ? "封禁" : "解封", id, appUser.getUsername(), operatorId);
+    }
+
+    /**
+     * 封禁提交后再踢 WS，避免踢线成功但事务回滚；无事务时立即执行。
+     */
+    private void scheduleKickWsSessionsAfterCommit(Long appUserId, String deviceIdOrNull) {
+        if (appUserId == null) {
+            return;
+        }
+        Runnable kick = () -> {
+            try {
+                appUserWsSessionKickService.kickByAppUserId(appUserId, deviceIdOrNull);
+            } catch (Exception e) {
+                log.warn("WS kick after ban failed, appUserId={}", appUserId, e);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            kick.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                kick.run();
+            }
+        });
     }
     
     @Override
@@ -401,6 +437,12 @@ public class AppUserServiceImpl implements AppUserService {
                .eq(AppUserBinding::getDeleted, 0);
         long count = appUserBindingMapper.selectCount(wrapper);
         appUser.setBindingCount((int) count);
+
+        LambdaQueryWrapper<AppUserBinding> bannedWrap = new LambdaQueryWrapper<>();
+        bannedWrap.eq(AppUserBinding::getUserId, appUser.getId())
+                .eq(AppUserBinding::getDeleted, 0)
+                .eq(AppUserBinding::getIsBanned, true);
+        appUser.setIsBanned(appUserBindingMapper.selectCount(bannedWrap) > 0);
 
         enrichMemberStatus(appUser);
         enrichWsPresence(appUser);

@@ -3,6 +3,7 @@ package com.ayssu.ciphergate.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -62,4 +63,10 @@ public class ApplicationDTO {
     
     @Schema(description = "最低支持版本", example = "1.0.0")
     private String minVersion;
+
+    @Schema(description = "解绑扣时模式: NONE=不扣, PERCENT=按剩余时长百分比, HOURS=固定扣小时", example = "NONE")
+    private String unbindTimeDeductMode;
+
+    @Schema(description = "扣时数值：PERCENT 为 0-100；HOURS 为小时数；NONE 时可不传", example = "0")
+    private BigDecimal unbindTimeDeductValue;
 }
