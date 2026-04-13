@@ -1,0 +1,122 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ciphergate-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciphergate}
+      MYSQL_USER: ${MYSQL_USER:-kersin}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Jx4zx_aYui23}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ciphergate-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT_HOST:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: ciphergate-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-ciphergate_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-ciphergate_minio123}
+    ports:
+      - "${MINIO_API_PORT:-19000}:9000"
+      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: ciphergate-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-ciphergate_minio} ${MINIO_SECRET_KEY:-ciphergate_minio123};
+      mc mb -p local/${MINIO_BUCKET:-ciphergate-plugins} || true;
+      mc anonymous set download local/${MINIO_BUCKET:-ciphergate-plugins} || true;
+      exit 0;
+      "
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ciphergate-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ciphergate}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-kersin}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-Jx4zx_aYui23}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MINIO_ENABLED: "true"
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-ciphergate_minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-ciphergate_minio123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ciphergate-plugins}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ciphergate-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
+
