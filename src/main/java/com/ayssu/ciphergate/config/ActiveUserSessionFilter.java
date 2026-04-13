@@ -1,0 +1,54 @@
+package com.ayssu.ciphergate.config;
+
+import com.ayssu.ciphergate.entity.User;
+import com.ayssu.ciphergate.service.UserService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+/**
+ * 每次请求校验当前登录用户是否仍处于启用状态。
+ */
+@Component
+@RequiredArgsConstructor
+public class ActiveUserSessionFilter extends OncePerRequestFilter {
+
+    private final UserService userService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            Object idObj = oauth2User.getAttribute("id");
+            String githubId = idObj == null ? null : idObj.toString();
+            if (githubId != null) {
+                User user = userService.getUserByGithubId(githubId);
+                boolean disabled = user == null || user.getStatus() == null || user.getStatus() != 1;
+                if (disabled) {
+                    SecurityContextHolder.clearContext();
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.invalidate();
+                    }
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":403,\"message\":\"账号已被禁用\"}");
+                    return;
+                }
+            }
+        }
+        filterChain.doFilter(request, response);
+    }
+}

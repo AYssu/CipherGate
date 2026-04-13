@@ -575,6 +575,17 @@ const AppUserManagementContent: React.FC = () => {
       render: (text: string) => <Tag color="blue">{text || '-'}</Tag>,
     },
     {
+      title: '创建来源',
+      key: 'creatorType',
+      width: 200,
+      render: (_: unknown, record: AppUser) => {
+        if (record.creatorType === 'AGENT') {
+          return <Text>{record.agentDisplayName || '-'}</Text>;
+        }
+        return <Tag color="blue">自己创建</Tag>;
+      },
+    },
+    {
       title: '绑定设备',
       dataIndex: 'bindingCount',
       key: 'bindingCount',

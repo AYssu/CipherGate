@@ -26,6 +26,11 @@ public class AppUser implements Serializable {
      * 所属应用ID
      */
     private Long appId;
+
+    /**
+     * 代理ID（为空表示非代理创建）
+     */
+    private Long agentId;
     
     /**
      * 用户名
@@ -140,4 +145,16 @@ public class AppUser implements Serializable {
      */
     @TableField(exist = false)
     private Boolean isBanned;
+
+    /**
+     * 创建来源（非数据库字段）：SELF / AGENT
+     */
+    @TableField(exist = false)
+    private String creatorType;
+
+    /**
+     * 代理绑定用户显示名（非数据库字段）：name/login + #id
+     */
+    @TableField(exist = false)
+    private String agentDisplayName;
 }

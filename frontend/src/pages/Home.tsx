@@ -34,13 +34,25 @@ const Home: React.FC = () => {
   useEffect(() => {
     checkSystemInit();
     loadSiteInfo();
+    showOAuthErrorMessage();
   }, []);
+
+  const showOAuthErrorMessage = () => {
+    const url = new URL(window.location.href);
+    const error = url.searchParams.get('error');
+    if (error === 'oauth2_failed') {
+      message.error('登录失败，请重试');
+      url.searchParams.delete('error');
+      const clean = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState({}, '', clean || '/');
+    }
+  };
 
   const checkSystemInit = async () => {
     try {
-      const response = await systemApi.checkInitStatus();
-      const initialized = response?.data?.initialized ?? response?.initialized;
-      if (response.success && initialized === false) {
+      const response: any = await systemApi.checkInitStatus();
+      const initialized = response?.data?.initialized;
+      if (response?.success && initialized === false) {
         // 系统未初始化，显示配置弹窗
         setInitModalVisible(true);
       }
@@ -72,19 +84,19 @@ const Home: React.FC = () => {
       const values = await initForm.validateFields();
       setLoading(true);
       
-      const response = await systemApi.initializeSystem({
+      const response: any = await systemApi.initializeSystem({
         clientId: values.clientId,
         clientSecret: values.clientSecret,
         redirectUri: values.redirectUri,
         frontendUrl: values.frontendUrl
       });
 
-      if (response.success) {
+      if (response?.success) {
         message.success('系统初始化成功！');
         setInitModalVisible(false);
         initForm.resetFields();
       } else {
-        message.error(response.message || '初始化失败');
+        message.error(response?.message || '初始化失败');
       }
     } catch (error: any) {
       if (error.errorFields) {

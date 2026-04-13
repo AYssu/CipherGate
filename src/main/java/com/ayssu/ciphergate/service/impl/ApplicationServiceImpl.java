@@ -2,6 +2,7 @@ package com.ayssu.ciphergate.service.impl;
 
 import com.ayssu.ciphergate.dto.ApplicationDTO;
 import com.ayssu.ciphergate.dto.ApplicationQueryDTO;
+import com.ayssu.ciphergate.agent.AgentAuthorizationService;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.ApplicationLog;
 import com.ayssu.ciphergate.entity.PluginModule;
@@ -60,14 +61,15 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final PluginModuleMapper pluginModuleMapper;
     private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
+    private final AgentAuthorizationService agentAuthorizationService;
     private final SystemMessageService systemMessageService;
     private final MinioObjectService minioObjectService;
     private final MinioProperties minioProperties;
     
     @Override
-    public Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO) {
+    public Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO, Long operatorId) {
         log.info("=== 开始查询应用列表 ===");
-        log.info("查询参数: {}", queryDTO);
+        log.info("查询参数: {}, operatorId={}", queryDTO, operatorId);
         
         // 测试：先直接查询所有数据
         List<Application> allApps = applicationMapper.selectList(null);
@@ -85,9 +87,30 @@ public class ApplicationServiceImpl implements ApplicationService {
                    Application::getBusinessModel, queryDTO.getBusinessModel())
                .eq(queryDTO.getStatus() != null, 
                    Application::getStatus, queryDTO.getStatus())
-               .eq(queryDTO.getOwnerId() != null, 
-                   Application::getOwnerId, queryDTO.getOwnerId())
                .orderByDesc(Application::getCreatedAt);
+
+        if (securityUtils.isAdmin(operatorId)) {
+            wrapper.eq(queryDTO.getOwnerId() != null,
+                    Application::getOwnerId, queryDTO.getOwnerId());
+        } else {
+            List<Long> ownedAppIds = applicationMapper.selectList(
+                            new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, operatorId))
+                    .stream()
+                    .map(Application::getId)
+                    .toList();
+            List<Long> delegatedAppIds = agentAuthorizationService.listDelegatedAppIds(operatorId);
+            List<Long> accessibleAppIds = new java.util.ArrayList<>(ownedAppIds);
+            for (Long appId : delegatedAppIds) {
+                if (!accessibleAppIds.contains(appId)) {
+                    accessibleAppIds.add(appId);
+                }
+            }
+            if (accessibleAppIds.isEmpty()) {
+                wrapper.apply("1=0");
+            } else {
+                wrapper.in(Application::getId, accessibleAppIds);
+            }
+        }
         
         Page<Application> result = applicationMapper.selectPage(page, wrapper);
         
@@ -99,6 +122,9 @@ public class ApplicationServiceImpl implements ApplicationService {
             User user = userMapper.selectById(app.getOwnerId());
             if (user != null) {
                 app.setOwnerName(user.getName() != null ? user.getName() : user.getLogin());
+            }
+            if (!securityUtils.isAdmin(operatorId) && !operatorId.equals(app.getOwnerId())) {
+                maskDelegatedApplicationView(app);
             }
         });
         
@@ -147,8 +173,34 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (user != null) {
             application.setOwnerName(user.getName() != null ? user.getName() : user.getLogin());
         }
+        if (!securityUtils.isAdmin(userId) && !userId.equals(application.getOwnerId())) {
+            maskDelegatedApplicationView(application);
+        }
         
         return application;
+    }
+
+    /**
+     * 代理可见应用做脱敏，避免泄露密钥与配置细节。
+     */
+    private void maskDelegatedApplicationView(Application app) {
+        if (app == null) {
+            return;
+        }
+        app.setAppKey(null);
+        app.setAppSecret(null);
+        app.setNotice(null);
+        app.setUpdateNotice(null);
+        app.setUpdateFileStorageKey(null);
+        app.setEncryptionPlugin(null);
+        app.setEncryptionConfig(Collections.emptyMap());
+        app.setFeatures(Collections.emptyMap());
+        app.setTrafficLimit(null);
+        app.setTrafficUsed(null);
+        app.setCurrentVersion(null);
+        app.setMinVersion(null);
+        app.setUnbindTimeDeductMode(null);
+        app.setUnbindTimeDeductValue(null);
     }
     
     @Override

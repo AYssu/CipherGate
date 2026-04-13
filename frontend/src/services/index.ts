@@ -27,3 +27,4 @@ export * from './appUserService';
 
 // 从 pluginService 导出
 export * from './pluginService';
+export * from './appAgentService';

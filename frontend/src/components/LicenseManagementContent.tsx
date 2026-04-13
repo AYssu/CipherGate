@@ -27,12 +27,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   ReloadOutlined,
-  CopyOutlined,
   MoreOutlined,
   PoweroffOutlined,
   CheckCircleOutlined,
   ExportOutlined,
-  AppstoreOutlined,
   KeyOutlined,
   ClockCircleOutlined,
   DisconnectOutlined,
@@ -408,12 +406,6 @@ const LicenseManagementContent: React.FC = () => {
     }
   };
 
-  // 复制卡密
-  const handleCopy = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    message.success(`${label}已复制到剪贴板`);
-  };
-
   const parseExportFilename = (contentDisposition: string | undefined): string | null => {
     if (!contentDisposition) return null;
     const star = contentDisposition.match(/filename\*=UTF-8''([^;\s]+)/i);
@@ -516,6 +508,17 @@ const LicenseManagementContent: React.FC = () => {
       key: 'appName',
       width: 150,
       render: (text: string) => <Text>{text || '-'}</Text>,
+    },
+    {
+      title: '创建来源',
+      key: 'creatorType',
+      width: 200,
+      render: (_: unknown, record: LicenseKey) => {
+        if (record.creatorType === 'AGENT') {
+          return <Text>{record.agentDisplayName || '-'}</Text>;
+        }
+        return <Tag color="blue">自己创建</Tag>;
+      },
     },
     {
       title: '类型',

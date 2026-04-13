@@ -18,6 +18,8 @@ export interface AppUser {
   createdAt: string;
   updatedAt: string;
   appName?: string;
+  creatorType?: 'SELF' | 'AGENT';
+  agentDisplayName?: string;
   bindingCount?: number;
   /** 当前是否有第三方 WS 会话（服务端内存，多机未聚合） */
   wsOnline?: boolean;

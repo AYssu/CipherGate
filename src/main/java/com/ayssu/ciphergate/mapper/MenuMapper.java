@@ -32,7 +32,7 @@ public interface MenuMapper extends BaseMapper<Menu> {
             "LEFT JOIN user_roles ur ON rm.role_id = ur.role_id " +
             "WHERE m.status = 1 AND ur.user_id = #{userId} " +
             "ORDER BY m.parent_id ASC, m.sort_order ASC")
-    List<Menu> selectMenusByUserIdForAdmin(@Param("userId") Long userId);
+        List<Menu> selectMenusByUserIdForAdmin(@Param("userId") Long userId);
 
     /**
      * 检查用户是否是管理员
@@ -41,6 +41,14 @@ public interface MenuMapper extends BaseMapper<Menu> {
             "INNER JOIN roles r ON ur.role_id = r.id " +
             "WHERE ur.user_id = #{userId} AND r.role_code IN ('SUPER_ADMIN', 'ADMIN')")
     boolean isUserAdmin(@Param("userId") Long userId);
+
+    /**
+     * 检查用户是否是超级管理员
+     */
+    @Select("SELECT COUNT(*) > 0 FROM user_roles ur " +
+            "INNER JOIN roles r ON ur.role_id = r.id " +
+            "WHERE ur.user_id = #{userId} AND r.role_code = 'SUPER_ADMIN'")
+    boolean isUserSuperAdmin(@Param("userId") Long userId);
 
     /**
      * 根据角色ID查询菜单

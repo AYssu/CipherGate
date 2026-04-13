@@ -20,6 +20,7 @@ public class SecurityConfig {
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final ThirdPartyAuthFilter thirdPartyAuthFilter;
+    private final ActiveUserSessionFilter activeUserSessionFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -61,6 +62,7 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(thirdPartyAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(activeUserSessionFilter, ThirdPartyAuthFilter.class);
 
         return http.build();
     }

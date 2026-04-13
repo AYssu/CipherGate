@@ -69,12 +69,7 @@ public class ApplicationController {
         try {
             User currentUser = getCurrentUser();
             
-            // 非管理员只能查看自己创建的应用（管理员含 ADMIN / SUPER_ADMIN）
-            if (!securityUtils.isAdmin(currentUser.getId())) {
-                queryDTO.setOwnerId(currentUser.getId());
-            }
-            
-            Page<Application> page = applicationService.getApplicationPage(queryDTO);
+            Page<Application> page = applicationService.getApplicationPage(queryDTO, currentUser.getId());
             return Result.success(page);
         } catch (Exception e) {
             log.error("获取应用列表失败", e);

@@ -6,6 +6,8 @@ export interface LicenseKey {
   appName?: string;
   ownerId: number;
   ownerName?: string;
+  creatorType?: 'SELF' | 'AGENT';
+  agentDisplayName?: string;
   keyCode: string;
   keyType: string;
   durationValue?: number;

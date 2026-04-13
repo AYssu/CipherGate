@@ -120,23 +120,45 @@ INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type,
 ('查看个人信息', 'PROFILE_VIEW', 'API', '/api/user/info,/api/user/profile', 'GET', '查看个人信息'),
 ('更新个人信息', 'PROFILE_UPDATE', 'API', '/api/user/profile', 'PUT', '更新个人信息');
 
+-- 系统配置表（前置，供后续初始化条件判断）
+CREATE TABLE IF NOT EXISTS system_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(100) NOT NULL UNIQUE,
+    config_value TEXT NOT NULL,
+    description VARCHAR(500),
+    is_encrypted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_config_key (config_key)
+);
+
+-- 系统初始化标记默认未完成；完成首次向导后由后端写为 true
+INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES
+('SYSTEM_INITIALIZED', 'false', '系统初始化标记，用于判断是否已完成首次初始化');
+
 -- 检查是否是首次初始化，如果是则分配默认权限
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 
 WHERE r.role_code = 'SUPER_ADMIN'
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 
 WHERE r.role_code = 'ADMIN' 
-AND p.permission_code NOT IN ('USER_DELETE', 'PERMISSION_CREATE', 'PERMISSION_UPDATE', 'PERMISSION_DELETE')
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
+AND p.permission_code NOT IN (
+    'USER_LIST', 'USER_DETAIL', 'USER_CREATE', 'USER_UPDATE', 'USER_DELETE',
+    'ROLE_LIST', 'ROLE_CREATE', 'ROLE_UPDATE', 'ROLE_DELETE',
+    'MENU_MANAGEMENT', 'MENU_LIST', 'MENU_CREATE', 'MENU_UPDATE', 'MENU_DELETE',
+    'PERMISSION_LIST', 'PERMISSION_CREATE', 'PERMISSION_UPDATE', 'PERMISSION_DELETE',
+    'CONFIG_LIST', 'CONFIG_UPDATE'
+)
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 
 WHERE r.role_code = 'USER' 
 AND p.permission_code IN ('PROFILE_VIEW', 'PROFILE_UPDATE')
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 -- 菜单表
 CREATE TABLE IF NOT EXISTS menus (
@@ -209,7 +231,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id
 FROM roles r, menus m
-WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+WHERE r.role_code = 'SUPER_ADMIN'
   AND m.menu_code = 'SYSTEM_SETTING'
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
 
@@ -218,31 +240,23 @@ ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m 
 WHERE r.role_code = 'SUPER_ADMIN'
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m 
 WHERE r.role_code = 'ADMIN' 
-AND m.menu_code NOT IN ('PERMISSION_MANAGEMENT')
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
+AND m.menu_code NOT IN (
+    'SYSTEM_MANAGEMENT',
+    'USER_MANAGEMENT', 'ROLE_MANAGEMENT', 'MENU_MANAGEMENT', 'PERMISSION_MANAGEMENT',
+    'SYSTEM_CONFIG', 'SYSTEM_SETTING'
+)
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id FROM roles r, menus m 
 WHERE r.role_code = 'USER' 
 AND m.menu_code IN ('DASHBOARD', 'PROFILE')
-AND NOT EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED');
-
--- 系统配置表
-CREATE TABLE IF NOT EXISTS system_config (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    config_key VARCHAR(100) NOT NULL UNIQUE,
-    config_value TEXT NOT NULL,
-    description VARCHAR(500),
-    is_encrypted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_config_key (config_key)
-);
+AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 -- Spring Session 主表
 CREATE TABLE IF NOT EXISTS SPRING_SESSION (
@@ -265,9 +279,7 @@ CREATE TABLE IF NOT EXISTS SPRING_SESSION_ATTRIBUTES (
     CONSTRAINT SPRING_SESSION_ATTRIBUTES_FK FOREIGN KEY (SESSION_PRIMARY_ID) REFERENCES SPRING_SESSION(PRIMARY_ID) ON DELETE CASCADE
 );
 
--- 标记系统已完成初始化（只在首次运行时插入）
-INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES 
-('SYSTEM_INITIALIZED', 'true', '系统初始化标记，用于判断是否已完成首次初始化');
+-- system_config 与 SYSTEM_INITIALIZED 已在前文创建并写入默认值
 
 -- 活动日志表
 CREATE TABLE IF NOT EXISTS activity_log (
@@ -468,6 +480,7 @@ CREATE TABLE IF NOT EXISTS license_key (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '卡密ID',
     app_id BIGINT NOT NULL COMMENT '所属应用ID',
     owner_id BIGINT NOT NULL COMMENT '创建者ID',
+    agent_id BIGINT NULL COMMENT '代理ID（为空表示非代理创建）',
     key_code VARCHAR(128) NOT NULL UNIQUE COMMENT '卡密码',
     
     -- 卡密类型
@@ -524,6 +537,7 @@ CREATE TABLE IF NOT EXISTS license_key (
     
     INDEX idx_app (app_id),
     INDEX idx_owner (owner_id),
+    INDEX idx_agent (agent_id),
     INDEX idx_batch (batch_id),
     INDEX idx_bind_user (bind_user_id),
     INDEX idx_status (status),
@@ -618,6 +632,7 @@ ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 CREATE TABLE IF NOT EXISTS app_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
     app_id BIGINT NOT NULL COMMENT '所属应用ID',
+    agent_id BIGINT NULL COMMENT '代理ID（为空表示非代理创建）',
     
     -- 账号信息
     username VARCHAR(50) NOT NULL COMMENT '用户名',
@@ -645,6 +660,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     UNIQUE KEY uk_app_username (app_id, username),
     UNIQUE KEY uk_app_email (app_id, email),
     INDEX idx_app (app_id),
+    INDEX idx_agent (agent_id),
     INDEX idx_phone (phone),
     INDEX idx_deleted (deleted),
     INDEX idx_member_expires (member_expires_at)
@@ -937,9 +953,63 @@ WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
   AND m.menu_code IN ('PLUGIN_MANAGEMENT', 'PLUGIN_LIST_PAGE')
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
+-- 兜底：超级管理员始终拥有全部菜单（避免历史初始化顺序导致 role_menus 缺失）
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+  AND m.status = 1
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
 -- ========================================
 -- 插件管理模块表
 -- ========================================
+
+-- ========================================
+-- 应用代理模块表（代理配置、权限与额度）
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS app_agent (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '代理ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    agent_code VARCHAR(64) NOT NULL COMMENT '代理编码/名称',
+    user_id BIGINT NOT NULL COMMENT '绑定后台用户ID',
+    scope_mode VARCHAR(20) NOT NULL DEFAULT 'OWN_ONLY' COMMENT '范围：ALL_IN_APP / OWN_ONLY',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否启用',
+    remark VARCHAR(500) COMMENT '备注',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0=未删除, 1=已删除',
+    UNIQUE KEY uk_app_user (app_id, user_id, deleted),
+    INDEX idx_app (app_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用代理';
+
+CREATE TABLE IF NOT EXISTS app_agent_permission (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    agent_id BIGINT NOT NULL COMMENT '代理ID',
+    permission_code VARCHAR(80) NOT NULL COMMENT '代理权限项编码',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_agent_perm (agent_id, permission_code),
+    INDEX idx_agent (agent_id),
+    INDEX idx_perm (permission_code),
+    FOREIGN KEY (agent_id) REFERENCES app_agent(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用代理权限项';
+
+CREATE TABLE IF NOT EXISTS app_agent_quota (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    agent_id BIGINT NOT NULL COMMENT '代理ID',
+    key_type VARCHAR(20) NOT NULL COMMENT '卡密类型（与 license_key.key_type 一致）',
+    quota_total BIGINT NOT NULL DEFAULT 0 COMMENT '额度总量',
+    quota_used BIGINT NOT NULL DEFAULT 0 COMMENT '已用额度（创建时扣减）',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_agent_keytype (agent_id, key_type),
+    INDEX idx_agent (agent_id),
+    INDEX idx_key_type (key_type),
+    FOREIGN KEY (agent_id) REFERENCES app_agent(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用代理卡密额度';
 
 CREATE TABLE IF NOT EXISTS plugin_module (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '插件记录ID',

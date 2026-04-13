@@ -6,11 +6,15 @@ import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
+import com.ayssu.ciphergate.agent.AgentAuthorizationService;
+import com.ayssu.ciphergate.agent.AgentPermissionCodes;
+import com.ayssu.ciphergate.entity.AppAgent;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.LicenseBatch;
 import com.ayssu.ciphergate.entity.LicenseKey;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
+import com.ayssu.ciphergate.mapper.AppAgentMapper;
 import com.ayssu.ciphergate.mapper.LicenseBatchMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
@@ -49,13 +53,17 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     private final LicenseKeyMapper licenseKeyMapper;
     private final LicenseBatchMapper licenseBatchMapper;
     private final ApplicationMapper applicationMapper;
+    private final AppAgentMapper appAgentMapper;
     private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
+    private final AgentAuthorizationService agentAuthorizationService;
     
     @Override
     public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         Page<LicenseKey> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
         LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
+        log.info("卡密列表查询开始: operatorId={}, appId={}, keyType={}, status={}, batchId={}, keyCode={}",
+                operatorId, queryDTO.getAppId(), queryDTO.getKeyType(), queryDTO.getStatus(), queryDTO.getBatchId(), queryDTO.getKeyCode());
         
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
@@ -75,6 +83,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         Page<LicenseKey> result = licenseKeyMapper.selectPage(page, wrapper);
+        log.info("卡密列表查询完成: operatorId={}, total={}, records={}",
+                operatorId, result.getTotal(), result.getRecords() == null ? 0 : result.getRecords().size());
         
         // 填充关联信息（含到期自动更正状态）
         result.getRecords().forEach(this::fillRelatedInfo);
@@ -88,9 +98,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (licenseKey == null) {
             throw new RuntimeException("卡密不存在");
         }
-        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限查看此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), operatorId, AgentPermissionCodes.LICENSE_LIST, "无权限查看此卡密");
         
         fillRelatedInfo(licenseKey);
         return licenseKey;
@@ -112,10 +120,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             throw new RuntimeException("应用不存在");
         }
         
-        // 检查权限
-        if (!hasPermission(dto.getAppId(), userId)) {
-            throw new RuntimeException("无权限操作此应用的卡密");
-        }
+        AppAgent agent = ensureLicensePermission(dto.getAppId(), userId, AgentPermissionCodes.LICENSE_CREATE, "无权限操作此应用的卡密");
         
         LicenseKey licenseKey = new LicenseKey();
         BeanUtils.copyProperties(dto, licenseKey);
@@ -160,6 +165,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         licenseKey.setKeyCode(keyCode);
         licenseKey.setOwnerId(userId);
+        if (agent != null) {
+            licenseKey.setAgentId(agent.getId());
+            agentAuthorizationService.consumeQuotaOrThrow(agent.getId(), licenseKey.getKeyType(), 1);
+        }
         licenseKey.setSource("MANUAL");
         licenseKey.setStatus(1); // 未使用
         licenseKey.setUseCount(0);
@@ -211,9 +220,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             throw new RuntimeException("应用不存在");
         }
         
-        // 检查权限
-        if (!hasPermission(dto.getAppId(), userId)) {
-            throw new RuntimeException("无权限操作此应用的卡密");
+        AppAgent agent = ensureLicensePermission(dto.getAppId(), userId, AgentPermissionCodes.LICENSE_CREATE, "无权限操作此应用的卡密");
+        if (agent != null) {
+            long total = dto.getTotalCount() == null ? 0 : dto.getTotalCount();
+            agentAuthorizationService.consumeQuotaOrThrow(agent.getId(), dto.getKeyType(), total);
         }
         
         // 创建批次
@@ -242,6 +252,9 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             LicenseKey licenseKey = new LicenseKey();
             licenseKey.setAppId(dto.getAppId());
             licenseKey.setOwnerId(userId);
+            if (agent != null) {
+                licenseKey.setAgentId(agent.getId());
+            }
             
             // 生成唯一卡密（在当前应用下唯一）
             String keyCode;
@@ -289,9 +302,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         // 检查权限
-        if (!hasPermission(licenseKey.getAppId(), userId)) {
-            throw new RuntimeException("无权限操作此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), userId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作此卡密");
         
         // 更新字段
         if (dto.getUseLimit() != null) {
@@ -340,9 +351,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         // 检查权限
-        if (!hasPermission(licenseKey.getAppId(), userId)) {
-            throw new RuntimeException("无权限操作此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), userId, AgentPermissionCodes.LICENSE_DELETE, "无权限操作此卡密");
         
         // 软删除
         licenseKeyMapper.deleteById(id);
@@ -360,9 +369,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         // 检查权限
-        if (!hasPermission(licenseKey.getAppId(), userId)) {
-            throw new RuntimeException("无权限操作此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), userId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作此卡密");
         
         licenseKey.setStatus(status);
         licenseKey.setUpdatedAt(LocalDateTime.now());
@@ -611,9 +618,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (licenseKey == null) {
             throw new RuntimeException("卡密不存在");
         }
-        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), operatorId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作此卡密");
         if (!StringUtils.hasText(licenseKey.getBindDeviceId())) {
             throw new RuntimeException("当前未绑定设备");
         }
@@ -643,9 +648,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (licenseKey == null) {
             throw new RuntimeException("卡密不存在");
         }
-        if (!hasPermission(licenseKey.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此卡密");
-        }
+        ensureLicensePermission(licenseKey.getAppId(), operatorId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作此卡密");
         if (!StringUtils.hasText(licenseKey.getBindIp())) {
             throw new RuntimeException("当前未绑定IP");
         }
@@ -708,13 +711,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
      * 检查用户是否有权限操作应用的卡密
      */
     private boolean hasPermission(Long appId, Long userId) {
-        Application application = applicationMapper.selectById(appId);
-        if (application == null) {
-            return false;
+        if (securityUtils.isAdmin(userId) || agentAuthorizationService.isOwner(appId, userId)) {
+            return true;
         }
-        
-        // 应用所有者或管理员（ADMIN / SUPER_ADMIN）可以操作
-        return application.getOwnerId().equals(userId) || securityUtils.isAdmin(userId);
+        return agentAuthorizationService.findEnabledAgentForUser(appId, userId) != null;
     }
     
     private List<Long> listOwnedApplicationIds(Long userId) {
@@ -736,17 +736,100 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                    .eq(queryDTO.getOwnerId() != null, LicenseKey::getOwnerId, queryDTO.getOwnerId());
             return;
         }
-        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
         if (queryDTO.getAppId() != null) {
-            if (!ownedAppIds.contains(queryDTO.getAppId())) {
-                throw new RuntimeException("无权限查询该应用");
+            Long appId = queryDTO.getAppId();
+            if (agentAuthorizationService.isOwner(appId, operatorId)) {
+                wrapper.eq(LicenseKey::getAppId, appId);
+                return;
             }
-            wrapper.eq(LicenseKey::getAppId, queryDTO.getAppId());
-        } else if (ownedAppIds.isEmpty()) {
+            AppAgent agent = ensureLicenseListPermission(appId, operatorId, "无权限查询该应用");
+            if (agentAuthorizationService.isScopeAllInApp(agent) || hasAgentPermission(agent, AgentPermissionCodes.LICENSE_VIEW_ALL)) {
+                wrapper.eq(LicenseKey::getAppId, appId);
+            } else {
+                wrapper.eq(LicenseKey::getAppId, appId).eq(LicenseKey::getAgentId, agent.getId());
+            }
+            return;
+        }
+        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+        List<AppAgent> agents = agentAuthorizationService.listEnabledAgentsForUser(operatorId);
+        log.info("卡密查询代理范围: operatorId={}, ownedAppIds={}, agentCount={}",
+                operatorId, ownedAppIds, agents.size());
+        if (ownedAppIds.isEmpty() && agents.isEmpty()) {
             wrapper.apply("1=0");
         } else {
-            wrapper.in(LicenseKey::getAppId, ownedAppIds);
+            wrapper.and(w -> {
+                boolean hasCond = false;
+                if (!ownedAppIds.isEmpty()) {
+                    w.in(LicenseKey::getAppId, ownedAppIds);
+                    hasCond = true;
+                }
+                for (AppAgent agent : agents) {
+                    boolean canList = canAgentListLicense(agent);
+                    boolean viewAll = hasAgentPermission(agent, AgentPermissionCodes.LICENSE_VIEW_ALL);
+                    log.info("卡密查询代理命中: operatorId={}, agentId={}, appId={}, canList={}, viewAll={}, scopeMode={}",
+                            operatorId, agent.getId(), agent.getAppId(), canList, viewAll, agent.getScopeMode());
+                    if (!canAgentListLicense(agent)) {
+                        continue;
+                    }
+                    if (agentAuthorizationService.isScopeAllInApp(agent) || hasAgentPermission(agent, AgentPermissionCodes.LICENSE_VIEW_ALL)) {
+                        if (hasCond) {
+                            w.or();
+                        }
+                        w.eq(LicenseKey::getAppId, agent.getAppId());
+                        hasCond = true;
+                    } else {
+                        if (hasCond) {
+                            w.or();
+                        }
+                        w.eq(LicenseKey::getAppId, agent.getAppId()).eq(LicenseKey::getAgentId, agent.getId());
+                        hasCond = true;
+                    }
+                }
+                if (!hasCond) {
+                    w.apply("1=0");
+                }
+            });
         }
+    }
+
+    private AppAgent ensureLicensePermission(Long appId, Long userId, String permissionCode, String message) {
+        if (securityUtils.isAdmin(userId) || agentAuthorizationService.isOwner(appId, userId)) {
+            return null;
+        }
+        AppAgent agent = agentAuthorizationService.findEnabledAgentForUser(appId, userId);
+        if (agent == null) {
+            throw new RuntimeException(message);
+        }
+        if (!hasAgentPermission(agent, permissionCode)) {
+            throw new RuntimeException(message);
+        }
+        return agent;
+    }
+
+    private AppAgent ensureLicenseListPermission(Long appId, Long userId, String message) {
+        if (securityUtils.isAdmin(userId) || agentAuthorizationService.isOwner(appId, userId)) {
+            return null;
+        }
+        AppAgent agent = agentAuthorizationService.findEnabledAgentForUser(appId, userId);
+        if (agent == null) {
+            throw new RuntimeException(message);
+        }
+        if (!canAgentListLicense(agent)) {
+            throw new RuntimeException(message);
+        }
+        return agent;
+    }
+
+    private boolean canAgentListLicense(AppAgent agent) {
+        return hasAgentPermission(agent, AgentPermissionCodes.LICENSE_LIST)
+                || hasAgentPermission(agent, AgentPermissionCodes.LICENSE_VIEW_ALL);
+    }
+
+    private boolean hasAgentPermission(AppAgent agent, String permissionCode) {
+        if (agent == null || !StringUtils.hasText(permissionCode)) {
+            return false;
+        }
+        return agentAuthorizationService.getAgentPermissions(agent.getId()).contains(permissionCode.trim().toUpperCase());
     }
     
     /**
@@ -800,6 +883,23 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             if (user != null) {
                 licenseKey.setOwnerName(user.getName() != null ? user.getName() : user.getLogin());
             }
+        }
+
+        // 填充创建来源与代理名称
+        if (licenseKey.getAgentId() != null) {
+            licenseKey.setCreatorType("AGENT");
+            AppAgent agent = appAgentMapper.selectById(licenseKey.getAgentId());
+            if (agent != null && agent.getUserId() != null) {
+                User agentUser = userMapper.selectById(agent.getUserId());
+                if (agentUser != null) {
+                    String base = StringUtils.hasText(agentUser.getName()) ? agentUser.getName() : agentUser.getLogin();
+                    licenseKey.setAgentDisplayName(base + " #" + agentUser.getId());
+                } else {
+                    licenseKey.setAgentDisplayName("#" + agent.getUserId());
+                }
+            }
+        } else {
+            licenseKey.setCreatorType("SELF");
         }
         
         // 填充批次名称

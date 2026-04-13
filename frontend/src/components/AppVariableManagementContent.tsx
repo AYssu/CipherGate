@@ -95,7 +95,7 @@ const AppVariableManagementContent: React.FC = () => {
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
   const activeAdvancedFilterCount = [listFilters.appId, listFilters.variableType].filter(
-    (v) => v !== undefined && v !== null && v !== ''
+    (v) => v !== undefined && v !== null
   ).length;
 
   const fetchApplications = async () => {
@@ -167,7 +167,7 @@ const AppVariableManagementContent: React.FC = () => {
   const handleAdvancedFilterQuery = async () => {
     const v = await listFilterForm.validateFields();
     const next: Pick<AppVariableQuery, 'appId' | 'variableType'> = {};
-    if (v.appId != null && v.appId !== '') {
+    if (v.appId != null) {
       next.appId = v.appId;
     }
     if (v.variableType) {

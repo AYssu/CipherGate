@@ -30,6 +30,11 @@ public class LicenseKey implements Serializable {
      * 创建者ID
      */
     private Long ownerId;
+
+    /**
+     * 代理ID（为空表示非代理创建）
+     */
+    private Long agentId;
     
     /**
      * 卡密码
@@ -205,4 +210,16 @@ public class LicenseKey implements Serializable {
      */
     @TableField(exist = false)
     private String batchName;
+
+    /**
+     * 创建来源（非数据库字段）：SELF / AGENT
+     */
+    @TableField(exist = false)
+    private String creatorType;
+
+    /**
+     * 代理绑定用户显示名（非数据库字段）：name/login + #id
+     */
+    @TableField(exist = false)
+    private String agentDisplayName;
 }

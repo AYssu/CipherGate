@@ -24,13 +24,17 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     private final MenuMapper menuMapper;
     
     @Override
-    public List<Menu> getUserMenuTree(Long userId) {
+    public List<Menu>  getUserMenuTree(Long userId) {
         log.info("开始获取用户 {} 的菜单树", userId);
         
-        // 检查用户是否是管理员
         List<Menu> userMenus;
-        log.info("用户 {} 是普通用户，只获取可见菜单", userId);
-        userMenus = menuMapper.selectMenusByUserId(userId);
+        if (menuMapper.isUserSuperAdmin(userId)) {
+            log.info("用户 {} 是超级管理员，获取全部启用菜单", userId);
+            userMenus = menuMapper.selectMenusByUserIdForAdmin(userId);
+        } else {
+            log.info("用户 {} 非超级管理员，按角色菜单获取可见菜单", userId);
+            userMenus = menuMapper.selectMenusByUserId(userId);
+        }
         
         log.info("查询到 {} 个菜单项", userMenus.size());
         

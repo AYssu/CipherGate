@@ -1,14 +1,20 @@
 package com.ayssu.ciphergate.service.impl;
 
 import cn.hutool.crypto.digest.BCrypt;
+import com.ayssu.ciphergate.agent.AgentAuthorizationService;
+import com.ayssu.ciphergate.agent.AgentPermissionCodes;
 import com.ayssu.ciphergate.dto.AppUserDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
+import com.ayssu.ciphergate.entity.AppAgent;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
 import com.ayssu.ciphergate.entity.Application;
+import com.ayssu.ciphergate.entity.User;
+import com.ayssu.ciphergate.mapper.AppAgentMapper;
 import com.ayssu.ciphergate.mapper.AppUserBindingMapper;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
+import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
 import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
@@ -40,7 +46,10 @@ public class AppUserServiceImpl implements AppUserService {
     private final AppUserMapper appUserMapper;
     private final AppUserBindingMapper appUserBindingMapper;
     private final ApplicationMapper applicationMapper;
+    private final AppAgentMapper appAgentMapper;
+    private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
+    private final AgentAuthorizationService agentAuthorizationService;
     private final SystemMessageService systemMessageService;
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     private final AppUserWsSessionKickService appUserWsSessionKickService;
@@ -48,6 +57,8 @@ public class AppUserServiceImpl implements AppUserService {
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
         Page<AppUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        log.info("终端用户列表查询开始: operatorId={}, appId={}, username={}, email={}, phone={}",
+                operatorId, queryDTO.getAppId(), queryDTO.getUsername(), queryDTO.getEmail(), queryDTO.getPhone());
 
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForAppUserQuery(wrapper, queryDTO, operatorId);
@@ -59,6 +70,8 @@ public class AppUserServiceImpl implements AppUserService {
                .orderByDesc(AppUser::getCreatedAt);
         
         Page<AppUser> result = appUserMapper.selectPage(page, wrapper);
+        log.info("终端用户列表查询完成: operatorId={}, total={}, records={}",
+                operatorId, result.getTotal(), result.getRecords() == null ? 0 : result.getRecords().size());
         
         // 填充关联信息
         result.getRecords().forEach(this::fillRelatedInfo);
@@ -76,16 +89,59 @@ public class AppUserServiceImpl implements AppUserService {
             wrapper.eq(queryDTO.getAppId() != null, AppUser::getAppId, queryDTO.getAppId());
             return;
         }
-        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
         if (queryDTO.getAppId() != null) {
-            if (!ownedAppIds.contains(queryDTO.getAppId())) {
-                throw new RuntimeException("无权限查询此应用的终端用户");
+            Long appId = queryDTO.getAppId();
+            if (agentAuthorizationService.isOwner(appId, operatorId)) {
+                wrapper.eq(AppUser::getAppId, appId);
+                return;
             }
-            wrapper.eq(AppUser::getAppId, queryDTO.getAppId());
-        } else if (ownedAppIds.isEmpty()) {
+            AppAgent agent = ensureAppUserListPermission(appId, operatorId, "无权限查询此应用的终端用户");
+            if (agentAuthorizationService.isScopeAllInApp(agent) || hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL)) {
+                wrapper.eq(AppUser::getAppId, appId);
+            } else {
+                wrapper.eq(AppUser::getAppId, appId).eq(AppUser::getAgentId, agent.getId());
+            }
+            return;
+        }
+        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+        List<AppAgent> agents = agentAuthorizationService.listEnabledAgentsForUser(operatorId);
+        log.info("终端用户查询代理范围: operatorId={}, ownedAppIds={}, agentCount={}",
+                operatorId, ownedAppIds, agents.size());
+        if (ownedAppIds.isEmpty() && agents.isEmpty()) {
             wrapper.apply("1=0");
         } else {
-            wrapper.in(AppUser::getAppId, ownedAppIds);
+            wrapper.and(w -> {
+                boolean hasCond = false;
+                if (!ownedAppIds.isEmpty()) {
+                    w.in(AppUser::getAppId, ownedAppIds);
+                    hasCond = true;
+                }
+                for (AppAgent agent : agents) {
+                    boolean canList = canAgentListAppUser(agent);
+                    boolean viewAll = hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL);
+                    log.info("终端用户查询代理命中: operatorId={}, agentId={}, appId={}, canList={}, viewAll={}, scopeMode={}",
+                            operatorId, agent.getId(), agent.getAppId(), canList, viewAll, agent.getScopeMode());
+                    if (!canAgentListAppUser(agent)) {
+                        continue;
+                    }
+                    if (agentAuthorizationService.isScopeAllInApp(agent) || hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL)) {
+                        if (hasCond) {
+                            w.or();
+                        }
+                        w.eq(AppUser::getAppId, agent.getAppId());
+                        hasCond = true;
+                    } else {
+                        if (hasCond) {
+                            w.or();
+                        }
+                        w.eq(AppUser::getAppId, agent.getAppId()).eq(AppUser::getAgentId, agent.getId());
+                        hasCond = true;
+                    }
+                }
+                if (!hasCond) {
+                    w.apply("1=0");
+                }
+            });
         }
     }
 
@@ -103,8 +159,11 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限查看此用户");
+        AppAgent agent = ensureAppUserListPermission(appUser.getAppId(), operatorId, "无权限查看此用户");
+        if (agent != null && !agentAuthorizationService.isScopeAllInApp(agent) && !hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL)) {
+            if (!agent.getId().equals(appUser.getAgentId())) {
+                throw new RuntimeException("无权限查看此用户");
+            }
         }
         
         fillRelatedInfo(appUser);
@@ -121,9 +180,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(dto.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此应用的用户");
-        }
+        AppAgent agent = ensureAppUserPermission(dto.getAppId(), operatorId, AgentPermissionCodes.APP_USER_CREATE, "无权限操作此应用的用户");
         
         // 检查用户名是否重复
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
@@ -155,6 +212,9 @@ public class AppUserServiceImpl implements AppUserService {
         
         appUser.setLoginCount(0);
         appUser.setDeleted(0);
+        if (agent != null) {
+            appUser.setAgentId(agent.getId());
+        }
         
         LocalDateTime now = LocalDateTime.now();
         appUser.setCreatedAt(now);
@@ -177,9 +237,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 检查邮箱是否重复
         if (StringUtils.hasText(dto.getEmail()) && !dto.getEmail().equals(appUser.getEmail())) {
@@ -230,9 +288,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_DELETE, "无权限操作此用户");
         
         // 逻辑删除（由 @TableLogic + MyBatis-Plus 统一处理）
         int affected = appUserMapper.deleteById(id);
@@ -269,9 +325,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 使用 Hutool BCrypt 加密并更新密码
         appUser.setPassword(BCrypt.hashpw(newPassword));
@@ -291,9 +345,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 更新绑定记录的封禁状态
         if (bindingId != null) {
@@ -371,9 +423,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限查看此用户绑定信息");
-        }
+        ensureAppUserListPermission(appUser.getAppId(), operatorId, "无权限查看此用户绑定信息");
         
         Page<AppUserBinding> page = new Page<>(current, size);
         
@@ -403,9 +453,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 验证绑定记录是否存在
         AppUserBinding binding = appUserBindingMapper.selectById(bindingId);
@@ -445,7 +493,50 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 应用所有者或管理员可以操作
-        return application.getOwnerId().equals(userId) || securityUtils.isAdmin(userId);
+        if (application.getOwnerId().equals(userId) || securityUtils.isAdmin(userId)) {
+            return true;
+        }
+        return agentAuthorizationService.findEnabledAgentForUser(appId, userId) != null;
+    }
+
+    private AppAgent ensureAppUserPermission(Long appId, Long userId, String permissionCode, String message) {
+        if (securityUtils.isAdmin(userId) || agentAuthorizationService.isOwner(appId, userId)) {
+            return null;
+        }
+        AppAgent agent = agentAuthorizationService.findEnabledAgentForUser(appId, userId);
+        if (agent == null) {
+            throw new RuntimeException(message);
+        }
+        if (!hasAgentPermission(agent, permissionCode)) {
+            throw new RuntimeException(message);
+        }
+        return agent;
+    }
+
+    private AppAgent ensureAppUserListPermission(Long appId, Long userId, String message) {
+        if (securityUtils.isAdmin(userId) || agentAuthorizationService.isOwner(appId, userId)) {
+            return null;
+        }
+        AppAgent agent = agentAuthorizationService.findEnabledAgentForUser(appId, userId);
+        if (agent == null) {
+            throw new RuntimeException(message);
+        }
+        if (!canAgentListAppUser(agent)) {
+            throw new RuntimeException(message);
+        }
+        return agent;
+    }
+
+    private boolean canAgentListAppUser(AppAgent agent) {
+        return hasAgentPermission(agent, AgentPermissionCodes.APP_USER_LIST)
+                || hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL);
+    }
+
+    private boolean hasAgentPermission(AppAgent agent, String permissionCode) {
+        if (agent == null || !StringUtils.hasText(permissionCode)) {
+            return false;
+        }
+        return agentAuthorizationService.getAgentPermissions(agent.getId()).contains(permissionCode.trim().toUpperCase());
     }
     
     /**
@@ -472,6 +563,23 @@ public class AppUserServiceImpl implements AppUserService {
                 .eq(AppUserBinding::getDeleted, 0)
                 .eq(AppUserBinding::getIsBanned, true);
         appUser.setIsBanned(appUserBindingMapper.selectCount(bannedWrap) > 0);
+
+        // 填充创建来源与代理名称
+        if (appUser.getAgentId() != null) {
+            appUser.setCreatorType("AGENT");
+            AppAgent agent = appAgentMapper.selectById(appUser.getAgentId());
+            if (agent != null && agent.getUserId() != null) {
+                User agentUser = userMapper.selectById(agent.getUserId());
+                if (agentUser != null) {
+                    String base = StringUtils.hasText(agentUser.getName()) ? agentUser.getName() : agentUser.getLogin();
+                    appUser.setAgentDisplayName(base + " #" + agentUser.getId());
+                } else {
+                    appUser.setAgentDisplayName("#" + agent.getUserId());
+                }
+            }
+        } else {
+            appUser.setCreatorType("SELF");
+        }
 
         enrichMemberStatus(appUser);
         enrichWsPresence(appUser);
@@ -509,9 +617,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime base = appUser.getMemberExpiresAt();
         if (base == null || base.isBefore(now) || base.isEqual(now)) {
@@ -533,9 +639,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        if (!hasPermission(appUser.getAppId(), operatorId)) {
-            throw new RuntimeException("无权限操作此用户");
-        }
+        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         appUser.setMemberExpiresAt(memberExpiresAt);
         appUser.setUpdatedAt(LocalDateTime.now());
         appUserMapper.updateById(appUser);

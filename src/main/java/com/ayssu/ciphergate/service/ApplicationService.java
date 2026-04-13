@@ -16,7 +16,7 @@ public interface ApplicationService {
     /**
      * 分页查询应用列表
      */
-    Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO);
+    Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO, Long operatorId);
     
     /**
      * 根据ID获取应用详情

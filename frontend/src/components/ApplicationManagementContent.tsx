@@ -11,8 +11,6 @@ import {
   Input,
   Select,
   message,
-  Popconfirm,
-  Tooltip,
   Row,
   Col,
   InputNumber,
@@ -20,8 +18,8 @@ import {
   Badge,
   Dropdown,
   Upload,
+  Switch,
   type MenuProps,
-  type UploadProps,
 } from 'antd';
 import {
   PlusOutlined,
@@ -32,7 +30,6 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
   CopyOutlined,
-  AppstoreOutlined,
   MoreOutlined,
   PoweroffOutlined,
   CheckCircleOutlined,
@@ -44,13 +41,13 @@ import {
   SafetyOutlined,
   UploadOutlined,
   SlidersOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import {
   getApplicationList,
   createApplication,
   updateApplication,
   deleteApplication,
-  generateAppKeys,
   resetAppKeys,
   updateApplicationStatus,
   getEncryptionConfig,
@@ -59,6 +56,16 @@ import {
   type Application,
   type ApplicationDTO,
 } from '../services/applicationService';
+import {
+  listAppAgents,
+  createAppAgent,
+  updateAppAgent,
+  updateAppAgentPermissions,
+  updateAppAgentQuotas,
+  lookupAppAgentBindUser,
+  type AppAgentDTO,
+  type AgentBindUserDTO,
+} from '../services/appAgentService';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -81,6 +88,16 @@ const ApplicationManagementContent: React.FC = () => {
   const [encryptionLoading, setEncryptionLoading] = useState(false);
   const [encryptionSaving, setEncryptionSaving] = useState(false);
   const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
+  const [agentModalVisible, setAgentModalVisible] = useState(false);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [agentApp, setAgentApp] = useState<Application | null>(null);
+  const [agentList, setAgentList] = useState<AppAgentDTO[]>([]);
+  const [editingAgent, setEditingAgent] = useState<AppAgentDTO | null>(null);
+  const [agentForm] = Form.useForm();
+  const [bindGithubId, setBindGithubId] = useState('');
+  const [bindLookupLoading, setBindLookupLoading] = useState(false);
+  const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
 
   // 获取应用列表
   const fetchApplications = async (page = 1, size = 10) => {
@@ -310,6 +327,163 @@ const ApplicationManagementContent: React.FC = () => {
     }));
   };
 
+  const AGENT_PERMISSION_OPTIONS = [
+    { label: '卡密查看', value: 'LICENSE_LIST' },
+    { label: '卡密创建', value: 'LICENSE_CREATE' },
+    { label: '卡密修改', value: 'LICENSE_UPDATE' },
+    { label: '卡密删除', value: 'LICENSE_DELETE' },
+    { label: '查看应用全部卡密', value: 'LICENSE_VIEW_ALL' },
+    { label: '终端用户查看', value: 'APP_USER_LIST' },
+    { label: '终端用户创建', value: 'APP_USER_CREATE' },
+    { label: '终端用户修改', value: 'APP_USER_UPDATE' },
+    { label: '终端用户删除', value: 'APP_USER_DELETE' },
+    { label: '查看应用全部终端用户', value: 'APP_USER_VIEW_ALL' },
+  ];
+
+  const loadAppAgents = async (appId: number) => {
+    setAgentLoading(true);
+    try {
+      const res: any = await listAppAgents(appId);
+      if (res.code === 200) {
+        setAgentList(res.data || []);
+      } else {
+        message.error(res.message || '加载代理配置失败');
+      }
+    } finally {
+      setAgentLoading(false);
+    }
+  };
+
+  const openAgentModal = async (app: Application) => {
+    setAgentApp(app);
+    setEditingAgent(null);
+    agentForm.resetFields();
+    setBindGithubId('');
+    setBindUser(null);
+    setAgentModalVisible(true);
+    try {
+      await loadAppAgents(app.id);
+    } catch (e) {
+      console.error(e);
+      message.error('加载代理配置失败');
+    }
+  };
+
+  const parseQuotaText = (text: string | undefined): Record<string, number> => {
+    const out: Record<string, number> = {};
+    const raw = (text || '').trim();
+    if (!raw) {
+      return out;
+    }
+    raw.split('\n').forEach((line) => {
+      const s = line.trim();
+      if (!s) return;
+      const parts = s.split(':');
+      if (parts.length !== 2) return;
+      const keyType = parts[0].trim().toUpperCase();
+      const total = Number(parts[1].trim());
+      if (keyType && Number.isFinite(total) && total >= 0) {
+        out[keyType] = total;
+      }
+    });
+    return out;
+  };
+
+  const toQuotaText = (quotas?: Record<string, number>) => {
+    if (!quotas) return '';
+    return Object.entries(quotas)
+      .map(([k, v]) => `${k}:${v}`)
+      .join('\n');
+  };
+
+  const onEditAgent = (agent: AppAgentDTO) => {
+    setEditingAgent(agent);
+    setBindUser(agent.userId ? { id: agent.userId, githubId: '', name: `#${agent.userId}` } : null);
+    setBindGithubId('');
+    agentForm.setFieldsValue({
+      agentCode: agent.agentCode,
+      userId: agent.userId,
+      scopeMode: agent.scopeMode || 'OWN_ONLY',
+      enabled: agent.enabled ?? true,
+      permissions: agent.permissions || [],
+      quotaText: toQuotaText(agent.quotas),
+      remark: agent.remark,
+    });
+  };
+
+  const handleLookupBindUser = async () => {
+    if (!agentApp) return;
+    const githubId = bindGithubId.trim();
+    if (!githubId) {
+      message.warning('请先输入 GitHub ID');
+      return;
+    }
+    setBindLookupLoading(true);
+    setBindUser(null);
+    try {
+      const res: any = await lookupAppAgentBindUser(agentApp.id, githubId);
+      if (res.code === 200 && res.data) {
+        setBindUser(res.data);
+        agentForm.setFieldValue('userId', res.data.id);
+        message.success('已找到用户，可进行绑定');
+      } else {
+        agentForm.setFieldValue('userId', undefined);
+        message.error(res.message || '用户不存在');
+      }
+    } finally {
+      setBindLookupLoading(false);
+    }
+  };
+
+  const submitAgentForm = async () => {
+    if (!agentApp) return;
+    const values = await agentForm.validateFields();
+    const dto: AppAgentDTO = {
+      agentCode: values.agentCode,
+      userId: values.userId,
+      scopeMode: values.scopeMode,
+      enabled: values.enabled,
+      permissions: values.permissions || [],
+      remark: values.remark,
+    };
+    const quotas = parseQuotaText(values.quotaText);
+    setAgentSaving(true);
+    try {
+      let targetId = editingAgent?.id;
+      if (editingAgent?.id) {
+        const res: any = await updateAppAgent(agentApp.id, editingAgent.id, dto);
+        if (res.code !== 200) {
+          message.error(res.message || '更新代理失败');
+          return;
+        }
+      } else {
+        const res: any = await createAppAgent(agentApp.id, dto);
+        if (res.code !== 200 || !res.data?.id) {
+          message.error(res.message || '创建代理失败');
+          return;
+        }
+        targetId = res.data.id;
+      }
+      if (!targetId) return;
+      const permRes: any = await updateAppAgentPermissions(agentApp.id, targetId, dto.permissions || []);
+      if (permRes.code !== 200) {
+        message.error(permRes.message || '保存代理权限失败');
+        return;
+      }
+      const quotaRes: any = await updateAppAgentQuotas(agentApp.id, targetId, quotas);
+      if (quotaRes.code !== 200) {
+        message.error(quotaRes.message || '保存代理额度失败');
+        return;
+      }
+      message.success(editingAgent ? '代理已更新' : '代理已创建');
+      setEditingAgent(null);
+      agentForm.resetFields();
+      await loadAppAgents(agentApp.id);
+    } finally {
+      setAgentSaving(false);
+    }
+  };
+
   // 业务模式标签
   const getBusinessModelTag = (model: number) => {
     const map: Record<number, { text: string; color: string }> = {
@@ -373,14 +547,19 @@ const ApplicationManagementContent: React.FC = () => {
       dataIndex: 'appKey',
       key: 'appKey',
       width: 180,
-      render: (text: string) => (
-        <Text 
-          copyable={{ text, tooltips: ['复制', '已复制'] }} 
-          style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}
-        >
-          {text.substring(0, 12)}...
-        </Text>
-      ),
+      render: (text: string) => {
+        if (!text) {
+          return <Text type="secondary">-</Text>;
+        }
+        return (
+          <Text
+            copyable={{ text, tooltips: ['复制', '已复制'] }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}
+          >
+            {text.substring(0, 12)}...
+          </Text>
+        );
+      },
     },
     {
       title: 'AppSecret',
@@ -390,15 +569,17 @@ const ApplicationManagementContent: React.FC = () => {
       render: (text: string, record: Application) => (
         <Space size="small">
           <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
-            {showSecret[record.id] ? text?.substring(0, 12) + '...' : '••••••••••••'}
+            {!text ? '-' : (showSecret[record.id] ? text.substring(0, 12) + '...' : '••••••••••••')}
           </Text>
-          <Button
-            type="text"
-            size="small"
-            icon={showSecret[record.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-            onClick={() => toggleShowSecret(record.id)}
-          />
-          {showSecret[record.id] && (
+          {text && (
+            <Button
+              type="text"
+              size="small"
+              icon={showSecret[record.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              onClick={() => toggleShowSecret(record.id)}
+            />
+          )}
+          {text && showSecret[record.id] && (
             <Button
               type="text"
               size="small"
@@ -433,7 +614,6 @@ const ApplicationManagementContent: React.FC = () => {
       render: (_: any, record: Application) => {
         const used = record.trafficUsed || 0;
         const limit = record.trafficLimit || 0;
-        const percent = limit > 0 ? ((used / limit) * 100).toFixed(1) : 0;
         return (
           <div style={{ textAlign: 'right' }}>
             <div><Text style={{ fontSize: 12 }}>{formatBytes(used)}</Text></div>
@@ -484,6 +664,12 @@ const ApplicationManagementContent: React.FC = () => {
             icon: <SlidersOutlined />,
             label: '加密配置',
             onClick: () => void openEncryptionConfigModal(record),
+          },
+          {
+            key: 'agentConfig',
+            icon: <TeamOutlined />,
+            label: '代理配置',
+            onClick: () => void openAgentModal(record),
           },
           {
             key: 'appRegister',
@@ -920,6 +1106,129 @@ const ApplicationManagementContent: React.FC = () => {
           style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}
           disabled={encryptionLoading}
         />
+      </Modal>
+
+      <Modal
+        title={agentApp ? `代理配置 - ${agentApp.appName} (ID: ${agentApp.id})` : '代理配置'}
+        open={agentModalVisible}
+        onCancel={() => {
+          setAgentModalVisible(false);
+          setAgentApp(null);
+          setEditingAgent(null);
+          setBindGithubId('');
+          setBindUser(null);
+          agentForm.resetFields();
+        }}
+        width={960}
+        footer={null}
+        destroyOnClose
+      >
+        <Row gutter={16}>
+          <Col span={14}>
+            <Table
+              size="small"
+              rowKey="id"
+              loading={agentLoading}
+              dataSource={agentList}
+              pagination={false}
+              columns={[
+                { title: '代理名', dataIndex: 'agentCode', key: 'agentCode' },
+                {
+                  title: '绑定用户',
+                  key: 'userId',
+                  render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
+                },
+                { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
+                { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
+                {
+                  title: '操作',
+                  key: 'action',
+                  render: (_: any, r: AppAgentDTO) => (
+                    <Button type="link" size="small" onClick={() => onEditAgent(r)}>
+                      编辑
+                    </Button>
+                  ),
+                },
+              ]}
+            />
+          </Col>
+          <Col span={10}>
+            <Card size="small" title={editingAgent ? '编辑代理' : '新建代理'}>
+              <Form
+                form={agentForm}
+                layout="vertical"
+                initialValues={{ scopeMode: 'OWN_ONLY', enabled: true, permissions: [] }}
+              >
+                <Form.Item name="agentCode" label="代理名称" rules={[{ required: true, message: '请输入代理名称' }]}>
+                  <Input placeholder="例如 华东渠道A" />
+                </Form.Item>
+                <Form.Item label="绑定后台用户" required>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      value={bindGithubId}
+                      onChange={(e) => setBindGithubId(e.target.value)}
+                      placeholder="输入对方 GitHub ID"
+                    />
+                    <Button loading={bindLookupLoading} onClick={() => void handleLookupBindUser()}>
+                      查询
+                    </Button>
+                  </Space.Compact>
+                  <Form.Item name="userId" hidden rules={[{ required: true, message: '请先查询并选择用户' }]}>
+                    <Input />
+                  </Form.Item>
+                  <div style={{ marginTop: 8 }}>
+                    {bindUser ? (
+                      <Text type="success">
+                        已匹配用户：{bindUser.name || bindUser.login || '-'}（ID: {bindUser.id}）
+                      </Text>
+                    ) : (
+                      <Text type="secondary">未选择用户</Text>
+                    )}
+                  </div>
+                </Form.Item>
+                <Form.Item name="scopeMode" label="数据范围">
+                  <Select
+                    options={[
+                      { label: '仅代理自己创建数据', value: 'OWN_ONLY' },
+                      { label: '应用内全部数据', value: 'ALL_IN_APP' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+                  <Switch />
+                </Form.Item>
+                <Form.Item name="permissions" label="代理权限">
+                  <Select mode="multiple" options={AGENT_PERMISSION_OPTIONS} />
+                </Form.Item>
+                <Form.Item
+                  name="quotaText"
+                  label="额度配置"
+                  extra="每行一个：KEY_TYPE:数量，如 MONTH:100"
+                >
+                  <TextArea placeholder={'DAY:50\nMONTH:100\nYEAR:10'} autoSize={{ minRows: 4, maxRows: 8 }} />
+                </Form.Item>
+                <Form.Item name="remark" label="备注">
+                  <TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+                </Form.Item>
+                <Space>
+                  <Button type="primary" loading={agentSaving} onClick={() => void submitAgentForm()}>
+                    保存
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingAgent(null);
+                      setBindGithubId('');
+                      setBindUser(null);
+                      agentForm.resetFields();
+                    }}
+                  >
+                    重置
+                  </Button>
+                </Space>
+              </Form>
+            </Card>
+          </Col>
+        </Row>
       </Modal>
     </Card>
   );

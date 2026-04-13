@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -37,6 +38,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         
         // 重新加载用户信息，包含角色和权限
         User userWithRoles = userService.getUserWithRolesAndPermissions(user.getId());
+        if (userWithRoles.getStatus() == null || userWithRoles.getStatus() != 1) {
+            throw new OAuth2AuthenticationException(new OAuth2Error("user_disabled"), "账号已被禁用");
+        }
         
         // 构建用户权限
         Set<GrantedAuthority> authorities = new HashSet<>();
