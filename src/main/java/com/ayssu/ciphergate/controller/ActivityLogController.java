@@ -7,6 +7,7 @@ import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.ActivityLogService;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,6 +33,16 @@ public class ActivityLogController {
     private final ActivityLogService activityLogService;
     private final SystemMessageService systemMessageService;
     private final UserMapper userMapper;
+    private final SecurityUtils securityUtils;
+
+    private User currentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+        String githubId = oauth2User.getAttribute("id").toString();
+        return userMapper.selectOne(new QueryWrapper<User>().eq("github_id", githubId));
+    }
     
     /**
      * 获取最近活动（分页）
@@ -40,8 +51,14 @@ public class ActivityLogController {
     @GetMapping("/recent")
     public Result<Page<ActivityLogEntity>> getRecentActivities(
             @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量", example = "10") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<ActivityLogEntity> page = activityLogService.getRecentActivities(pageNum, pageSize);
+            @Parameter(description = "每页数量", example = "10") @RequestParam(defaultValue = "10") int pageSize,
+            Authentication authentication) {
+        User user = currentUser(authentication);
+        if (user == null) {
+            return Result.unauthorized("未登录");
+        }
+        Long userIdFilter = securityUtils.isAdmin(user.getId()) ? null : user.getId();
+        Page<ActivityLogEntity> page = activityLogService.getRecentActivities(pageNum, pageSize, userIdFilter);
         return Result.success(page);
     }
     
@@ -51,8 +68,14 @@ public class ActivityLogController {
     @Operation(summary = "获取最近活动列表", description = "获取最近N条活动日志，用于首页快速展示")
     @GetMapping("/recent/list")
     public Result<List<ActivityLogEntity>> getRecentActivitiesList(
-            @Parameter(description = "获取数量", example = "10") @RequestParam(defaultValue = "10") int limit) {
-        List<ActivityLogEntity> activities = activityLogService.getRecentActivities(limit);
+            @Parameter(description = "获取数量", example = "10") @RequestParam(defaultValue = "10") int limit,
+            Authentication authentication) {
+        User user = currentUser(authentication);
+        if (user == null) {
+            return Result.unauthorized("未登录");
+        }
+        Long userIdFilter = securityUtils.isAdmin(user.getId()) ? null : user.getId();
+        List<ActivityLogEntity> activities = activityLogService.getRecentActivities(limit, userIdFilter);
         return Result.success(activities);
     }
     
@@ -63,7 +86,15 @@ public class ActivityLogController {
     @GetMapping("/user/{userId}")
     public Result<List<ActivityLogEntity>> getUserRecentActivities(
             @Parameter(description = "用户ID", example = "1") @PathVariable Long userId,
-            @Parameter(description = "获取数量", example = "10") @RequestParam(defaultValue = "10") int limit) {
+            @Parameter(description = "获取数量", example = "10") @RequestParam(defaultValue = "10") int limit,
+            Authentication authentication) {
+        User current = currentUser(authentication);
+        if (current == null) {
+            return Result.unauthorized("未登录");
+        }
+        if (!current.getId().equals(userId) && !securityUtils.isAdmin(current.getId())) {
+            return Result.forbidden("无权限查看该用户活动");
+        }
         List<ActivityLogEntity> activities = activityLogService.getUserRecentActivities(userId, limit);
         return Result.success(activities);
     }

@@ -23,6 +23,13 @@ public class AccessEventService {
         insert(AccessEventTypes.CARD_LOGIN, appId, licenseKeyId);
     }
 
+    /**
+     * 免费应用：卡密登录接口成功调用（不绑定 license_key，ref_id 记 0）
+     */
+    public void recordFreeModeCardLogin(Long appId) {
+        insert(AccessEventTypes.CARD_LOGIN_FREE, appId, 0L);
+    }
+
     public void recordAppUserWsLogin(Long appId, Long appUserId) {
         insert(AccessEventTypes.APP_USER_WS_LOGIN, appId, appUserId);
     }

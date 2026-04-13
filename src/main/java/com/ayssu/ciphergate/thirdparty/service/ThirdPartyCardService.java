@@ -1,6 +1,8 @@
 package com.ayssu.ciphergate.thirdparty.service;
 
+import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.LicenseKey;
+import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.service.AccessEventService;
 import com.ayssu.ciphergate.service.LicenseKeyService;
@@ -24,6 +26,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class ThirdPartyCardService {
+
+    /** 业务模式：免费（不校验卡密） */
+    private static final int BUSINESS_MODEL_FREE = 2;
+
+    private final ApplicationMapper applicationMapper;
     private final LicenseKeyMapper licenseKeyMapper;
     private final ThirdPartyAppVariableService thirdPartyAppVariableService;
     private final LicenseKeyService licenseKeyService;
@@ -32,6 +39,14 @@ public class ThirdPartyCardService {
 
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
+        Application application = applicationMapper.selectById(appId);
+        if (application == null) {
+            throw new RuntimeException("应用不存在");
+        }
+        if (application.getBusinessModel() != null && application.getBusinessModel() == BUSINESS_MODEL_FREE) {
+            return loginFreeMode(appId, req, clientIp);
+        }
+
         if (!StringUtils.hasText(req.getCardCode()) || !StringUtils.hasText(req.getDeviceId())) {
             throw new RuntimeException("cardCode + deviceId 必填");
         }
@@ -125,11 +140,41 @@ public class ThirdPartyCardService {
     }
 
     /**
+     * 免费模式：不读不写卡密，仅要求 deviceId；返回固定剩余秒数 99999 与对齐的到期时间，并记访问流水。
+     */
+    private CardLoginResponse loginFreeMode(Long appId, CardLoginRequest req, String clientIp) {
+        if (req == null || !StringUtils.hasText(req.getDeviceId())) {
+            throw new RuntimeException("deviceId 必填");
+        }
+        accessEventService.recordFreeModeCardLogin(appId);
+
+        long availableSeconds = 99_999L;
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(availableSeconds);
+        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId);
+
+        CardLoginResponse resp = new CardLoginResponse();
+        resp.setAppId(appId);
+        resp.setCardId(0L);
+        resp.setCardCode("");
+        resp.setExpiresAt(expiresAt);
+        resp.setBindNumber(0);
+        resp.setAvailable(availableSeconds);
+        resp.setVariables(variables);
+        resp.setOnline(false);
+        return resp;
+    }
+
+    /**
      * 三方卡密换绑设备：新设备与当前绑定一致则失败；否则更新绑定。
      * 若此前已有非空设备绑定，按应用「解绑扣时」配置扣减到期时间（管理员后台解绑不扣时）。
      */
     @Transactional(rollbackFor = Exception.class)
     public CardRebindResponse rebindDevice(Long appId, CardRebindRequest req) {
+        Application application = applicationMapper.selectById(appId);
+        if (application != null && application.getBusinessModel() != null
+                && application.getBusinessModel() == BUSINESS_MODEL_FREE) {
+            throw new RuntimeException("免费模式不支持卡密换绑");
+        }
         if (!StringUtils.hasText(req.getCardCode()) || !StringUtils.hasText(req.getDeviceId())) {
             throw new RuntimeException("cardCode 与 deviceId 必填");
         }

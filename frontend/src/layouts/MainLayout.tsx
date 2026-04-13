@@ -68,6 +68,13 @@ const MainLayout: React.FC = () => {
         default: return 'dashboard';
       }
     }
+    if (pathname.startsWith('/plugins/')) {
+      const pluginPath = pathname.replace('/plugins/', '');
+      switch (pluginPath) {
+        case 'list': return 'plugin_list_page';
+        default: return 'dashboard';
+      }
+    }
     return 'dashboard';
   };
 
@@ -81,6 +88,8 @@ const MainLayout: React.FC = () => {
       setOpenKeys(['system_management']);
     } else if (selectedMenu?.startsWith('app_') || selectedMenu === 'license_management' || selectedMenu === 'app_user_management') {
       setOpenKeys(['app_management']);
+    } else if (selectedMenu?.startsWith('plugin_')) {
+      setOpenKeys(['plugin_management']);
     }
   }, [selectedMenu]);
 
@@ -108,6 +117,13 @@ const MainLayout: React.FC = () => {
         case 'users': return '终端用户';
         case 'variables': return '变量管理';
         default: return '应用管理';
+      }
+    }
+    if (pathname.startsWith('/plugins/')) {
+      const pluginPath = pathname.replace('/plugins/', '');
+      switch (pluginPath) {
+        case 'list': return '插件管理';
+        default: return '插件';
       }
     }
     return '控制台';

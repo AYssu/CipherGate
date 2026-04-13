@@ -72,10 +72,15 @@ public class ActivityLogService {
     
     /**
      * 获取最近活动（分页）
+     *
+     * @param userIdFilter 非空时只查该用户的日志；空表示不限用户（仅应由管理员场景传入）
      */
-    public Page<ActivityLogEntity> getRecentActivities(int pageNum, int pageSize) {
+    public Page<ActivityLogEntity> getRecentActivities(int pageNum, int pageSize, Long userIdFilter) {
         Page<ActivityLogEntity> page = new Page<>(pageNum, pageSize);
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
+        if (userIdFilter != null) {
+            queryWrapper.eq("user_id", userIdFilter);
+        }
         queryWrapper.orderByDesc("created_time");
         return activityLogMapper.selectPage(page, queryWrapper);
     }
@@ -93,9 +98,14 @@ public class ActivityLogService {
     
     /**
      * 获取最近N条活动
+     *
+     * @param userIdFilter 非空时只查该用户；空表示不限用户（仅应由管理员场景传入）
      */
-    public List<ActivityLogEntity> getRecentActivities(int limit) {
+    public List<ActivityLogEntity> getRecentActivities(int limit, Long userIdFilter) {
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
+        if (userIdFilter != null) {
+            queryWrapper.eq("user_id", userIdFilter);
+        }
         queryWrapper.orderByDesc("created_time")
                    .last("LIMIT " + limit);
         return activityLogMapper.selectList(queryWrapper);
@@ -159,16 +169,23 @@ public class ActivityLogService {
     }
     
     /**
-     * 标记活动为已读
+     * 标记活动为已读（仅能标记属于当前用户的记录）
      */
     public void markAsRead(Long id, String githubId) {
-        ActivityLogEntity entity = activityLogMapper.selectById(id);
-        if (entity != null) {
-            entity.setIsRead(true);
-            entity.setReadTime(LocalDateTime.now());
-            activityLogMapper.updateById(entity);
-            log.info("标记活动为已读: {} - {}", githubId, id);
+        QueryWrapper<User> userQuery = new QueryWrapper<>();
+        userQuery.eq("github_id", githubId);
+        User user = userMapper.selectOne(userQuery);
+        if (user == null) {
+            return;
         }
+        ActivityLogEntity entity = activityLogMapper.selectById(id);
+        if (entity == null || !user.getId().equals(entity.getUserId())) {
+            return;
+        }
+        entity.setIsRead(true);
+        entity.setReadTime(LocalDateTime.now());
+        activityLogMapper.updateById(entity);
+        log.info("标记活动为已读: {} - {}", githubId, id);
     }
     
     /**

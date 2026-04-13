@@ -27,6 +27,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 /**
  * 应用终端用户服务实现类
@@ -46,20 +47,11 @@ public class AppUserServiceImpl implements AppUserService {
     
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
-        if (!securityUtils.isAdmin(operatorId)) {
-            if (queryDTO.getAppId() == null) {
-                throw new RuntimeException("非管理员查询需指定应用ID");
-            }
-            if (!hasPermission(queryDTO.getAppId(), operatorId)) {
-                throw new RuntimeException("无权限查询此应用的终端用户");
-            }
-        }
-        
         Page<AppUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
-        
+
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(queryDTO.getAppId() != null, AppUser::getAppId, queryDTO.getAppId())
-               .like(StringUtils.hasText(queryDTO.getUsername()), AppUser::getUsername, queryDTO.getUsername())
+        applyApplicationScopeForAppUserQuery(wrapper, queryDTO, operatorId);
+        wrapper.like(StringUtils.hasText(queryDTO.getUsername()), AppUser::getUsername, queryDTO.getUsername())
                .like(StringUtils.hasText(queryDTO.getEmail()), AppUser::getEmail, queryDTO.getEmail())
                .like(StringUtils.hasText(queryDTO.getPhone()), AppUser::getPhone, queryDTO.getPhone())
                .like(StringUtils.hasText(queryDTO.getNickname()), AppUser::getNickname, queryDTO.getNickname())
@@ -72,6 +64,37 @@ public class AppUserServiceImpl implements AppUserService {
         result.getRecords().forEach(this::fillRelatedInfo);
         
         return result;
+    }
+
+    /**
+     * 非管理员仅能查询本人拥有应用下的终端用户；未传 appId 时自动限定为这些应用（与卡密列表一致）。
+     */
+    private void applyApplicationScopeForAppUserQuery(LambdaQueryWrapper<AppUser> wrapper,
+                                                        AppUserQueryDTO queryDTO,
+                                                        Long operatorId) {
+        if (securityUtils.isAdmin(operatorId)) {
+            wrapper.eq(queryDTO.getAppId() != null, AppUser::getAppId, queryDTO.getAppId());
+            return;
+        }
+        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+        if (queryDTO.getAppId() != null) {
+            if (!ownedAppIds.contains(queryDTO.getAppId())) {
+                throw new RuntimeException("无权限查询此应用的终端用户");
+            }
+            wrapper.eq(AppUser::getAppId, queryDTO.getAppId());
+        } else if (ownedAppIds.isEmpty()) {
+            wrapper.apply("1=0");
+        } else {
+            wrapper.in(AppUser::getAppId, ownedAppIds);
+        }
+    }
+
+    private List<Long> listOwnedApplicationIds(Long userId) {
+        return applicationMapper.selectList(
+                        new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                .stream()
+                .map(Application::getId)
+                .toList();
     }
     
     @Override
@@ -276,6 +299,12 @@ public class AppUserServiceImpl implements AppUserService {
         if (bindingId != null) {
             AppUserBinding binding = appUserBindingMapper.selectById(bindingId);
             if (binding != null) {
+                if (!binding.getUserId().equals(id)) {
+                    throw new RuntimeException("绑定记录不属于该终端用户");
+                }
+                if (!binding.getAppId().equals(appUser.getAppId())) {
+                    throw new RuntimeException("绑定记录与应用不匹配");
+                }
                 binding.setIsBanned(ban);
                 binding.setBanReason(ban ? reason : null);
                 binding.setBanAt(ban ? LocalDateTime.now() : null);

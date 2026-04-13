@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -50,7 +51,8 @@ public class DashboardStatsService {
                     .lt(LicenseKey::getFirstUsedAt, endExclusive)));
 
             dto.setCardLoginToday(accessEventMapper.selectCount(new LambdaQueryWrapper<AccessEvent>()
-                    .eq(AccessEvent::getEventType, AccessEventTypes.CARD_LOGIN)
+                    .in(AccessEvent::getEventType,
+                            Arrays.asList(AccessEventTypes.CARD_LOGIN, AccessEventTypes.CARD_LOGIN_FREE))
                     .in(AccessEvent::getAppId, ownedAppIds)
                     .ge(AccessEvent::getCreatedAt, start)
                     .lt(AccessEvent::getCreatedAt, endExclusive)));

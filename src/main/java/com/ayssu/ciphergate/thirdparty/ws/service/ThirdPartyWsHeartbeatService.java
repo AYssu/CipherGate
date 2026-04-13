@@ -1,9 +1,12 @@
 package com.ayssu.ciphergate.thirdparty.ws.service;
 
 import com.ayssu.ciphergate.entity.AppVariable;
+import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.VariableSecurityTier;
+import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.AppVariableMapper;
+import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.thirdparty.ws.ThirdPartyWsHandler;
 import com.ayssu.ciphergate.thirdparty.ws.crypto.WsCrypto;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsCipher;
@@ -15,10 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,10 +38,14 @@ public class ThirdPartyWsHeartbeatService {
     private static final String ATTR_APP = "cg.ws.app";
     private static final String ATTR_SESSION_KEY = "cg.ws.sessionKey";
     private static final String ATTR_AUTHED = "cg.ws.authed";
+    private static final String ATTR_APP_USER_ID = "cg.ws.appUserId";
     private static final String ATTR_VAR_PACKET_SEQ = ThirdPartyWsHandler.ATTR_VAR_PACKET_SEQ;
+    private static final int BUSINESS_MODEL_FREE = 2;
 
     private final ThirdPartyWsSessionRegistry sessionRegistry;
     private final AppVariableMapper appVariableMapper;
+    private final ApplicationMapper applicationMapper;
+    private final AppUserMapper appUserMapper;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedRate = INTERVAL_MS)
@@ -56,6 +65,30 @@ public class ThirdPartyWsHeartbeatService {
                 Object connObj = session.getAttributes().get(ATTR_CONN_ID);
                 if (!(appObj instanceof Application app) || !(keyObj instanceof byte[] sessionKey) || !(connObj instanceof String connId)) {
                     continue;
+                }
+                Long appUserId = session.getAttributes().get(ATTR_APP_USER_ID) instanceof Long v ? v : null;
+                Application runtimeApp = applicationMapper.selectById(app.getId());
+                if (runtimeApp == null || (runtimeApp.getStatus() != null && runtimeApp.getStatus() != 1)) {
+                    close(session, "APP_INVALID");
+                    continue;
+                }
+                session.getAttributes().put(ATTR_APP, runtimeApp);
+                boolean freeApp = runtimeApp.getBusinessModel() != null && runtimeApp.getBusinessModel() == BUSINESS_MODEL_FREE;
+                if (!freeApp) {
+                    if (appUserId == null) {
+                        close(session, "AUTH_INVALID");
+                        continue;
+                    }
+                    AppUser appUser = appUserMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+                            .eq(AppUser::getId, appUserId)
+                            .eq(AppUser::getAppId, runtimeApp.getId())
+                            .eq(AppUser::getDeleted, 0)
+                            .last("limit 1"));
+                    LocalDateTime nowLdt = LocalDateTime.now();
+                    if (appUser == null || appUser.getMemberExpiresAt() == null || !appUser.getMemberExpiresAt().isAfter(nowLdt)) {
+                        close(session, "MEMBER_EXPIRED");
+                        continue;
+                    }
                 }
 
                 long lastPacket = session.getAttributes().get(ATTR_VAR_PACKET_SEQ) instanceof Long l ? l : 0L;
@@ -92,6 +125,13 @@ public class ThirdPartyWsHeartbeatService {
             } catch (Exception e) {
                 log.debug("heartbeat send failed: {}", e.getMessage());
             }
+        }
+    }
+
+    private void close(WebSocketSession session, String reason) {
+        try {
+            session.close(new CloseStatus(1008, reason));
+        } catch (Exception ignored) {
         }
     }
 

@@ -219,7 +219,8 @@ public class ApplicationController {
     @Operation(summary = "获取应用统计信息")
     public Result<Map<String, Object>> getApplicationStats(@PathVariable Long id) {
         try {
-            Map<String, Object> stats = applicationService.getApplicationStats(id);
+            User currentUser = getCurrentUser();
+            Map<String, Object> stats = applicationService.getApplicationStats(id, currentUser.getId());
             return Result.success(stats);
         } catch (Exception e) {
             log.error("获取应用统计信息失败", e);

@@ -38,7 +38,11 @@ public class ThirdPartyCardController {
         } catch (Exception e) {
             thirdPartyCardRateLimitService.markResult(appId, clientIp, false);
             log.warn("login failed: appId={}, msg={}", appId, e.getMessage());
-            return Result.error("卡密校验失败");
+            String msg = e.getMessage();
+            if (msg == null || msg.isBlank()) {
+                msg = "登录失败";
+            }
+            return Result.error(msg);
         }
     }
 

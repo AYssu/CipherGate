@@ -451,6 +451,14 @@ WHERE r.role_code = 'SUPER_ADMIN'
 AND m.menu_code IN ('APP_MANAGEMENT', 'APP_LIST_PAGE')
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
+-- 为普通用户分配应用管理父级与应用列表（否则仅有子菜单时无法挂到根节点，侧栏不显示「应用管理」）
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'USER'
+AND m.menu_code IN ('APP_MANAGEMENT', 'APP_LIST_PAGE')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
 
 
 
@@ -959,9 +967,9 @@ CREATE TABLE IF NOT EXISTS plugin_module (
 -- 卡密登录 / 终端用户 WS 登录流水（按次记录，供仪表盘统计）
 CREATE TABLE IF NOT EXISTS access_event (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    event_type VARCHAR(40) NOT NULL COMMENT 'CARD_LOGIN | APP_USER_WS_LOGIN',
+    event_type VARCHAR(40) NOT NULL COMMENT 'CARD_LOGIN | CARD_LOGIN_FREE | APP_USER_WS_LOGIN',
     app_id BIGINT NOT NULL COMMENT '应用ID',
-    ref_id BIGINT NOT NULL COMMENT 'license_key.id 或 app_user.id',
+    ref_id BIGINT NOT NULL COMMENT 'license_key.id 或 app_user.id；免费卡密登录为 0',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
     INDEX idx_type_time (event_type, created_at),
     INDEX idx_app_time (app_id, created_at)

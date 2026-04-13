@@ -54,9 +54,9 @@ public interface ApplicationService {
     void updateStatus(Long id, Integer status, Long userId);
     
     /**
-     * 获取应用统计信息
+     * 获取应用统计信息（需为应用所有者或管理员）
      */
-    Map<String, Object> getApplicationStats(Long id);
+    Map<String, Object> getApplicationStats(Long id, Long userId);
 
     Map<String, Object> getEncryptionConfig(Long id, Long userId);
 

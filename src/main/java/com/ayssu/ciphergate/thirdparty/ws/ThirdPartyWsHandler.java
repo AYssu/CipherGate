@@ -268,12 +268,15 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             return;
         }
 
-        // 会员：未设置到期时间视为未开通；到期时间不晚于当前时刻视为已过期
-        LocalDateTime memberExp = u.getMemberExpiresAt();
-        LocalDateTime nowLdt = LocalDateTime.now();
-        if (memberExp == null || !memberExp.isAfter(nowLdt)) {
-            close(session, 1008, "MEMBER_EXPIRED");
-            return;
+        // 会员：付费/试用+付费需有效到期；免费模式不校验会员时间
+        boolean freeApp = app.getBusinessModel() != null && app.getBusinessModel() == 2;
+        if (!freeApp) {
+            LocalDateTime memberExp = u.getMemberExpiresAt();
+            LocalDateTime nowLdt = LocalDateTime.now();
+            if (memberExp == null || !memberExp.isAfter(nowLdt)) {
+                close(session, 1008, "MEMBER_EXPIRED");
+                return;
+            }
         }
 
         String clientIp = clientIpFromSession(session);

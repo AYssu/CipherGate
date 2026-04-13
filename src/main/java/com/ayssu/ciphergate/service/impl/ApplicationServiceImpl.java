@@ -4,9 +4,11 @@ import com.ayssu.ciphergate.dto.ApplicationDTO;
 import com.ayssu.ciphergate.dto.ApplicationQueryDTO;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.ApplicationLog;
+import com.ayssu.ciphergate.entity.PluginModule;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.ApplicationLogMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
+import com.ayssu.ciphergate.mapper.PluginModuleMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.service.ApplicationService;
@@ -15,6 +17,8 @@ import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -26,10 +30,13 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,9 +50,14 @@ import java.util.UUID;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private static final long MAX_UPDATE_PACKAGE_BYTES = 512L * 1024 * 1024;
+    private static final String DEFAULT_LOCAL_PLUGIN_ID = "aes-default";
+    private static final String DEFAULT_LOCAL_PLUGIN_DEFAULTS_RESOURCE = "aes-default.defaults.json";
+    private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final ObjectMapper JSON = new ObjectMapper();
     
     private final ApplicationMapper applicationMapper;
     private final ApplicationLogMapper applicationLogMapper;
+    private final PluginModuleMapper pluginModuleMapper;
     private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
     private final SystemMessageService systemMessageService;
@@ -161,7 +173,10 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setStatus(1);
         }
         if (application.getEncryptionPlugin() == null) {
-            application.setEncryptionPlugin("aes-default");
+            application.setEncryptionPlugin(DEFAULT_LOCAL_PLUGIN_ID);
+        }
+        if (application.getEncryptionConfig() == null || application.getEncryptionConfig().isEmpty()) {
+            application.setEncryptionConfig(resolveDefaultEncryptionConfig(application.getEncryptionPlugin()));
         }
         if (application.getTrafficLimit() == null) {
             application.setTrafficLimit(0L);
@@ -372,12 +387,15 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
     
     @Override
-    public Map<String, Object> getApplicationStats(Long id) {
+    public Map<String, Object> getApplicationStats(Long id, Long userId) {
         Application application = applicationMapper.selectById(id);
         if (application == null) {
             throw new RuntimeException("应用不存在");
         }
-        
+        if (!hasPermission(id, userId, false)) {
+            throw new RuntimeException("无权限查看此应用统计");
+        }
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("appId", application.getId());
         stats.put("appName", application.getAppName());
@@ -545,5 +563,63 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         // 简单实现，实际可以使用 Jackson 或其他工具
         return new HashMap<>();
+    }
+
+    private Map<String, Object> resolveDefaultEncryptionConfig(String pluginId) {
+        Map<String, Object> fromPluginModule = readPluginModuleConfigDefaults(pluginId);
+        if (!fromPluginModule.isEmpty()) {
+            return fromPluginModule;
+        }
+        if (DEFAULT_LOCAL_PLUGIN_ID.equals(pluginId)) {
+            Map<String, Object> local = readClasspathDefaults(DEFAULT_LOCAL_PLUGIN_DEFAULTS_RESOURCE);
+            if (!local.isEmpty()) {
+                return local;
+            }
+        }
+        return new LinkedHashMap<>();
+    }
+
+    private Map<String, Object> readPluginModuleConfigDefaults(String pluginId) {
+        if (!StringUtils.hasText(pluginId)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<PluginModule> enabled = new LambdaQueryWrapper<>();
+        enabled.eq(PluginModule::getPluginId, pluginId.trim())
+                .eq(PluginModule::getStatus, 1)
+                .orderByDesc(PluginModule::getUpdatedAt)
+                .last("limit 1");
+        PluginModule row = pluginModuleMapper.selectOne(enabled);
+        if (row == null) {
+            LambdaQueryWrapper<PluginModule> latest = new LambdaQueryWrapper<>();
+            latest.eq(PluginModule::getPluginId, pluginId.trim())
+                    .orderByDesc(PluginModule::getUpdatedAt)
+                    .last("limit 1");
+            row = pluginModuleMapper.selectOne(latest);
+        }
+        if (row == null || !StringUtils.hasText(row.getConfigDefaults())) {
+            return Collections.emptyMap();
+        }
+        try {
+            return JSON.readValue(row.getConfigDefaults(), MAP_TYPE);
+        } catch (Exception e) {
+            log.warn("解析插件默认配置失败, pluginId={}", pluginId, e);
+            return Collections.emptyMap();
+        }
+    }
+
+    private Map<String, Object> readClasspathDefaults(String resourceName) {
+        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(resourceName)) {
+            if (in == null) {
+                return Collections.emptyMap();
+            }
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            if (!StringUtils.hasText(json)) {
+                return Collections.emptyMap();
+            }
+            return JSON.readValue(json, MAP_TYPE);
+        } catch (Exception e) {
+            log.warn("读取默认加密配置失败, resource={}", resourceName, e);
+            return Collections.emptyMap();
+        }
     }
 }

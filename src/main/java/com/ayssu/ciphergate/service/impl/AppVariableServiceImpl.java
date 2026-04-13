@@ -42,19 +42,11 @@ public class AppVariableServiceImpl implements AppVariableService {
     
     @Override
     public Page<AppVariable> getVariablePage(AppVariableQueryDTO queryDTO, Long operatorId) {
-        if (!securityUtils.isAdmin(operatorId)) {
-            if (queryDTO.getAppId() == null) {
-                throw new RuntimeException("非管理员查询需指定应用ID");
-            }
-            if (!hasPermission(queryDTO.getAppId(), operatorId)) {
-                throw new RuntimeException("无权限查看此应用的变量");
-            }
-        }
         Page<AppVariable> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
-        
+
         LambdaQueryWrapper<AppVariable> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(queryDTO.getAppId() != null, AppVariable::getAppId, queryDTO.getAppId())
-               .like(StringUtils.hasText(queryDTO.getVariableName()), AppVariable::getVariableName, queryDTO.getVariableName())
+        applyApplicationScopeForVariableQuery(wrapper, queryDTO, operatorId);
+        wrapper.like(StringUtils.hasText(queryDTO.getVariableName()), AppVariable::getVariableName, queryDTO.getVariableName())
                .like(StringUtils.hasText(queryDTO.getDisplayName()), AppVariable::getDisplayName, queryDTO.getDisplayName())
                .eq(StringUtils.hasText(queryDTO.getVariableType()), AppVariable::getVariableType, queryDTO.getVariableType())
                .eq(queryDTO.getEnabled() != null, AppVariable::getEnabled, queryDTO.getEnabled())
@@ -74,6 +66,37 @@ public class AppVariableServiceImpl implements AppVariableService {
         result.getRecords().forEach(this::fillRelatedInfo);
         
         return result;
+    }
+
+    /**
+     * 非管理员仅能查询本人拥有应用下的变量；未传 appId 时自动限定为这些应用（与卡密列表一致）。
+     */
+    private void applyApplicationScopeForVariableQuery(LambdaQueryWrapper<AppVariable> wrapper,
+                                                       AppVariableQueryDTO queryDTO,
+                                                       Long operatorId) {
+        if (securityUtils.isAdmin(operatorId)) {
+            wrapper.eq(queryDTO.getAppId() != null, AppVariable::getAppId, queryDTO.getAppId());
+            return;
+        }
+        List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+        if (queryDTO.getAppId() != null) {
+            if (!ownedAppIds.contains(queryDTO.getAppId())) {
+                throw new RuntimeException("无权限查看此应用的变量");
+            }
+            wrapper.eq(AppVariable::getAppId, queryDTO.getAppId());
+        } else if (ownedAppIds.isEmpty()) {
+            wrapper.apply("1=0");
+        } else {
+            wrapper.in(AppVariable::getAppId, ownedAppIds);
+        }
+    }
+
+    private List<Long> listOwnedApplicationIds(Long userId) {
+        return applicationMapper.selectList(
+                        new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                .stream()
+                .map(Application::getId)
+                .toList();
     }
     
     @Override
