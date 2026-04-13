@@ -12,9 +12,9 @@ spring:
       timeout: ${REDIS_TIMEOUT:3s}
 
   datasource:
-    url: jdbc:mysql://localhost:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: kersin
-    password: Jx4zx_aYui23
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:kersin}
+    password: ${SPRING_DATASOURCE_PASSWORD:Jx4zx_aYui23}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   servlet:

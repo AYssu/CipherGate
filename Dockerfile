@@ -14,8 +14,8 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-# 复制编译好的 JAR 文件
-COPY --chown=spring:spring build/libs/*.jar app.jar
+# 从构建阶段复制 JAR 文件
+COPY --from=builder --chown=spring:spring /app/build/libs/*.jar app.jar
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
