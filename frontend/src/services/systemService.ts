@@ -46,6 +46,12 @@ export interface SiteInfo {
   icpLicenseNo: string;
 }
 
+/** GET /config/public/oauth2-login */
+export interface PublicOAuth2LoginInfo {
+  oauth2AuthorizationUrl: string;
+  frontendUrl: string;
+}
+
 export interface SystemSettings {
   githubClientId: string;
   githubRedirectUri: string;
@@ -87,6 +93,11 @@ export const systemApi = {
   // 获取站点公共展示信息（备案等）
   getPublicSiteInfo: () => {
     return request.get('/config/public/site-info');
+  },
+
+  /** GitHub OAuth 授权入口与前端地址（后端从 redirect-uri / 配置解析，无需登录） */
+  getPublicOAuth2Login: () => {
+    return request.get('/config/public/oauth2-login');
   },
 
   getSystemSettings: () => {

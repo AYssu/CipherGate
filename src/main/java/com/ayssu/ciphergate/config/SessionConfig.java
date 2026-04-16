@@ -2,14 +2,18 @@ package com.ayssu.ciphergate.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.session.config.annotation.web.http.EnableSpringHttpSession;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.util.StringUtils;
 
 @Configuration
 @EnableJdbcHttpSession(maxInactiveIntervalInSeconds = 7 * 24 * 60 * 60) // 7天
 public class SessionConfig {
+
+    @Value("${app.session.cookie-domain:}")
+    private String cookieDomain;
 
     @Bean
     public CookieSerializer cookieSerializer() {
@@ -21,8 +25,10 @@ public class SessionConfig {
         // Cookie 路径
         serializer.setCookiePath("/");
         
-        // 域名设置为 localhost，这样前后端都能共享 Cookie
-        serializer.setDomainName("localhost");
+        // 仅在显式配置时设置域名，避免线上域名与 localhost 冲突导致 Cookie 丢失
+        if (StringUtils.hasText(cookieDomain)) {
+            serializer.setDomainName(cookieDomain.trim());
+        }
         
         // HttpOnly 防止 XSS 攻击
         serializer.setUseHttpOnlyCookie(true);

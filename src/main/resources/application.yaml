@@ -42,6 +42,12 @@ springdoc:
   override-with-generic-response: false
 
 app:
+  session:
+    # 选填：会话 Cookie 域名（如 .ayssu.com）。不配置则使用当前请求主机，避免与线上域名不匹配。
+    cookie-domain: ${APP_SESSION_COOKIE_DOMAIN:}
+  backend:
+    # 可选：OAuth 授权入口所在后端根 URL（无末尾/）。当前端与后端不同源且 redirect-uri 仍为 Spring 占位符时通过环境变量指定；通常可从已配置的全量 github.oauth2.redirect-uri 自动解析。
+    public-base-url: ${APP_BACKEND_PUBLIC_BASE_URL:}
   third-party:
     # 选填：对外网关根 URL（无末尾/），用于检查更新接口（/app/update-check）生成的更新包下载链接。不配则用当前请求的 Host/端口/ContextPath 拼接。
     public-base-url: ${THIRD_PARTY_PUBLIC_BASE_URL:}

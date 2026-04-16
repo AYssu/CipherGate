@@ -20,6 +20,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,6 +51,12 @@ public class ConfigController {
 
     @Value("${app.site.icp-license-no:}")
     private String icpLicenseNo;
+
+    @Value("${app.backend.public-base-url:}")
+    private String backendPublicBaseUrl;
+
+    @Value("${server.port:8080}")
+    private int serverPort;
     
     @GetMapping("/{configKey}")
     @RequirePermission("CONFIG_LIST")
@@ -175,6 +183,65 @@ public class ConfigController {
                 "publicSecurityRecordNo", sitePublicSecurityRecordNo == null ? "" : sitePublicSecurityRecordNo,
                 "icpLicenseNo", siteIcpLicenseNo == null ? "" : siteIcpLicenseNo
         ));
+    }
+
+    /**
+     * 登录页 GitHub OAuth：返回授权跳转地址与已配置的前端地址（无需登录）
+     */
+    @GetMapping("/public/oauth2-login")
+    @Operation(summary = "获取 GitHub OAuth 登录跳转信息（公开）")
+    public Result<Map<String, Object>> getPublicOAuth2Login() {
+        String baseUrl = resolveOAuth2BackendBaseUrl();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        String oauth2AuthorizationUrl = baseUrl + resolveOAuth2AuthorizationPath();
+        String frontendUrl = systemConfigService.getFrontendUrl();
+        return Result.success(Map.of(
+                "oauth2AuthorizationUrl", oauth2AuthorizationUrl,
+                "frontendUrl", frontendUrl == null ? "" : frontendUrl.trim()
+        ));
+    }
+
+    /**
+     * 从全量 redirect-uri 解析后端根 URL；否则使用可选 app.backend.public-base-url；再回退本地默认端口。
+     */
+    private String resolveOAuth2BackendBaseUrl() {
+        String redirectUri = systemConfigService.getGithubRedirectUri();
+        if (StringUtils.hasText(redirectUri) && redirectUri.startsWith("http")) {
+            try {
+                URI uri = URI.create(redirectUri.trim());
+                String path = uri.getPath();
+                if (path != null && path.contains("/login/oauth2/code")) {
+                    return uri.getScheme() + "://" + uri.getAuthority();
+                }
+            } catch (Exception e) {
+                log.warn("从 github.oauth2.redirect-uri 解析后端地址失败: {}", redirectUri);
+            }
+        }
+        if (StringUtils.hasText(backendPublicBaseUrl)) {
+            return backendPublicBaseUrl.trim();
+        }
+        return "http://localhost:" + serverPort;
+    }
+
+    /**
+     * 根据已配置回调路径自动选择 OAuth2 授权入口路径，确保与反向代理前缀保持一致。
+     */
+    private String resolveOAuth2AuthorizationPath() {
+        String redirectUri = systemConfigService.getGithubRedirectUri();
+        if (StringUtils.hasText(redirectUri) && redirectUri.startsWith("http")) {
+            try {
+                URI uri = URI.create(redirectUri.trim());
+                String path = uri.getPath();
+                if (StringUtils.hasText(path) && path.startsWith("/api/login/oauth2/code")) {
+                    return "/api/oauth2/authorization/github";
+                }
+            } catch (Exception e) {
+                log.warn("从 github.oauth2.redirect-uri 解析授权入口失败: {}", redirectUri);
+            }
+        }
+        return "/oauth2/authorization/github";
     }
 
     @GetMapping("/settings")

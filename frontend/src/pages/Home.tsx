@@ -15,6 +15,7 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 import { systemApi } from '../services';
+import safeIcon from '../assets/icons/safe.svg';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Paragraph, Text } = Typography;
@@ -109,11 +110,19 @@ const Home: React.FC = () => {
     }
   };
 
-  const handleGithubLogin = () => {
-    // OAuth2 端点不在 /api 路径下，需要直接访问后端
-    const backendUrl = import.meta.env.DEV ? 'http://localhost:8080' : '';
-    console.log(`${backendUrl}/oauth2/authorization/github`)
-    window.location.href = `${backendUrl}/oauth2/authorization/github`;
+  const handleGithubLogin = async () => {
+    try {
+      const response: any = await systemApi.getPublicOAuth2Login();
+      const url = response?.data?.oauth2AuthorizationUrl as string | undefined;
+      if (url) {
+        console.log('[OAuth2 Redirect URL]', url);
+        window.location.href = url;
+      } else {
+        message.error('无法获取登录地址，请检查后端 OAuth 配置');
+      }
+    } catch {
+      // 错误提示由 request 拦截器处理
+    }
   };
 
   const showLoginModal = () => {
@@ -473,7 +482,7 @@ const Home: React.FC = () => {
                     border: '1px solid rgba(0, 212, 170, 0.2)'
                   }}>
                     <img 
-                      src="/src/assets/icons/safe.svg"
+                      src={safeIcon}
                       alt="CipherGate Security" 
                       style={{ 
                         width: window.innerWidth < 768 ? 80 : 120,
@@ -729,36 +738,36 @@ const Home: React.FC = () => {
             </Col>
             
             <Col xs={12} md={4}>
-              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>产品服务</Title>
+              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>快速入口</Title>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>威胁检测</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>安全防护</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>合规管理</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>安全咨询</a>
+                <a href="#features" style={{ color: 'rgba(255,255,255,0.65)' }}>产品能力</a>
+                <a href="#about" style={{ color: 'rgba(255,255,255,0.65)' }}>关于我们</a>
+                <a href="#contact" style={{ color: 'rgba(255,255,255,0.65)' }}>商务咨询</a>
+                <a href="#login" style={{ color: 'rgba(255,255,255,0.65)' }}>登录平台</a>
               </div>
             </Col>
             
             <Col xs={12} md={4}>
-              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>解决方案</Title>
+              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>资源中心</Title>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>金融行业</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>制造业</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>医疗健康</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>政府机构</a>
+                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>使用文档</a>
+                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>更新日志</a>
+                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>常见问题</a>
+                <a href="#" style={{ color: 'rgba(255,255,255,0.65)' }}>服务条款</a>
               </div>
             </Col>
             
             <Col xs={24} md={8}>
-              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>联系我们</Title>
+              <Title level={5} style={{ color: 'white', marginBottom: 16 }}>获取支持</Title>
               <Space direction="vertical" size="small">
                 <Text style={{ color: 'rgba(255,255,255,0.65)' }}>
-                  📞 400-888-9999
+                  建议通过页面上的「立即登录」入口提交工单
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.65)' }}>
-                  ✉️ contact@ciphergate.com
+                  企业合作与售前咨询请联系管理员配置的官方渠道
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.65)' }}>
-                  📍 北京市朝阳区建国门外大街1号
+                  工作时间内通常在 1 个工作日内响应
                 </Text>
               </Space>
             </Col>
@@ -768,7 +777,7 @@ const Home: React.FC = () => {
           
           <div style={{ textAlign: 'center' }}>
             <Text style={{ color: 'rgba(255,255,255,0.45)' }}>
-              CipherGate ©{new Date().getFullYear()} Created by Ayssu. 专业的网络安全解决方案提供商
+              CipherGate ©{new Date().getFullYear()} Created by AYssu.专业的网络安全解决方案提供商
               {siteInfo.publicSecurityRecordNo ? ` | ${siteInfo.publicSecurityRecordNo}` : ''}
               {siteInfo.icpLicenseNo ? ` | ${siteInfo.icpLicenseNo}` : ''}
               {siteInfo.icpRecordNo ? ` | ${siteInfo.icpRecordNo}` : ''}
