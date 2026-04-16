@@ -129,6 +129,13 @@ const Home: React.FC = () => {
     setLoginModalVisible(true);
   };
 
+  // 主页的“联系/咨询”入口目前没有独立的表单后端接口
+  // 引导用户登录后通过工单方式联系管理员
+  const handleContactInfo = () => {
+    message.info('请先登录后提交工单，我们将由管理员为你处理咨询');
+    showLoginModal();
+  };
+
   const handleCancel = () => {
     setLoginModalVisible(false);
   };
@@ -261,7 +268,7 @@ const Home: React.FC = () => {
                 height: 44,
                 padding: '0 24px',
                 borderRadius: 8
-              }}>
+              }} onClick={handleContactInfo}>
                 免费咨询
               </Button>
             </Space>
@@ -321,7 +328,7 @@ const Home: React.FC = () => {
             <div style={{ 
               position: 'absolute',
               top: '20%',
-              left: '10%',
+              left: '20%',
               perspective: '1000px',
               zIndex: 1
             }}>
@@ -451,19 +458,25 @@ const Home: React.FC = () => {
                     >
                       立即登录 <RightOutlined />
                     </Button>
-                    
-                    <Button size="large" style={{ 
-                      height: window.innerWidth < 768 ? 48 : 56, 
-                      padding: window.innerWidth < 768 ? '0 24px' : '0 32px',
-                      fontSize: window.innerWidth < 768 ? 16 : 18,
-                      fontWeight: 600,
-                      borderRadius: 8,
-                      background: 'transparent',
-                      borderColor: 'rgba(255,255,255,0.4)',
-                      color: 'white',
-                      width: window.innerWidth < 768 ? '200px' : 'auto'
-                    }}>
-                      观看演示
+                    <Button
+                      size="large"
+                      style={{
+                        height: window.innerWidth < 768 ? 48 : 56,
+                        padding: window.innerWidth < 768 ? '0 24px' : '0 32px',
+                        fontSize: window.innerWidth < 768 ? 16 : 18,
+                        fontWeight: 600,
+                        borderRadius: 8,
+                        background: 'transparent',
+                        borderColor: 'rgba(255,255,255,0.4)',
+                        color: 'white',
+                        width: window.innerWidth < 768 ? '200px' : 'auto',
+                      }}
+                      icon={<GithubOutlined />}
+                      onClick={() =>
+                        window.open('https://github.com/AYssu/CipherGate', '_blank', 'noopener,noreferrer')
+                      }
+                    >
+                      GitHub 
                     </Button>
                   </div>
                 </div>
@@ -676,31 +689,22 @@ const Home: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Button type="primary" size="large" style={{ 
-                height: window.innerWidth < 768 ? 48 : 56, 
-                padding: window.innerWidth < 768 ? '0 32px' : '0 40px',
-                fontSize: window.innerWidth < 768 ? 16 : 18,
-                fontWeight: 600,
-                borderRadius: 8,
-                background: '#00d4aa',
-                borderColor: '#00d4aa',
-                color: 'white',
-                width: window.innerWidth < 768 ? '240px' : 'auto'
-              }}>
-                免费安全评估
-              </Button>
-              
-              <Button size="large" style={{ 
-                height: window.innerWidth < 768 ? 48 : 56, 
-                padding: window.innerWidth < 768 ? '0 32px' : '0 40px',
-                fontSize: window.innerWidth < 768 ? 16 : 18,
-                fontWeight: 600,
-                borderRadius: 8,
-                background: 'transparent',
-                borderColor: 'rgba(255,255,255,0.4)',
-                color: 'white',
-                width: window.innerWidth < 768 ? '240px' : 'auto'
-              }}>
+              <Button
+                type="primary"
+                size="large"
+                style={{ 
+                  height: window.innerWidth < 768 ? 48 : 56,
+                  padding: window.innerWidth < 768 ? '0 32px' : '0 40px',
+                  fontSize: window.innerWidth < 768 ? 16 : 18,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  background: '#00d4aa',
+                  borderColor: '#00d4aa',
+                  color: 'white',
+                  width: window.innerWidth < 768 ? '240px' : 'auto'
+                }}
+                onClick={handleContactInfo}
+              >
                 联系销售顾问
               </Button>
             </div>

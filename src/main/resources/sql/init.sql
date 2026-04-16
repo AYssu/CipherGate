@@ -200,16 +200,16 @@ INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, comp
 -- 顶级菜单
 ('仪表板', 'DASHBOARD', 0, 2, '/dashboard', 'Dashboard', 'dashboard', 1, 1, 1),
 ('系统管理', 'SYSTEM_MANAGEMENT', 0, 1, '/system', '', 'setting', 2, 1, 1),
-('个人中心', 'PROFILE', 0, 2, '/userinfo', 'UserInfo', 'user', 3, 1, 1);
+('个人中心', 'PROFILE', 0, 2, '/profile', 'UserInfo', 'user', 3, 1, 1);
 
 -- 插入系统管理子菜单（使用变量方式）
 SET @system_management_id = (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT');
 
 INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status) VALUES
-('用户管理', 'USER_MANAGEMENT', @system_management_id, 2, '/system?tab=users', 'SystemManagement', 'team', 1, 1, 1),
-('角色管理', 'ROLE_MANAGEMENT', @system_management_id, 2, '/system?tab=roles', 'SystemManagement', 'safety', 2, 1, 1),
-('菜单管理', 'MENU_MANAGEMENT', @system_management_id, 2, '/system?tab=menus', 'SystemManagement', 'menu', 3, 1, 1),
-('权限管理', 'PERMISSION_MANAGEMENT', @system_management_id, 2, '/system?tab=permissions', 'SystemManagement', 'lock', 4, 1, 1),
+('用户管理', 'USER_MANAGEMENT', @system_management_id, 2, '/system/users', 'SystemManagement', 'team', 1, 1, 1),
+('角色管理', 'ROLE_MANAGEMENT', @system_management_id, 2, '/system/roles', 'SystemManagement', 'safety', 2, 1, 1),
+('菜单管理', 'MENU_MANAGEMENT', @system_management_id, 2, '/system/menus', 'SystemManagement', 'menu', 3, 1, 1),
+('权限管理', 'PERMISSION_MANAGEMENT', @system_management_id, 2, '/system/permissions', 'SystemManagement', 'lock', 4, 1, 1),
 ('系统信息', 'SYSTEM_CONFIG', @system_management_id, 2, '/system/info', 'SystemManagement', 'tool', 5, 1, 1),
 ('系统配置', 'SYSTEM_SETTING', @system_management_id, 2, '/system/config', 'SystemManagement', 'setting', 6, 1, 1);
 

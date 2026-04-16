@@ -18,14 +18,24 @@ const DashboardPage: React.FC = () => {
   };
 
   const handleMenuChange = (menu: string) => {
-    if (menu.includes('_management')) {
-      const menuType = menu.replace('_management', '');
-      navigate(`/system/${menuType}`);
-    } else if (menu === 'profile') {
-      navigate('/profile');
-    } else {
-      navigate(`/${menu}`);
-    }
+    const menuRouteMap: Record<string, string> = {
+      dashboard: '/dashboard',
+      profile: '/profile',
+      user_management: '/system/users',
+      role_management: '/system/roles',
+      menu_management: '/system/menus',
+      permission_management: '/system/permissions',
+      system_config: '/system/info',
+      system_setting: '/system/config',
+      system_settings: '/system/config',
+      app_list_page: '/applications/list',
+      license_management: '/applications/licenses',
+      app_user_management: '/applications/users',
+      app_variable_management: '/applications/variables',
+      plugin_list_page: '/plugins/list',
+    };
+
+    navigate(menuRouteMap[menu] || '/dashboard');
   };
 
   return (

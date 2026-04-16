@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Badge, Drawer, List, Tag, Empty, Modal } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
@@ -42,99 +42,10 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 根据当前路由自动计算 selectedMenu
-  const getSelectedMenuFromPath = (pathname: string) => {
-    if (pathname === '/dashboard') return 'dashboard';
-    if (pathname === '/profile') return 'profile';
-    if (pathname.startsWith('/system/')) {
-      const systemPath = pathname.replace('/system/', '');
-      switch (systemPath) {
-        case 'users': return 'user_management';
-        case 'roles': return 'role_management';
-        case 'menus': return 'menu_management';
-        case 'permissions': return 'permission_management';
-        case 'info': return 'system_config';
-        case 'config': return 'system_setting';
-        default: return 'dashboard';
-      }
-    }
-    if (pathname.startsWith('/applications/')) {
-      const appPath = pathname.replace('/applications/', '');
-      switch (appPath) {
-        case 'list': return 'app_list_page';
-        case 'licenses': return 'license_management';
-        case 'users': return 'app_user_management';
-        case 'variables': return 'app_variable_management';
-        default: return 'dashboard';
-      }
-    }
-    if (pathname.startsWith('/plugins/')) {
-      const pluginPath = pathname.replace('/plugins/', '');
-      switch (pluginPath) {
-        case 'list': return 'plugin_list_page';
-        default: return 'dashboard';
-      }
-    }
-    return 'dashboard';
-  };
-
-  const selectedMenu = getSelectedMenuFromPath(location.pathname);
-
-  // 根据当前选中的菜单自动设置展开的父菜单
-  useEffect(() => {
-    if (selectedMenu?.includes('_management') && !selectedMenu?.startsWith('app_') && selectedMenu !== 'license_management' && selectedMenu !== 'app_user_management') {
-      setOpenKeys(['system_management']);
-    } else if (selectedMenu?.includes('_config')) {
-      setOpenKeys(['system_management']);
-    } else if (selectedMenu?.startsWith('app_') || selectedMenu === 'license_management' || selectedMenu === 'app_user_management') {
-      setOpenKeys(['app_management']);
-    } else if (selectedMenu?.startsWith('plugin_')) {
-      setOpenKeys(['plugin_management']);
-    }
-  }, [selectedMenu]);
-
-  // 获取页面标题
-  const getPageTitle = (pathname: string) => {
-    if (pathname === '/dashboard') return '控制台';
-    if (pathname === '/profile') return '个人信息';
-    if (pathname.startsWith('/system/')) {
-      const systemPath = pathname.replace('/system/', '');
-      switch (systemPath) {
-        case 'users': return '用户管理';
-        case 'roles': return '角色管理';
-        case 'menus': return '菜单管理';
-        case 'permissions': return '权限管理';
-        case 'info': return '系统信息';
-        case 'config': return '系统配置';
-        default: return '控制台';
-      }
-    }
-    if (pathname.startsWith('/applications/')) {
-      const appPath = pathname.replace('/applications/', '');
-      switch (appPath) {
-        case 'list': return '应用列表';
-        case 'licenses': return '卡密管理';
-        case 'users': return '终端用户';
-        case 'variables': return '变量管理';
-        default: return '应用管理';
-      }
-    }
-    if (pathname.startsWith('/plugins/')) {
-      const pluginPath = pathname.replace('/plugins/', '');
-      switch (pluginPath) {
-        case 'list': return '插件管理';
-        default: return '插件';
-      }
-    }
-    return '控制台';
-  };
-
   // 处理子菜单展开/收起
   const handleOpenChange = (keys: string[]) => {
     setOpenKeys(keys);
   };
-
-  const pageTitle = getPageTitle(location.pathname);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -312,6 +223,102 @@ const MainLayout: React.FC = () => {
     return iconMap[key] || <FolderOutlined />;
   };
 
+  const normalizeLegacySystemPath = (path: string) => {
+    if (!path.startsWith('/system?')) return path;
+    try {
+      const url = new URL(path, 'http://localhost');
+      const tab = url.searchParams.get('tab');
+      const tabRouteMap: Record<string, string> = {
+        users: '/system/users',
+        roles: '/system/roles',
+        menus: '/system/menus',
+        permissions: '/system/permissions',
+        info: '/system/info',
+        config: '/system/config',
+      };
+      return tab ? (tabRouteMap[tab] || '/system/info') : '/system/info';
+    } catch {
+      return path;
+    }
+  };
+
+  const resolveChildRoutePath = (parentKey: string, childKey: string, rawPath?: string | null) => {
+    const normalizedPath = rawPath ? normalizeLegacySystemPath(rawPath) : '';
+    if (normalizedPath.startsWith('/')) {
+      return normalizedPath;
+    }
+
+    // 优先按子菜单编码做全局兜底，避免依赖父级 menuCode 命名
+    const globalRouteMap: Record<string, string> = {
+      dashboard: '/dashboard',
+      profile: '/profile',
+      user_management: '/system/users',
+      users: '/system/users',
+      role_management: '/system/roles',
+      roles: '/system/roles',
+      menu_management: '/system/menus',
+      menus: '/system/menus',
+      permission_management: '/system/permissions',
+      permissions: '/system/permissions',
+      system_config: '/system/info',
+      system_info: '/system/info',
+      system_setting: '/system/config',
+      system_settings: '/system/config',
+      app_list_page: '/applications/list',
+      license_management: '/applications/licenses',
+      app_user_management: '/applications/users',
+      app_variable_management: '/applications/variables',
+      plugin_list_page: '/plugins/list',
+    };
+    const globalMatchedPath = globalRouteMap[childKey];
+    if (globalMatchedPath) {
+      return globalMatchedPath;
+    }
+
+    if (parentKey === 'system_management') {
+      const systemRouteMap: Record<string, string> = {
+        user_management: '/system/users',
+        users: '/system/users',
+        user: '/system/users',
+        role_management: '/system/roles',
+        roles: '/system/roles',
+        role: '/system/roles',
+        menu_management: '/system/menus',
+        menus: '/system/menus',
+        menu: '/system/menus',
+        permission_management: '/system/permissions',
+        permissions: '/system/permissions',
+        permission: '/system/permissions',
+        system_config: '/system/info',
+        system_info: '/system/info',
+        info: '/system/info',
+        system_setting: '/system/config',
+        system_settings: '/system/config',
+        config: '/system/config',
+      };
+      const matchedPath = systemRouteMap[childKey];
+      if (matchedPath) return matchedPath;
+      return '/system/info';
+    }
+
+    if (parentKey === 'app_management') {
+      const appRouteMap: Record<string, string> = {
+        app_list_page: '/applications/list',
+        license_management: '/applications/licenses',
+        app_user_management: '/applications/users',
+        app_variable_management: '/applications/variables',
+      };
+      return appRouteMap[childKey] || `/applications/${childKey}`;
+    }
+
+    if (parentKey === 'plugin_management') {
+      return childKey === 'plugin_list_page' ? '/plugins/list' : `/plugins/${childKey}`;
+    }
+
+    // 最终兜底：尽量落到控制台，避免命中 * 路由被重定向回 /
+    return '/dashboard';
+  };
+
   const generateSidebarMenus = (menus: UserMenu[]) => {
     return menus.map(menu => {
       const menuKey = menu.menuCode.toLowerCase();
@@ -328,66 +335,8 @@ const MainLayout: React.FC = () => {
               key: childKey,
               label: child.menuName,
               onClick: () => {
-                if (menuKey === 'system_management') {
-                  let routePath = '';
-                  switch (childKey) {
-                    case 'user_management':
-                      routePath = '/system/users';
-                      break;
-                    case 'role_management':
-                      routePath = '/system/roles';
-                      break;
-                    case 'menu_management':
-                      routePath = '/system/menus';
-                      break;
-                    case 'permission_management':
-                      routePath = '/system/permissions';
-                      break;
-                    case 'system_config':
-                      routePath = '/system/info';
-                      break;
-                    case 'system_setting':
-                    case 'system_settings':
-                      routePath = '/system/config';
-                      break;
-                    default:
-                      const cleanKey = childKey.replace('_management', '');
-                      routePath = `/system/${cleanKey}`;
-                  }
-                  navigate(routePath);
-                } else if (menuKey === 'app_management') {
-                  // 处理应用管理菜单
-                  let routePath = '';
-                  switch (childKey) {
-                    case 'app_list_page':
-                      routePath = '/applications/list';
-                      break;
-                    case 'license_management':
-                      routePath = '/applications/licenses';
-                      break;
-                    case 'app_user_management':
-                      routePath = '/applications/users';
-                      break;
-                    case 'app_variable_management':
-                      routePath = '/applications/variables';
-                      break;
-                    default:
-                      routePath = `/applications/${childKey}`;
-                  }
-                  navigate(routePath);
-                } else if (menuKey === 'plugin_management') {
-                  let routePath = '';
-                  switch (childKey) {
-                    case 'plugin_list_page':
-                      routePath = '/plugins/list';
-                      break;
-                    default:
-                      routePath = `/plugins/${childKey}`;
-                  }
-                  navigate(routePath);
-                } else {
-                  navigate(`/${childKey}`);
-                }
+                const routePath = resolveChildRoutePath(menuKey, childKey, child.path);
+                navigate(routePath);
               },
             };
           }),
@@ -398,7 +347,9 @@ const MainLayout: React.FC = () => {
           icon: getMenuIcon(menu.icon),
           label: menu.menuName,
           onClick: () => {
-            if (menuKey === 'dashboard') {
+            if (menu.path && menu.path.startsWith('/')) {
+              navigate(menu.path);
+            } else if (menuKey === 'dashboard') {
               navigate('/dashboard');
             } else {
               navigate(`/${menuKey}`);
@@ -408,6 +359,57 @@ const MainLayout: React.FC = () => {
       }
     });
   };
+
+  const routePath = normalizeLegacySystemPath(location.pathname);
+  const { selectedMenu, pageTitle, parentMenuKey } = useMemo(() => {
+    const defaultMeta = {
+      selectedMenu: 'dashboard',
+      pageTitle: '控制台',
+      parentMenuKey: '',
+    };
+    if (!userInfo?.menus?.length) {
+      return defaultMeta;
+    }
+
+    const walk = (menus: UserMenu[], parentKey = ''): typeof defaultMeta => {
+      for (const menu of menus) {
+        const menuKey = menu.menuCode.toLowerCase();
+        const normalizedMenuPath = menu.path ? normalizeLegacySystemPath(menu.path) : '';
+        if (normalizedMenuPath && normalizedMenuPath === routePath) {
+          return {
+            selectedMenu: menuKey,
+            pageTitle: menu.menuName || defaultMeta.pageTitle,
+            parentMenuKey: parentKey,
+          };
+        }
+
+        if (menu.children?.length) {
+          const childHit = walk(menu.children as UserMenu[], menuKey);
+          if (childHit.selectedMenu !== defaultMeta.selectedMenu || childHit.pageTitle !== defaultMeta.pageTitle || childHit.parentMenuKey) {
+            return childHit;
+          }
+        }
+      }
+      return defaultMeta;
+    };
+
+    const matched = walk(userInfo.menus);
+    if (matched.selectedMenu !== defaultMeta.selectedMenu || routePath === '/dashboard') {
+      return matched;
+    }
+
+    if (routePath === '/profile') {
+      return { selectedMenu: 'profile', pageTitle: '个人信息', parentMenuKey: '' };
+    }
+    return defaultMeta;
+  }, [routePath, userInfo?.menus]);
+
+  useEffect(() => {
+    if (!parentMenuKey) {
+      return;
+    }
+    setOpenKeys(prev => (prev.includes(parentMenuKey) ? prev : [parentMenuKey]));
+  }, [parentMenuKey]);
 
   if (loading) {
     return (
