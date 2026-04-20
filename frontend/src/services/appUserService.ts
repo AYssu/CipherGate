@@ -54,6 +54,12 @@ export interface AppUserQueryDTO {
   email?: string;
   phone?: string;
   nickname?: string;
+  /** true=已封禁，false=正常 */
+  banned?: boolean;
+  /** ACTIVE=未到期，EXPIRED=已到期，NONE=未开通 */
+  memberStatus?: 'ACTIVE' | 'EXPIRED' | 'NONE';
+  /** true=在线，false=离线（单机内存） */
+  wsOnline?: boolean;
   current?: number;
   size?: number;
 }
@@ -123,6 +129,23 @@ export interface AppUserBinding {
   licenseKeyCode?: string;
 }
 
+export interface AppUserBatchExtendMemberDTO {
+  ids: number[];
+  days: number;
+}
+
+export interface AppUserBatchExtendMemberFailItem {
+  id: number;
+  username?: string;
+  reason: string;
+}
+
+export interface AppUserBatchExtendMemberResultDTO {
+  successCount: number;
+  failCount: number;
+  failures: AppUserBatchExtendMemberFailItem[];
+}
+
 // 获取用户绑定设备列表
 export const getUserBindings = (userId: number, current = 1, size = 10) => {
   return request.get(`/app-users/${userId}/bindings`, { 
@@ -140,6 +163,11 @@ export const unbindDevice = (userId: number, bindingId: number, reason?: string)
 /** 延长会员天数（在「当前时间」与「原到期时间」中较晚者基础上累加） */
 export const extendMemberDays = (id: number, days: number) => {
   return request.post(`/app-users/${id}/extend-member`, { days });
+};
+
+/** 批量延长会员天数（按天累加到到期时间） */
+export const batchExtendMemberDays = (data: AppUserBatchExtendMemberDTO) => {
+  return request.post('/app-users/batch-extend-member', data);
 };
 
 /** 直接设置或清空会员到期；memberExpiresAt 为 null 表示清空 */

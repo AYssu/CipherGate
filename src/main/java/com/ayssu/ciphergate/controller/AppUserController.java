@@ -4,6 +4,8 @@ import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.AppUserDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberResultDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.dto.ExtendMemberDaysDTO;
 import com.ayssu.ciphergate.dto.MemberExpiresAtDTO;
@@ -262,6 +264,25 @@ public class AppUserController {
             return Result.success("保存成功", updated);
         } catch (Exception e) {
             log.error("设置会员到期失败: id={}", id, e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量延长会员（按天累加到到期时间）
+     */
+    @PostMapping("/batch-extend-member")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "终端用户批量延长会员")
+    @Operation(summary = "批量延长会员（按天累加到到期时间）")
+    public Result<AppUserBatchExtendMemberResultDTO> batchExtendMember(
+            @Valid @RequestBody AppUserBatchExtendMemberDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchExtendMemberDays(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量延长会员失败", e);
             return Result.error("操作失败: " + e.getMessage());
         }
     }

@@ -71,6 +71,17 @@ public class AppUserWsPresenceRegistry {
         return new PresenceSnapshot(true, m.size(), earliest, List.copyOf(m.values()));
     }
 
+    /**
+     * 当前在线的终端用户 ID 列表（内存，单机）。
+     * 用于管理端列表筛选 wsOnline=true/false。
+     */
+    public List<Long> listOnlineAppUserIds() {
+        if (byAppUserId.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(byAppUserId.keySet());
+    }
+
     public static final class PresenceSnapshot {
         private final boolean online;
         private final int sessionCount;

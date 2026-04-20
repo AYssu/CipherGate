@@ -33,6 +33,7 @@ import {
   MobileOutlined,
   CrownOutlined,
   FilterOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import {
   getAppUserList,
@@ -44,6 +45,7 @@ import {
   getUserBindings,
   unbindDevice,
   extendMemberDays,
+  batchExtendMemberDays,
   setMemberExpiresAt,
   type AppUser,
   type AppUserBinding,
@@ -78,11 +80,14 @@ const AppUserManagementContent: React.FC = () => {
   const [bindingsLoading, setBindingsLoading] = useState(false);
   const [extendModalVisible, setExtendModalVisible] = useState(false);
   const [extendUserId, setExtendUserId] = useState<number | null>(null);
+  const [batchExtendVisible, setBatchExtendVisible] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [memberExpModalVisible, setMemberExpModalVisible] = useState(false);
   const [memberExpUser, setMemberExpUser] = useState<AppUser | null>(null);
   const [form] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const [extendForm] = Form.useForm();
+  const [batchExtendForm] = Form.useForm();
   const [memberExpForm] = Form.useForm();
   const [listFilterForm] = Form.useForm();
   const [pagination, setPagination] = useState({
@@ -98,6 +103,9 @@ const AppUserManagementContent: React.FC = () => {
     filters.appId,
     filters.email,
     filters.phone,
+    filters.banned,
+    filters.memberStatus,
+    filters.wsOnline,
   ].filter((v) => v !== undefined && v !== null && v !== '').length;
 
   // 获取应用列表
@@ -150,8 +158,12 @@ const AppUserManagementContent: React.FC = () => {
   const syncListFilterFormFromFilters = () => {
     listFilterForm.setFieldsValue({
       appId: filters.appId,
+      username: filters.username,
       email: filters.email,
       phone: filters.phone,
+      banned: filters.banned,
+      memberStatus: filters.memberStatus,
+      wsOnline: filters.wsOnline,
     });
   };
 
@@ -162,6 +174,12 @@ const AppUserManagementContent: React.FC = () => {
       next.appId = v.appId;
     } else {
       delete next.appId;
+    }
+    const usernameTrim = (v.username ?? '').trim();
+    if (usernameTrim) {
+      next.username = usernameTrim;
+    } else {
+      delete next.username;
     }
     const emailTrim = (v.email ?? '').trim();
     if (emailTrim) {
@@ -175,6 +193,25 @@ const AppUserManagementContent: React.FC = () => {
     } else {
       delete next.phone;
     }
+
+    if (v.banned === true || v.banned === false) {
+      next.banned = v.banned;
+    } else {
+      delete next.banned;
+    }
+
+    if (v.memberStatus) {
+      next.memberStatus = v.memberStatus;
+    } else {
+      delete next.memberStatus;
+    }
+
+    if (v.wsOnline === true || v.wsOnline === false) {
+      next.wsOnline = v.wsOnline;
+    } else {
+      delete next.wsOnline;
+    }
+
     setFilters(next);
     fetchUsers(1, pagination.pageSize, next);
     setFilterPopoverOpen(false);
@@ -184,8 +221,12 @@ const AppUserManagementContent: React.FC = () => {
     listFilterForm.resetFields();
     const next = { ...filters };
     delete next.appId;
+    delete next.username;
     delete next.email;
     delete next.phone;
+    delete next.banned;
+    delete next.memberStatus;
+    delete next.wsOnline;
     setFilters(next);
     fetchUsers(1, pagination.pageSize, next);
   };
@@ -392,6 +433,59 @@ const AppUserManagementContent: React.FC = () => {
     }
   };
 
+  const openBatchExtendModal = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要加时的用户');
+      return;
+    }
+    batchExtendForm.setFieldsValue({ days: 30 });
+    setBatchExtendVisible(true);
+  };
+
+  const handleBatchExtendOk = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要加时的用户');
+      return;
+    }
+    try {
+      const { days } = await batchExtendForm.validateFields();
+      const result: any = await batchExtendMemberDays({
+        ids: selectedRowKeys.map((k) => Number(k)),
+        days,
+      });
+      if (result.code === 200 && result.data) {
+        const r = result.data;
+        setBatchExtendVisible(false);
+        setSelectedRowKeys([]);
+        fetchUsers(pagination.current, pagination.pageSize, filters);
+        message.success(`批量加时完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        if (r.failures?.length) {
+          Modal.warning({
+            title: '以下用户未加时',
+            width: 600,
+            content: (
+              <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
+                {r.failures.map((f: { username?: string; id: number; reason: string }, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <Tag>{f.username || `#${f.id}`}</Tag>：{f.reason}
+                  </li>
+                ))}
+              </ul>
+            ),
+          });
+        }
+      } else {
+        message.error(result.message || '批量加时失败');
+      }
+    } catch (e: any) {
+      if (e?.errorFields) {
+        return;
+      }
+      console.error(e);
+      message.error('批量加时失败');
+    }
+  };
+
   const handleMemberExpiresOk = async () => {
     try {
       const { expires } = await memberExpForm.validateFields();
@@ -542,7 +636,14 @@ const AppUserManagementContent: React.FC = () => {
       render: (text: string) => (
         <Space>
           <UserOutlined style={{ color: '#1890ff' }} />
-          <Text strong>{text}</Text>
+          <Text
+            strong
+            copyable={{ text, tooltips: ['复制用户名', '已复制'] }}
+            ellipsis={{ tooltip: text }}
+            style={{ display: 'block', maxWidth: 110 }}
+          >
+            {text}
+          </Text>
         </Space>
       ),
     },
@@ -707,19 +808,35 @@ const AppUserManagementContent: React.FC = () => {
       ellipsis: true,
       render: (id: string) =>
         id ? (
-          <Text
-            copyable={{ text: id, tooltips: ['复制设备 ID', '已复制'] }}
-            ellipsis={{ tooltip: id }}
-            style={{
-              display: 'block',
-              maxWidth: '100%',
-              fontSize: 12,
-              fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
-              lineHeight: 1.45,
-            }}
+          <Popover
+            trigger="click"
+            placement="topLeft"
+            content={
+              <div style={{ maxWidth: 520 }}>
+                <Text
+                  copyable={{ text: id, tooltips: ['复制设备 ID', '已复制'] }}
+                  style={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 12 }}
+                >
+                  {id}
+                </Text>
+              </div>
+            }
           >
-            {id}
-          </Text>
+            <Text
+              copyable={{ text: id, tooltips: ['复制设备 ID', '已复制'] }}
+              ellipsis={{ tooltip: '点击查看完整设备 ID' }}
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                fontSize: 12,
+                fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+                lineHeight: 1.45,
+                cursor: 'pointer',
+              }}
+            >
+              {id}
+            </Text>
+          </Popover>
         ) : (
           '-'
         ),
@@ -764,6 +881,13 @@ const AppUserManagementContent: React.FC = () => {
           </Col>
           <Col>
             <Space>
+              <Button
+                icon={<ClockCircleOutlined />}
+                disabled={selectedRowKeys.length === 0}
+                onClick={openBatchExtendModal}
+              >
+                批量加时
+              </Button>
               <Button
                 icon={<ReloadOutlined />}
                 onClick={() => fetchUsers(pagination.current, pagination.pageSize, filters)}
@@ -815,10 +939,10 @@ const AppUserManagementContent: React.FC = () => {
                 }
               }}
               content={
-                <div style={{ width: 420, maxWidth: '90vw' }}>
+                <div style={{ width: 560, maxWidth: '90vw' }}>
                   <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
                     <Row gutter={16}>
-                      <Col span={24}>
+                      <Col xs={24} md={12}>
                         <Form.Item label="应用" name="appId">
                           <Select
                             allowClear
@@ -830,14 +954,56 @@ const AppUserManagementContent: React.FC = () => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={24}>
+                      <Col xs={24} md={12}>
+                        <Form.Item label="用户名" name="username">
+                          <Input allowClear placeholder="搜索用户名" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
                         <Form.Item label="邮箱" name="email">
                           <Input allowClear placeholder="搜索邮箱" />
                         </Form.Item>
                       </Col>
-                      <Col span={24}>
+                      <Col xs={24} md={12}>
                         <Form.Item label="手机号" name="phone">
                           <Input allowClear placeholder="搜索手机号" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item label="封禁状态" name="banned">
+                          <Select
+                            allowClear
+                            placeholder="全部"
+                            options={[
+                              { label: '正常', value: false },
+                              { label: '已封禁', value: true },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item label="会员状态" name="memberStatus">
+                          <Select
+                            allowClear
+                            placeholder="全部"
+                            options={[
+                              { label: '未到期（会员有效）', value: 'ACTIVE' },
+                              { label: '已到期', value: 'EXPIRED' },
+                              { label: '未开通', value: 'NONE' },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item label="WS 在线" name="wsOnline">
+                          <Select
+                            allowClear
+                            placeholder="全部"
+                            options={[
+                              { label: '离线', value: false },
+                              { label: '在线', value: true },
+                            ]}
+                          />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -868,6 +1034,11 @@ const AppUserManagementContent: React.FC = () => {
           dataSource={users}
           rowKey="id"
           loading={loading}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+            preserveSelectedRowKeys: true,
+          }}
           pagination={{
             ...pagination,
             showSizeChanger: true,
@@ -1017,6 +1188,33 @@ const AppUserManagementContent: React.FC = () => {
       </Modal>
 
       <Modal
+        title="批量加时"
+        open={batchExtendVisible}
+        onOk={handleBatchExtendOk}
+        onCancel={() => setBatchExtendVisible(false)}
+        okText="确定加时"
+        cancelText="取消"
+        width={520}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按天累加）。
+        </Text>
+        <Form form={batchExtendForm} layout="vertical">
+          <Form.Item
+            label="增加天数"
+            name="days"
+            rules={[{ required: true, message: '请输入天数' }]}
+            initialValue={30}
+          >
+            <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+          </Form.Item>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            在「当前时间」与「原到期时间」中较晚的时间点上累加天数；未开通则从当前时间起算。
+          </Text>
+        </Form>
+      </Modal>
+
+      <Modal
         title="设置会员到期"
         open={memberExpModalVisible}
         onOk={handleMemberExpiresOk}
@@ -1125,10 +1323,41 @@ const AppUserManagementContent: React.FC = () => {
               title: '设备ID',
               dataIndex: 'deviceId',
               key: 'deviceId',
-              width: 180,
-              render: (text: string) => (
-                <Tag style={{ fontSize: 12, margin: 0 }}>{text}</Tag>
-              ),
+              width: 260,
+              ellipsis: true,
+              render: (text: string) =>
+                text ? (
+                  <Popover
+                    trigger="click"
+                    placement="topLeft"
+                    content={
+                      <div style={{ maxWidth: 520 }}>
+                        <Text
+                          copyable={{ text, tooltips: ['复制设备 ID', '已复制'] }}
+                          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 12 }}
+                        >
+                          {text}
+                        </Text>
+                      </div>
+                    }
+                  >
+                    <Text
+                      copyable={{ text, tooltips: ['复制设备 ID', '已复制'] }}
+                      ellipsis={{ tooltip: '点击查看完整设备 ID' }}
+                      style={{
+                        display: 'block',
+                        maxWidth: '100%',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {text}
+                    </Text>
+                  </Popover>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: '设备名称',

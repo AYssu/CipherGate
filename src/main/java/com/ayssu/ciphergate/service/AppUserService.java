@@ -1,6 +1,8 @@
 package com.ayssu.ciphergate.service;
 
 import com.ayssu.ciphergate.dto.AppUserDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberResultDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
@@ -67,4 +69,9 @@ public interface AppUserService {
      * 直接设置或清空会员到期时间（null 表示清空）
      */
     AppUser setMemberExpiresAt(Long id, LocalDateTime memberExpiresAt, Long operatorId);
+
+    /**
+     * 批量延长会员天数（逐条处理，返回成功/失败明细）
+     */
+    AppUserBatchExtendMemberResultDTO batchExtendMemberDays(AppUserBatchExtendMemberDTO dto, Long operatorId);
 }

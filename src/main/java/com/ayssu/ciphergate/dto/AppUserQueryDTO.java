@@ -24,6 +24,21 @@ public class AppUserQueryDTO {
     
     @Schema(description = "昵称(模糊查询)")
     private String nickname;
+
+    @Schema(description = "封禁状态：true=已封禁，false=正常")
+    private Boolean banned;
+
+    /**
+     * 会员状态：
+     * - ACTIVE：未到期（memberExpiresAt > now）
+     * - EXPIRED：已到期（memberExpiresAt <= now）
+     * - NONE：未开通（memberExpiresAt is null）
+     */
+    @Schema(description = "会员状态：ACTIVE/EXPIRED/NONE")
+    private String memberStatus;
+
+    @Schema(description = "WS 在线状态：true=在线，false=离线（单机内存）")
+    private Boolean wsOnline;
     
     @Schema(description = "当前页", example = "1")
     private Integer current = 1;

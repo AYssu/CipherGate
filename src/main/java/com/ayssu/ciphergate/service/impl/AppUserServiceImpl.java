@@ -4,6 +4,9 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.ayssu.ciphergate.agent.AgentAuthorizationService;
 import com.ayssu.ciphergate.agent.AgentPermissionCodes;
 import com.ayssu.ciphergate.dto.AppUserDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberFailItem;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberResultDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.entity.AppAgent;
 import com.ayssu.ciphergate.entity.AppUser;
@@ -33,6 +36,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -68,6 +73,51 @@ public class AppUserServiceImpl implements AppUserService {
                .like(StringUtils.hasText(queryDTO.getNickname()), AppUser::getNickname, queryDTO.getNickname())
                .eq(AppUser::getDeleted, 0)
                .orderByDesc(AppUser::getCreatedAt);
+
+        // 封禁状态：由 app_user_binding 是否存在已封禁且未删除的记录决定
+        if (queryDTO.getBanned() != null) {
+            // MyBatis-Plus LambdaWrapper 对 exists/not exists 需要用 apply 拼 SQL（表名固定为 app_user / app_user_binding）
+            if (Boolean.TRUE.equals(queryDTO.getBanned())) {
+                wrapper.apply(
+                        "exists (select 1 from app_user_binding b where b.user_id = app_user.id and b.deleted = 0 and b.is_banned = 1)"
+                );
+            } else {
+                wrapper.apply(
+                        "not exists (select 1 from app_user_binding b where b.user_id = app_user.id and b.deleted = 0 and b.is_banned = 1)"
+                );
+            }
+        }
+
+        // 会员状态：基于 member_expires_at 与当前时间比较
+        if (StringUtils.hasText(queryDTO.getMemberStatus())) {
+            String s = queryDTO.getMemberStatus().trim().toUpperCase();
+            LocalDateTime now = LocalDateTime.now();
+            switch (s) {
+                case "ACTIVE" -> wrapper.gt(AppUser::getMemberExpiresAt, now);
+                case "EXPIRED" -> wrapper.isNotNull(AppUser::getMemberExpiresAt).le(AppUser::getMemberExpiresAt, now);
+                case "NONE" -> wrapper.isNull(AppUser::getMemberExpiresAt);
+                default -> {
+                }
+            }
+        }
+
+        // WS 在线状态：基于内存 registry 的在线 userId 集合过滤（单机）
+        if (queryDTO.getWsOnline() != null) {
+            List<Long> onlineIds = appUserWsPresenceRegistry.listOnlineAppUserIds();
+            if (Boolean.TRUE.equals(queryDTO.getWsOnline())) {
+                if (onlineIds.isEmpty()) {
+                    // 当前无在线用户，直接返回空页（避免全表扫描）
+                    wrapper.apply("1=0");
+                } else {
+                    wrapper.in(AppUser::getId, onlineIds);
+                }
+            } else {
+                // 离线：排除在线集合；若集合为空则无需过滤（全离线）
+                if (!onlineIds.isEmpty()) {
+                    wrapper.notIn(AppUser::getId, onlineIds);
+                }
+            }
+        }
         
         Page<AppUser> result = appUserMapper.selectPage(page, wrapper);
         log.info("终端用户列表查询完成: operatorId={}, total={}, records={}",
@@ -237,7 +287,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 检查邮箱是否重复
         if (StringUtils.hasText(dto.getEmail()) && !dto.getEmail().equals(appUser.getEmail())) {
@@ -325,7 +375,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 使用 Hutool BCrypt 加密并更新密码
         appUser.setPassword(BCrypt.hashpw(newPassword));
@@ -345,7 +395,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 更新绑定记录的封禁状态
         if (bindingId != null) {
@@ -453,7 +503,7 @@ public class AppUserServiceImpl implements AppUserService {
         }
         
         // 检查权限
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 验证绑定记录是否存在
         AppUserBinding binding = appUserBindingMapper.selectById(bindingId);
@@ -617,7 +667,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime base = appUser.getMemberExpiresAt();
         if (base == null || base.isBefore(now) || base.isEqual(now)) {
@@ -639,12 +689,89 @@ public class AppUserServiceImpl implements AppUserService {
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
-        ensureAppUserPermission(appUser.getAppId(), operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         appUser.setMemberExpiresAt(memberExpiresAt);
         appUser.setUpdatedAt(LocalDateTime.now());
         appUserMapper.updateById(appUser);
         log.info("设置会员到期: userId={}, memberExpiresAt={}, operatorId={}", id, memberExpiresAt, operatorId);
         fillRelatedInfo(appUser);
         return appUser;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO batchExtendMemberDays(AppUserBatchExtendMemberDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        Integer days = dto.getDays();
+        if (days == null || days < 1) {
+            throw new RuntimeException("延长天数至少为 1");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            try {
+                AppUser appUser = appUserMapper.selectById(id);
+                if (appUser == null || appUser.getDeleted() == 1) {
+                    result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
+                    continue;
+                }
+                ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+                LocalDateTime base = appUser.getMemberExpiresAt();
+                if (base == null || !base.isAfter(now)) {
+                    base = now;
+                }
+                LocalDateTime newExp = base.plus(days, ChronoUnit.DAYS);
+                appUser.setMemberExpiresAt(newExp);
+                appUser.setUpdatedAt(now);
+                appUserMapper.updateById(appUser);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                    // ignore
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("终端用户批量延长会员: operatorId={}, days={}, success={}, fail={}",
+                operatorId, days, success, result.getFailCount());
+        return result;
+    }
+
+    /**
+     * 记录级权限校验：非管理员/非应用 owner 的代理，若不具备全量查看权限，则只能操作归属自身代理的终端用户。
+     */
+    private void ensureAppUserRecordPermission(AppUser appUser, Long operatorId, String permissionCode, String message) {
+        if (appUser == null || appUser.getAppId() == null) {
+            throw new RuntimeException(message);
+        }
+        AppAgent agent = ensureAppUserPermission(appUser.getAppId(), operatorId, permissionCode, message);
+        if (agent == null) {
+            // admin / owner
+            return;
+        }
+        boolean viewAll = agentAuthorizationService.isScopeAllInApp(agent)
+                || hasAgentPermission(agent, AgentPermissionCodes.APP_USER_VIEW_ALL);
+        if (viewAll) {
+            return;
+        }
+        // 仅允许操作该 agent 自己创建/归属的用户
+        if (appUser.getAgentId() == null || !appUser.getAgentId().equals(agent.getId())) {
+            throw new RuntimeException(message);
+        }
     }
 }

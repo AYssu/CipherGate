@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 public class AppUserWsAuthService {
     private final ApplicationMapper applicationMapper;
@@ -36,21 +38,36 @@ public class AppUserWsAuthService {
         return app;
     }
 
-    public AppUser loginAppUser(Long appId, String username, String password) {
+    /**
+     * WS 登录：identifier 支持「用户名」或「邮箱」。
+     * 终端协议字段名仍为 username（兼容旧客户端）。
+     */
+    public AppUser loginAppUser(Long appId, String identifier, String password) {
         if (appId == null) {
             throw new RuntimeException("appId required");
         }
-        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
+        if (!StringUtils.hasText(identifier) || !StringUtils.hasText(password)) {
             throw new RuntimeException("username/password required");
         }
-        AppUser u = appUserMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+
+        String raw = identifier.trim();
+        LambdaQueryWrapper<AppUser> q = new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getAppId, appId)
-                .eq(AppUser::getUsername, username.trim())
                 .eq(AppUser::getDeleted, 0)
-                .last("limit 1"));
-        if (u == null) {
+                .and(w -> w.eq(AppUser::getUsername, raw)
+                        .or()
+                        // email 支持忽略大小写匹配
+                        .apply("lower(email) = lower({0})", raw))
+                .last("limit 2");
+
+        List<AppUser> users = appUserMapper.selectList(q);
+        if (users == null || users.isEmpty()) {
             throw new RuntimeException("bad credentials");
         }
+        if (users.size() > 1) {
+            throw new RuntimeException("ambiguous identifier");
+        }
+        AppUser u = users.get(0);
         if (!BCrypt.checkpw(password, u.getPassword())) {
             throw new RuntimeException("bad credentials");
         }
