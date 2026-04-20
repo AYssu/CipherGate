@@ -37,6 +37,23 @@ public class ThirdPartyCardService {
     private final LicenseUnbindTimeDeductionService licenseUnbindTimeDeductionService;
     private final AccessEventService accessEventService;
 
+    private String toCardTypeDisplay(String keyType) {
+        if (!StringUtils.hasText(keyType)) {
+            return "未知卡";
+        }
+        return switch (keyType.trim().toUpperCase()) {
+            case "DAY" -> "天卡";
+            case "WEEK" -> "周卡";
+            case "MONTH" -> "月卡";
+            case "QUARTER" -> "季卡";
+            case "HALF_YEAR" -> "半年卡";
+            case "YEAR" -> "年卡";
+            case "PERMANENT" -> "永久卡";
+            case "CUSTOM" -> "自定义卡";
+            default -> "未知卡";
+        };
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
         Application application = applicationMapper.selectById(appId);
@@ -128,8 +145,16 @@ public class ThirdPartyCardService {
         resp.setAppId(appId);
         resp.setCardId(key.getId());
         resp.setCardCode(key.getKeyCode());
+        resp.setCardType(toCardTypeDisplay(key.getKeyType()));
         resp.setExpiresAt(key.getExpiresAt());
         resp.setBindNumber(key.getUseCount());
+        resp.setUnbindCount(key.getUnbindCount());
+        resp.setUnbindLimit(key.getUnbindLimit());
+        resp.setUseLimit(key.getUseLimit());
+        resp.setStatus(key.getStatus());
+        resp.setFirstUsedAt(key.getFirstUsedAt());
+        resp.setLastUsedAt(key.getLastUsedAt());
+        resp.setCoreData(key.getCoreData());
         resp.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
         resp.setVariables(variables);
         LocalDateTime lastUsedAt = key.getLastUsedAt();
@@ -156,8 +181,14 @@ public class ThirdPartyCardService {
         resp.setAppId(appId);
         resp.setCardId(0L);
         resp.setCardCode("");
+        resp.setCardType("免费版");
         resp.setExpiresAt(expiresAt);
         resp.setBindNumber(0);
+        resp.setUnbindCount(0);
+        resp.setUnbindLimit(0);
+        resp.setUseLimit(0);
+        resp.setStatus(2);
+        resp.setCoreData("");
         resp.setAvailable(availableSeconds);
         resp.setVariables(variables);
         resp.setOnline(false);
