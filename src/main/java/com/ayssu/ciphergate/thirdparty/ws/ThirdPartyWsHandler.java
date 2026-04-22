@@ -12,6 +12,7 @@ import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsDeviceBindService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsLoginRecorder;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
+import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsHeartbeatService;
 import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsSessionRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
 import com.ayssu.ciphergate.thirdparty.ws.util.WsClientIp;
@@ -63,6 +64,9 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private static final String ATTR_WS_CONNECTED_AT_MS = "cg.ws.connectedAtMs";
     /** 建连时解析的客户端 IP（升级请求 RemoteAddress / X-Forwarded-For 等），AUTH 与绑定复用 */
     private static final String ATTR_CLIENT_IP = "cg.ws.clientIp";
+    private static final String ATTR_DEVICE_ID = "cg.ws.deviceId";
+    private static final String ATTR_DEVICE_NAME = "cg.ws.deviceName";
+    private static final String ATTR_DEVICE_OS = "cg.ws.deviceOs";
 
     private final ObjectMapper objectMapper;
     private final AppUserWsAuthService appUserWsAuthService;
@@ -72,6 +76,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     private final AppUserWsDeviceBindService appUserWsDeviceBindService;
     private final AppUserWsSessionKickService appUserWsSessionKickService;
+    private final ThirdPartyWsHeartbeatService thirdPartyWsHeartbeatService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -309,6 +314,9 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         appUserWsPresenceRegistry.register(connId, u.getId(), deviceId, clientIp, connectedAtMs);
         session.getAttributes().put(ATTR_APP_USER_ID, u.getId());
         session.getAttributes().put(ATTR_WS_CONNECTED_AT_MS, connectedAtMs);
+        session.getAttributes().put(ATTR_DEVICE_ID, deviceId);
+        session.getAttributes().put(ATTR_DEVICE_NAME, deviceName);
+        session.getAttributes().put(ATTR_DEVICE_OS, deviceOs);
 
         Map<String, Object> ok = new LinkedHashMap<>();
         ok.put("type", "AUTH_OK");
@@ -318,6 +326,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         ok.put("username", u.getUsername());
         ok.put("ts", now);
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(ok)));
+        thirdPartyWsHeartbeatService.sendHeartbeatOnce(session);
     }
 
     private String buildAppSigString(String appKey,

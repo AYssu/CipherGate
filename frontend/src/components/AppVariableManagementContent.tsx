@@ -10,6 +10,7 @@ import {
   message,
   Modal,
   Row,
+  Segmented,
   Select,
   Space,
   Table,
@@ -22,6 +23,8 @@ import {
   type MenuProps,
 } from 'antd';
 import {
+  DownOutlined,
+  RightOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -62,6 +65,76 @@ const VARIABLE_TYPE_OPTIONS: Array<{ value: VariableType; label: string }> = [
   { value: 'ARRAY', label: '数组' },
 ];
 
+type VariableTemplateItem = {
+  token: string;
+  label: string;
+  description: string;
+};
+
+const VARIABLE_TEMPLATE_GROUPS: Array<{ title: string; items: VariableTemplateItem[] }> = [
+  {
+    title: '时间',
+    items: [
+      { token: '${time}', label: '当前秒时间戳', description: '返回当前 Unix 时间戳（秒）' },
+      { token: '${time_ms}', label: '当前毫秒时间戳', description: '返回当前 Unix 时间戳（毫秒）' },
+      { token: '${now}', label: '当前 ISO 时间', description: '返回 UTC ISO 时间，如 2026-04-22T10:15:30Z' },
+      { token: '${date(yyyy-MM-dd)}', label: '日期格式化', description: '按指定格式输出当前日期' },
+      { token: '${datetime(yyyy-MM-dd HH:mm:ss)}', label: '日期时间格式化', description: '按指定格式输出当前日期时间' },
+      { token: '${unix(+3600)}', label: '偏移秒时间戳', description: '在当前秒时间戳基础上加减偏移秒数' },
+    ],
+  },
+  {
+    title: '会话/用户',
+    items: [
+      { token: '${app.id}', label: '应用 ID', description: '当前应用 ID' },
+      { token: '${app.key}', label: '应用 Key', description: '当前应用 appKey' },
+      { token: '${user.id}', label: '用户 ID', description: '当前终端用户 ID' },
+      { token: '${user.username}', label: '用户名', description: '当前终端用户名' },
+      { token: '${user.member_expires_at}', label: '会员到期时间', description: '当前用户会员到期时间（ISO）' },
+      { token: '${ws.conn_id}', label: '连接 ID', description: '当前 WebSocket 连接 ID' },
+      { token: '${ws.connected_at}', label: '连接时间戳', description: 'WebSocket 建连时间戳（毫秒）' },
+      { token: '${ws.online_seconds}', label: '在线秒数', description: '当前连接在线时长（秒）' },
+      { token: '${client.ip}', label: '客户端 IP', description: '请求来源 IP' },
+      { token: '${device.id}', label: '设备 ID', description: '设备唯一标识' },
+      { token: '${device.name}', label: '设备名称', description: '设备展示名称' },
+      { token: '${device.os}', label: '设备系统', description: '设备操作系统信息' },
+    ],
+  },
+  {
+    title: '登录统计',
+    items: [
+      { token: '${user.login_count}', label: '登录次数', description: '当前用户累计登录次数' },
+      { token: '${user.last_login_at}', label: '上次登录时间', description: '当前用户上次登录时间（ISO）' },
+      { token: '${user.last_login_ip}', label: '上次登录 IP', description: '当前用户上次登录 IP' },
+      { token: '${user.login_count+1}', label: '登录次数 +1', description: '在登录次数基础上加 1（展示视角）' },
+    ],
+  },
+  {
+    title: '随机/编码',
+    items: [
+      { token: '${rand.int(1000,9999)}', label: '随机整数', description: '生成指定范围内随机整数' },
+      { token: '${rand.str(16)}', label: '随机字符串', description: '生成指定长度随机字母数字串' },
+      { token: '${uuid}', label: 'UUID', description: '生成随机 UUID' },
+      { token: '${nonce(16)}', label: '随机 nonce', description: '生成指定长度随机 nonce' },
+      { token: '${sha256(text)}', label: 'SHA-256', description: '对参数文本做 SHA-256 哈希（十六进制）' },
+      { token: '${base64(text)}', label: 'Base64', description: '对参数文本做 Base64 编码' },
+      { token: '${urlencode(text)}', label: 'URL 编码', description: '对参数文本做 URL 编码' },
+    ],
+  },
+  {
+    title: '字符串/条件',
+    items: [
+      { token: '${upper(x)}', label: '转大写', description: '将参数转为大写' },
+      { token: '${lower(x)}', label: '转小写', description: '将参数转为小写' },
+      { token: '${trim(x)}', label: '去空格', description: '去除参数首尾空白' },
+      { token: '${substr(x,0,8)}', label: '截取子串', description: '按起止下标截取字符串' },
+      { token: '${replace(x,a,b)}', label: '替换文本', description: '将文本中的 a 替换为 b' },
+      { token: '${user.member_expires_at|2099-12-31 23:59:59}', label: '默认值', description: '左值为空时使用默认值' },
+      { token: '${if(user.login_count>10,VIP,NORMAL)}', label: '条件判断', description: '满足条件返回第一个值，否则返回第二个值' },
+    ],
+  },
+];
+
 const AppVariableManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [variables, setVariables] = useState<AppVariable[]>([]);
@@ -93,6 +166,9 @@ const AppVariableManagementContent: React.FC = () => {
   const [exportText, setExportText] = useState('');
   const [variableNameInput, setVariableNameInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [templateGroupTitle, setTemplateGroupTitle] = useState<string>(VARIABLE_TEMPLATE_GROUPS[0].title);
+  const [templatePanelOpen, setTemplatePanelOpen] = useState(false);
+  const currentVariableValue = Form.useWatch('variableValue', editForm) as string | undefined;
 
   const activeAdvancedFilterCount = [listFilters.appId, listFilters.variableType].filter(
     (v) => v !== undefined && v !== null
@@ -224,6 +300,36 @@ const AppVariableManagementContent: React.FC = () => {
       minute: '2-digit',
     });
   };
+
+  const insertTemplateToVariableValue = (template: string) => {
+    const current = (editForm.getFieldValue('variableValue') ?? '') as string;
+    const next = current ? `${current}${current.endsWith(' ') ? '' : ' '}${template}` : template;
+    editForm.setFieldsValue({ variableValue: next });
+  };
+
+  const activeTemplateGroup = useMemo(
+    () => VARIABLE_TEMPLATE_GROUPS.find((group) => group.title === templateGroupTitle) ?? VARIABLE_TEMPLATE_GROUPS[0],
+    [templateGroupTitle]
+  );
+
+  const variableValuePreviewParts = useMemo(() => {
+    const text = currentVariableValue ?? '';
+    const regex = /\$\{[^{}]+\}/g;
+    const parts: Array<{ type: 'text' | 'token'; value: string }> = [];
+    let last = 0;
+    for (const match of text.matchAll(regex)) {
+      const idx = match.index ?? 0;
+      if (idx > last) {
+        parts.push({ type: 'text', value: text.slice(last, idx) });
+      }
+      parts.push({ type: 'token', value: match[0] });
+      last = idx + match[0].length;
+    }
+    if (last < text.length) {
+      parts.push({ type: 'text', value: text.slice(last) });
+    }
+    return parts;
+  }, [currentVariableValue]);
 
   const handleOpenEdit = (record?: AppVariable) => {
     setEditingVariable(record || null);
@@ -802,6 +908,103 @@ const AppVariableManagementContent: React.FC = () => {
               style={{ fontFamily: 'Consolas, Monaco, monospace', backgroundColor: '#fafafa' }}
             />
           </Form.Item>
+          <div
+            style={{
+              marginTop: -6,
+              marginBottom: 12,
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              background: '#fafbfc',
+              padding: 12,
+            }}
+          >
+            <Row justify="space-between" align="middle" style={{ marginBottom: 10 }}>
+              <Button
+                type="text"
+                size="small"
+                icon={templatePanelOpen ? <DownOutlined /> : <RightOutlined />}
+                onClick={() => setTemplatePanelOpen((v) => !v)}
+                style={{ paddingInline: 0, fontWeight: 600 }}
+              >
+                快捷插入
+              </Button>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {templatePanelOpen ? '点击项可追加到变量值' : '点击左侧展开'}
+              </Text>
+            </Row>
+            {templatePanelOpen ? (
+              <>
+                <Segmented
+                  size="small"
+                  block
+                  value={templateGroupTitle}
+                  options={VARIABLE_TEMPLATE_GROUPS.map((group) => ({ label: group.title, value: group.title }))}
+                  onChange={(value) => setTemplateGroupTitle(String(value))}
+                />
+                <div
+                  style={{
+                    marginTop: 10,
+                    maxHeight: 130,
+                    overflowY: 'auto',
+                    paddingRight: 4,
+                  }}
+                >
+                  <Space size={[8, 8]} wrap>
+                    {activeTemplateGroup.items.map((item) => (
+                      <Tooltip key={item.token} title={`${item.description} | ${item.token}`}>
+                        <Tag
+                          color="blue"
+                          style={{
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            borderRadius: 4,
+                            paddingInline: 8,
+                          }}
+                          onClick={() => insertTemplateToVariableValue(item.token)}
+                        >
+                          {item.label}
+                        </Tag>
+                      </Tooltip>
+                    ))}
+                  </Space>
+                </div>
+              </>
+            ) : null}
+          </div>
+          <div
+            style={{
+              marginTop: -6,
+              marginBottom: 12,
+              border: '1px dashed #d0d7de',
+              borderRadius: 8,
+              padding: 10,
+              background: '#fff',
+            }}
+          >
+            <Row justify="space-between" align="middle" style={{ marginBottom: 6 }}>
+              <Text strong style={{ fontSize: 13 }}>
+                变量值渲染预览
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                原始值仍为 `${'{...}'}` 模板
+              </Text>
+            </Row>
+            <div style={{ minHeight: 26, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {variableValuePreviewParts.length === 0 ? (
+                <Text type="secondary">暂无内容</Text>
+              ) : (
+                variableValuePreviewParts.map((part, idx) =>
+                  part.type === 'token' ? (
+                    <Tag key={`${part.value}-${idx}`} color="geekblue" style={{ marginInlineEnd: 4 }}>
+                      {part.value}
+                    </Tag>
+                  ) : (
+                    <span key={`${part.value}-${idx}`}>{part.value}</span>
+                  )
+                )
+              )}
+            </div>
+          </div>
 
           <Divider orientation="left">附加信息</Divider>
           <Form.Item label="描述" name="description">

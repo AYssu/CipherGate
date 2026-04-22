@@ -139,7 +139,10 @@ public class ThirdPartyCardService {
         licenseKeyMapper.updateById(key);
         accessEventService.recordCardLogin(appId, key.getId());
 
-        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId);
+        AppVariableTemplateContext variableCtx = new AppVariableTemplateContext();
+        variableCtx.setClientIp(clientIp);
+        variableCtx.setDeviceId(req.getDeviceId());
+        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId, variableCtx);
 
         CardLoginResponse resp = new CardLoginResponse();
         resp.setAppId(appId);
@@ -175,7 +178,10 @@ public class ThirdPartyCardService {
 
         long availableSeconds = 99_999L;
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(availableSeconds);
-        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId);
+        AppVariableTemplateContext variableCtx = new AppVariableTemplateContext();
+        variableCtx.setClientIp(clientIp);
+        variableCtx.setDeviceId(req.getDeviceId());
+        Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId, variableCtx);
 
         CardLoginResponse resp = new CardLoginResponse();
         resp.setAppId(appId);
@@ -253,7 +259,9 @@ public class ThirdPartyCardService {
         out.setDeviceId(newDeviceId);
         out.setExpiresAt(key.getExpiresAt());
         out.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
-        out.setVariables(thirdPartyAppVariableService.getEnabledVariablesMap(appId));
+        AppVariableTemplateContext variableCtx = new AppVariableTemplateContext();
+        variableCtx.setDeviceId(newDeviceId);
+        out.setVariables(thirdPartyAppVariableService.getEnabledVariablesMap(appId, variableCtx));
         return out;
     }
 

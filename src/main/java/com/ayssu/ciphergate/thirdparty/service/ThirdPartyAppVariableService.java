@@ -1,7 +1,9 @@
 package com.ayssu.ciphergate.thirdparty.service;
 
 import com.ayssu.ciphergate.entity.AppVariable;
+import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.mapper.AppVariableMapper;
+import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +22,32 @@ import java.util.Map;
 public class ThirdPartyAppVariableService {
 
     private final AppVariableMapper appVariableMapper;
+    private final ApplicationMapper applicationMapper;
     private final ObjectMapper objectMapper;
+    private final AppVariableTemplateResolver appVariableTemplateResolver;
 
     public Map<String, Object> getEnabledVariablesMap(Long appId) {
+        return getEnabledVariablesMap(appId, null);
+    }
+
+    public Map<String, Object> getEnabledVariablesMap(Long appId, AppVariableTemplateContext ctx) {
+        Application app = applicationMapper.selectById(appId);
+        AppVariableTemplateContext context = ctx == null ? new AppVariableTemplateContext() : ctx;
+        if (context.getAppId() == null) {
+            context.setAppId(appId);
+        }
+        if (!StringUtils.hasText(context.getAppKey()) && app != null) {
+            context.setAppKey(app.getAppKey());
+        }
+
         List<AppVariable> variables = appVariableMapper.selectList(new LambdaQueryWrapper<AppVariable>()
                 .eq(AppVariable::getAppId, appId)
                 .eq(AppVariable::getEnabled, true)
                 .eq(AppVariable::getDeleted, 0));
         Map<String, Object> result = new HashMap<>();
         for (AppVariable v : variables) {
-            result.put(v.getVariableName(), convertVariableValue(v.getVariableValue(), v.getVariableType()));
+            String resolved = appVariableTemplateResolver.resolve(v.getVariableValue(), context);
+            result.put(v.getVariableName(), convertVariableValue(resolved, v.getVariableType()));
         }
         return result;
     }
