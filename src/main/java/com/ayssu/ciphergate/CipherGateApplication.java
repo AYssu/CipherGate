@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
 
-@Slf4j
 @SpringBootApplication
 @MapperScan("com.ayssu.ciphergate.mapper")
 @EnableConfigurationProperties(ThirdPartyPublicProperties.class)
+@Slf4j
 public class CipherGateApplication {
 
     public static void main(String[] args) {

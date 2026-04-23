@@ -757,14 +757,18 @@ const AppUserManagementContent: React.FC = () => {
       title: '在线时长',
       dataIndex: 'wsOnlineSeconds',
       key: 'wsOnlineSeconds',
-      width: 100,
+      width: 140,
       align: 'center' as const,
-      render: (_: unknown, record: AppUser) =>
-        record.wsOnline ? (
-          <Text style={{ fontSize: 12 }}>{formatOnlineSeconds(record.wsOnlineSeconds)}</Text>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
+      render: (_: unknown, record: AppUser) => (
+        <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
+          <Text style={{ fontSize: 12 }}>
+            {record.wsOnline ? formatOnlineSeconds(record.wsOnlineSeconds) : '-'}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            今日 {formatOnlineSeconds(record.wsTodayOnlineSeconds)}
+          </Text>
+        </Space>
+      ),
     },
     {
       title: '登录次数',

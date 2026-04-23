@@ -42,6 +42,7 @@ public class ThirdPartyWsHeartbeatService {
     private static final String ATTR_AUTHED = "cg.ws.authed";
     private static final String ATTR_APP_USER_ID = "cg.ws.appUserId";
     private static final String ATTR_WS_CONNECTED_AT_MS = "cg.ws.connectedAtMs";
+    private static final String ATTR_WS_RESUMED_CARRY_SEC = "cg.ws.resumedCarrySec";
     private static final String ATTR_CLIENT_IP = "cg.ws.clientIp";
     private static final String ATTR_DEVICE_ID = "cg.ws.deviceId";
     private static final String ATTR_DEVICE_NAME = "cg.ws.deviceName";
@@ -173,10 +174,11 @@ public class ThirdPartyWsHeartbeatService {
         }
         ctx.setWsConnId(connId);
         Long connectedAt = session.getAttributes().get(ATTR_WS_CONNECTED_AT_MS) instanceof Long v ? v : null;
+        Long resumedCarrySec = session.getAttributes().get(ATTR_WS_RESUMED_CARRY_SEC) instanceof Long v ? v : 0L;
         ctx.setWsConnectedAtEpochMs(connectedAt);
         if (connectedAt != null && connectedAt > 0L) {
             long onlineSec = Math.max(0L, (nowEpochMs - connectedAt) / 1000L);
-            ctx.setWsOnlineSeconds(onlineSec);
+            ctx.setWsOnlineSeconds(Math.max(0L, onlineSec + Math.max(0L, resumedCarrySec)));
         }
         Object clientIp = session.getAttributes().get(ATTR_CLIENT_IP);
         if (clientIp instanceof String s) {

@@ -62,6 +62,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     public static final String ATTR_VAR_PACKET_SEQ = "cg.ws.varPacketSeq";
     private static final String ATTR_APP_USER_ID = "cg.ws.appUserId";
     private static final String ATTR_WS_CONNECTED_AT_MS = "cg.ws.connectedAtMs";
+    private static final String ATTR_WS_RESUMED_CARRY_SEC = "cg.ws.resumedCarrySec";
     /** 建连时解析的客户端 IP（升级请求 RemoteAddress / X-Forwarded-For 等），AUTH 与绑定复用 */
     private static final String ATTR_CLIENT_IP = "cg.ws.clientIp";
     private static final String ATTR_DEVICE_ID = "cg.ws.deviceId";
@@ -311,9 +312,11 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
 
         long connectedAtMs = Instant.now().toEpochMilli();
         appUserWsLoginRecorder.recordSuccessfulLogin(app.getId(), u.getId(), clientIp, deviceId);
-        appUserWsPresenceRegistry.register(connId, u.getId(), deviceId, clientIp, connectedAtMs);
+        AppUserWsPresenceRegistry.WsSessionTicket ticket =
+                appUserWsPresenceRegistry.register(connId, u.getId(), deviceId, clientIp, connectedAtMs);
         session.getAttributes().put(ATTR_APP_USER_ID, u.getId());
-        session.getAttributes().put(ATTR_WS_CONNECTED_AT_MS, connectedAtMs);
+        session.getAttributes().put(ATTR_WS_CONNECTED_AT_MS, ticket != null ? ticket.connectedAtEpochMs() : connectedAtMs);
+        session.getAttributes().put(ATTR_WS_RESUMED_CARRY_SEC, ticket != null ? ticket.resumedCarrySeconds() : 0L);
         session.getAttributes().put(ATTR_DEVICE_ID, deviceId);
         session.getAttributes().put(ATTR_DEVICE_NAME, deviceName);
         session.getAttributes().put(ATTR_DEVICE_OS, deviceOs);

@@ -61,6 +61,26 @@ if not exist ".env.server" (
 )
 copy /y ".env.server" "%BUNDLE_DIR%\.env" >nul
 if errorlevel 1 goto :fail
+echo [INFO] Randomizing host ports in bundle .env ...
+powershell -NoProfile -Command ^
+  "$dst='%BUNDLE_DIR%\.env';" ^
+  "$lines=Get-Content -LiteralPath $dst -Encoding UTF8;" ^
+  "$used=@{}; function New-Port([int]$min,[int]$max){ do{ $p=Get-Random -Minimum $min -Maximum ($max+1) } while($used.ContainsKey($p)); $used[$p]=$true; return $p };" ^
+  "$ports=@{" ^
+  "  'MYSQL_PORT'=[string](New-Port 20000 49999);" ^
+  "  'REDIS_PORT_HOST'=[string](New-Port 20000 49999);" ^
+  "  'MINIO_API_PORT'=[string](New-Port 20000 49999);" ^
+  "  'MINIO_CONSOLE_PORT'=[string](New-Port 20000 49999);" ^
+  "  'BACKEND_PORT'=[string](New-Port 20000 49999);" ^
+  "  'FRONTEND_PORT'=[string](New-Port 20000 49999)" ^
+  "};" ^
+  "$out = foreach($line in $lines){" ^
+  "  if($line -match '^\s*([A-Z0-9_]+)\s*='){" ^
+  "    $k=$Matches[1]; if($ports.ContainsKey($k)){ $k + '=' + $ports[$k] } else { $line }" ^
+  "  } else { $line }" ^
+  "};" ^
+  "Set-Content -LiteralPath $dst -Value $out -Encoding UTF8"
+if errorlevel 1 goto :fail
 
 echo [4/5] Create zip package...
 if exist "%ZIP_NAME%" del /f /q "%ZIP_NAME%"

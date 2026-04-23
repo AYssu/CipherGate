@@ -645,12 +645,13 @@ public class AppUserServiceImpl implements AppUserService {
             return;
         }
         AppUserWsPresenceRegistry.PresenceSnapshot snap = appUserWsPresenceRegistry.snapshot(appUser.getId());
+        long nowMs = System.currentTimeMillis();
         appUser.setWsOnline(snap.isOnline());
         appUser.setWsSessionCount(snap.getSessionCount());
+        appUser.setWsTodayOnlineSeconds(appUserWsPresenceRegistry.todayOnlineSeconds(appUser.getId(), snap, nowMs));
         if (snap.isOnline()) {
             appUser.setWsEarliestConnectedAtEpochMs(snap.getEarliestConnectedAtEpochMs());
-            long sec = (System.currentTimeMillis() - snap.getEarliestConnectedAtEpochMs()) / 1000L;
-            appUser.setWsOnlineSeconds(Math.max(0L, sec));
+            appUser.setWsOnlineSeconds(appUserWsPresenceRegistry.continuousOnlineSeconds(snap, nowMs));
         } else {
             appUser.setWsEarliestConnectedAtEpochMs(null);
             appUser.setWsOnlineSeconds(null);

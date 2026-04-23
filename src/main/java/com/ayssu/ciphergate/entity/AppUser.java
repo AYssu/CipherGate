@@ -132,9 +132,13 @@ public class AppUser implements Serializable {
     @TableField(exist = false)
     private Long wsEarliestConnectedAtEpochMs;
 
-    /** 相对最早会话的在线秒数（非数据库字段，列表/详情接口计算） */
+    /** 当前连续在线秒数（支持短暂断线续算，非数据库字段） */
     @TableField(exist = false)
     private Long wsOnlineSeconds;
+
+    /** 当天累计在线秒数（非数据库字段，列表/详情接口计算） */
+    @TableField(exist = false)
+    private Long wsTodayOnlineSeconds;
 
     /** 当前是否在会员有效期内（非数据库字段） */
     @TableField(exist = false)

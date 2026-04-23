@@ -27,6 +27,8 @@ export interface AppUser {
   wsEarliestConnectedAtEpochMs?: number;
   /** 相对最早会话的在线秒数 */
   wsOnlineSeconds?: number;
+  /** 当天累计在线秒数（含当前在线片段） */
+  wsTodayOnlineSeconds?: number;
   /** 会员到期时间 */
   memberExpiresAt?: string;
   /** 当前是否在会员有效期内 */
