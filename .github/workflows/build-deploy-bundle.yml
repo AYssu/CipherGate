@@ -112,7 +112,7 @@ jobs:
 
           $messages = git log $logRange --pretty=format:"- %h %s"
           if ([string]::IsNullOrWhiteSpace($messages)) {
-            $messages = "- 无代码变更说明（可能为重试构建）"
+            $messages = "- No code changes detected (possibly a rebuild run)."
           }
 
           Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$newTag"
