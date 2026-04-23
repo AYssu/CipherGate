@@ -110,9 +110,20 @@ jobs:
             $logRange = "$lastTag..HEAD"
           }
 
-          $messages = git log $logRange --pretty=format:"- %h %s"
-          if ([string]::IsNullOrWhiteSpace($messages)) {
+          $rawCommits = git log $logRange --max-count=4 --pretty=format:"%h|%s"
+          if ([string]::IsNullOrWhiteSpace($rawCommits)) {
             $messages = "- No code changes detected (possibly a rebuild run)."
+          } else {
+            $lines = @()
+            foreach ($row in ($rawCommits -split "`r?`n")) {
+              if ([string]::IsNullOrWhiteSpace($row)) { continue }
+              $parts = $row.Split("|", 2)
+              $sha = $parts[0]
+              $subject = if ($parts.Count -gt 1) { $parts[1] } else { "(no subject)" }
+              $lines += "- $subject"
+              $lines += "  - commit: $sha"
+            }
+            $messages = $lines -join "`n"
           }
 
           Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$newTag"
