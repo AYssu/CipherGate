@@ -1,77 +1,153 @@
 # CipherGate
 
-CipherGate 是一个面向 **SaaS / 客户端软件 / 第三方平台** 的「统一鉴权与安全接入层」：你可以把它当成应用的安全网关与账号/卡密中心，用 **可插拔加密插件** + **标准化对接协议**，把“登录校验、会话保持、变量下发、风控限流”等能力统一收口。
+![Java](https://img.shields.io/badge/Java-17-2ea44f?style=flat-square)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-6db33f?style=flat-square)
+![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61dafb?style=flat-square)
+![Database](https://img.shields.io/badge/Stack-MySQL%20%7C%20Redis%20%7C%20MinIO-4c8eda?style=flat-square)
+![License](https://img.shields.io/badge/License-Open%20Source-orange?style=flat-square)
 
-## 你会用它解决什么问题
-- **第三方对接割裂**：不同语言/端（Java/C++/JS）各自实现一套鉴权、加密、重放保护，维护成本高
-- **接口被刷/被重放**：缺少统一的 nonce/时间窗/限流与封禁策略
-- **账号体系混乱**：终端用户、应用、卡密等身份维度散落在各个服务里
-- **需要“长连接在线态”**：登录后要持续在线、定时下发配置/变量、实时推送事件
+> 企业级统一鉴权与安全接入平台  
+> 聚焦第三方接入、账号体系、卡密会员、在线会话、变量下发与运营可观测
 
-## 为什么选 CipherGate（核心卖点）
-- **统一协议，跨语言好接**：HTTP + WebSocket 两套对接入口，适合 Java/C++/JS
-- **安全默认值**：时间窗校验、防重放、签名校验、限流与短期封禁（可调整）
-- **插件化加解密**：按应用维度选择加解密算法/密钥策略，不把加密逻辑写死在业务里
-- **长连接能力**：WS-only 登录 + 认证后心跳推送（可承载在线态与变量下发）
+---
 
-## 核心能力一览
-- **应用管理**：为每个应用分配 `appKey/appSecret` 与加密配置
-- **终端用户（AppUser）**：应用内用户体系（用户名/密码、登录统计等）
-- **卡密体系（LicenseKey）**：卡密登录、绑定策略、到期/使用次数、IP/设备校验等
-- **应用变量（AppVariable）**：按应用管理变量，支持在对接链路中下发
-- **三方 HTTP 接口**：HMAC 签名 + 防重放 + 可插拔加解密
-- **三方 WebSocket**：
-  - **WS-only 登录**：`appKey/appSecret + AppUser(用户名/密码)` 一起校验
-  - **会话密钥协商**：X25519(ECDH) + HKDF 派生 `sessionKey`
-  - **消息加密/防篡改**：AES-GCM(sessionKey)
-  - **认证后心跳推送**：每 5 秒推送一次（包含 `variables` + `ts`，加密传输）
+## 📌 项目简介
 
-## 快速上手（5 分钟）
+CipherGate 面向 SaaS、客户端软件和第三方生态，提供一套标准化的接入与安全中台能力。  
+它将分散在业务侧的鉴权、会话、风控、配置分发能力统一收敛，帮助团队实现：
 
-### 1) 启动依赖（MySQL / MinIO / Redis）
-在项目根目录：
+- 更低的接入成本（HTTP / WebSocket 协议统一）
+- 更强的安全一致性（签名、防重放、限流、加密链路）
+- 更清晰的运营治理（用户、卡密、在线时长、行为日志）
 
+---
+
+## 🚀 核心优势
+
+- 🔐 **安全默认内建**：时间窗校验、nonce 防重放、签名验证、会话加密
+- 🧩 **可插拔扩展**：支持插件化加解密与策略扩展，适配不同业务模型
+- 🌐 **双通道接入**：HTTP + WebSocket，兼顾请求式与长连接场景
+- 📊 **可运营可观测**：仪表盘、登录事件、在线时长、系统消息全链路沉淀
+- 🏢 **企业级治理**：RBAC 权限体系 + 多应用隔离 + 代理协作模型
+
+---
+
+## 🧭 功能模块
+
+### 1. 权限与账号中心（RBAC）
+- 后台用户、角色、菜单、权限点统一管理
+- 支持细粒度接口授权与权限隔离
+- 适用于多角色协作和审计要求较高的场景
+
+### 2. 应用管理中心
+- 应用生命周期管理（创建、维护、启停）
+- 应用级 `appKey/appSecret` 与安全参数管理
+- 支持加密策略、更新发布等运营能力
+
+### 3. 终端用户中心（AppUser）
+- 客户端用户管理、密码重置、封禁与解封
+- 设备绑定与账号状态治理
+- 会员到期与有效性统一管理
+
+### 4. 卡密与授权体系（License）
+- 卡密生成、批量发放、加时续期、状态流转
+- 设备/IP 绑定与解绑控制
+- 支持按业务策略进行授权与风控
+
+### 5. 第三方接入网关（HTTP + WS）
+- 统一开放接口标准，降低多端对接复杂度
+- HTTP 场景：签名、防重放、请求/响应安全处理
+- WS 场景：认证握手、加密通信、会话维持与实时下发
+
+### 6. 在线会话与时长统计
+- 在线状态实时展示，掉线立即感知
+- 30 秒内重连可延续在线时长，不从 0 重新计算
+- Redis 持久化会话片段，支持当天在线时长统计
+
+### 7. 变量配置中心（AppVariable）
+- 变量管理、历史追踪、导入导出
+- 支持在接入链路中实时下发，减少客户端硬编码
+- 适合灰度开关、动态配置、分层策略场景
+
+### 8. 插件扩展体系
+- 插件上传、启停、配置管理
+- 支持按需扩展加解密或协议处理逻辑
+- 让平台能力可持续演进而不侵入主干业务
+
+### 9. 运营分析与审计中心
+- 仪表盘指标、访问事件、活动日志
+- 站内消息与未读提醒
+- 支撑运营洞察、故障追踪与风控回溯
+
+### 10. 系统配置与初始化
+- 首次初始化引导
+- OAuth、站点信息、邮件能力等系统参数统一配置
+- 提供基础运行状态查看能力
+
+---
+
+## 🛠 技术栈
+
+- **Backend**: Java 17, Spring Boot 4, Spring Security, WebSocket, MyBatis-Plus
+- **Frontend**: React, TypeScript
+- **Infrastructure**: MySQL, Redis, MinIO
+- **Build & Delivery**: Gradle, Docker Compose, GitHub Actions
+- **Extensibility**: PF4J
+
+---
+
+## ⚡ 快速开始
+
+### 1) 启动依赖服务
 ```bash
 docker compose -f compose.yaml up -d
 ```
 
-默认端口：
-- **MySQL**：`localhost:13306`
-- **MinIO**：`http://localhost:19000`（Console：`http://localhost:19001`）
-- **Redis**：`localhost:16379`
-
-### 2) 启动后端
+### 2) 启动后端服务
 ```bash
 ./gradlew bootRun
 ```
 
-后端：`http://localhost:8080`
-
-### 3) （可选）启动前端
+### 3) 启动前端（本地开发可选）
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 对接入口（给集成方看的）
+---
 
-### HTTP：卡密登录（示例能力）
-- `POST /api/v1/card/login`
-- 特点：HMAC 签名、时间窗、防重放、响应签名、按应用加解密插件封包
+## 🔌 接入能力（对接方重点）
 
-### WebSocket：WS-only 用户登录 + 心跳下发变量
-- `/api/v1/ws`
-- 登录流程：`CONNECTED -> HELLO -> HELLO_ACK -> AUTH -> AUTH_OK`
-- 心跳：认证后服务端每 5 秒推送一次 `HEARTBEAT`（加密 payload：`{ ts, variables }`）
+- HTTP 登录/鉴权接口
+- WebSocket 长连接认证与心跳
+- 应用变量动态下发
+- 客户端在线态与登录事件可观测
 
-对接示例（可直接跑）：
-- `cardUserBindTest` 中的 `ThirdPartyWsUserLoginClient`
+---
 
-## 接口文档
-项目内置 OpenAPI/Knife4j（按模块分组）。
-> 文档访问权限受安全配置控制（默认仅超级管理员可访问）。
+## 📦 部署与更新
 
-## 部署
-- 生产部署 / 镜像构建：见 `README.Docker.md`
+- 首次部署：下载并使用全量包 `deploy-bundle.zip`
+- 增量更新：
+  - 仅后端：替换 `app.jar`
+  - 仅前端：替换 `frontend-dist.zip` 解压内容
+
+统一启动命令：
+```bash
+docker compose -f docker-compose.server.yml up -d
+```
+
+---
+
+## 📚 API 文档
+
+内置 OpenAPI / Knife4j 文档，默认受权限控制（管理员可见）。
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue / PR。  
+建议在变更说明中包含：功能范围、风险点、回滚方案与自测结果。
 

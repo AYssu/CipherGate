@@ -28,6 +28,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -35,6 +36,14 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore frontend node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-node-modules-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-node-modules-
 
       - name: Run deploy packaging script
         shell: cmd
@@ -106,42 +115,17 @@ jobs:
             $messages = "- 无代码变更说明（可能为重试构建）"
           }
 
-          $releaseBody = @"
-          ## 本次更新说明
-          $messages
-
-          ## 构建产物
-          - `deploy-bundle.zip`：全量部署包（首次部署使用）
-          - `app.jar`：仅后端更新包
-          - `frontend-dist.zip`：仅前端更新包
-
-          ## 使用说明
-          ### 首次部署（全量）
-          1. 下载并解压 `deploy-bundle.zip`
-          2. 进入解压目录后执行：
-             `docker compose -f docker-compose.server.yml up -d`
-
-          ### 仅更新前端
-          1. 下载 `frontend-dist.zip`
-          2. 解压并覆盖服务器上的 `frontend/dist` 目录
-          3. 执行：
-             `docker compose -f docker-compose.server.yml up -d frontend`
-
-          ### 仅更新后端
-          1. 下载 `app.jar`
-          2. 覆盖服务器上的 `app/app.jar`
-          3. 执行：
-             `docker compose -f docker-compose.server.yml up -d backend`
-
-          ## 更新策略
-          - 首次部署：下载全量包 `deploy-bundle.zip`
-          - 日常更新：按需下载前端或后端对应产物，无需每次下载全量包
-          "@
-
           Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$newTag"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "last_tag=$lastTag"
           $releaseBodyFile = Join-Path $env:RUNNER_TEMP "release-body.md"
-          $releaseBody | Out-File -FilePath $releaseBodyFile -Encoding utf8
+          $templatePath = ".github/release-template.md"
+          if (!(Test-Path $templatePath)) {
+            throw "Missing release template file: $templatePath"
+          }
+          $template = [System.IO.File]::ReadAllText($templatePath, [System.Text.Encoding]::UTF8)
+          $releaseBody = $template.Replace("{{CHANGELOG}}", $messages)
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText($releaseBodyFile, $releaseBody, $utf8NoBom)
           Add-Content -Path $env:GITHUB_OUTPUT -Value "release_body_file=$releaseBodyFile"
 
       - name: Create git tag (if missing)
