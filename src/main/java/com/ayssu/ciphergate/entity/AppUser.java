@@ -144,6 +144,18 @@ public class AppUser implements Serializable {
     @TableField(exist = false)
     private Boolean memberActive;
 
+    /** 是否已申请过试用（非数据库字段） */
+    @TableField(exist = false)
+    private Boolean trialApplied;
+
+    /** 试用到期时间（非数据库字段） */
+    @TableField(exist = false)
+    private LocalDateTime trialExpiresAt;
+
+    /** 当前试用是否有效（非数据库字段） */
+    @TableField(exist = false)
+    private Boolean trialActive;
+
     /**
      * 是否存在至少一条未删除且已封禁的绑定（非数据库字段，列表/详情由服务填充）
      */

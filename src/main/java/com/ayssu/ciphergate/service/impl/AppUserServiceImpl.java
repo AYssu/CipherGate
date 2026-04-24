@@ -11,11 +11,13 @@ import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.entity.AppAgent;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
+import com.ayssu.ciphergate.entity.AppUserTrial;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.AppAgentMapper;
 import com.ayssu.ciphergate.mapper.AppUserBindingMapper;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
+import com.ayssu.ciphergate.mapper.AppUserTrialMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
@@ -50,6 +52,7 @@ public class AppUserServiceImpl implements AppUserService {
     
     private final AppUserMapper appUserMapper;
     private final AppUserBindingMapper appUserBindingMapper;
+    private final AppUserTrialMapper appUserTrialMapper;
     private final ApplicationMapper applicationMapper;
     private final AppAgentMapper appAgentMapper;
     private final UserMapper userMapper;
@@ -632,12 +635,33 @@ public class AppUserServiceImpl implements AppUserService {
         }
 
         enrichMemberStatus(appUser);
+        enrichTrialStatus(appUser);
         enrichWsPresence(appUser);
     }
 
     private void enrichMemberStatus(AppUser appUser) {
         LocalDateTime me = appUser.getMemberExpiresAt();
         appUser.setMemberActive(me != null && me.isAfter(LocalDateTime.now()));
+    }
+
+    private void enrichTrialStatus(AppUser appUser) {
+        if (appUser == null || appUser.getId() == null || appUser.getAppId() == null) {
+            return;
+        }
+        var trial = appUserTrialMapper.selectOne(new LambdaQueryWrapper<AppUserTrial>()
+                .eq(AppUserTrial::getAppId, appUser.getAppId())
+                .eq(AppUserTrial::getUserId, appUser.getId())
+                .last("limit 1"));
+        if (trial == null) {
+            appUser.setTrialApplied(false);
+            appUser.setTrialExpiresAt(null);
+            appUser.setTrialActive(false);
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        appUser.setTrialApplied(true);
+        appUser.setTrialExpiresAt(trial.getTrialExpiresAt());
+        appUser.setTrialActive(trial.getTrialExpiresAt() != null && trial.getTrialExpiresAt().isAfter(now));
     }
 
     private void enrichWsPresence(AppUser appUser) {

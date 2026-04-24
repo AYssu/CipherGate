@@ -11,6 +11,8 @@ import PermissionManagementPage from '../pages/System/PermissionManagementPage';
 import SystemConfigPage from '../pages/System/SystemConfigPage';
 import SystemInfoPage from '../pages/System/SystemInfoPage';
 import ApplicationManagementPage from '../pages/Application/ApplicationManagementPage';
+import ThirdPartyCredentialManagementPage from '../pages/Application/ThirdPartyCredentialManagementPage';
+import CallLogManagementPage from '../pages/Application/CallLogManagementPage';
 import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
 import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
@@ -58,6 +60,14 @@ export const router = createBrowserRouter([
           {
             path: 'variables',
             element: <AppVariableManagementPage />,
+          },
+          {
+            path: 'credentials',
+            element: <ThirdPartyCredentialManagementPage />,
+          },
+          {
+            path: 'call-logs',
+            element: <CallLogManagementPage />,
           },
         ],
       },

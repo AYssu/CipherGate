@@ -1044,3 +1044,119 @@ CREATE TABLE IF NOT EXISTS access_event (
     INDEX idx_type_time (event_type, created_at),
     INDEX idx_app_time (app_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务访问事件（登录等）';
+
+-- 三方凭证（用于调用三方加时接口）
+CREATE TABLE IF NOT EXISTS third_party_credential (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    app_id BIGINT NOT NULL COMMENT '绑定应用ID',
+    name VARCHAR(120) NOT NULL COMMENT '凭证名称',
+    api_key VARCHAR(120) NOT NULL COMMENT '调用凭证Key',
+    api_secret VARCHAR(120) NOT NULL COMMENT '调用凭证Secret',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态:1启用,0禁用',
+    allowed_ips TEXT NULL COMMENT 'IP白名单，逗号分隔',
+    daily_limit INT NULL COMMENT '每日调用上限，NULL=不限制',
+    total_call_limit BIGINT NULL COMMENT '总调用上限，NULL=不限制',
+    total_days_limit BIGINT NULL COMMENT '总消耗天数上限，NULL=不限制',
+    used_call_count BIGINT NOT NULL DEFAULT 0 COMMENT '已调用次数',
+    used_days_count BIGINT NOT NULL DEFAULT 0 COMMENT '已消耗天数',
+    expires_at DATETIME NULL COMMENT '凭证过期时间',
+    remark VARCHAR(500) NULL COMMENT '备注',
+    created_by BIGINT NULL COMMENT '创建人ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+    UNIQUE KEY uk_tp_credential_api_key (api_key),
+    INDEX idx_tp_credential_app_status (app_id, status),
+    INDEX idx_tp_credential_expires (expires_at),
+    INDEX idx_tp_credential_deleted (deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='三方加时调用凭证';
+
+-- 三方加时调用日志
+CREATE TABLE IF NOT EXISTS third_party_recharge_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    credential_id BIGINT NULL COMMENT '凭证ID',
+    app_id BIGINT NULL COMMENT '应用ID',
+    api_key VARCHAR(120) NULL COMMENT '调用方apiKey快照',
+    user_email VARCHAR(200) NULL COMMENT '目标用户邮箱',
+    days INT NULL COMMENT '加时天数',
+    out_trade_no VARCHAR(120) NULL COMMENT '外部订单号',
+    request_ip VARCHAR(64) NULL COMMENT '调用IP',
+    request_ts BIGINT NULL COMMENT '请求时间戳(毫秒)',
+    sign_valid TINYINT NOT NULL DEFAULT 0 COMMENT '签名是否通过:1是0否',
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '状态:1成功,2失败',
+    error_code VARCHAR(80) NULL COMMENT '错误码',
+    error_message VARCHAR(500) NULL COMMENT '错误信息',
+    idempotent_hit TINYINT NOT NULL DEFAULT 0 COMMENT '是否命中幂等',
+    before_expires_at DATETIME NULL COMMENT '加时前到期时间',
+    after_expires_at DATETIME NULL COMMENT '加时后到期时间',
+    trace_id VARCHAR(80) NULL COMMENT '链路追踪ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_tp_recharge_app_time (app_id, created_at),
+    INDEX idx_tp_recharge_credential_time (credential_id, created_at),
+    INDEX idx_tp_recharge_status_time (status, created_at),
+    INDEX idx_tp_recharge_email_time (user_email, created_at),
+    UNIQUE KEY uk_tp_recharge_credential_trade (credential_id, out_trade_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='三方加时调用日志';
+
+-- 三方凭证权限
+INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('查看三方凭证', 'THIRD_PARTY_CREDENTIAL_LIST', 'API', '/api/third-party/credentials', 'GET', '查看三方凭证列表', 1),
+('查看三方凭证详情', 'THIRD_PARTY_CREDENTIAL_DETAIL', 'API', '/api/third-party/credentials/*', 'GET', '查看三方凭证详情', 1),
+('创建三方凭证', 'THIRD_PARTY_CREDENTIAL_CREATE', 'API', '/api/third-party/credentials', 'POST', '创建三方凭证', 1),
+('更新三方凭证', 'THIRD_PARTY_CREDENTIAL_UPDATE', 'API', '/api/third-party/credentials/*', 'PUT,POST', '更新/重置三方凭证', 1),
+('删除三方凭证', 'THIRD_PARTY_CREDENTIAL_DELETE', 'API', '/api/third-party/credentials/*', 'DELETE', '删除三方凭证', 1),
+('查看三方调用日志', 'THIRD_PARTY_CALL_LOG_LIST', 'API', '/api/third-party/recharge-logs', 'GET', '查看三方调用日志', 1);
+
+-- 给超级管理员分配新增权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+  AND p.permission_code IN (
+      'THIRD_PARTY_CREDENTIAL_LIST',
+      'THIRD_PARTY_CREDENTIAL_DETAIL',
+      'THIRD_PARTY_CREDENTIAL_CREATE',
+      'THIRD_PARTY_CREDENTIAL_UPDATE',
+      'THIRD_PARTY_CREDENTIAL_DELETE',
+      'THIRD_PARTY_CALL_LOG_LIST'
+  );
+
+-- 给管理员分配新增权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'ADMIN'
+  AND p.permission_code IN (
+      'THIRD_PARTY_CREDENTIAL_LIST',
+      'THIRD_PARTY_CREDENTIAL_DETAIL',
+      'THIRD_PARTY_CREDENTIAL_CREATE',
+      'THIRD_PARTY_CREDENTIAL_UPDATE',
+      'THIRD_PARTY_CREDENTIAL_DELETE',
+      'THIRD_PARTY_CALL_LOG_LIST'
+  );
+
+-- 追加菜单（挂在应用管理下）
+SET @app_management_menu_id = (SELECT id FROM menus WHERE menu_code = 'APP_MANAGEMENT' LIMIT 1);
+INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('三方凭证', 'THIRD_PARTY_CREDENTIAL_MANAGEMENT', IFNULL(@app_management_menu_id, 0), 2, '/applications/credentials', 'ThirdPartyCredentialManagement', 'lock', 50, 1, 1, NOW(), NOW()),
+('调用日志', 'THIRD_PARTY_CALL_LOG_MANAGEMENT', IFNULL(@app_management_menu_id, 0), 2, '/applications/call-logs', 'CallLogManagement', 'audit', 51, 1, 1, NOW(), NOW());
+
+INSERT IGNORE INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+  AND m.menu_code IN ('THIRD_PARTY_CREDENTIAL_MANAGEMENT', 'THIRD_PARTY_CALL_LOG_MANAGEMENT');
+
+-- 用户试用记录表
+CREATE TABLE IF NOT EXISTS app_user_trial (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
+    app_id BIGINT NOT NULL COMMENT '应用ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    trial_started_at DATETIME NOT NULL COMMENT '试用开始时间',
+    trial_expires_at DATETIME NOT NULL COMMENT '试用到期时间',
+    device_id VARCHAR(255) COMMENT '试用设备',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY uk_app_user (app_id, user_id),
+    INDEX idx_app (app_id),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户试用记录表';

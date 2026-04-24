@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.thirdparty.ws.util;
 
+import com.ayssu.ciphergate.thirdparty.ws.WsHandshakeIpInterceptor;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -13,6 +14,10 @@ public final class WsClientIp {
             return "";
         }
         try {
+            Object attrIp = session.getAttributes().get(WsHandshakeIpInterceptor.ATTR_CLIENT_IP);
+            if (attrIp instanceof String s && StringUtils.hasText(s)) {
+                return s.trim();
+            }
             List<String> xff = session.getHandshakeHeaders().get("X-Forwarded-For");
             if (xff != null && !xff.isEmpty() && StringUtils.hasText(xff.get(0))) {
                 String first = xff.get(0).split(",")[0].trim();

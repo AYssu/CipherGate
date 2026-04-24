@@ -81,7 +81,8 @@ public class ActivityLogService {
         if (userIdFilter != null) {
             queryWrapper.eq("user_id", userIdFilter);
         }
-        queryWrapper.orderByDesc("created_time");
+        // 需要手动已读的活动（is_read=false）优先，其次按时间倒序
+        queryWrapper.orderByAsc("is_read").orderByDesc("created_time");
         return activityLogMapper.selectPage(page, queryWrapper);
     }
     
@@ -91,6 +92,7 @@ public class ActivityLogService {
     public List<ActivityLogEntity> getUserRecentActivities(Long userId, int limit) {
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId)
+                   .orderByAsc("is_read")
                    .orderByDesc("created_time")
                    .last("LIMIT " + limit);
         return activityLogMapper.selectList(queryWrapper);
@@ -106,7 +108,8 @@ public class ActivityLogService {
         if (userIdFilter != null) {
             queryWrapper.eq("user_id", userIdFilter);
         }
-        queryWrapper.orderByDesc("created_time")
+        queryWrapper.orderByAsc("is_read")
+                   .orderByDesc("created_time")
                    .last("LIMIT " + limit);
         return activityLogMapper.selectList(queryWrapper);
     }

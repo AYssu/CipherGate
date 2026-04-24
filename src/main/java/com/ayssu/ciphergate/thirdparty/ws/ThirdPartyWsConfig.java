@@ -14,10 +14,12 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 public class ThirdPartyWsConfig implements WebSocketConfigurer {
 
     private final ThirdPartyWsHandler thirdPartyWsHandler;
+    private final WsHandshakeIpInterceptor wsHandshakeIpInterceptor;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(thirdPartyWsHandler, "/api/v1/ws")
+                .addInterceptors(wsHandshakeIpInterceptor)
                 .setAllowedOriginPatterns("*");
     }
 }

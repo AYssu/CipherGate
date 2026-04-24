@@ -33,6 +33,12 @@ export interface AppUser {
   memberExpiresAt?: string;
   /** 当前是否在会员有效期内 */
   memberActive?: boolean;
+  /** 是否已申请过试用 */
+  trialApplied?: boolean;
+  /** 试用到期时间 */
+  trialExpiresAt?: string;
+  /** 当前试用是否有效 */
+  trialActive?: boolean;
   /** 是否存在已封禁的设备绑定（任一条） */
   isBanned?: boolean;
 }
