@@ -739,6 +739,30 @@ const AppUserManagementContent: React.FC = () => {
       },
     },
     {
+      title: '试用',
+      key: 'trial',
+      width: 156,
+      render: (_: unknown, record: AppUser) => {
+        const applied = !!record.trialApplied;
+        const active = !!record.trialActive;
+        const exp = record.trialExpiresAt;
+        return (
+          <div style={{ minWidth: 0, lineHeight: 1.45 }}>
+            <Tag color={!applied ? 'default' : active ? 'success' : 'warning'} style={{ marginInlineEnd: 0 }}>
+              {!applied ? '未申请' : active ? '试用有效' : '已过期'}
+            </Tag>
+            {exp ? (
+              <div style={{ marginTop: 6 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', whiteSpace: 'nowrap' }}>
+                  到期 {dayjs(exp).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              </div>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
       title: 'WS在线',
       dataIndex: 'wsOnline',
       key: 'wsOnline',
@@ -801,8 +825,40 @@ const AppUserManagementContent: React.FC = () => {
       title: '最后登录IP',
       dataIndex: 'lastLoginIp',
       key: 'lastLoginIp',
-      width: 130,
-      render: (ip: string) => (ip ? <Tag style={{ fontSize: 11, margin: 0 }}>{ip}</Tag> : '-'),
+      width: 200,
+      render: (ip: string) =>
+        ip ? (
+          <Popover
+            trigger="click"
+            placement="topLeft"
+            content={
+              <div style={{ maxWidth: 420 }}>
+                <Text
+                  copyable={{ text: ip, tooltips: ['复制IP', '已复制'] }}
+                  style={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 12 }}
+                >
+                  {ip}
+                </Text>
+              </div>
+            }
+          >
+            <Text
+              copyable={{ text: ip, tooltips: ['复制IP', '已复制'] }}
+              ellipsis={{ tooltip: '点击查看完整IP' }}
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              {ip}
+            </Text>
+          </Popover>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '最后登录设备',

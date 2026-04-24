@@ -51,6 +51,10 @@ public class ThirdPartyAuthFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/v1/app/update-package")) {
             return true;
         }
+        // 三方凭证加时接口走 body 内 apiKey/sign 校验，不走 X-* 鉴权头
+        if (path.startsWith("/api/v1/third_party/recharge")) {
+            return true;
+        }
         // Also skip WebSocket upgrade requests (defensive).
         String upgrade = request.getHeader("Upgrade");
         return upgrade != null && "websocket".equalsIgnoreCase(upgrade);
