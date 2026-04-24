@@ -1,0 +1,164 @@
+name: Build Deploy Bundle
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags-ignore:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore frontend node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-node-modules-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-node-modules-
+
+      - name: Run deploy packaging script
+        shell: cmd
+        run: deploy-server.bat
+
+      - name: Compress deploy-bundle folder
+        shell: powershell
+        run: |
+          if (Test-Path "deploy-bundle.zip") { Remove-Item "deploy-bundle.zip" -Force }
+          Compress-Archive -Path "deploy-bundle\*" -DestinationPath "deploy-bundle.zip" -Force
+          if (Test-Path "frontend-dist.zip") { Remove-Item "frontend-dist.zip" -Force }
+          Compress-Archive -Path "deploy-bundle\frontend\dist\*" -DestinationPath "frontend-dist.zip" -Force
+
+      - name: Upload deploy bundle zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundle-zip
+          path: deploy-bundle.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload backend jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-app-jar
+          path: deploy-bundle/app/app.jar
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: deploy-bundle/frontend/dist
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Compute next version and release notes
+        id: versioning
+        shell: powershell
+        run: |
+          git fetch --tags --force
+          $semverPattern = '^v\d+\.\d+\.\d+$'
+          $headTag = git tag --points-at HEAD | Where-Object { $_ -match $semverPattern } | Select-Object -First 1
+          if ($headTag) {
+            $newTag = $headTag.Trim()
+            $lastTag = git tag --list "v*" --sort=-v:refname | Where-Object { $_ -match $semverPattern } | Select-Object -First 2 | Select-Object -Last 1
+          } else {
+            $lastTag = git tag --list "v*" --sort=-v:refname | Where-Object { $_ -match $semverPattern } | Select-Object -First 1
+            if ([string]::IsNullOrWhiteSpace($lastTag)) {
+              $newTag = "v1.0.0"
+            } else {
+              $parts = $lastTag.TrimStart('v').Split('.')
+              $major = [int]$parts[0]
+              $minor = [int]$parts[1]
+              $patch = [int]$parts[2] + 1
+              $newTag = "v$major.$minor.$patch"
+            }
+          }
+
+          if ([string]::IsNullOrWhiteSpace($lastTag)) {
+            $logRange = "HEAD"
+          } else {
+            $logRange = "$lastTag..HEAD"
+          }
+
+          $rawCommits = git log $logRange --max-count=4 --pretty=format:"%h|%s"
+          if ([string]::IsNullOrWhiteSpace($rawCommits)) {
+            $messages = "- No code changes detected (possibly a rebuild run)."
+          } else {
+            $lines = @()
+            foreach ($row in ($rawCommits -split "`r?`n")) {
+              if ([string]::IsNullOrWhiteSpace($row)) { continue }
+              $parts = $row.Split("|", 2)
+              $sha = $parts[0]
+              $subject = if ($parts.Count -gt 1) { $parts[1] } else { "(no subject)" }
+              $lines += "- $subject"
+              $lines += "  - commit: $sha"
+            }
+            $messages = $lines -join "`n"
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$newTag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "last_tag=$lastTag"
+          $releaseBodyFile = Join-Path $env:RUNNER_TEMP "release-body.md"
+          $templatePath = ".github/release-template.md"
+          if (!(Test-Path $templatePath)) {
+            throw "Missing release template file: $templatePath"
+          }
+          $template = [System.IO.File]::ReadAllText($templatePath, [System.Text.Encoding]::UTF8)
+          $releaseBody = $template.Replace("{{CHANGELOG}}", $messages)
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText($releaseBodyFile, $releaseBody, $utf8NoBom)
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "release_body_file=$releaseBodyFile"
+
+      - name: Create git tag (if missing)
+        shell: powershell
+        run: |
+          $tag = "${{ steps.versioning.outputs.tag }}"
+          git fetch --tags --force
+          $exists = git tag --list $tag
+          if ([string]::IsNullOrWhiteSpace($exists)) {
+            git tag $tag
+            git push origin $tag
+          } else {
+            Write-Host "Tag $tag already exists, skip creating."
+          }
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versioning.outputs.tag }}
+          name: ${{ steps.versioning.outputs.tag }}
+          body_path: ${{ steps.versioning.outputs.release_body_file }}
+          files: |
+            deploy-bundle.zip
+            deploy-bundle/app/app.jar
+            frontend-dist.zip
