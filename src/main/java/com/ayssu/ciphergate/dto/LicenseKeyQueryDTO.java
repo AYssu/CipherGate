@@ -2,6 +2,7 @@ package com.ayssu.ciphergate.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import java.util.List;
 
 /**
  * 卡密查询DTO
@@ -36,6 +37,9 @@ public class LicenseKeyQueryDTO {
     
     @Schema(description = "是否在线")
     private Boolean isOnline;
+
+    @Schema(description = "导出/查询指定卡密ID列表")
+    private List<Long> ids;
     
     @Schema(description = "当前页", example = "1")
     private Integer current = 1;

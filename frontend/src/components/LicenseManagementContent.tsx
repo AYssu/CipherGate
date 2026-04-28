@@ -722,8 +722,12 @@ const LicenseManagementContent: React.FC = () => {
 
   // 导出卡密（后端 Hutool 生成 .xlsx）
   const handleExport = async () => {
+    if (selectedLicenseIds.length === 0) {
+      message.warning('请先勾选需要导出的卡密');
+      return;
+    }
     try {
-      const res = await exportLicenses(filters);
+      const res = await exportLicenses({ ...filters, ids: selectedLicenseIds });
       const blob = res.data;
       if (!(blob instanceof Blob)) {
         message.error('导出失败');

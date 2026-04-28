@@ -568,7 +568,17 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     private List<LicenseKey> queryLicenseKeysForExport(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
+        // 导出ID二次鉴权：管理员可导出任意ID；非管理员仅可导出自己拥有应用下的卡密
+        if (!securityUtils.isAdmin(operatorId)) {
+            List<Long> ownedAppIds = listOwnedApplicationIds(operatorId);
+            if (ownedAppIds.isEmpty()) {
+                wrapper.apply("1=0");
+            } else {
+                wrapper.in(LicenseKey::getAppId, ownedAppIds);
+            }
+        }
         applyRemarkAndBatchNameFilter(wrapper, queryDTO);
+        wrapper.in(queryDTO.getIds() != null && !queryDTO.getIds().isEmpty(), LicenseKey::getId, queryDTO.getIds());
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())

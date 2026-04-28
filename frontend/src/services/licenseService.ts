@@ -42,6 +42,7 @@ export interface LicenseKey {
 }
 
 export interface LicenseKeyQuery {
+  ids?: number[];
   appId?: number;
   keyCode?: string;
   remark?: string;
