@@ -4,6 +4,14 @@ import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeFailItem;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchDeleteDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchOperateFailItem;
+import com.ayssu.ciphergate.dto.LicenseBatchOperateResultDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUnbindLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchStatusDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchUnbindDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
 import com.ayssu.ciphergate.agent.AgentAuthorizationService;
@@ -41,6 +49,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 /**
  * 卡密服务实现类
@@ -67,6 +77,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
+        applyRemarkAndBatchNameFilter(wrapper, queryDTO);
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
@@ -246,6 +257,19 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         licenseBatchMapper.insert(batch);
         
+        // 批量生成仅支持设置前缀（不支持指定整条卡密）
+        final int totalLength = 16;
+        String prefix = null;
+        if (StringUtils.hasText(dto.getKeyPrefix())) {
+            prefix = dto.getKeyPrefix().trim().toUpperCase();
+            if (!prefix.matches("^[A-Z0-9]+$")) {
+                throw new RuntimeException("卡密前缀格式不正确，只能包含字母和数字");
+            }
+            if (prefix.length() >= totalLength) {
+                throw new RuntimeException("卡密前缀长度必须小于" + totalLength + "位");
+            }
+        }
+
         // 批量生成卡密
         List<LicenseKey> licenseKeys = new ArrayList<>();
         for (int i = 0; i < dto.getTotalCount(); i++) {
@@ -259,7 +283,11 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             // 生成唯一卡密（在当前应用下唯一）
             String keyCode;
             do {
-                keyCode = generateKeyCode();
+                if (StringUtils.hasText(prefix)) {
+                    keyCode = prefix + generateRandomSuffix(totalLength - prefix.length());
+                } else {
+                    keyCode = generateKeyCode();
+                }
             } while (isKeyCodeExistsInApp(keyCode, dto.getAppId()));
             
             licenseKey.setKeyCode(keyCode);
@@ -277,6 +305,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             licenseKey.setIpCheckEnabled(batch.getIpCheckEnabled());
             licenseKey.setIsOnline(false);
             licenseKey.setHeartbeatInterval(60);
+            licenseKey.setRemark(dto.getRemark());
             ensurePresetDurationUnitStored(licenseKey);
             
             LocalDateTime now = LocalDateTime.now();
@@ -304,6 +333,9 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         // 检查权限
         ensureLicensePermission(licenseKey.getAppId(), userId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作此卡密");
         
+        boolean clearBindDeviceId = false;
+        boolean clearBindIp = false;
+
         // 更新字段
         if (dto.getUseLimit() != null) {
             licenseKey.setUseLimit(dto.getUseLimit());
@@ -332,9 +364,44 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (dto.getMetadata() != null) {
             licenseKey.setMetadata(dto.getMetadata());
         }
+        // 绑定设备/绑定IP：允许修改或清空（空字符串视为清空）
+        if (dto.getBindDeviceId() != null) {
+            String v = dto.getBindDeviceId();
+            if (!StringUtils.hasText(v)) {
+                clearBindDeviceId = true;
+                licenseKey.setBindDeviceId(null);
+            } else {
+                String trimmed = v.trim();
+                licenseKey.setBindDeviceId(trimmed);
+            }
+        }
+        if (dto.getBindIp() != null) {
+            String v = dto.getBindIp();
+            if (!StringUtils.hasText(v)) {
+                clearBindIp = true;
+                licenseKey.setBindIp(null);
+            } else {
+                String trimmed = v.trim();
+                licenseKey.setBindIp(trimmed);
+            }
+        }
         
         licenseKey.setUpdatedAt(LocalDateTime.now());
+        // 先更新常规字段（含绑定字段的非空更新）
         licenseKeyMapper.updateById(licenseKey);
+        // 再处理需要显式置空的绑定字段（updateById 会忽略 null 字段）
+        if (clearBindDeviceId || clearBindIp) {
+            LambdaUpdateWrapper<LicenseKey> clearWrapper = new LambdaUpdateWrapper<LicenseKey>()
+                    .eq(LicenseKey::getId, licenseKey.getId())
+                    .set(LicenseKey::getUpdatedAt, licenseKey.getUpdatedAt());
+            if (clearBindDeviceId) {
+                clearWrapper.set(LicenseKey::getBindDeviceId, null);
+            }
+            if (clearBindIp) {
+                clearWrapper.set(LicenseKey::getBindIp, null);
+            }
+            licenseKeyMapper.update(null, clearWrapper);
+        }
         
         log.info("更新卡密成功: id={}, userId={}", id, userId);
         
@@ -358,6 +425,43 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         
         log.info("删除卡密成功: id={}, keyCode={}, userId={}", 
                 id, licenseKey.getKeyCode(), userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchDelete(LicenseBatchDeleteDTO dto, Long operatorId) {
+        if (dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条卡密");
+        }
+        LicenseBatchOperateResultDTO result = new LicenseBatchOperateResultDTO();
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        int success = 0;
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            LicenseKey key = licenseKeyMapper.selectById(id);
+            if (key == null) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, null, "卡密不存在"));
+                continue;
+            }
+            try {
+                ensureLicensePermission(key.getAppId(), operatorId, AgentPermissionCodes.LICENSE_DELETE, "无权限操作此卡密");
+            } catch (Exception e) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, key.getKeyCode(), e.getMessage()));
+                continue;
+            }
+            try {
+                licenseKeyMapper.deleteById(id);
+                success++;
+            } catch (Exception e) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, key.getKeyCode(), e.getMessage()));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("卡密批量删除: operatorId={}, success={}, fail={}", operatorId, success, result.getFailCount());
+        return result;
     }
     
     @Override
@@ -464,6 +568,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     private List<LicenseKey> queryLicenseKeysForExport(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
+        applyRemarkAndBatchNameFilter(wrapper, queryDTO);
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
@@ -472,6 +577,36 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         List<LicenseKey> list = licenseKeyMapper.selectList(wrapper);
         list.forEach(this::syncExpiredStatusIfNeeded);
         return list;
+    }
+
+    /**
+     * 列表/导出：备注与批次名称模糊筛选
+     */
+    private void applyRemarkAndBatchNameFilter(LambdaQueryWrapper<LicenseKey> wrapper, LicenseKeyQueryDTO queryDTO) {
+        if (wrapper == null || queryDTO == null) {
+            return;
+        }
+        wrapper.like(StringUtils.hasText(queryDTO.getRemark()), LicenseKey::getRemark, queryDTO.getRemark());
+
+        if (StringUtils.hasText(queryDTO.getBatchName())) {
+            String bn = queryDTO.getBatchName().trim();
+            List<LicenseBatch> batches = licenseBatchMapper.selectList(
+                    new LambdaQueryWrapper<LicenseBatch>()
+                            .like(LicenseBatch::getBatchName, bn)
+                            .select(LicenseBatch::getId)
+            );
+            if (batches == null || batches.isEmpty()) {
+                // 无匹配批次：强制无结果
+                wrapper.apply("1=0");
+                return;
+            }
+            List<Long> batchIds = batches.stream().map(LicenseBatch::getId).filter(id -> id != null).collect(Collectors.toList());
+            if (batchIds.isEmpty()) {
+                wrapper.apply("1=0");
+                return;
+            }
+            wrapper.in(LicenseKey::getBatchId, batchIds);
+        }
     }
 
     private static void autoSizeExportColumns(ExcelWriter writer, int columnCount) {
@@ -608,6 +743,135 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         return result;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchUpdateStatus(LicenseBatchStatusDTO dto, Long operatorId) {
+        if (dto.getStatus() == null) {
+            throw new RuntimeException("状态不能为空");
+        }
+        return executeBatchUpdate(dto.getIds(), operatorId, "批量更新状态", (key, now) -> {
+            if (key.getStatus() != null && key.getStatus().equals(dto.getStatus())) {
+                throw new RuntimeException("状态已是目标值");
+            }
+            key.setStatus(dto.getStatus());
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchUnbind(LicenseBatchUnbindDTO dto, Long operatorId) {
+        boolean unbindDevice = Boolean.TRUE.equals(dto.getUnbindDevice());
+        boolean unbindIp = Boolean.TRUE.equals(dto.getUnbindIp());
+        if (!unbindDevice && !unbindIp) {
+            throw new RuntimeException("请至少选择一种解绑类型");
+        }
+        return executeBatchUpdate(dto.getIds(), operatorId, "批量解绑", (key, now) -> {
+            boolean changed = false;
+            LambdaUpdateWrapper<LicenseKey> updateWrapper = new LambdaUpdateWrapper<LicenseKey>()
+                    .eq(LicenseKey::getId, key.getId())
+                    .set(LicenseKey::getUpdatedAt, now);
+            if (unbindDevice && StringUtils.hasText(key.getBindDeviceId())) {
+                updateWrapper.set(LicenseKey::getBindDeviceId, null);
+                key.setBindDeviceId(null);
+                changed = true;
+            }
+            if (unbindIp && StringUtils.hasText(key.getBindIp())) {
+                updateWrapper.set(LicenseKey::getBindIp, null);
+                key.setBindIp(null);
+                changed = true;
+            }
+            if (!changed) {
+                throw new RuntimeException(unbindDevice && unbindIp ? "当前未绑定设备/IP" : (unbindDevice ? "当前未绑定设备" : "当前未绑定IP"));
+            }
+            key.setUpdatedAt(now);
+            licenseKeyMapper.update(null, updateWrapper);
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchSetUseLimit(LicenseBatchSetUseLimitDTO dto, Long operatorId) {
+        return executeBatchUpdate(dto.getIds(), operatorId, "批量设置使用次数限制", (key, now) -> {
+            key.setUseLimit(dto.getUseLimit());
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchSetUnbindLimit(LicenseBatchSetUnbindLimitDTO dto, Long operatorId) {
+        return executeBatchUpdate(dto.getIds(), operatorId, "批量设置解绑次数限制", (key, now) -> {
+            key.setUnbindLimit(dto.getUnbindLimit());
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+        });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseBatchOperateResultDTO batchSetUseTimeRange(LicenseBatchSetUseTimeDTO dto, Long operatorId) {
+        boolean clear = Boolean.TRUE.equals(dto.getClearTimeRange());
+        return executeBatchUpdate(dto.getIds(), operatorId, "批量设置使用时间段", (key, now) -> {
+            if (clear) {
+                licenseKeyMapper.update(null, new LambdaUpdateWrapper<LicenseKey>()
+                        .eq(LicenseKey::getId, key.getId())
+                        .set(LicenseKey::getUseTimeStart, null)
+                        .set(LicenseKey::getUseTimeEnd, null)
+                        .set(LicenseKey::getUpdatedAt, now));
+                key.setUseTimeStart(null);
+                key.setUseTimeEnd(null);
+                key.setUpdatedAt(now);
+                return;
+            }
+            key.setUseTimeStart(dto.getUseTimeStart());
+            key.setUseTimeEnd(dto.getUseTimeEnd());
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+        });
+    }
+
+    private LicenseBatchOperateResultDTO executeBatchUpdate(List<Long> ids,
+                                                            Long operatorId,
+                                                            String actionName,
+                                                            BiConsumer<LicenseKey, LocalDateTime> updater) {
+        if (ids == null || ids.isEmpty()) {
+            throw new RuntimeException("请至少选择一条卡密");
+        }
+        LicenseBatchOperateResultDTO result = new LicenseBatchOperateResultDTO();
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(ids);
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            LicenseKey key = licenseKeyMapper.selectById(id);
+            if (key == null) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, null, "卡密不存在"));
+                continue;
+            }
+            try {
+                ensureLicensePermission(key.getAppId(), operatorId, AgentPermissionCodes.LICENSE_UPDATE, "无权限操作该卡密");
+            } catch (Exception e) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, key.getKeyCode(), e.getMessage()));
+                continue;
+            }
+            try {
+                updater.accept(key, now);
+                success++;
+            } catch (Exception e) {
+                result.getFailures().add(new LicenseBatchOperateFailItem(id, key.getKeyCode(), e.getMessage()));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("{}: operatorId={}, success={}, fail={}", actionName, operatorId, success, result.getFailCount());
+        return result;
+    }
+
     /**
      * 后台管理员解绑设备：不扣减 {@code expires_at}（与三方换绑扣时无关）。
      */
@@ -622,14 +886,11 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (!StringUtils.hasText(licenseKey.getBindDeviceId())) {
             throw new RuntimeException("当前未绑定设备");
         }
-        ensureUnbindQuota(licenseKey);
-        bumpUnbindCount(licenseKey);
         LocalDateTime now = LocalDateTime.now();
         // updateById 默认忽略 null 字段，无法清空 bind_device_id，必须用 UpdateWrapper 显式置空
         licenseKeyMapper.update(null, new LambdaUpdateWrapper<LicenseKey>()
                 .eq(LicenseKey::getId, licenseKey.getId())
                 .set(LicenseKey::getBindDeviceId, null)
-                .set(LicenseKey::getUnbindCount, licenseKey.getUnbindCount())
                 .set(LicenseKey::getUpdatedAt, now));
         licenseKey.setBindDeviceId(null);
         licenseKey.setUpdatedAt(now);
@@ -652,13 +913,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (!StringUtils.hasText(licenseKey.getBindIp())) {
             throw new RuntimeException("当前未绑定IP");
         }
-        ensureUnbindQuota(licenseKey);
-        bumpUnbindCount(licenseKey);
         LocalDateTime now = LocalDateTime.now();
         licenseKeyMapper.update(null, new LambdaUpdateWrapper<LicenseKey>()
                 .eq(LicenseKey::getId, licenseKey.getId())
                 .set(LicenseKey::getBindIp, null)
-                .set(LicenseKey::getUnbindCount, licenseKey.getUnbindCount())
                 .set(LicenseKey::getUpdatedAt, now));
         licenseKey.setBindIp(null);
         licenseKey.setUpdatedAt(now);

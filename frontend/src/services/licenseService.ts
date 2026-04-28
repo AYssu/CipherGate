@@ -44,8 +44,10 @@ export interface LicenseKey {
 export interface LicenseKeyQuery {
   appId?: number;
   keyCode?: string;
+  remark?: string;
   keyType?: string;
   batchId?: number;
+  batchName?: string;
   status?: number;
   ownerId?: number;
   isOnline?: boolean;
@@ -68,6 +70,8 @@ export interface LicenseKeyDTO {
   remark?: string;
   coreData?: string;
   metadata?: Record<string, any>;
+  bindDeviceId?: string | null;
+  bindIp?: string | null;
 }
 
 export interface LicenseBatchAddTimeDTO {
@@ -88,12 +92,52 @@ export interface LicenseBatchAddTimeResult {
   failures: LicenseBatchAddTimeFailItem[];
 }
 
+export interface LicenseBatchOperateDTO {
+  ids: number[];
+}
+
+export interface LicenseBatchOperateFailItem {
+  id: number;
+  keyCode?: string;
+  reason: string;
+}
+
+export interface LicenseBatchOperateResult {
+  successCount: number;
+  failCount: number;
+  failures: LicenseBatchOperateFailItem[];
+}
+
+export interface LicenseBatchStatusDTO extends LicenseBatchOperateDTO {
+  status: number;
+}
+
+export interface LicenseBatchUnbindDTO extends LicenseBatchOperateDTO {
+  unbindDevice?: boolean;
+  unbindIp?: boolean;
+}
+
+export interface LicenseBatchSetUseLimitDTO extends LicenseBatchOperateDTO {
+  useLimit: number;
+}
+
+export interface LicenseBatchSetUnbindLimitDTO extends LicenseBatchOperateDTO {
+  unbindLimit: number;
+}
+
+export interface LicenseBatchSetUseTimeDTO extends LicenseBatchOperateDTO {
+  useTimeStart?: string;
+  useTimeEnd?: string;
+  clearTimeRange?: boolean;
+}
+
 export interface LicenseBatchCreateDTO {
   appId: number;
   batchName: string;
   keyType: string;
   durationValue?: number;
   totalCount: number;
+  keyPrefix?: string;
   useLimit?: number;
   unbindLimit?: number;
   deviceCheckEnabled?: boolean;
@@ -132,6 +176,30 @@ export const batchCreateLicenses = (data: LicenseBatchCreateDTO) => {
 /** 批量加时（仅已激活卡密） */
 export const batchAddLicenseTime = (data: LicenseBatchAddTimeDTO) => {
   return request.post('/licenses/batch-add-time', data);
+};
+
+export const batchUpdateLicenseStatus = (data: LicenseBatchStatusDTO) => {
+  return request.post('/licenses/batch-status', data);
+};
+
+export const batchUnbindLicenses = (data: LicenseBatchUnbindDTO) => {
+  return request.post('/licenses/batch-unbind', data);
+};
+
+export const batchSetLicenseUseLimit = (data: LicenseBatchSetUseLimitDTO) => {
+  return request.post('/licenses/batch-use-limit', data);
+};
+
+export const batchSetLicenseUnbindLimit = (data: LicenseBatchSetUnbindLimitDTO) => {
+  return request.post('/licenses/batch-unbind-limit', data);
+};
+
+export const batchSetLicenseUseTime = (data: LicenseBatchSetUseTimeDTO) => {
+  return request.post('/licenses/batch-use-time', data);
+};
+
+export const batchDeleteLicenses = (data: LicenseBatchOperateDTO) => {
+  return request.post('/licenses/batch-delete', data);
 };
 
 /**

@@ -43,6 +43,8 @@ import {
   SlidersOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import CodeMirror from '@uiw/react-codemirror';
+import { json } from '@codemirror/lang-json';
 import {
   getApplicationList,
   createApplication,
@@ -99,6 +101,23 @@ const ApplicationManagementContent: React.FC = () => {
   const [bindLookupLoading, setBindLookupLoading] = useState(false);
   const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
 
+  const getEncryptionJsonError = (raw: string): string | null => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return '加密配置须为 JSON 对象，例如 {}';
+      }
+      return null;
+    } catch {
+      return 'JSON 格式不正确，请检查括号与引号';
+    }
+  };
+  const encryptionJsonError = getEncryptionJsonError(encryptionConfigJson);
+
   // 获取应用列表
   const fetchApplications = async (page = 1, size = 10) => {
     setLoading(true);
@@ -147,6 +166,8 @@ const ApplicationManagementContent: React.FC = () => {
         unbindTimeDeductMode: app.unbindTimeDeductMode ?? 'NONE',
         unbindTimeDeductValue:
           app.unbindTimeDeductValue != null ? Number(app.unbindTimeDeductValue) : undefined,
+        unbindCooldownHours:
+          app.unbindCooldownHours != null ? Number(app.unbindCooldownHours) : 0,
       });
     } else {
       form.resetFields();
@@ -682,6 +703,26 @@ const ApplicationManagementContent: React.FC = () => {
             },
           },
           {
+            key: 'licenseSelf',
+            icon: <KeyOutlined />,
+            label: '卡密自助页',
+            onClick: () => {
+              const base = import.meta.env.BASE_URL || '/';
+              const path = `${base.endsWith('/') ? base : `${base}/`}license?id=${record.id}`;
+              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+            },
+          },
+          {
+            key: 'appUserSelf',
+            icon: <UserAddOutlined />,
+            label: '用户自助页',
+            onClick: () => {
+              const base = import.meta.env.BASE_URL || '/';
+              const path = `${base.endsWith('/') ? base : `${base}/`}app-user?id=${record.id}`;
+              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+            },
+          },
+          {
             key: 'resetKeys',
             icon: <KeyOutlined />,
             label: '重置密钥',
@@ -855,6 +896,7 @@ const ApplicationManagementContent: React.FC = () => {
             status: 1,
             trafficLimit: 0,
             unbindTimeDeductMode: 'NONE',
+            unbindCooldownHours: 0,
           }}
         >
           <Form.Item
@@ -992,6 +1034,18 @@ const ApplicationManagementContent: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="解绑冷却时间(小时)"
+                name="unbindCooldownHours"
+                tooltip="0 表示不限制；仅影响三方卡密换绑接口"
+                rules={[{ type: 'number', min: 0, message: '不能小于 0' }]}
+              >
+                <InputNumber style={{ width: '100%' }} min={0} step={1} placeholder="0 表示不限制" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Divider>版本信息（可选）</Divider>
 
@@ -1081,6 +1135,7 @@ const ApplicationManagementContent: React.FC = () => {
         okText="保存"
         cancelText="取消"
         confirmLoading={encryptionSaving}
+        okButtonProps={{ disabled: !!encryptionJsonError || encryptionLoading }}
         onOk={() => void handleSaveEncryptionConfig()}
         destroyOnClose
       >
@@ -1097,15 +1152,35 @@ const ApplicationManagementContent: React.FC = () => {
           <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>pluginConfig</Tag>
           一并传入插件。密钥类参数建议只放在此处，勿写入全局插件配置。
         </Text>
-        <TextArea
-          value={encryptionConfigJson}
-          onChange={(e) => setEncryptionConfigJson(e.target.value)}
-          placeholder='{}'
-          autoSize={{ minRows: 14, maxRows: 22 }}
-          spellCheck={false}
-          style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}
-          disabled={encryptionLoading}
-        />
+        <div
+          style={{
+            border: `1px solid ${encryptionJsonError ? '#ff4d4f' : '#d9d9d9'}`,
+            borderRadius: 8,
+            overflow: 'hidden',
+          }}
+        >
+          <CodeMirror
+            value={encryptionConfigJson}
+            height="340px"
+            extensions={[json()]}
+            editable={!encryptionLoading}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLine: true,
+              foldGutter: true,
+            }}
+            onChange={(value) => setEncryptionConfigJson(value)}
+          />
+        </div>
+        {encryptionJsonError ? (
+          <Text type="danger" style={{ display: 'block', marginTop: 8 }}>
+            {encryptionJsonError}
+          </Text>
+        ) : (
+          <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+            JSON 校验通过
+          </Text>
+        )}
       </Modal>
 
       <Modal

@@ -39,11 +39,11 @@ public class CryptoRuntimeService {
     public Map<String, Object> decryptToMap(String pluginId, Map<String, Object> input) {
         Map<String, Object> work = new LinkedHashMap<>(input == null ? Map.of() : input);
         List<CryptoPlugin> extensions = pluginManager.getExtensions(CryptoPlugin.class);
-        log.info("CryptoPlugin自动模式: pluginExtensionsCount={}, localPluginsCount={}",
+        log.debug("CryptoPlugin自动模式: pluginExtensionsCount={}, localPluginsCount={}",
                 extensions.size(), localPlugins.size());
         if (!extensions.isEmpty()) {
             for (CryptoPlugin extension : extensions) {
-                log.info("CryptoPlugin插件扩展: class={}, pluginId={}",
+                log.debug("CryptoPlugin插件扩展: class={}, pluginId={}",
                         extension.getClass().getName(), extension.pluginId());
             }
         }
@@ -53,7 +53,7 @@ public class CryptoRuntimeService {
         if (!StringUtils.hasText(pluginId) || DEFAULT_LOCAL_PLUGIN_ID.equals(pluginId)) {
             if (!extensions.isEmpty()) {
                 CryptoPlugin picked = extensions.get(0);
-                log.info("CryptoPlugin自动模式命中插件实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin自动模式命中插件实现: class={}, pluginId={}",
                         picked.getClass().getName(), picked.pluginId());
                 mergePluginRuntimeConfig(work, picked.pluginId());
                 return picked.decryptToMap(work);
@@ -63,7 +63,7 @@ public class CryptoRuntimeService {
 
         for (CryptoPlugin ext : extensions) {
             if (pluginId.equals(ext.pluginId())) {
-                log.info("CryptoPlugin命中插件实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin命中插件实现: class={}, pluginId={}",
                         ext.getClass().getName(), ext.pluginId());
                 mergePluginRuntimeConfig(work, ext.pluginId());
                 return ext.decryptToMap(work);
@@ -72,7 +72,7 @@ public class CryptoRuntimeService {
 
         for (CryptoPlugin local : localPlugins) {
             if (pluginId.equals(local.pluginId())) {
-                log.info("CryptoPlugin回退本地实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin回退本地实现: class={}, pluginId={}",
                         local.getClass().getName(), local.pluginId());
                 mergePluginRuntimeConfig(work, local.pluginId());
                 return local.decryptToMap(work);
@@ -111,7 +111,7 @@ public class CryptoRuntimeService {
         if (!StringUtils.hasText(pluginId) || DEFAULT_LOCAL_PLUGIN_ID.equals(pluginId)) {
             if (!encryptorExtensions.isEmpty()) {
                 CryptoPluginEncryptor picked = encryptorExtensions.get(0);
-                log.info("CryptoPlugin出站自动模式命中插件实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin出站自动模式命中插件实现: class={}, pluginId={}",
                         picked.getClass().getName(), picked.pluginId());
                 mergePluginRuntimeConfig(safePlain, picked.pluginId());
                 return new CryptoEncryptedPayload(picked.pluginId(), picked.encryptFromMap(safePlain));
@@ -121,7 +121,7 @@ public class CryptoRuntimeService {
 
         for (CryptoPluginEncryptor ext : encryptorExtensions) {
             if (pluginId.equals(ext.pluginId())) {
-                log.info("CryptoPlugin出站命中插件实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin出站命中插件实现: class={}, pluginId={}",
                         ext.getClass().getName(), ext.pluginId());
                 mergePluginRuntimeConfig(safePlain, ext.pluginId());
                 return new CryptoEncryptedPayload(ext.pluginId(), ext.encryptFromMap(safePlain));
@@ -130,7 +130,7 @@ public class CryptoRuntimeService {
 
         for (CryptoPlugin local : localPlugins) {
             if (pluginId.equals(local.pluginId()) && local instanceof CryptoPluginEncryptor enc) {
-                log.info("CryptoPlugin出站回退本地实现: class={}, pluginId={}",
+                log.debug("CryptoPlugin出站回退本地实现: class={}, pluginId={}",
                         local.getClass().getName(), local.pluginId());
                 mergePluginRuntimeConfig(safePlain, local.pluginId());
                 return new CryptoEncryptedPayload(local.pluginId(), enc.encryptFromMap(safePlain));

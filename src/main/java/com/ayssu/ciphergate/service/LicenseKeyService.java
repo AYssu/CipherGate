@@ -3,6 +3,13 @@ package com.ayssu.ciphergate.service;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchDeleteDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchOperateResultDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUnbindLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchStatusDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchUnbindDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
 import com.ayssu.ciphergate.entity.LicenseKey;
@@ -49,6 +56,11 @@ public interface LicenseKeyService {
      * 删除卡密
      */
     void deleteLicenseKey(Long id, Long userId);
+
+    /**
+     * 批量删除卡密（返回成功/失败明细）。
+     */
+    LicenseBatchOperateResultDTO batchDelete(LicenseBatchDeleteDTO dto, Long operatorId);
     
     /**
      * 禁用/启用卡密
@@ -69,6 +81,31 @@ public interface LicenseKeyService {
      * 批量延长到期时间：仅已激活（已首次使用）的卡密处理；未激活的返回失败原因「该卡密未激活」。
      */
     LicenseBatchAddTimeResultDTO batchAddExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId);
+
+    /**
+     * 批量更新状态。
+     */
+    LicenseBatchOperateResultDTO batchUpdateStatus(LicenseBatchStatusDTO dto, Long operatorId);
+
+    /**
+     * 批量解绑设备/IP。
+     */
+    LicenseBatchOperateResultDTO batchUnbind(LicenseBatchUnbindDTO dto, Long operatorId);
+
+    /**
+     * 批量设置使用次数限制。
+     */
+    LicenseBatchOperateResultDTO batchSetUseLimit(LicenseBatchSetUseLimitDTO dto, Long operatorId);
+
+    /**
+     * 批量设置解绑次数限制。
+     */
+    LicenseBatchOperateResultDTO batchSetUnbindLimit(LicenseBatchSetUnbindLimitDTO dto, Long operatorId);
+
+    /**
+     * 批量设置使用时间段限制。
+     */
+    LicenseBatchOperateResultDTO batchSetUseTimeRange(LicenseBatchSetUseTimeDTO dto, Long operatorId);
 
     /**
      * 若已设置到期时间且当前时间已超过到期时间，且卡密非「已禁用」，则将状态落库为已过期（3）。

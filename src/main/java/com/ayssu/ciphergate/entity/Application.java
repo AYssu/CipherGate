@@ -132,6 +132,11 @@ public class Application implements Serializable {
      * 扣时数值：PERCENT 为 0–100；HOURS 为小时数（可小数）；NONE 时忽略
      */
     private BigDecimal unbindTimeDeductValue;
+
+    /**
+     * 解绑冷却时间（小时）：0 表示不限制；仅影响三方换绑接口。
+     */
+    private Integer unbindCooldownHours;
     
     /**
      * 创建时间

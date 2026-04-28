@@ -378,6 +378,7 @@ CREATE TABLE IF NOT EXISTS application (
     -- 卡密解绑扣时（解绑设备或解绑 IP 时，从卡密 expires_at 扣减）
     unbind_time_deduct_mode VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT '解绑扣时模式: NONE=不扣, PERCENT=按剩余时长百分比, HOURS=固定扣小时',
     unbind_time_deduct_value DECIMAL(10, 2) NULL COMMENT '扣时数值: PERCENT 为 0-100；HOURS 为小时数(可小数)',
+    unbind_cooldown_hours INT NOT NULL DEFAULT 0 COMMENT '解绑冷却时间（小时）；0=不限制，仅影响三方换绑',
     
     -- 审计字段
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -599,7 +600,7 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.role_code = 'USER'
-AND p.permission_code IN ('LICENSE_LIST', 'LICENSE_DETAIL', 'LICENSE_CREATE', 'LICENSE_BATCH_CREATE', 'LICENSE_UPDATE', 'LICENSE_DELETE')
+AND p.permission_code IN ('LICENSE_LIST', 'LICENSE_DETAIL', 'LICENSE_CREATE', 'LICENSE_BATCH_CREATE', 'LICENSE_UPDATE', 'LICENSE_DELETE', 'LICENSE_EXPORT')
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 插入卡密管理菜单

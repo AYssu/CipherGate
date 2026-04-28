@@ -16,11 +16,17 @@ public class LicenseKeyQueryDTO {
     @Schema(description = "卡密码(模糊查询)")
     private String keyCode;
     
+    @Schema(description = "备注(模糊查询)")
+    private String remark;
+
     @Schema(description = "卡密类型")
     private String keyType;
     
     @Schema(description = "批次ID")
     private Long batchId;
+
+    @Schema(description = "批次名称(模糊查询)")
+    private String batchName;
     
     @Schema(description = "状态")
     private Integer status;

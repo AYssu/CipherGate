@@ -201,6 +201,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         app.setMinVersion(null);
         app.setUnbindTimeDeductMode(null);
         app.setUnbindTimeDeductValue(null);
+        app.setUnbindCooldownHours(null);
     }
     
     @Override
@@ -241,6 +242,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         if ("NONE".equalsIgnoreCase(application.getUnbindTimeDeductMode())) {
             application.setUnbindTimeDeductValue(null);
+        }
+        if (application.getUnbindCooldownHours() == null || application.getUnbindCooldownHours() < 0) {
+            application.setUnbindCooldownHours(0);
         }
         
         // 设置时间
@@ -327,6 +331,9 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setUnbindTimeDeductValue(null);
         } else if (dto.getUnbindTimeDeductValue() != null) {
             application.setUnbindTimeDeductValue(dto.getUnbindTimeDeductValue());
+        }
+        if (dto.getUnbindCooldownHours() != null) {
+            application.setUnbindCooldownHours(Math.max(0, dto.getUnbindCooldownHours()));
         }
         
         application.setUpdatedAt(LocalDateTime.now());

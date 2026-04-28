@@ -128,6 +128,8 @@ public class AppUserServiceImpl implements AppUserService {
         
         // 填充关联信息
         result.getRecords().forEach(this::fillRelatedInfo);
+        // 默认列表：在线优先（在线排前），组内保持原有排序（创建时间倒序）
+        result.getRecords().sort((a, b) -> Boolean.compare(Boolean.TRUE.equals(b.getWsOnline()), Boolean.TRUE.equals(a.getWsOnline())));
         
         return result;
     }

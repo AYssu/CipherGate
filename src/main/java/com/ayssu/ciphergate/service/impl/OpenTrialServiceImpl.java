@@ -96,6 +96,25 @@ public class OpenTrialServiceImpl implements OpenTrialService {
         return new TrialApplyResult(appId, appUser.getId(), email, TRIAL_DAYS, newExpiresAt);
     }
 
+    @Override
+    public TrialExpireResult queryTrialExpireAt(Long appId, String email) {
+        if (appId == null || appId <= 0) {
+            throw new IllegalArgumentException("appId必须大于0");
+        }
+        String normalizedEmail = normalizeEmail(email);
+
+        AppUser appUser = appUserMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getAppId, appId)
+                .eq(AppUser::getEmail, normalizedEmail)
+                .eq(AppUser::getDeleted, 0)
+                .last("limit 1"));
+        if (appUser == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+
+        return new TrialExpireResult(appId, appUser.getId(), normalizedEmail, appUser.getMemberExpiresAt());
+    }
+
     private static Long parsePid(String pid) {
         if (!StringUtils.hasText(pid)) {
             throw new IllegalArgumentException("pid不能为空");

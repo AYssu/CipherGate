@@ -34,6 +34,8 @@ public class SecurityConfig {
                                 "/api/test",
                                  "/api/open/**",
                                 "/api/public/app-user/register/**",
+                                "/api/public/app-user/self/**",
+                                "/api/public/license/**",
                                 "/api/user/status",
                                 "/api/v1/**",
                                 "/oauth2/authorization/**",

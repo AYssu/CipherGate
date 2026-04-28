@@ -58,4 +58,10 @@ public class LicenseKeyDTO {
     
     @Schema(description = "扩展元数据")
     private Map<String, Object> metadata;
+
+    @Schema(description = "绑定设备标识（编辑时可修改/清空）")
+    private String bindDeviceId;
+
+    @Schema(description = "绑定IP（编辑时可修改/清空）")
+    private String bindIp;
 }

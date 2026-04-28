@@ -1,6 +1,7 @@
 package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.common.Result;
+import com.ayssu.ciphergate.dto.OpenTrialExpireQueryRequest;
 import com.ayssu.ciphergate.dto.OpenTrialRequest;
 import com.ayssu.ciphergate.service.OpenTrialService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +45,24 @@ public class OpenTrialController {
         } catch (Exception e) {
             log.error("开放试用接口异常, pid={}, email={}", request.getPid(), request.getEmail(), e);
             return Result.error("试用申请失败，请稍后重试");
+        }
+    }
+
+    @PostMapping("/trial/expires-at")
+    @Operation(summary = "查询到期时间", description = "按 email + 应用id 查询该终端用户当前会员到期时间")
+    public Result<OpenTrialService.TrialExpireResult> queryTrialExpireAt(
+            @Valid @RequestBody OpenTrialExpireQueryRequest request) {
+        try {
+            OpenTrialService.TrialExpireResult result = openTrialService.queryTrialExpireAt(
+                    request.getAppId(),
+                    request.getEmail()
+            );
+            return Result.success("查询成功", result);
+        } catch (IllegalArgumentException e) {
+            return Result.badRequest(e.getMessage());
+        } catch (Exception e) {
+            log.error("开放试用到期时间查询异常, appId={}, email={}", request.getAppId(), request.getEmail(), e);
+            return Result.error("查询失败，请稍后重试");
         }
     }
 

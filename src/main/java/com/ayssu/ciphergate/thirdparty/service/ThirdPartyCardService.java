@@ -242,12 +242,18 @@ public class ThirdPartyCardService {
         if (current.equals(newDeviceId)) {
             throw new RuntimeException("换绑失败，设备一致");
         }
-        boolean hadPriorDevice = StringUtils.hasText(current);
         LocalDateTime now = LocalDateTime.now();
+        boolean hadPriorDevice = StringUtils.hasText(current);
+        if (hadPriorDevice) {
+            ensureRebindCooldown(application, key, now);
+            ensureUnbindQuota(key);
+            bumpUnbindCount(key);
+        }
         key.setBindDeviceId(newDeviceId);
         if (hadPriorDevice) {
             licenseUnbindTimeDeductionService.applyIfConfigured(key, now);
             licenseUnbindTimeDeductionService.refreshStatusIfExpired(key, now);
+            markLastRebindAt(key, now);
         }
         key.setUpdatedAt(now);
         licenseKeyMapper.updateById(key);
@@ -263,6 +269,62 @@ public class ThirdPartyCardService {
         variableCtx.setDeviceId(newDeviceId);
         out.setVariables(thirdPartyAppVariableService.getEnabledVariablesMap(appId, variableCtx));
         return out;
+    }
+
+    private void ensureUnbindQuota(LicenseKey key) {
+        int limit = key.getUnbindLimit() == null ? 0 : key.getUnbindLimit();
+        if (limit <= 0) {
+            return;
+        }
+        int used = key.getUnbindCount() == null ? 0 : key.getUnbindCount();
+        if (used >= limit) {
+            throw new RuntimeException("解绑次数已达上限（" + limit + " 次），无法继续换绑");
+        }
+    }
+
+    private void bumpUnbindCount(LicenseKey key) {
+        int used = key.getUnbindCount() == null ? 0 : key.getUnbindCount();
+        key.setUnbindCount(used + 1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void ensureRebindCooldown(Application app, LicenseKey key, LocalDateTime now) {
+        int cooldownHours = app == null || app.getUnbindCooldownHours() == null ? 0 : app.getUnbindCooldownHours();
+        if (cooldownHours <= 0) {
+            return;
+        }
+        Map<String, Object> metadata = key.getMetadata();
+        if (metadata == null) {
+            return;
+        }
+        Object raw = metadata.get("lastRebindAt");
+        if (!(raw instanceof String s) || !StringUtils.hasText(s)) {
+            return;
+        }
+        try {
+            LocalDateTime last = LocalDateTime.parse(s.trim());
+            LocalDateTime nextAt = last.plusHours(cooldownHours);
+            if (now.isBefore(nextAt)) {
+                long remainMin = Math.max(1L, Duration.between(now, nextAt).toMinutes());
+                throw new RuntimeException("换绑冷却中，请 " + remainMin + " 分钟后重试");
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception ignored) {
+            // 元数据脏值不阻断换绑
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void markLastRebindAt(LicenseKey key, LocalDateTime now) {
+        Map<String, Object> metadata = key.getMetadata();
+        if (metadata == null) {
+            metadata = new HashMap<>();
+        } else {
+            metadata = new HashMap<>(metadata);
+        }
+        metadata.put("lastRebindAt", now.truncatedTo(ChronoUnit.SECONDS).toString());
+        key.setMetadata(metadata);
     }
 
     private Long resolveAvailableSeconds(LocalDateTime expiresAt) {

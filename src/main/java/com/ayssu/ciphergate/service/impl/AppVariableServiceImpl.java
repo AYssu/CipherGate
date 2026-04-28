@@ -411,6 +411,9 @@ public class AppVariableServiceImpl implements AppVariableService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void importVariables(Long appId, String configData, String format, Long operatorId) {
+        if (!hasPermission(appId, operatorId)) {
+            throw new RuntimeException("无权限操作此应用的变量");
+        }
         try {
             Map<String, Object> variables;
             if ("json".equalsIgnoreCase(format)) {
@@ -418,11 +421,77 @@ public class AppVariableServiceImpl implements AppVariableService {
             } else {
                 throw new RuntimeException("不支持的格式: " + format);
             }
-            
-            batchUpdateVariables(appId, variables, operatorId);
+
+            for (Map.Entry<String, Object> entry : variables.entrySet()) {
+                String variableName = entry.getKey();
+                if (!StringUtils.hasText(variableName)) {
+                    continue;
+                }
+                Object value = entry.getValue();
+                String newValue = toImportVariableValue(value);
+
+                AppVariable variable = getVariableByName(appId, variableName, operatorId);
+                if (variable != null) {
+                    String oldValue = variable.getVariableValue();
+                    variable.setVariableValue(newValue);
+                    variable.setUpdatedBy(operatorId);
+                    variable.setUpdatedAt(LocalDateTime.now());
+                    appVariableMapper.updateById(variable);
+                    recordHistory(variable, "UPDATE", oldValue, newValue, "导入更新", operatorId);
+                    continue;
+                }
+
+                AppVariable created = new AppVariable();
+                created.setAppId(appId);
+                created.setVariableName(variableName);
+                created.setDisplayName(variableName);
+                created.setVariableType(inferVariableType(value));
+                created.setVariableValue(newValue);
+                created.setRequired(false);
+                created.setSortOrder(0);
+                created.setEnabled(true);
+                created.setSecurityTier(VariableSecurityTier.CRITICAL);
+                created.setDeleted(0);
+                created.setCreatedBy(operatorId);
+                created.setUpdatedBy(operatorId);
+                LocalDateTime now = LocalDateTime.now();
+                created.setCreatedAt(now);
+                created.setUpdatedAt(now);
+                appVariableMapper.insert(created);
+                recordHistory(created, "CREATE", null, newValue, "导入新增", operatorId);
+            }
         } catch (JsonProcessingException e) {
             throw new RuntimeException("导入失败: " + e.getMessage());
         }
+    }
+
+    private String inferVariableType(Object value) {
+        if (value instanceof Boolean) {
+            return "BOOLEAN";
+        }
+        if (value instanceof Number) {
+            return "NUMBER";
+        }
+        if (value instanceof List) {
+            return "ARRAY";
+        }
+        if (value instanceof Map) {
+            return "JSON";
+        }
+        return "STRING";
+    }
+
+    private String toImportVariableValue(Object value) throws JsonProcessingException {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String s) {
+            return s;
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return String.valueOf(value);
+        }
+        return objectMapper.writeValueAsString(value);
     }
     
     @Override

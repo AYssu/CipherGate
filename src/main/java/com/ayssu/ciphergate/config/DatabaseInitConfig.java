@@ -6,11 +6,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -29,32 +32,18 @@ public class DatabaseInitConfig implements CommandLineRunner {
         log.info("开始初始化数据库表...");
         
         try {
-            // 读取 SQL 文件
-            ClassPathResource resource = new ClassPathResource("sql/init.sql");
-            StringBuilder sqlBuilder = new StringBuilder();
-            
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (!line.trim().startsWith("--") && !line.trim().isEmpty()) {
-                        sqlBuilder.append(line).append("\n");
-                    }
-                }
-            }
-            
-            // 分割 SQL 语句并执行
-            String[] sqlStatements = sqlBuilder.toString().split(";");
-            
-            for (String sql : sqlStatements) {
-                sql = sql.trim();
-                if (!sql.isEmpty()) {
-                    try {
-                        rawSqlMapper.executeRawSql(sql);
-                        log.debug("执行 SQL 成功: {}", sql.substring(0, Math.min(50, sql.length())) + "...");
-                    } catch (Exception e) {
-                        log.warn("执行 SQL 失败: {}, 错误: {}", sql.substring(0, Math.min(50, sql.length())), e.getMessage());
-                    }
+            // 执行 init.sql（建表/初始化数据）
+            executeSqlResource(new ClassPathResource("sql/init.sql"));
+
+            // 执行升级脚本（按顺序执行；需要新增升级时，在这里追加一行即可）
+            List<String> upgradeSqlFiles = List.of(
+                    "alter_application_unbind_cooldown.sql"
+            );
+            for (String file : upgradeSqlFiles) {
+                try {
+                    executeSqlResource(new ClassPathResource("sql/" + file));
+                } catch (Exception e) {
+                    log.warn("执行升级脚本失败: file={}, err={}", file, e.getMessage());
                 }
             }
             
@@ -70,6 +59,40 @@ public class DatabaseInitConfig implements CommandLineRunner {
             
         } catch (Exception e) {
             log.error("数据库初始化失败", e);
+        }
+    }
+
+    private void executeSqlResource(Resource resource) throws Exception {
+        StringBuilder sqlBuilder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("--") || trimmed.isEmpty()) {
+                    continue;
+                }
+                sqlBuilder.append(line).append("\n");
+            }
+        }
+        executeSqlStatements(sqlBuilder.toString());
+    }
+
+    private void executeSqlStatements(String sqlText) {
+        if (!StringUtils.hasText(sqlText)) {
+            return;
+        }
+        String[] sqlStatements = sqlText.split(";");
+        for (String sql : sqlStatements) {
+            sql = sql.trim();
+            if (!sql.isEmpty()) {
+                try {
+                    rawSqlMapper.executeRawSql(sql);
+                    log.debug("执行 SQL 成功: {}", sql.substring(0, Math.min(50, sql.length())) + "...");
+                } catch (Exception e) {
+                    log.warn("执行 SQL 失败: {}, 错误: {}", sql.substring(0, Math.min(50, sql.length())), e.getMessage());
+                }
+            }
         }
     }
     

@@ -26,6 +26,8 @@ export interface Application {
   /** NONE | PERCENT | HOURS */
   unbindTimeDeductMode?: string;
   unbindTimeDeductValue?: number;
+  /** 解绑冷却小时，0=不限 */
+  unbindCooldownHours?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +63,8 @@ export interface ApplicationDTO {
   /** NONE | PERCENT | HOURS */
   unbindTimeDeductMode?: string;
   unbindTimeDeductValue?: number;
+  /** 解绑冷却小时，0=不限 */
+  unbindCooldownHours?: number;
 }
 
 /**

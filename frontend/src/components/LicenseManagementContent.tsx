@@ -21,6 +21,8 @@ import {
   Switch,
   Tooltip,
   Popover,
+  Checkbox,
+  Pagination,
 } from 'antd';
 import {
   PlusOutlined,
@@ -42,6 +44,12 @@ import {
   createLicense,
   batchCreateLicenses,
   batchAddLicenseTime,
+  batchUpdateLicenseStatus,
+  batchUnbindLicenses,
+  batchSetLicenseUseLimit,
+  batchSetLicenseUnbindLimit,
+  batchSetLicenseUseTime,
+  batchDeleteLicenses,
   updateLicense,
   deleteLicense,
   updateLicenseStatus,
@@ -51,6 +59,7 @@ import {
   type LicenseKey,
   type LicenseKeyDTO,
   type LicenseBatchCreateDTO,
+  type LicenseBatchOperateResult,
 } from '../services/licenseService';
 import { getApplicationList, type Application } from '../services/applicationService';
 
@@ -65,11 +74,20 @@ const LicenseManagementContent: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [batchAddTimeVisible, setBatchAddTimeVisible] = useState(false);
+  const [batchUnbindVisible, setBatchUnbindVisible] = useState(false);
+  const [batchUseLimitVisible, setBatchUseLimitVisible] = useState(false);
+  const [batchUnbindLimitVisible, setBatchUnbindLimitVisible] = useState(false);
+  const [batchUseTimeVisible, setBatchUseTimeVisible] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [selectedBatchAction, setSelectedBatchAction] = useState<string>();
   const [editingLicense, setEditingLicense] = useState<LicenseKey | null>(null);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [addTimeForm] = Form.useForm();
+  const [batchUnbindForm] = Form.useForm();
+  const [batchUseLimitForm] = Form.useForm();
+  const [batchUnbindLimitForm] = Form.useForm();
+  const [batchUseTimeForm] = Form.useForm();
   const [listFilterForm] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
@@ -79,11 +97,53 @@ const LicenseManagementContent: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [keyCodeInput, setKeyCodeInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const selectedLicenseIds = selectedRowKeys.map((k) => Number(k));
+
+  const showGeneratedKeysModal = (title: string, keys: string[]) => {
+    const list = (keys || []).map((k) => (k ?? '').trim()).filter(Boolean);
+    if (!list.length) {
+      return;
+    }
+    const text = list.join('\n');
+    const doCopyAll = async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        message.success('已复制');
+      } catch {
+        message.warning('复制失败，请手动复制');
+      }
+    };
+    Modal.info({
+      title,
+      width: 720,
+      okText: '关闭',
+      content: (
+        <div>
+          <Space style={{ marginBottom: 12 }} wrap>
+            <Button type="primary" onClick={() => void doCopyAll()}>
+              一键复制
+            </Button>
+            <Text type="secondary">共 {list.length} 条</Text>
+          </Space>
+          <TextArea
+            value={text}
+            readOnly
+            autoSize={{ minRows: 8, maxRows: 16 }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace' }}
+            onFocus={(e) => e.target.select()}
+          />
+        </div>
+      ),
+    });
+  };
 
   const activeAdvancedFilterCount = [
     filters.appId,
     filters.keyType,
     filters.status,
+    filters.isOnline,
+    filters.remark,
+    filters.batchName,
   ].filter((v) => v !== undefined && v !== null && v !== '').length;
 
   // 卡密类型选项
@@ -96,6 +156,16 @@ const LicenseManagementContent: React.FC = () => {
     { label: '年卡', value: 'YEAR' },
     { label: '永久卡', value: 'PERMANENT' },
     { label: '自定义', value: 'CUSTOM' },
+  ];
+
+  const batchActionOptions = [
+    { label: '批量加时', value: 'addTime' },
+    { label: '批量解绑', value: 'unbind' },
+    { label: '批量封禁', value: 'disable' },
+    { label: '批量设置使用次数限制', value: 'setUseLimit' },
+    { label: '批量设置解绑次数限制', value: 'setUnbindLimit' },
+    { label: '批量设置使用时间段限制', value: 'setUseTime' },
+    { label: '批量删除', value: 'delete' },
   ];
 
   // 获取应用列表
@@ -150,6 +220,9 @@ const LicenseManagementContent: React.FC = () => {
       appId: filters.appId,
       keyType: filters.keyType,
       status: filters.status,
+      isOnline: filters.isOnline,
+      remark: filters.remark,
+      batchName: filters.batchName,
     });
   };
 
@@ -171,6 +244,21 @@ const LicenseManagementContent: React.FC = () => {
     } else {
       delete next.status;
     }
+    if (v.isOnline != null && v.isOnline !== '') {
+      next.isOnline = v.isOnline;
+    } else {
+      delete next.isOnline;
+    }
+    if (v.remark) {
+      next.remark = v.remark.trim();
+    } else {
+      delete next.remark;
+    }
+    if (v.batchName) {
+      next.batchName = v.batchName.trim();
+    } else {
+      delete next.batchName;
+    }
     setFilters(next);
     fetchLicenses(1, pagination.pageSize, next);
     setFilterPopoverOpen(false);
@@ -182,6 +270,9 @@ const LicenseManagementContent: React.FC = () => {
     delete next.appId;
     delete next.keyType;
     delete next.status;
+    delete next.isOnline;
+    delete next.remark;
+    delete next.batchName;
     setFilters(next);
     fetchLicenses(1, pagination.pageSize, next);
   };
@@ -208,6 +299,8 @@ const LicenseManagementContent: React.FC = () => {
         durationValue: license.durationValue,
         useLimit: license.useLimit,
         unbindLimit: license.unbindLimit,
+        bindDeviceId: license.bindDeviceId,
+        bindIp: license.bindIp,
         useTimeStart: license.useTimeStart ? dayjs(license.useTimeStart, 'HH:mm:ss') : null,
         useTimeEnd: license.useTimeEnd ? dayjs(license.useTimeEnd, 'HH:mm:ss') : null,
         deviceCheckEnabled: license.deviceCheckEnabled,
@@ -248,6 +341,13 @@ const LicenseManagementContent: React.FC = () => {
         ...values,
         useTimeStart: values.useTimeStart ? values.useTimeStart.format('HH:mm:ss') : undefined,
         useTimeEnd: values.useTimeEnd ? values.useTimeEnd.format('HH:mm:ss') : undefined,
+        // 编辑时：始终传绑定字段，空值传空字符串以触发后端清空
+        bindDeviceId: editingLicense
+          ? (values.bindDeviceId == null ? '' : String(values.bindDeviceId).trim())
+          : undefined,
+        bindIp: editingLicense
+          ? (values.bindIp == null ? '' : String(values.bindIp).trim())
+          : undefined,
       };
 
       if (editingLicense) {
@@ -259,8 +359,12 @@ const LicenseManagementContent: React.FC = () => {
         await updateLicense(editingLicense.id, dto);
         message.success('卡密更新成功');
       } else {
-        await createLicense(dto);
-        message.success('卡密创建成功');
+        const result: any = await createLicense(dto);
+        message.success(result?.message || '卡密创建成功');
+        const keyCode = result?.data?.keyCode;
+        if (keyCode) {
+          showGeneratedKeysModal('已生成卡密', [String(keyCode)]);
+        }
       }
 
       setModalVisible(false);
@@ -280,6 +384,94 @@ const LicenseManagementContent: React.FC = () => {
     setBatchAddTimeVisible(true);
   };
 
+  const showBatchResult = (title: string, result: LicenseBatchOperateResult | { successCount: number; failCount: number; failures?: Array<{ keyCode?: string; id: number; reason: string }> }) => {
+    message.success(`${title}完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`);
+    if (result.failures?.length) {
+      Modal.warning({
+        title: `以下卡密未${title}`,
+        width: 600,
+        content: (
+          <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
+            {result.failures.map((f, i) => (
+              <li key={i} style={{ marginBottom: 4 }}>
+                <Tag>{f.keyCode || `#${f.id}`}</Tag>：{f.reason}
+              </li>
+            ))}
+          </ul>
+        ),
+      });
+    }
+  };
+
+  const handleBatchActionConfirm = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要操作的卡密');
+      return;
+    }
+    switch (selectedBatchAction) {
+      case 'addTime':
+        openBatchAddTimeModal();
+        break;
+      case 'unbind':
+        batchUnbindForm.setFieldsValue({ unbindDevice: true, unbindIp: false });
+        setBatchUnbindVisible(true);
+        break;
+      case 'disable':
+        Modal.confirm({
+          title: '批量封禁卡密',
+          content: `确定封禁当前已勾选的 ${selectedRowKeys.length} 条卡密吗？`,
+          okText: '确定封禁',
+          cancelText: '取消',
+          okType: 'danger',
+          onOk: () => void handleBatchDisableSubmit(),
+        });
+        break;
+      case 'setUseLimit':
+        batchUseLimitForm.setFieldsValue({ useLimit: 0 });
+        setBatchUseLimitVisible(true);
+        break;
+      case 'setUnbindLimit':
+        batchUnbindLimitForm.setFieldsValue({ unbindLimit: 0 });
+        setBatchUnbindLimitVisible(true);
+        break;
+      case 'setUseTime':
+        batchUseTimeForm.setFieldsValue({
+          clearTimeRange: false,
+          useTimeStart: null,
+          useTimeEnd: null,
+        });
+        setBatchUseTimeVisible(true);
+        break;
+      case 'delete':
+        Modal.confirm({
+          title: '批量删除卡密',
+          content: `确定删除当前已勾选的 ${selectedRowKeys.length} 条卡密吗？此操作不可恢复。`,
+          okText: '确定删除',
+          cancelText: '取消',
+          okType: 'danger',
+          onOk: () => void handleBatchDeleteSubmit(),
+        });
+        break;
+      default:
+        message.warning('请先选择批量操作');
+    }
+  };
+
+  const handleBatchDeleteSubmit = async () => {
+    try {
+      const result: any = await batchDeleteLicenses({ ids: selectedLicenseIds });
+      if (result.code === 200 && result.data) {
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult('删除', result.data);
+      }
+    } catch (error: any) {
+      console.error('批量删除失败:', error);
+      message.error(error.response?.data?.message || '批量删除失败');
+    }
+  };
+
   const handleBatchAddTimeSubmit = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先勾选需要加时的卡密');
@@ -297,22 +489,8 @@ const LicenseManagementContent: React.FC = () => {
         setBatchAddTimeVisible(false);
         setSelectedRowKeys([]);
         fetchLicenses(pagination.current, pagination.pageSize, filters);
-        message.success(`加时完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
-        if (r.failures?.length) {
-          Modal.warning({
-            title: '以下卡密未加时',
-            width: 600,
-            content: (
-              <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
-                {r.failures.map((f: { keyCode?: string; id: number; reason: string }, i: number) => (
-                  <li key={i} style={{ marginBottom: 4 }}>
-                    <Tag>{f.keyCode || `#${f.id}`}</Tag>：{f.reason}
-                  </li>
-                ))}
-              </ul>
-            ),
-          });
-        }
+        setSelectedBatchAction(undefined);
+        showBatchResult('加时', r);
       }
     } catch (error: any) {
       if (error?.errorFields) {
@@ -320,6 +498,124 @@ const LicenseManagementContent: React.FC = () => {
       }
       console.error('批量加时失败:', error);
       message.error(error.response?.data?.message || '批量加时失败');
+    }
+  };
+
+  const handleBatchDisableSubmit = async () => {
+    try {
+      const result: any = await batchUpdateLicenseStatus({
+        ids: selectedLicenseIds,
+        status: 4,
+      });
+      if (result.code === 200 && result.data) {
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult('封禁', result.data);
+      }
+    } catch (error: any) {
+      console.error('批量封禁失败:', error);
+      message.error(error.response?.data?.message || '批量封禁失败');
+    }
+  };
+
+  const handleBatchUnbindSubmit = async () => {
+    try {
+      const values = await batchUnbindForm.validateFields();
+      if (!values.unbindDevice && !values.unbindIp) {
+        message.warning('请至少选择一种解绑类型');
+        return;
+      }
+      const result: any = await batchUnbindLicenses({
+        ids: selectedLicenseIds,
+        unbindDevice: values.unbindDevice,
+        unbindIp: values.unbindIp,
+      });
+      if (result.code === 200 && result.data) {
+        setBatchUnbindVisible(false);
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult('解绑', result.data);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量解绑失败:', error);
+      message.error(error.response?.data?.message || '批量解绑失败');
+    }
+  };
+
+  const handleBatchUseLimitSubmit = async () => {
+    try {
+      const values = await batchUseLimitForm.validateFields();
+      const result: any = await batchSetLicenseUseLimit({
+        ids: selectedLicenseIds,
+        useLimit: values.useLimit,
+      });
+      if (result.code === 200 && result.data) {
+        setBatchUseLimitVisible(false);
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult('设置使用次数限制', result.data);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量设置使用次数限制失败:', error);
+      message.error(error.response?.data?.message || '批量设置使用次数限制失败');
+    }
+  };
+
+  const handleBatchUnbindLimitSubmit = async () => {
+    try {
+      const values = await batchUnbindLimitForm.validateFields();
+      const result: any = await batchSetLicenseUnbindLimit({
+        ids: selectedLicenseIds,
+        unbindLimit: values.unbindLimit,
+      });
+      if (result.code === 200 && result.data) {
+        setBatchUnbindLimitVisible(false);
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult('设置解绑次数限制', result.data);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量设置解绑次数限制失败:', error);
+      message.error(error.response?.data?.message || '批量设置解绑次数限制失败');
+    }
+  };
+
+  const handleBatchUseTimeSubmit = async () => {
+    try {
+      const values = await batchUseTimeForm.validateFields();
+      const clearTimeRange = !!values.clearTimeRange;
+      const result: any = await batchSetLicenseUseTime({
+        ids: selectedLicenseIds,
+        clearTimeRange,
+        useTimeStart: clearTimeRange || !values.useTimeStart ? undefined : values.useTimeStart.format('HH:mm:ss'),
+        useTimeEnd: clearTimeRange || !values.useTimeEnd ? undefined : values.useTimeEnd.format('HH:mm:ss'),
+      });
+      if (result.code === 200 && result.data) {
+        setBatchUseTimeVisible(false);
+        setSelectedRowKeys([]);
+        setSelectedBatchAction(undefined);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        showBatchResult(clearTimeRange ? '清空使用时间段限制' : '设置使用时间段限制', result.data);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量设置使用时间段限制失败:', error);
+      message.error(error.response?.data?.message || '批量设置使用时间段限制失败');
     }
   };
 
@@ -333,9 +629,13 @@ const LicenseManagementContent: React.FC = () => {
       const result: any = await batchCreateLicenses(dto);
       
       if (result.code === 200) {
-        message.success(`成功生成 ${values.totalCount} 个卡密`);
+        message.success(result?.message || `成功生成 ${values.totalCount} 个卡密`);
         setBatchModalVisible(false);
         fetchLicenses(pagination.current, pagination.pageSize, filters);
+        const keys = Array.isArray(result?.data) ? result.data.map((k: any) => k?.keyCode).filter(Boolean) : [];
+        if (keys.length) {
+          showGeneratedKeysModal('批量生成结果', keys);
+        }
       }
     } catch (error: any) {
       console.error('批量生成失败:', error);
@@ -599,6 +899,33 @@ const LicenseManagementContent: React.FC = () => {
       ),
     },
     {
+      title: '解绑次数',
+      key: 'unbindCount',
+      width: 110,
+      align: 'center' as const,
+      render: (_: any, record: LicenseKey) => (
+        <Text style={{ fontSize: 12 }}>
+          {record.unbindCount ?? 0} / {(record.unbindLimit ?? 0) === 0 ? '∞' : record.unbindLimit}
+        </Text>
+      ),
+    },
+    {
+      title: '批次',
+      dataIndex: 'batchName',
+      key: 'batchName',
+      width: 140,
+      ellipsis: true as const,
+      render: (text: string) => <Text>{text || '-'}</Text>,
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      key: 'remark',
+      width: 180,
+      ellipsis: true as const,
+      render: (text: string) => <Text>{text || '-'}</Text>,
+    },
+    {
       title: '到期时间',
       dataIndex: 'expiresAt',
       key: 'expiresAt',
@@ -772,13 +1099,6 @@ const LicenseManagementContent: React.FC = () => {
                 导出
               </Button>
               <Button
-                icon={<ClockCircleOutlined />}
-                disabled={selectedRowKeys.length === 0}
-                onClick={openBatchAddTimeModal}
-              >
-                批量加时
-              </Button>
-              <Button
                 icon={<ReloadOutlined />}
                 onClick={() => fetchLicenses(pagination.current, pagination.pageSize, filters)}
               >
@@ -863,6 +1183,16 @@ const LicenseManagementContent: React.FC = () => {
                         </Form.Item>
                       </Col>
                       <Col span={12}>
+                        <Form.Item label="批次名称" name="batchName">
+                          <Input allowClear placeholder="模糊匹配批次名称" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="备注" name="remark">
+                          <Input allowClear placeholder="模糊匹配备注" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
                         <Form.Item label="状态" name="status">
                           <Select
                             allowClear
@@ -872,6 +1202,18 @@ const LicenseManagementContent: React.FC = () => {
                               { label: '使用中', value: 2 },
                               { label: '已到期', value: 3 },
                               { label: '已禁用', value: 4 },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="在线状态" name="isOnline">
+                          <Select
+                            allowClear
+                            placeholder="在线状态"
+                            options={[
+                              { label: '在线', value: true },
+                              { label: '离线', value: false },
                             ]}
                           />
                         </Form.Item>
@@ -909,16 +1251,45 @@ const LicenseManagementContent: React.FC = () => {
             onChange: setSelectedRowKeys,
             preserveSelectedRowKeys: true,
           }}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              fetchLicenses(page, pageSize, filters);
-            },
-          }}
-          scroll={{ x: 1620 }}
+          pagination={false}
+          scroll={{ x: 2000 }}
         />
+        <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
+          <Col flex="none">
+            <Space wrap>
+              <Select
+                placeholder="批量操作"
+                allowClear
+                style={{ width: 220 }}
+                value={selectedBatchAction}
+                onChange={(value) => setSelectedBatchAction(value)}
+                options={batchActionOptions}
+              />
+              <Button
+                icon={<ClockCircleOutlined />}
+                disabled={selectedRowKeys.length === 0 || !selectedBatchAction}
+                onClick={handleBatchActionConfirm}
+              >
+                确定
+              </Button>
+              <Text type="secondary">
+                已选择 {selectedRowKeys.length} 条
+              </Text>
+            </Space>
+          </Col>
+          <Col flex="none">
+            <Pagination
+              {...pagination}
+              showSizeChanger
+              pageSizeOptions={['10', '20', '50', '100', '200', '400']}
+              showQuickJumper
+              showTotal={(total) => `共 ${total} 条`}
+              onChange={(page, pageSize) => {
+                fetchLicenses(page, pageSize, filters);
+              }}
+            />
+          </Col>
+        </Row>
       </Space>
 
       {/* 创建/编辑弹窗 */}
@@ -1129,6 +1500,29 @@ const LicenseManagementContent: React.FC = () => {
             </Col>
           </Row>
 
+          {editingLicense && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="绑定设备"
+                  name="bindDeviceId"
+                  tooltip="可修改或清空。清空后该卡密下次登录可重新绑定设备（开启设备校验时生效）。"
+                >
+                  <Input allowClear placeholder="输入设备ID，留空表示清空" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="绑定IP"
+                  name="bindIp"
+                  tooltip="可修改或清空。清空后该卡密下次登录可重新绑定IP（开启IP校验时生效）。"
+                >
+                  <Input allowClear placeholder="输入IP，留空表示清空" />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
           <Form.Item
             label="备注"
             name="remark"
@@ -1181,6 +1575,26 @@ const LicenseManagementContent: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
+                label={
+                  <Space size={6}>
+                    <span>卡密前缀</span>
+                    <Tooltip title="可选。仅作为前缀拼接到自动生成的随机后缀前。只能包含字母/数字，且长度必须小于16位（不支持指定整条卡密）。">
+                      <KeyOutlined />
+                    </Tooltip>
+                  </Space>
+                }
+                name="keyPrefix"
+                rules={[
+                  { pattern: /^[A-Za-z0-9]*$/, message: '前缀只能包含字母和数字' },
+                  { max: 15, message: '前缀最长15位（总长度固定16位）' },
+                ]}
+                getValueFromEvent={(e) => (e?.target?.value ?? '').toUpperCase()}
+              >
+                <Input placeholder="例如：VIP（可留空）" maxLength={15} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
                 label="卡密类型"
                 name="keyType"
                 rules={[{ required: true, message: '请选择卡密类型' }]}
@@ -1199,6 +1613,9 @@ const LicenseManagementContent: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 label="生成数量"
@@ -1208,6 +1625,7 @@ const LicenseManagementContent: React.FC = () => {
                 <InputNumber min={1} max={1000} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
+            <Col span={12} />
           </Row>
 
           <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.keyType !== currentValues.keyType}>
@@ -1319,6 +1737,134 @@ const LicenseManagementContent: React.FC = () => {
             name="remark"
           >
             <TextArea rows={3} placeholder="输入批次备注信息" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量解绑"
+        open={batchUnbindVisible}
+        onOk={handleBatchUnbindSubmit}
+        onCancel={() => setBatchUnbindVisible(false)}
+        okText="确定解绑"
+        cancelText="取消"
+        width={520}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密执行解绑操作。
+        </Paragraph>
+        <Form form={batchUnbindForm} layout="vertical">
+          <Form.Item label="解绑类型">
+            <Space direction="vertical">
+              <Form.Item name="unbindDevice" valuePropName="checked" noStyle>
+                <Checkbox>解绑设备</Checkbox>
+              </Form.Item>
+              <Form.Item name="unbindIp" valuePropName="checked" noStyle>
+                <Checkbox>解绑 IP</Checkbox>
+              </Form.Item>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量设置使用次数限制"
+        open={batchUseLimitVisible}
+        onOk={handleBatchUseLimitSubmit}
+        onCancel={() => setBatchUseLimitVisible(false)}
+        okText="确定设置"
+        cancelText="取消"
+        width={520}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置使用次数限制。
+          输入 <Text code>0</Text> 表示不限制。
+        </Paragraph>
+        <Form form={batchUseLimitForm} layout="vertical">
+          <Form.Item
+            label="使用次数限制"
+            name="useLimit"
+            rules={[{ required: true, message: '请输入使用次数限制' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量设置解绑次数限制"
+        open={batchUnbindLimitVisible}
+        onOk={handleBatchUnbindLimitSubmit}
+        onCancel={() => setBatchUnbindLimitVisible(false)}
+        okText="确定设置"
+        cancelText="取消"
+        width={520}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置解绑次数限制。
+          输入 <Text code>0</Text> 表示不限制。
+        </Paragraph>
+        <Form form={batchUnbindLimitForm} layout="vertical">
+          <Form.Item
+            label="解绑次数限制"
+            name="unbindLimit"
+            rules={[{ required: true, message: '请输入解绑次数限制' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量设置使用时间段限制"
+        open={batchUseTimeVisible}
+        onOk={handleBatchUseTimeSubmit}
+        onCancel={() => setBatchUseTimeVisible(false)}
+        okText="确定设置"
+        cancelText="取消"
+        width={560}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置可使用时间段。
+        </Paragraph>
+        <Form form={batchUseTimeForm} layout="vertical">
+          <Form.Item name="clearTimeRange" valuePropName="checked">
+            <Checkbox>清空时间段限制</Checkbox>
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate>
+            {({ getFieldValue }) => {
+              const clearTimeRange = !!getFieldValue('clearTimeRange');
+              return (
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="开始时间"
+                      name="useTimeStart"
+                      rules={clearTimeRange ? [] : [{ required: true, message: '请选择开始时间' }]}
+                    >
+                      <TimePicker
+                        format="HH:mm:ss"
+                        style={{ width: '100%' }}
+                        disabled={clearTimeRange}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="结束时间"
+                      name="useTimeEnd"
+                      rules={clearTimeRange ? [] : [{ required: true, message: '请选择结束时间' }]}
+                    >
+                      <TimePicker
+                        format="HH:mm:ss"
+                        style={{ width: '100%' }}
+                        disabled={clearTimeRange}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              );
+            }}
           </Form.Item>
         </Form>
       </Modal>

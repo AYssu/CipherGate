@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Home from '../pages/Home';
 import AppUserRegisterPage from '../pages/AppUserRegisterPage';
+import LicenseSelfServicePage from '../pages/LicenseSelfServicePage';
+import AppUserSelfServicePage from '../pages/AppUserSelfServicePage';
 import MainLayout from '../layouts/MainLayout';
 import DashboardPage from '../pages/DashboardPage';
 import ProfilePage from '../pages/ProfilePage';
@@ -26,6 +28,14 @@ export const router = createBrowserRouter([
   {
     path: '/register',
     element: <AppUserRegisterPage />,
+  },
+  {
+    path: '/license',
+    element: <LicenseSelfServicePage />,
+  },
+  {
+    path: '/app-user',
+    element: <AppUserSelfServicePage />,
   },
   {
     path: '/login',

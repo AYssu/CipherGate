@@ -28,14 +28,16 @@ import {
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
-  ExportOutlined,
   HistoryOutlined,
   ImportOutlined,
+  EyeOutlined,
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
+import CodeMirror from '@uiw/react-codemirror';
+import { json } from '@codemirror/lang-json';
 import { getApplicationList, type Application } from '../services/applicationService';
 import {
   batchDeleteVariables,
@@ -163,7 +165,11 @@ const AppVariableManagementContent: React.FC = () => {
   const [importVisible, setImportVisible] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
   const [importText, setImportText] = useState('');
-  const [exportText, setExportText] = useState('');
+  const [exportText] = useState('');
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewText, setPreviewText] = useState('');
+  const [previewAppId, setPreviewAppId] = useState<number | null>(null);
   const [variableNameInput, setVariableNameInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [templateGroupTitle, setTemplateGroupTitle] = useState<string>(VARIABLE_TEMPLATE_GROUPS[0].title);
@@ -492,23 +498,35 @@ const AppVariableManagementContent: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handlePreviewVariables = async () => {
     const appId = listFilters.appId;
     if (!appId) {
       message.warning('请先在筛选条件中选择应用');
       return;
     }
+    setPreviewLoading(true);
+    setPreviewVisible(true);
+    setPreviewAppId(appId);
     try {
       const res: any = await exportAppVariables(appId, { format: 'json' });
       if (res.code === 200) {
-        setExportText(res.data || '');
-        setExportVisible(true);
+        const raw = res.data || '{}';
+        try {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          setPreviewText(JSON.stringify(parsed ?? {}, null, 2));
+        } catch {
+          setPreviewText(String(raw));
+        }
       } else {
-        message.error(res.message || '导出失败');
+        message.error(res.message || '预览加载失败');
+        setPreviewText('');
       }
     } catch (e) {
       console.error(e);
-      message.error('导出失败');
+      message.error('预览加载失败');
+      setPreviewText('');
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -698,9 +716,9 @@ const AppVariableManagementContent: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Tooltip title="导出当前筛选应用的变量配置（JSON）">
-                <Button icon={<ExportOutlined />} onClick={handleExport}>
-                  导出
+              <Tooltip title="预览当前筛选应用的变量 JSON">
+                <Button icon={<EyeOutlined />} onClick={() => void handlePreviewVariables()}>
+                  变量预览
                 </Button>
               </Tooltip>
               <Tooltip title="导入配置会执行批量更新（JSON）">
@@ -1073,16 +1091,62 @@ const AppVariableManagementContent: React.FC = () => {
         width={800}
       >
         <Text type="secondary">
-          导入会调用后端“批量更新”逻辑：仅更新已存在的变量（按变量名匹配），不会自动创建新变量。
+          导入会按变量名执行 upsert：已存在则更新，不存在则自动新增。
         </Text>
         <div style={{ height: 12 }} />
-        <TextArea
-          value={importText}
-          onChange={(e) => setImportText(e.target.value)}
-          placeholder='粘贴 JSON，例如：{"FEATURE_X": true, "API_URL": "https://..."}'
-          autoSize={{ minRows: 12, maxRows: 18 }}
-          style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-        />
+        <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+          <CodeMirror
+            value={importText}
+            height="320px"
+            extensions={[json()]}
+            theme="light"
+            style={{
+              fontSize: 14,
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontWeight: 500,
+            }}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLine: true,
+              foldGutter: true,
+            }}
+            onChange={(value) => setImportText(value)}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        title={previewAppId ? `变量预览（AppID: ${previewAppId}）` : '变量预览'}
+        open={previewVisible}
+        onOk={() => {
+          navigator.clipboard.writeText(previewText || '').then(() => message.success('已复制到剪贴板'));
+        }}
+        onCancel={() => setPreviewVisible(false)}
+        okText="复制"
+        cancelText="关闭"
+        width={860}
+      >
+        <Text type="secondary">以下为当前应用变量转换后的 JSON 预览。</Text>
+        <div style={{ height: 12 }} />
+        <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+          <CodeMirror
+            value={previewText || (previewLoading ? '// 加载中...' : '{}')}
+            height="360px"
+            extensions={[json()]}
+            theme="light"
+            editable={false}
+            style={{
+              fontSize: 14,
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontWeight: 500,
+            }}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLine: true,
+              foldGutter: true,
+            }}
+          />
+        </div>
       </Modal>
 
       <Modal

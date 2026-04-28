@@ -69,4 +69,7 @@ public class ApplicationDTO {
 
     @Schema(description = "扣时数值：PERCENT 为 0-100；HOURS 为小时数；NONE 时可不传", example = "0")
     private BigDecimal unbindTimeDeductValue;
+
+    @Schema(description = "解绑冷却时间（小时）：0 表示不限制，仅影响三方换绑接口", example = "0")
+    private Integer unbindCooldownHours;
 }

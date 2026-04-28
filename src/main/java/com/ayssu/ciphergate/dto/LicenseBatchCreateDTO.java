@@ -27,6 +27,9 @@ public class LicenseBatchCreateDTO {
     
     @Schema(description = "生成数量", required = true, example = "100")
     private Integer totalCount;
+
+    @Schema(description = "卡密前缀（可选，仅支持前缀，不支持指定整条卡密）", example = "VIP")
+    private String keyPrefix;
     
     @Schema(description = "使用次数限制(0=不限)", example = "0")
     private Integer useLimit;

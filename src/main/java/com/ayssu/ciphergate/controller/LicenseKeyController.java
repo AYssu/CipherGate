@@ -6,6 +6,13 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchDeleteDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchOperateResultDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUnbindLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseLimitDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchSetUseTimeDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchStatusDTO;
+import com.ayssu.ciphergate.dto.LicenseBatchUnbindDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
 import com.ayssu.ciphergate.entity.LicenseKey;
@@ -154,6 +161,114 @@ public class LicenseKeyController {
         } catch (Exception e) {
             log.error("卡密批量加时失败", e);
             return Result.error("卡密批量加时失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量封禁卡密
+     */
+    @PostMapping("/batch-status")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量更新状态")
+    @Operation(summary = "卡密批量更新状态")
+    public Result<LicenseBatchOperateResultDTO> batchUpdateStatus(@Valid @RequestBody LicenseBatchStatusDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchUpdateStatus(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量更新状态失败", e);
+            return Result.error("卡密批量更新状态失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量解绑
+     */
+    @PostMapping("/batch-unbind")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量解绑")
+    @Operation(summary = "卡密批量解绑设备/IP")
+    public Result<LicenseBatchOperateResultDTO> batchUnbind(@Valid @RequestBody LicenseBatchUnbindDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchUnbind(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量解绑失败", e);
+            return Result.error("卡密批量解绑失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量设置使用次数限制
+     */
+    @PostMapping("/batch-use-limit")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量设置使用次数限制")
+    @Operation(summary = "卡密批量设置使用次数限制")
+    public Result<LicenseBatchOperateResultDTO> batchSetUseLimit(@Valid @RequestBody LicenseBatchSetUseLimitDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchSetUseLimit(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量设置使用次数限制失败", e);
+            return Result.error("卡密批量设置使用次数限制失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量设置解绑次数限制
+     */
+    @PostMapping("/batch-unbind-limit")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量设置解绑次数限制")
+    @Operation(summary = "卡密批量设置解绑次数限制")
+    public Result<LicenseBatchOperateResultDTO> batchSetUnbindLimit(@Valid @RequestBody LicenseBatchSetUnbindLimitDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchSetUnbindLimit(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量设置解绑次数限制失败", e);
+            return Result.error("卡密批量设置解绑次数限制失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量设置使用时间段限制
+     */
+    @PostMapping("/batch-use-time")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量设置使用时间段限制")
+    @Operation(summary = "卡密批量设置使用时间段限制")
+    public Result<LicenseBatchOperateResultDTO> batchSetUseTimeRange(@Valid @RequestBody LicenseBatchSetUseTimeDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchSetUseTimeRange(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量设置使用时间段失败", e);
+            return Result.error("卡密批量设置使用时间段失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量删除卡密
+     */
+    @PostMapping("/batch-delete")
+    @RequirePermission("LICENSE_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "LICENSE", description = "卡密批量删除")
+    @Operation(summary = "卡密批量删除")
+    public Result<LicenseBatchOperateResultDTO> batchDelete(@Valid @RequestBody LicenseBatchDeleteDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchOperateResultDTO r = licenseKeyService.batchDelete(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量删除失败", e);
+            return Result.error("卡密批量删除失败: " + e.getMessage());
         }
     }
     
