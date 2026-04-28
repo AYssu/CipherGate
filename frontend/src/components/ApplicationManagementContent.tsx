@@ -1169,7 +1169,7 @@ const ApplicationManagementContent: React.FC = () => {
               highlightActiveLine: true,
               foldGutter: true,
             }}
-            onChange={(value) => setEncryptionConfigJson(value)}
+            onChange={(value: string) => setEncryptionConfigJson(value)}
           />
         </div>
         {encryptionJsonError ? (

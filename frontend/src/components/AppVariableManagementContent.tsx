@@ -1110,7 +1110,7 @@ const AppVariableManagementContent: React.FC = () => {
               highlightActiveLine: true,
               foldGutter: true,
             }}
-            onChange={(value) => setImportText(value)}
+            onChange={(value: string) => setImportText(value)}
           />
         </div>
       </Modal>
