@@ -1,6 +1,9 @@
 package com.ayssu.ciphergate.service;
 
 import com.ayssu.ciphergate.constant.AccessEventTypes;
+import com.ayssu.ciphergate.dto.DashboardOnlineDTO;
+import com.ayssu.ciphergate.dto.DashboardOverviewDTO;
+import com.ayssu.ciphergate.dto.DashboardTrendPointDTO;
 import com.ayssu.ciphergate.dto.DashboardTodayStatsDTO;
 import com.ayssu.ciphergate.entity.AccessEvent;
 import com.ayssu.ciphergate.entity.ActivityLogEntity;
@@ -10,13 +13,16 @@ import com.ayssu.ciphergate.mapper.AccessEventMapper;
 import com.ayssu.ciphergate.mapper.ActivityLogMapper;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
+import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -30,6 +36,7 @@ public class DashboardStatsService {
     private final AppUserMapper appUserMapper;
     private final AccessEventMapper accessEventMapper;
     private final ActivityLogMapper activityLogMapper;
+    private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
 
     public DashboardTodayStatsDTO getTodayStats(List<Long> ownedAppIds, boolean includePlatformLogin) {
         LocalDate today = LocalDate.now();
@@ -79,5 +86,89 @@ public class DashboardStatsService {
         }
 
         return dto;
+    }
+
+    public DashboardOverviewDTO getOverview(List<Long> ownedAppIds) {
+        DashboardOverviewDTO dto = new DashboardOverviewDTO();
+        if (ownedAppIds == null || ownedAppIds.isEmpty()) {
+            return dto;
+        }
+        dto.setAppCount(ownedAppIds.size());
+        dto.setAppUserTotal(appUserMapper.selectCount(new LambdaQueryWrapper<AppUser>()
+                .in(AppUser::getAppId, ownedAppIds)
+                .eq(AppUser::getDeleted, 0)));
+        dto.setLicenseTotal(licenseKeyMapper.selectCount(new LambdaQueryWrapper<LicenseKey>()
+                .in(LicenseKey::getAppId, ownedAppIds)
+                .eq(LicenseKey::getDeleted, 0)));
+
+        LocalDateTime start7d = LocalDate.now().minusDays(6).atStartOfDay();
+        LocalDateTime endExclusive = LocalDate.now().plusDays(1).atStartOfDay();
+        dto.setCardLogin7d(accessEventMapper.selectCount(new LambdaQueryWrapper<AccessEvent>()
+                .in(AccessEvent::getEventType, Arrays.asList(AccessEventTypes.CARD_LOGIN, AccessEventTypes.CARD_LOGIN_FREE))
+                .in(AccessEvent::getAppId, ownedAppIds)
+                .ge(AccessEvent::getCreatedAt, start7d)
+                .lt(AccessEvent::getCreatedAt, endExclusive)));
+        dto.setAppUserWsLogin7d(accessEventMapper.selectCount(new LambdaQueryWrapper<AccessEvent>()
+                .eq(AccessEvent::getEventType, AccessEventTypes.APP_USER_WS_LOGIN)
+                .in(AccessEvent::getAppId, ownedAppIds)
+                .ge(AccessEvent::getCreatedAt, start7d)
+                .lt(AccessEvent::getCreatedAt, endExclusive)));
+        return dto;
+    }
+
+    public DashboardOnlineDTO getOnlineStats(List<Long> ownedAppIds) {
+        DashboardOnlineDTO dto = new DashboardOnlineDTO();
+        if (ownedAppIds == null || ownedAppIds.isEmpty()) {
+            return dto;
+        }
+        LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
+        dto.setCardOnlineCount(licenseKeyMapper.selectCount(new LambdaQueryWrapper<LicenseKey>()
+                .in(LicenseKey::getAppId, ownedAppIds)
+                .eq(LicenseKey::getDeleted, 0)
+                .isNotNull(LicenseKey::getLastUsedAt)
+                .gt(LicenseKey::getLastUsedAt, onlineCutoff)));
+
+        Collection<Long> onlineIds = appUserWsPresenceRegistry.listOnlineAppUserIds();
+        if (onlineIds == null || onlineIds.isEmpty()) {
+            dto.setAppUserOnlineCount(0);
+        } else {
+            dto.setAppUserOnlineCount(appUserMapper.selectCount(new LambdaQueryWrapper<AppUser>()
+                    .in(AppUser::getId, onlineIds)
+                    .in(AppUser::getAppId, ownedAppIds)
+                    .eq(AppUser::getDeleted, 0)));
+        }
+        return dto;
+    }
+
+    public List<DashboardTrendPointDTO> getTrend7d(List<Long> ownedAppIds) {
+        List<DashboardTrendPointDTO> out = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate day = LocalDate.now().minusDays(i);
+            LocalDateTime start = day.atStartOfDay();
+            LocalDateTime end = start.plusDays(1);
+            DashboardTrendPointDTO p = new DashboardTrendPointDTO();
+            p.setDate(day.toString());
+            if (ownedAppIds == null || ownedAppIds.isEmpty()) {
+                out.add(p);
+                continue;
+            }
+            p.setAppUserRegistered(appUserMapper.selectCount(new LambdaQueryWrapper<AppUser>()
+                    .in(AppUser::getAppId, ownedAppIds)
+                    .eq(AppUser::getDeleted, 0)
+                    .ge(AppUser::getCreatedAt, start)
+                    .lt(AppUser::getCreatedAt, end)));
+            p.setCardLogin(accessEventMapper.selectCount(new LambdaQueryWrapper<AccessEvent>()
+                    .in(AccessEvent::getEventType, Arrays.asList(AccessEventTypes.CARD_LOGIN, AccessEventTypes.CARD_LOGIN_FREE))
+                    .in(AccessEvent::getAppId, ownedAppIds)
+                    .ge(AccessEvent::getCreatedAt, start)
+                    .lt(AccessEvent::getCreatedAt, end)));
+            p.setAppUserWsLogin(accessEventMapper.selectCount(new LambdaQueryWrapper<AccessEvent>()
+                    .eq(AccessEvent::getEventType, AccessEventTypes.APP_USER_WS_LOGIN)
+                    .in(AccessEvent::getAppId, ownedAppIds)
+                    .ge(AccessEvent::getCreatedAt, start)
+                    .lt(AccessEvent::getCreatedAt, end)));
+            out.add(p);
+        }
+        return out;
     }
 }

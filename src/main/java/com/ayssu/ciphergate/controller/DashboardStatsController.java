@@ -1,6 +1,9 @@
 package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.common.Result;
+import com.ayssu.ciphergate.dto.DashboardOnlineDTO;
+import com.ayssu.ciphergate.dto.DashboardOverviewDTO;
+import com.ayssu.ciphergate.dto.DashboardTrendPointDTO;
 import com.ayssu.ciphergate.dto.DashboardTodayStatsDTO;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.entity.User;
@@ -55,5 +58,44 @@ public class DashboardStatsController {
 
         boolean includePlatformLogin = securityUtils.isAdmin(user.getId());
         return Result.success(dashboardStatsService.getTodayStats(ownedAppIds, includePlatformLogin));
+    }
+
+    @GetMapping("/overview")
+    @Operation(summary = "仪表盘总览")
+    public Result<DashboardOverviewDTO> overview(Authentication authentication) {
+        List<Long> ownedAppIds = getOwnedAppIds(authentication);
+        return Result.success(dashboardStatsService.getOverview(ownedAppIds));
+    }
+
+    @GetMapping("/online")
+    @Operation(summary = "在线统计")
+    public Result<DashboardOnlineDTO> online(Authentication authentication) {
+        List<Long> ownedAppIds = getOwnedAppIds(authentication);
+        return Result.success(dashboardStatsService.getOnlineStats(ownedAppIds));
+    }
+
+    @GetMapping("/trend/7d")
+    @Operation(summary = "近7天趋势")
+    public Result<List<DashboardTrendPointDTO>> trend7d(Authentication authentication) {
+        List<Long> ownedAppIds = getOwnedAppIds(authentication);
+        return Result.success(dashboardStatsService.getTrend7d(ownedAppIds));
+    }
+
+    private List<Long> getOwnedAppIds(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return List.of();
+        }
+        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+        String githubId = oauth2User.getAttribute("id").toString();
+        User user = userService.getUserByGithubId(githubId);
+        if (user == null) {
+            return List.of();
+        }
+        return applicationMapper.selectList(new LambdaQueryWrapper<Application>()
+                        .eq(Application::getOwnerId, user.getId())
+                        .select(Application::getId))
+                .stream()
+                .map(Application::getId)
+                .toList();
     }
 }

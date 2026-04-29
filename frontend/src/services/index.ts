@@ -20,7 +20,7 @@ export { activityApi } from './activityService';
 export type { ActivityLog, PageResult } from './activityService';
 
 export { dashboardApi } from './dashboardService';
-export type { DashboardTodayStats } from './dashboardService';
+export type { DashboardTodayStats, DashboardOverview, DashboardOnlineStats, DashboardTrendPoint } from './dashboardService';
 
 // 从 appUserService 导出
 export * from './appUserService';

@@ -28,9 +28,11 @@ import {
   LoginOutlined,
   UserAddOutlined,
   ApiOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
+import ReactECharts from 'echarts-for-react';
 import type { User } from '../services';
-import { activityApi, dashboardApi, type ActivityLog, type DashboardTodayStats } from '../services';
+import { activityApi, dashboardApi, type ActivityLog, type DashboardOnlineStats, type DashboardOverview, type DashboardTodayStats, type DashboardTrendPoint } from '../services';
 
 const { Title, Text } = Typography;
 
@@ -39,6 +41,30 @@ interface DashboardContentProps {
   isAdmin: () => boolean;
   setSelectedMenu: (menu: string) => void;
 }
+
+const AnimatedNumber: React.FC<{ value: number; durationMs?: number }> = ({ value, durationMs = 900 }) => {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const target = Number.isFinite(value) ? value : 0;
+    const start = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / durationMs, 1);
+      const next = Math.round(target * progress);
+      setDisplay(next);
+      if (progress < 1) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, durationMs]);
+
+  return <>{display.toLocaleString()}</>;
+};
 
 const DashboardContent: React.FC<DashboardContentProps> = ({ 
   userInfo, 
@@ -56,12 +82,39 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   const [loadingAllActivities, setLoadingAllActivities] = useState(false);
   const [todayStats, setTodayStats] = useState<DashboardTodayStats | null>(null);
   const [loadingTodayStats, setLoadingTodayStats] = useState(false);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [onlineStats, setOnlineStats] = useState<DashboardOnlineStats | null>(null);
+  const [trend7d, setTrend7d] = useState<DashboardTrendPoint[]>([]);
+  const [loadingOverview, setLoadingOverview] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const loadOverview = async () => {
+      setLoadingOverview(true);
+      try {
+        const [overviewRes, onlineRes, trendRes] = await Promise.all([
+          dashboardApi.getOverview(),
+          dashboardApi.getOnline(),
+          dashboardApi.getTrend7d(),
+        ]);
+        setOverview((overviewRes as any).data || null);
+        setOnlineStats((onlineRes as any).data || null);
+        setTrend7d((trendRes as any).data || []);
+      } catch {
+        /* 拦截器已提示 */
+      } finally {
+        setLoadingOverview(false);
+      }
+    };
+    void loadOverview();
+    const t = window.setInterval(() => void loadOverview(), 60_000);
+    return () => window.clearInterval(t);
   }, []);
 
   // 获取最近活动（默认5条）
@@ -239,6 +292,48 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     return '晚上好';
   };
 
+  const trendOption = {
+    tooltip: { trigger: 'axis' },
+    legend: {
+      data: ['注册', '卡密登录', '终端登录'],
+      top: 8,
+    },
+    grid: { left: 24, right: 24, top: 56, bottom: 40, containLabel: true },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: trend7d.map((p) => p.date.slice(5)),
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+    },
+    series: [
+      {
+        name: '注册',
+        type: 'line',
+        smooth: true,
+        data: trend7d.map((p) => p.appUserRegistered),
+      },
+      {
+        name: '卡密登录',
+        type: 'line',
+        smooth: true,
+        data: trend7d.map((p) => p.cardLogin),
+      },
+      {
+        name: '终端登录',
+        type: 'line',
+        smooth: true,
+        data: trend7d.map((p) => p.appUserWsLogin),
+      },
+    ],
+  };
+
+  const statFormatter = (value: number | string) => (
+    <AnimatedNumber value={Number(value) || 0} durationMs={1000} />
+  );
+
   return (
     <div style={{ padding: 0 }}>
       {/* 简洁的欢迎区域 */}
@@ -298,6 +393,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             <Statistic
               title="今日卡密首次激活"
               value={todayStats?.cardFirstActivatedToday ?? 0}
+              formatter={statFormatter}
               valueStyle={{ color: '#1890ff' }}
               prefix={<KeyOutlined />}
               suffix="张"
@@ -312,6 +408,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             <Statistic
               title="今日卡密登录次数"
               value={todayStats?.cardLoginToday ?? 0}
+              formatter={statFormatter}
               valueStyle={{ color: '#13c2c2' }}
               prefix={<LoginOutlined />}
               suffix="次"
@@ -326,6 +423,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             <Statistic
               title="今日终端用户注册"
               value={todayStats?.appUserRegisteredToday ?? 0}
+              formatter={statFormatter}
               valueStyle={{ color: '#722ed1' }}
               prefix={<UserAddOutlined />}
               suffix="人"
@@ -340,6 +438,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             <Statistic
               title="今日终端用户登录"
               value={todayStats?.appUserWsLoginToday ?? 0}
+              formatter={statFormatter}
               valueStyle={{ color: '#fa8c16' }}
               prefix={<ApiOutlined />}
               suffix="次"
@@ -355,6 +454,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               <Statistic
                 title="今日后台登录"
                 value={todayStats.platformLoginToday}
+                formatter={statFormatter}
                 valueStyle={{ color: '#52c41a' }}
                 prefix={<GithubOutlined />}
                 suffix="次"
@@ -366,6 +466,55 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
           </Col>
         )}
       </Row>
+
+      <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+        总览与在线指标按当前登录用户拥有的应用统计，在线口径：卡密 5 分钟内有使用记录，用户为 WS 在线会话。
+      </Text>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} wrap>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="应用总数" value={overview?.appCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#1890ff' }} suffix="个" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="终端用户总数" value={overview?.appUserTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#722ed1' }} suffix="人" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="卡密总数" value={overview?.licenseTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#13c2c2' }} suffix="张" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="在线卡密" value={onlineStats?.cardOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#52c41a' }} suffix="张" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="在线用户" value={onlineStats?.appUserOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#fa8c16' }} suffix="人" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="近7天卡密登录" value={overview?.cardLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#1677ff' }} suffix="次" />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loadingOverview}>
+            <Statistic title="近7天终端登录" value={overview?.appUserWsLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#eb2f96' }} suffix="次" />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card
+        style={{ marginBottom: 24 }}
+        title={<Space><LineChartOutlined style={{ color: '#1890ff' }} /><span>近7天趋势</span></Space>}
+        loading={loadingOverview}
+      >
+        <ReactECharts option={trendOption} style={{ height: 340, width: '100%' }} notMerge />
+      </Card>
 
       <Row gutter={[16, 16]}>
         {/* 快速操作 */}
