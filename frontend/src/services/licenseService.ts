@@ -62,6 +62,7 @@ export interface LicenseKeyDTO {
   keyType: string;
   durationValue?: number;
   durationUnit?: string;
+  expiresAt?: string;
   useLimit?: number;
   unbindLimit?: number;
   useTimeStart?: string;
@@ -177,6 +178,11 @@ export const batchCreateLicenses = (data: LicenseBatchCreateDTO) => {
 /** 批量加时（仅已激活卡密） */
 export const batchAddLicenseTime = (data: LicenseBatchAddTimeDTO) => {
   return request.post('/licenses/batch-add-time', data);
+};
+
+/** 批量扣时（仅已激活卡密） */
+export const batchSubtractLicenseTime = (data: LicenseBatchAddTimeDTO) => {
+  return request.post('/licenses/batch-subtract-time', data);
 };
 
 export const batchUpdateLicenseStatus = (data: LicenseBatchStatusDTO) => {

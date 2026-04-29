@@ -17,6 +17,7 @@ import {
   Badge,
   Dropdown,
   type MenuProps,
+  DatePicker,
   TimePicker,
   Switch,
   Tooltip,
@@ -44,6 +45,7 @@ import {
   createLicense,
   batchCreateLicenses,
   batchAddLicenseTime,
+  batchSubtractLicenseTime,
   batchUpdateLicenseStatus,
   batchUnbindLicenses,
   batchSetLicenseUseLimit,
@@ -74,6 +76,7 @@ const LicenseManagementContent: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [batchAddTimeVisible, setBatchAddTimeVisible] = useState(false);
+  const [batchSubtractTimeVisible, setBatchSubtractTimeVisible] = useState(false);
   const [batchUnbindVisible, setBatchUnbindVisible] = useState(false);
   const [batchUseLimitVisible, setBatchUseLimitVisible] = useState(false);
   const [batchUnbindLimitVisible, setBatchUnbindLimitVisible] = useState(false);
@@ -84,6 +87,7 @@ const LicenseManagementContent: React.FC = () => {
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
   const [addTimeForm] = Form.useForm();
+  const [subtractTimeForm] = Form.useForm();
   const [batchUnbindForm] = Form.useForm();
   const [batchUseLimitForm] = Form.useForm();
   const [batchUnbindLimitForm] = Form.useForm();
@@ -160,6 +164,7 @@ const LicenseManagementContent: React.FC = () => {
 
   const batchActionOptions = [
     { label: '批量加时', value: 'addTime' },
+    { label: '批量扣时', value: 'subtractTime' },
     { label: '批量解绑', value: 'unbind' },
     { label: '批量封禁', value: 'disable' },
     { label: '批量删除', value: 'delete' },
@@ -260,6 +265,8 @@ const LicenseManagementContent: React.FC = () => {
       delete next.batchName;
     }
     setFilters(next);
+    setSelectedRowKeys([]);
+    setSelectedBatchAction(undefined);
     fetchLicenses(1, pagination.pageSize, next);
     setFilterPopoverOpen(false);
   };
@@ -274,6 +281,8 @@ const LicenseManagementContent: React.FC = () => {
     delete next.remark;
     delete next.batchName;
     setFilters(next);
+    setSelectedRowKeys([]);
+    setSelectedBatchAction(undefined);
     fetchLicenses(1, pagination.pageSize, next);
   };
 
@@ -286,6 +295,8 @@ const LicenseManagementContent: React.FC = () => {
       delete next.keyCode;
     }
     setFilters(next);
+    setSelectedRowKeys([]);
+    setSelectedBatchAction(undefined);
     fetchLicenses(1, pagination.pageSize, next);
   };
 
@@ -297,6 +308,7 @@ const LicenseManagementContent: React.FC = () => {
         appId: license.appId,
         keyType: license.keyType,
         durationValue: license.durationValue,
+        expiresAt: license.expiresAt ? dayjs(license.expiresAt) : null,
         useLimit: license.useLimit,
         unbindLimit: license.unbindLimit,
         bindDeviceId: license.bindDeviceId,
@@ -339,6 +351,7 @@ const LicenseManagementContent: React.FC = () => {
       
       const dto: LicenseKeyDTO = {
         ...values,
+        expiresAt: values.expiresAt ? values.expiresAt.format('YYYY-MM-DDTHH:mm:ss') : undefined,
         useTimeStart: values.useTimeStart ? values.useTimeStart.format('HH:mm:ss') : undefined,
         useTimeEnd: values.useTimeEnd ? values.useTimeEnd.format('HH:mm:ss') : undefined,
         // 编辑时：始终传绑定字段，空值传空字符串以触发后端清空
@@ -384,6 +397,15 @@ const LicenseManagementContent: React.FC = () => {
     setBatchAddTimeVisible(true);
   };
 
+  const openBatchSubtractTimeModal = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要扣时的卡密');
+      return;
+    }
+    subtractTimeForm.setFieldsValue({ durationValue: 1, durationUnit: 'DAY' });
+    setBatchSubtractTimeVisible(true);
+  };
+
   const showBatchResult = (title: string, result: LicenseBatchOperateResult | { successCount: number; failCount: number; failures?: Array<{ keyCode?: string; id: number; reason: string }> }) => {
     message.success(`${title}完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`);
     if (result.failures?.length) {
@@ -411,6 +433,9 @@ const LicenseManagementContent: React.FC = () => {
     switch (selectedBatchAction) {
       case 'addTime':
         openBatchAddTimeModal();
+        break;
+      case 'subtractTime':
+        openBatchSubtractTimeModal();
         break;
       case 'unbind':
         batchUnbindForm.setFieldsValue({ unbindDevice: true, unbindIp: false });
@@ -498,6 +523,35 @@ const LicenseManagementContent: React.FC = () => {
       }
       console.error('批量加时失败:', error);
       message.error(error.response?.data?.message || '批量加时失败');
+    }
+  };
+
+  const handleBatchSubtractTimeSubmit = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要扣时的卡密');
+      return;
+    }
+    try {
+      const values = await subtractTimeForm.validateFields();
+      const result: any = await batchSubtractLicenseTime({
+        ids: selectedRowKeys.map((k) => Number(k)),
+        durationValue: values.durationValue,
+        durationUnit: values.durationUnit,
+      });
+      if (result.code === 200 && result.data) {
+        const r = result.data;
+        setBatchSubtractTimeVisible(false);
+        setSelectedRowKeys([]);
+        fetchLicenses(pagination.current, pagination.pageSize, filters);
+        setSelectedBatchAction(undefined);
+        showBatchResult('扣时', r);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      console.error('批量扣时失败:', error);
+      message.error(error.response?.data?.message || '批量扣时失败');
     }
   };
 
@@ -753,6 +807,8 @@ const LicenseManagementContent: React.FC = () => {
       link.click();
       URL.revokeObjectURL(url);
       message.success('导出成功');
+      setSelectedRowKeys([]);
+      setSelectedBatchAction(undefined);
     } catch (error: any) {
       console.error('导出失败:', error);
       let msg = '导出失败';
@@ -816,7 +872,7 @@ const LicenseManagementContent: React.FC = () => {
     {
       title: '创建来源',
       key: 'creatorType',
-      width: 200,
+      width: 130,
       render: (_: unknown, record: LicenseKey) => {
         if (record.creatorType === 'AGENT') {
           return <Text>{record.agentDisplayName || '-'}</Text>;
@@ -828,7 +884,7 @@ const LicenseManagementContent: React.FC = () => {
       title: '类型',
       dataIndex: 'keyType',
       key: 'keyType',
-      width: 150,
+      width: 120,
       render: (type: string, record: LicenseKey) => {
         let label = getKeyTypeLabel(type);
         
@@ -933,7 +989,7 @@ const LicenseManagementContent: React.FC = () => {
       title: '到期时间',
       dataIndex: 'expiresAt',
       key: 'expiresAt',
-      width: 160,
+      width: 130,
       render: (text: string) => (
         text ? (
           <Text style={{ fontSize: 12 }}>
@@ -943,6 +999,25 @@ const LicenseManagementContent: React.FC = () => {
               day: '2-digit',
               hour: '2-digit',
               minute: '2-digit'
+            })}
+          </Text>
+        ) : '-'
+      ),
+    },
+    {
+      title: '激活时间',
+      dataIndex: 'firstUsedAt',
+      key: 'firstUsedAt',
+      width: 130,
+      render: (text: string) => (
+        text ? (
+          <Text style={{ fontSize: 12 }}>
+            {new Date(text).toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
             })}
           </Text>
         ) : '-'
@@ -1253,7 +1328,6 @@ const LicenseManagementContent: React.FC = () => {
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
-            preserveSelectedRowKeys: true,
           }}
           pagination={false}
           scroll={{ x: 2000 }}
@@ -1442,6 +1516,25 @@ const LicenseManagementContent: React.FC = () => {
               return null;
             }}
           </Form.Item>
+
+          {editingLicense && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="到期时间"
+                  name="expiresAt"
+                  tooltip="直接修改该卡密的实际到期时间"
+                >
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm:ss"
+                    style={{ width: '100%' }}
+                    placeholder="选择到期日期和时间"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
 
           <Row gutter={16}>
             <Col span={12}>
@@ -1893,6 +1986,49 @@ const LicenseManagementContent: React.FC = () => {
                 label="延长数值"
                 name="durationValue"
                 rules={[{ required: true, message: '请输入延长数值' }]}
+              >
+                <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="durationUnit"
+                rules={[{ required: true, message: '请选择单位' }]}
+              >
+                <Select placeholder="选择单位">
+                  <Option value="MINUTE">分钟</Option>
+                  <Option value="HOUR">小时</Option>
+                  <Option value="DAY">天</Option>
+                  <Option value="WEEK">周</Option>
+                  <Option value="MONTH">月</Option>
+                  <Option value="YEAR">年</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+      <Modal
+        title="批量扣时"
+        open={batchSubtractTimeVisible}
+        onOk={handleBatchSubtractTimeSubmit}
+        onCancel={() => setBatchSubtractTimeVisible(false)}
+        okText="确定扣时"
+        cancelText="取消"
+        width={520}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密扣减到期时间。
+          仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+        </Paragraph>
+        <Form form={subtractTimeForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="扣减数值"
+                name="durationValue"
+                rules={[{ required: true, message: '请输入扣减数值' }]}
               >
                 <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
               </Form.Item>

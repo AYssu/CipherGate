@@ -385,6 +385,13 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 licenseKey.setBindIp(trimmed);
             }
         }
+        if (dto.getExpiresAt() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            licenseKey.setExpiresAt(dto.getExpiresAt());
+            if (licenseKey.getStatus() != null && licenseKey.getStatus() != 4) {
+                licenseKey.setStatus(dto.getExpiresAt().isAfter(now) ? 2 : 3);
+            }
+        }
         
         licenseKey.setUpdatedAt(LocalDateTime.now());
         // 先更新常规字段（含绑定字段的非空更新）
@@ -692,6 +699,22 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         };
     }
 
+    private static LocalDateTime minusDurationOnBase(LocalDateTime base, int mult, String unit) {
+        if (!StringUtils.hasText(unit)) {
+            return base.minusDays(mult);
+        }
+        String u = unit.trim().toUpperCase();
+        return switch (u) {
+            case "MIN", "MINUTE", "MINUTES" -> base.minusMinutes(mult);
+            case "H", "HOUR", "HOURS" -> base.minusHours(mult);
+            case "D", "DAY", "DAYS" -> base.minusDays(mult);
+            case "W", "WEEK", "WEEKS" -> base.minusWeeks(mult);
+            case "M", "MONTH", "MONTHS" -> base.minusMonths(mult);
+            case "Y", "YEAR", "YEARS" -> base.minusYears(mult);
+            default -> base.minusDays(mult);
+        };
+    }
+
     @Override
     public LicenseBatchAddTimeResultDTO batchAddExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId) {
         LicenseBatchAddTimeResultDTO result = new LicenseBatchAddTimeResultDTO();
@@ -750,6 +773,65 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         result.setSuccessCount(success);
         result.setFailCount(result.getFailures().size());
         log.info("卡密批量加时: operatorId={}, success={}, fail={}", operatorId, success, result.getFailCount());
+        return result;
+    }
+
+    @Override
+    public LicenseBatchAddTimeResultDTO batchSubtractExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId) {
+        LicenseBatchAddTimeResultDTO result = new LicenseBatchAddTimeResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条卡密");
+        }
+        Integer dv = dto.getDurationValue();
+        if (dv == null || dv < 1) {
+            throw new RuntimeException("扣减数值必须大于0");
+        }
+        if (!StringUtils.hasText(dto.getDurationUnit())) {
+            throw new RuntimeException("请选择扣减单位");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            LicenseKey key = licenseKeyMapper.selectById(id);
+            if (key == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, null, "卡密不存在"));
+                continue;
+            }
+            if (!hasPermission(key.getAppId(), operatorId)) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "无权限操作该卡密"));
+                continue;
+            }
+            if (key.getFirstUsedAt() == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密未激活"));
+                continue;
+            }
+            if (key.getStatus() != null && key.getStatus() == 4) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密已禁用"));
+                continue;
+            }
+            if (key.getExpiresAt() == null) {
+                result.getFailures().add(new LicenseBatchAddTimeFailItem(id, key.getKeyCode(), "该卡密无到期时间，无法扣时"));
+                continue;
+            }
+            LocalDateTime newExp = minusDurationOnBase(key.getExpiresAt(), dv, dto.getDurationUnit());
+            key.setExpiresAt(newExp);
+            if (newExp.isAfter(now)) {
+                key.setStatus(2);
+            } else {
+                key.setStatus(3);
+            }
+            key.setUpdatedAt(now);
+            licenseKeyMapper.updateById(key);
+            success++;
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("卡密批量扣时: operatorId={}, success={}, fail={}", operatorId, success, result.getFailCount());
         return result;
     }
 

@@ -83,6 +83,11 @@ public interface LicenseKeyService {
     LicenseBatchAddTimeResultDTO batchAddExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId);
 
     /**
+     * 批量扣减到期时间：仅已激活（已首次使用）的卡密处理；未激活的返回失败原因「该卡密未激活」。
+     */
+    LicenseBatchAddTimeResultDTO batchSubtractExpiryTime(LicenseBatchAddTimeDTO dto, Long operatorId);
+
+    /**
      * 批量更新状态。
      */
     LicenseBatchOperateResultDTO batchUpdateStatus(LicenseBatchStatusDTO dto, Long operatorId);

@@ -165,6 +165,24 @@ public class LicenseKeyController {
     }
 
     /**
+     * 批量扣时（仅已激活且有到期时间的卡密；未激活返回「该卡密未激活」等明细）
+     */
+    @PostMapping("/batch-subtract-time")
+    @RequirePermission("LICENSE_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "LICENSE", description = "卡密批量扣时")
+    @Operation(summary = "卡密批量扣时")
+    public Result<LicenseBatchAddTimeResultDTO> batchSubtractExpiryTime(@Valid @RequestBody LicenseBatchAddTimeDTO dto) {
+        try {
+            User currentUser = getCurrentUser();
+            LicenseBatchAddTimeResultDTO r = licenseKeyService.batchSubtractExpiryTime(dto, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("卡密批量扣时失败", e);
+            return Result.error("卡密批量扣时失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 批量封禁卡密
      */
     @PostMapping("/batch-status")

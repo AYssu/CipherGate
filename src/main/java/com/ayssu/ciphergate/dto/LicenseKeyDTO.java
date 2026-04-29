@@ -31,6 +31,9 @@ public class LicenseKeyDTO {
     
     @Schema(description = "时长单位", example = "MONTH")
     private String durationUnit;
+
+    @Schema(description = "到期时间（编辑时可直接修改）")
+    private LocalDateTime expiresAt;
     
     @Schema(description = "使用次数限制(0=不限)", example = "0")
     private Integer useLimit;
