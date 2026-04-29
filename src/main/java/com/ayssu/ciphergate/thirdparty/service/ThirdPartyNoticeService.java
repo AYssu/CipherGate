@@ -56,7 +56,7 @@ public class ThirdPartyNoticeService {
 
         boolean rangeChecked = false;
         if (StringUtils.hasText(clientTrim) && SemverThree.isThreePartNumeric(clientTrim)) {
-            assertClientWithinRange(clientTrim, app.getMinVersion(), app.getCurrentVersion());
+            assertClientWithinRange(clientTrim, app.getMinVersion(), app.getCurrentVersion(), app.getUpdateNotice());
             rangeChecked = true;
         }
 
@@ -138,7 +138,7 @@ public class ThirdPartyNoticeService {
     /**
      * 闭区间 [minVersion, currentVersion]；服务端某端未配置合法 x.x.x 则该端不约束。
      */
-    private void assertClientWithinRange(String client, String minVersion, String currentVersion) {
+    private void assertClientWithinRange(String client, String minVersion, String currentVersion, String updateNotice) {
         String min = StringUtils.hasText(minVersion) ? minVersion.trim() : null;
         String max = StringUtils.hasText(currentVersion) ? currentVersion.trim() : null;
 
@@ -149,7 +149,8 @@ public class ThirdPartyNoticeService {
             return;
         }
         if (hasMin && SemverThree.compare(client, min) < 0) {
-            throw new VersionOutOfRangeException("客户端版本过低，最低支持 " + min);
+            String msg = StringUtils.hasText(updateNotice) ? updateNotice.trim() : ("客户端版本过低，最低支持 " + min);
+            throw new VersionOutOfRangeException(msg);
         }
         if (hasMax && SemverThree.compare(client, max) > 0) {
             throw new VersionOutOfRangeException("客户端版本过高，当前最高 " + max);

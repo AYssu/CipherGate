@@ -162,10 +162,10 @@ const LicenseManagementContent: React.FC = () => {
     { label: '批量加时', value: 'addTime' },
     { label: '批量解绑', value: 'unbind' },
     { label: '批量封禁', value: 'disable' },
+    { label: '批量删除', value: 'delete' },
     { label: '批量设置使用次数限制', value: 'setUseLimit' },
     { label: '批量设置解绑次数限制', value: 'setUnbindLimit' },
     { label: '批量设置使用时间段限制', value: 'setUseTime' },
-    { label: '批量删除', value: 'delete' },
   ];
 
   // 获取应用列表

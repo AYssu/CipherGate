@@ -73,18 +73,25 @@ public class PublicLicenseSelfServiceImpl implements PublicLicenseSelfService {
         int nextUsed = used + 1;
         Map<String, Object> metadata = markLastRebindAt(key, now);
 
+        // 先通过实体更新 JSON 字段，确保 metadata 使用 JacksonTypeHandler 正确序列化
+        key.setUpdatedAt(now);
+        key.setUnbindCount(nextUsed);
+        key.setMetadata(metadata);
+        licenseKeyMapper.updateById(key);
+
+        // 再显式清空绑定字段（updateById 默认会忽略 null 字段）
         LambdaUpdateWrapper<LicenseKey> uw = new LambdaUpdateWrapper<LicenseKey>()
                 .eq(LicenseKey::getId, key.getId())
-                .set(LicenseKey::getUpdatedAt, now)
-                .set(LicenseKey::getUnbindCount, nextUsed)
-                .set(LicenseKey::getMetadata, metadata);
+                .set(LicenseKey::getUpdatedAt, now);
         if (unbindDevice && hasDev) {
             uw.set(LicenseKey::getBindDeviceId, null);
         }
         if (unbindIp && hasIp) {
             uw.set(LicenseKey::getBindIp, null);
         }
-        licenseKeyMapper.update(null, uw);
+        if ((unbindDevice && hasDev) || (unbindIp && hasIp)) {
+            licenseKeyMapper.update(null, uw);
+        }
         log.info("公开卡密解绑: appId={}, keyId={}, keyCode={}, unbindDevice={}, unbindIp={}, unbindCount->{}",
                 req.getAppId(), key.getId(), key.getKeyCode(), unbindDevice, unbindIp, nextUsed);
     }
