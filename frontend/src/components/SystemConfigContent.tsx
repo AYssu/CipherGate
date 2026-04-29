@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Row, Space, Spin, Switch, Tabs, Typography, message } from 'antd';
+import { Button, Card, Col, Form, Input, Row, Space, Spin, Switch, Tabs, Typography, Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { SystemSettings } from '../services/systemService';
 
@@ -8,6 +9,7 @@ const { Title, Text } = Typography;
 const SystemConfigContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [geoIpSaving, setGeoIpSaving] = useState(false);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [githubForm] = Form.useForm();
   const [siteForm] = Form.useForm();
@@ -99,6 +101,33 @@ const SystemConfigContent: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleGeoIp = async (enabled: boolean) => {
+    try {
+      setGeoIpSaving(true);
+      await systemApi.updateGeoIpSettings({ enabled });
+      message.success(enabled ? '已开启 IP 解析' : '已关闭 IP 解析');
+      await loadSettings();
+    } catch (error: any) {
+      message.error(error?.message || '更新 IP 解析开关失败');
+    } finally {
+      setGeoIpSaving(false);
+    }
+  };
+
+  const uploadGeoDb = async (dbType: 'country' | 'city', file: File) => {
+    try {
+      setGeoIpSaving(true);
+      await systemApi.uploadGeoIpDb(dbType, file);
+      message.success(`${dbType === 'country' ? '国家库' : '城市库'}上传成功`);
+      await loadSettings();
+    } catch (error: any) {
+      message.error(error?.message || '上传失败');
+    } finally {
+      setGeoIpSaving(false);
+    }
+    return false;
   };
 
   if (loading) {
@@ -237,6 +266,66 @@ const SystemConfigContent: React.FC = () => {
                 </Space>
               </Form>
             )
+          },
+          {
+            key: 'geoip',
+            label: 'IP地理解析',
+            children: (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Text>启用 IP 地理解析</Text>
+                  </Col>
+                  <Col span={16}>
+                    <Switch
+                      checked={!!settings?.geoIpEnabled}
+                      loading={geoIpSaving}
+                      onChange={toggleGeoIp}
+                    />
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Space>
+                      <Text>Country 库：</Text>
+                      <Text type={settings?.geoIpCountryUploaded ? 'success' : 'secondary'}>
+                        {settings?.geoIpCountryUploaded ? '已上传' : '未上传'}
+                      </Text>
+                    </Space>
+                    <div style={{ marginTop: 8 }}>
+                      <Upload
+                        accept=".mmdb"
+                        showUploadList={false}
+                        beforeUpload={(file) => uploadGeoDb('country', file)}
+                      >
+                        <Button icon={<UploadOutlined />} loading={geoIpSaving}>上传 Country.mmdb</Button>
+                      </Upload>
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <Space>
+                      <Text>City 库：</Text>
+                      <Text type={settings?.geoIpCityUploaded ? 'success' : 'secondary'}>
+                        {settings?.geoIpCityUploaded ? '已上传' : '未上传'}
+                      </Text>
+                    </Space>
+                    <div style={{ marginTop: 8 }}>
+                      <Upload
+                        accept=".mmdb"
+                        showUploadList={false}
+                        beforeUpload={(file) => uploadGeoDb('city', file)}
+                      >
+                        <Button icon={<UploadOutlined />} loading={geoIpSaving}>上传 City.mmdb</Button>
+                      </Upload>
+                    </div>
+                  </Col>
+                </Row>
+                <Text type={settings?.geoIpReady ? 'success' : 'warning'}>
+                  当前状态：{settings?.geoIpReady ? '就绪' : '未就绪'}
+                  {settings?.geoIpLastError ? `（${settings.geoIpLastError}）` : ''}
+                </Text>
+              </Space>
+            ),
           }
         ]}
       />

@@ -67,6 +67,11 @@ export interface SystemSettings {
   emailFromDisplayName: string;
   emailEnabled: boolean;
   emailPasswordSet: boolean;
+  geoIpEnabled: boolean;
+  geoIpCountryUploaded: boolean;
+  geoIpCityUploaded: boolean;
+  geoIpReady: boolean;
+  geoIpLastError?: string;
 }
 
 export const systemApi = {
@@ -122,5 +127,17 @@ export const systemApi = {
     enabled: boolean;
   }) => {
     return request.post('/config/settings/email', data);
+  },
+
+  updateGeoIpSettings: (data: { enabled: boolean }) => {
+    return request.post('/config/settings/geoip', data);
+  },
+
+  uploadGeoIpDb: (dbType: 'country' | 'city', file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post(`/config/settings/geoip/upload/${dbType}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 };

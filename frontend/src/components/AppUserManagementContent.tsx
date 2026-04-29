@@ -861,6 +861,14 @@ const AppUserManagementContent: React.FC = () => {
         ),
     },
     {
+      title: 'IP区域',
+      dataIndex: 'lastLoginIpRegion',
+      key: 'lastLoginIpRegion',
+      width: 170,
+      ellipsis: true as const,
+      render: (text: string) => text || '-',
+    },
+    {
       title: '最后登录设备',
       dataIndex: 'lastDeviceId',
       key: 'lastDeviceId',

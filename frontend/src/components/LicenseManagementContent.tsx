@@ -68,6 +68,8 @@ import { getApplicationList, type Application } from '../services/applicationSer
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
+const BATCH_FORM_PRESET_KEY = 'license.batchFormPreset.v1';
+const CREATE_FORM_PRESET_KEY = 'license.createFormPreset.v1';
 
 const LicenseManagementContent: React.FC = () => {
   const [licenses, setLicenses] = useState<LicenseKey[]>([]);
@@ -101,6 +103,8 @@ const LicenseManagementContent: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [keyCodeInput, setKeyCodeInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [batchFormPreset, setBatchFormPreset] = useState<Record<string, any>>({});
+  const [createFormPreset, setCreateFormPreset] = useState<Record<string, any>>({});
   const selectedLicenseIds = selectedRowKeys.map((k) => Number(k));
 
   const showGeneratedKeysModal = (title: string, keys: string[]) => {
@@ -120,13 +124,19 @@ const LicenseManagementContent: React.FC = () => {
     Modal.info({
       title,
       width: 720,
-      okText: '关闭',
+      icon: null,
+      closable: true,
+      maskClosable: true,
+      footer: (
+        <div style={{ textAlign: 'right' }}>
+          <Button type="primary" onClick={() => void doCopyAll()}>
+            一键复制
+          </Button>
+        </div>
+      ),
       content: (
         <div>
           <Space style={{ marginBottom: 12 }} wrap>
-            <Button type="primary" onClick={() => void doCopyAll()}>
-              一键复制
-            </Button>
             <Text type="secondary">共 {list.length} 条</Text>
           </Space>
           <TextArea
@@ -219,6 +229,27 @@ const LicenseManagementContent: React.FC = () => {
   useEffect(() => {
     setKeyCodeInput(filters.keyCode ?? '');
   }, [filters.keyCode]);
+
+  useEffect(() => {
+    try {
+      const batchRaw = localStorage.getItem(BATCH_FORM_PRESET_KEY);
+      if (batchRaw) {
+        const batchParsed = JSON.parse(batchRaw);
+        if (batchParsed && typeof batchParsed === 'object') {
+          setBatchFormPreset(batchParsed);
+        }
+      }
+      const createRaw = localStorage.getItem(CREATE_FORM_PRESET_KEY);
+      if (createRaw) {
+        const createParsed = JSON.parse(createRaw);
+        if (createParsed && typeof createParsed === 'object') {
+          setCreateFormPreset(createParsed);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const syncListFilterFormFromFilters = () => {
     listFilterForm.setFieldsValue({
@@ -326,6 +357,11 @@ const LicenseManagementContent: React.FC = () => {
         unbindLimit: 0,
         deviceCheckEnabled: true,
         ipCheckEnabled: false,
+        ...createFormPreset,
+      });
+      form.setFieldsValue({
+        deviceCheckEnabled: true,
+        ipCheckEnabled: false,
       });
     }
     setModalVisible(true);
@@ -338,6 +374,11 @@ const LicenseManagementContent: React.FC = () => {
       totalCount: 10,
       useLimit: 0,
       unbindLimit: 0,
+      deviceCheckEnabled: true,
+      ipCheckEnabled: false,
+      ...batchFormPreset,
+    });
+    batchForm.setFieldsValue({
       deviceCheckEnabled: true,
       ipCheckEnabled: false,
     });
@@ -372,6 +413,21 @@ const LicenseManagementContent: React.FC = () => {
         await updateLicense(editingLicense.id, dto);
         message.success('卡密更新成功');
       } else {
+        const nextCreatePreset = {
+          appId: values.appId,
+          keyType: values.keyType,
+          durationValue: values.durationValue,
+          durationUnit: values.durationUnit,
+          useLimit: values.useLimit,
+          unbindLimit: values.unbindLimit,
+          remark: values.remark,
+        };
+        setCreateFormPreset(nextCreatePreset);
+        try {
+          localStorage.setItem(CREATE_FORM_PRESET_KEY, JSON.stringify(nextCreatePreset));
+        } catch {
+          /* ignore */
+        }
         const result: any = await createLicense(dto);
         message.success(result?.message || '卡密创建成功');
         const keyCode = result?.data?.keyCode;
@@ -677,6 +733,23 @@ const LicenseManagementContent: React.FC = () => {
   const handleBatchSubmit = async () => {
     try {
       const values = await batchForm.validateFields();
+      const nextPreset = {
+        appId: values.appId,
+        keyPrefix: values.keyPrefix,
+        keyType: values.keyType,
+        durationValue: values.durationValue,
+        durationUnit: values.durationUnit,
+        totalCount: values.totalCount,
+        useLimit: values.useLimit,
+        unbindLimit: values.unbindLimit,
+        remark: values.remark,
+      };
+      setBatchFormPreset(nextPreset);
+      try {
+        localStorage.setItem(BATCH_FORM_PRESET_KEY, JSON.stringify(nextPreset));
+      } catch {
+        /* ignore */
+      }
       
       const dto: LicenseBatchCreateDTO = values;
 
@@ -946,6 +1019,14 @@ const LicenseManagementContent: React.FC = () => {
         );
         return ipHint ? <Tooltip title={ipHint}>{inner}</Tooltip> : inner;
       },
+    },
+    {
+      title: 'IP区域',
+      dataIndex: 'bindIpRegion',
+      key: 'bindIpRegion',
+      width: 170,
+      ellipsis: true as const,
+      render: (text: string) => <Text>{text || '-'}</Text>,
     },
     {
       title: '使用次数',

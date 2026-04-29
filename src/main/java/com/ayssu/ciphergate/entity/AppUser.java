@@ -83,6 +83,12 @@ public class AppUser implements Serializable {
     private String lastLoginIp;
 
     /**
+     * 最后登录IP区域（非数据库字段）
+     */
+    @TableField(exist = false)
+    private String lastLoginIpRegion;
+
+    /**
      * 最后登录设备标识（WS AUTH 上报的 deviceId）
      */
     private String lastDeviceId;

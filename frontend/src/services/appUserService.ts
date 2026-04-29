@@ -13,6 +13,7 @@ export interface AppUser {
   loginCount: number;
   lastLoginAt?: string;
   lastLoginIp?: string;
+  lastLoginIpRegion?: string;
   /** 最后 WS 登录上报的 deviceId */
   lastDeviceId?: string;
   createdAt: string;

@@ -75,6 +75,12 @@ public class LicenseKey implements Serializable {
      * 绑定IP
      */
     private String bindIp;
+
+    /**
+     * 绑定IP区域（非数据库字段）
+     */
+    @TableField(exist = false)
+    private String bindIpRegion;
     
     /**
      * 绑定的终端用户ID

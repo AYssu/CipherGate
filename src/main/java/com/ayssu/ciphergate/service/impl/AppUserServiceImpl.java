@@ -21,6 +21,7 @@ import com.ayssu.ciphergate.mapper.AppUserTrialMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
+import com.ayssu.ciphergate.service.GeoIpService;
 import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
@@ -59,6 +60,7 @@ public class AppUserServiceImpl implements AppUserService {
     private final SecurityUtils securityUtils;
     private final AgentAuthorizationService agentAuthorizationService;
     private final SystemMessageService systemMessageService;
+    private final GeoIpService geoIpService;
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     private final AppUserWsSessionKickService appUserWsSessionKickService;
     
@@ -636,9 +638,33 @@ public class AppUserServiceImpl implements AppUserService {
             appUser.setCreatorType("SELF");
         }
 
+        // 填充最后登录IP区域（开启且可解析时）
+        if (StringUtils.hasText(appUser.getLastLoginIp())) {
+            geoIpService.resolve(appUser.getLastLoginIp().trim()).ifPresent(geo ->
+                    appUser.setLastLoginIpRegion(formatRegion(geo.country(), geo.province(), geo.city()))
+            );
+        }
+
         enrichMemberStatus(appUser);
         enrichTrialStatus(appUser);
         enrichWsPresence(appUser);
+    }
+
+    private String formatRegion(String country, String province, String city) {
+        String c = StringUtils.hasText(country) ? country.trim() : "";
+        String p = StringUtils.hasText(province) ? province.trim() : "";
+        String ci = StringUtils.hasText(city) ? city.trim() : "";
+        StringBuilder sb = new StringBuilder();
+        if (!c.isEmpty()) sb.append(c);
+        if (!p.isEmpty()) {
+            if (!sb.isEmpty()) sb.append(" / ");
+            sb.append(p);
+        }
+        if (!ci.isEmpty()) {
+            if (!sb.isEmpty()) sb.append(" / ");
+            sb.append(ci);
+        }
+        return sb.isEmpty() ? null : sb.toString();
     }
 
     private void enrichMemberStatus(AppUser appUser) {

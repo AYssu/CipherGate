@@ -3,7 +3,10 @@ package com.ayssu.ciphergate.controller;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
+import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.entity.User;
+import com.ayssu.ciphergate.service.GeoIpService;
+import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.service.SystemConfigService;
 import com.ayssu.ciphergate.service.UserService;
 import com.ayssu.ciphergate.util.SecurityUtils;
@@ -18,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -33,6 +37,9 @@ import java.util.Map;
 public class ConfigController {
     
     private final SystemConfigService systemConfigService;
+    private final GeoIpService geoIpService;
+    private final MinioObjectService minioObjectService;
+    private final MinioProperties minioProperties;
     private final Environment environment;
     private final UserService userService;
     private final SecurityUtils securityUtils;
@@ -57,7 +64,7 @@ public class ConfigController {
 
     @Value("${server.port:8080}")
     private int serverPort;
-    
+
     @GetMapping("/{configKey}")
     @RequirePermission("CONFIG_LIST")
     @Operation(summary = "查询配置项")
@@ -129,6 +136,7 @@ public class ConfigController {
         try {
             requireSuperAdmin();
             systemConfigService.refreshCache();
+            geoIpService.reloadReaders();
             return Result.success("配置缓存已刷新", null);
         } catch (Exception e) {
             log.error("刷新配置缓存失败: {}", e.getMessage());
@@ -264,6 +272,13 @@ public class ConfigController {
             data.put("emailFromDisplayName", systemConfigService.getConfigValue("email.from.display-name", ""));
             data.put("emailEnabled", "true".equalsIgnoreCase(systemConfigService.getConfigValue("email.enabled", "false")));
             data.put("emailPasswordSet", StringUtils.hasText(systemConfigService.getConfigValue("email.smtp.password", "")));
+            data.put("geoIpEnabled", geoIpService.isEnabled());
+            String countryKey = systemConfigService.getConfigValue(GeoIpService.CONFIG_GEOIP_COUNTRY_OBJECT_KEY, "");
+            String cityKey = systemConfigService.getConfigValue(GeoIpService.CONFIG_GEOIP_CITY_OBJECT_KEY, "");
+            data.put("geoIpCountryUploaded", minioObjectService.contentLengthDefaultBucket(countryKey) > 0);
+            data.put("geoIpCityUploaded", minioObjectService.contentLengthDefaultBucket(cityKey) > 0);
+            data.put("geoIpReady", geoIpService.isReady());
+            data.put("geoIpLastError", geoIpService.getLastError());
             return Result.success(data);
         } catch (SecurityException e) {
             return Result.error(e.getMessage());
@@ -343,6 +358,62 @@ public class ConfigController {
             return Result.success("邮箱配置更新成功", null);
         } catch (SecurityException e) {
             return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/geoip")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新IP地理解析开关")
+    @Operation(summary = "更新IP地理解析开关")
+    public Result<Void> updateGeoIpSettings(@RequestBody Map<String, Object> request) {
+        try {
+            requireSuperAdmin();
+            Object enabledObj = request.get("enabled");
+            boolean enabled = enabledObj instanceof Boolean b && b;
+            systemConfigService.setConfigValue(GeoIpService.CONFIG_GEOIP_ENABLED, String.valueOf(enabled), "IP 地理解析开关", false);
+            geoIpService.reloadReaders();
+            if (enabled && !geoIpService.isReady()) {
+                return Result.error("已开启但 GeoIP 未就绪: " + (geoIpService.getLastError() == null ? "请先上传 mmdb 文件" : geoIpService.getLastError()));
+            }
+            return Result.success("GeoIP 配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/geoip/upload/{dbType}")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "上传IP地理数据库")
+    @Operation(summary = "上传 GeoIP 数据库文件（country/city）")
+    public Result<Void> uploadGeoIpDb(@PathVariable String dbType, @RequestParam("file") MultipartFile file) {
+        try {
+            requireSuperAdmin();
+            if (file == null || file.isEmpty()) {
+                return Result.error("上传文件不能为空");
+            }
+            if (!minioProperties.isEnabled()) {
+                return Result.error("MinIO 未启用，无法上传 GeoIP 数据库");
+            }
+            String lowerType = dbType == null ? "" : dbType.trim().toLowerCase();
+            if (!"country".equals(lowerType) && !"city".equals(lowerType)) {
+                return Result.error("dbType 仅支持 country 或 city");
+            }
+            String originalFilename = file.getOriginalFilename();
+            if (!StringUtils.hasText(originalFilename) || !originalFilename.toLowerCase().endsWith(".mmdb")) {
+                return Result.error("仅支持 .mmdb 文件");
+            }
+            String objectKey = "country".equals(lowerType) ? "geoip/GeoLite2-Country.mmdb" : "geoip/GeoLite2-City.mmdb";
+            minioObjectService.uploadBinaryDefaultBucket(objectKey, file, "application/octet-stream");
+            String configKey = "country".equals(lowerType) ? GeoIpService.CONFIG_GEOIP_COUNTRY_OBJECT_KEY : GeoIpService.CONFIG_GEOIP_CITY_OBJECT_KEY;
+            String desc = "country".equals(lowerType) ? "GeoIP 国家库对象键" : "GeoIP 城市库对象键";
+            systemConfigService.setConfigValue(configKey, objectKey, desc, false);
+            geoIpService.reloadReaders();
+            return Result.success("GeoIP 文件上传成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("上传 GeoIP 数据库失败: {}", e.getMessage(), e);
+            return Result.error("上传 GeoIP 数据库失败: " + e.getMessage());
         }
     }
     
