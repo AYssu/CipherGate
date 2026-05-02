@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 
 @Service
 @RequiredArgsConstructor
@@ -36,9 +39,6 @@ public class ThirdPartyCardService {
     private final LicenseKeyService licenseKeyService;
     private final LicenseUnbindTimeDeductionService licenseUnbindTimeDeductionService;
     private final AccessEventService accessEventService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
     
     private String toCardTypeDisplay(String keyType) {
         if (!StringUtils.hasText(keyType)) {
@@ -163,7 +163,7 @@ public class ThirdPartyCardService {
         resp.setCoreData(key.getCoreData());
         resp.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
         //resp.setVariables(variables);
-        resp.setVariables(objectMapper.writeValueAsString(variables));
+        resp.setVariables(JSON.toJSONString(variables)); // Fastjson2
         LocalDateTime lastUsedAt = key.getLastUsedAt();
         boolean online = lastUsedAt != null
                 && ChronoUnit.MINUTES.between(lastUsedAt, LocalDateTime.now()) < 5;
