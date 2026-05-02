@@ -59,7 +59,9 @@ dependencies {
     implementation 'com.maxmind.geoip2:geoip2:4.3.1'
 
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    
+    //implementation 'com.alibaba.fastjson2:fastjson2:2.0.43'
+    // Source: https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
+    implementation "com.alibaba.fastjson2:fastjson2:2.0.61"
 
     implementation 'org.pf4j:pf4j:3.14.1'
     implementation 'io.minio:minio:8.6.0'
