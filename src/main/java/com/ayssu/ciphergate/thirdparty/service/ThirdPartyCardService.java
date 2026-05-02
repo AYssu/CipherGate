@@ -200,7 +200,8 @@ public class ThirdPartyCardService {
         resp.setStatus(2);
         resp.setCoreData("");
         resp.setAvailable(availableSeconds);
-        resp.setVariables(variables);
+        //resp.setVariables(variables);
+        resp.setVariables(JSON.toJSONString(variables)); // Fastjson2
         resp.setOnline(false);
         return resp;
     }

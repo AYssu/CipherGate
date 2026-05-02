@@ -54,7 +54,7 @@ public class CardLoginResponse {
     /**
      * 应用变量（默认返回）
      */
-    private Map<String, Object> variables;
+    private String variables;
     private Boolean online;
 }
 
