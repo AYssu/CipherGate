@@ -37,6 +37,9 @@ public class ThirdPartyCardService {
     private final LicenseUnbindTimeDeductionService licenseUnbindTimeDeductionService;
     private final AccessEventService accessEventService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+    
     private String toCardTypeDisplay(String keyType) {
         if (!StringUtils.hasText(keyType)) {
             return "未知卡";
@@ -159,7 +162,8 @@ public class ThirdPartyCardService {
         resp.setLastUsedAt(key.getLastUsedAt());
         resp.setCoreData(key.getCoreData());
         resp.setAvailable(resolveAvailableSeconds(key.getExpiresAt()));
-        resp.setVariables(variables);
+        //resp.setVariables(variables);
+        resp.setVariables(objectMapper.writeValueAsString(variables));
         LocalDateTime lastUsedAt = key.getLastUsedAt();
         boolean online = lastUsedAt != null
                 && ChronoUnit.MINUTES.between(lastUsedAt, LocalDateTime.now()) < 5;
