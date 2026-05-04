@@ -882,7 +882,6 @@ const AppVariableManagementContent: React.FC = () => {
                 name="variableName"
                 rules={[
                   { required: true, message: '请输入变量名' },
-                  { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '以字母开头，仅允许字母/数字/下划线' },
                 ]}
               >
                 <Input placeholder="如：API_URL" disabled={!!editingVariable} />

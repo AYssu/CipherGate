@@ -1,13 +1,8 @@
 package com.ayssu.ciphergate.dto;
 
+import jakarta.validation.constraints.*;
 import lombok.Data;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import java.util.Map;
 
 /**
@@ -23,7 +18,6 @@ public class AppVariableDTO {
     
     @NotBlank(message = "变量名称不能为空")
     @Size(min = 1, max = 100, message = "变量名称长度为1-100位")
-    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_]*$", message = "变量名称只能以字母开头，包含字母、数字和下划线")
     private String variableName;
     
     @NotBlank(message = "显示名称不能为空")

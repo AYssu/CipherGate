@@ -266,12 +266,13 @@ public class AppVariableServiceImpl implements AppVariableService {
             throw new RuntimeException("无权限操作此变量");
         }
         
-        // 软删除
-        variable.setDeleted(1);
-        variable.setUpdatedBy(operatorId);
-        variable.setUpdatedAt(LocalDateTime.now());
-        appVariableMapper.updateById(variable);
-        
+        // 使用 MyBatis-Plus 逻辑删除，避免手动 updateById 时被逻辑删除策略干扰
+        int affected = appVariableMapper.deleteById(id);
+        if (affected == 0) {
+            throw new RuntimeException("变量删除失败或已删除");
+        }
+        log.info("{} 删除成功", variable.getVariableName());
+
         // 记录历史
         recordHistory(variable, "DELETE", variable.getVariableValue(), null, "删除变量", operatorId);
         

@@ -25,7 +25,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     
     @Override
     public List<Menu>  getUserMenuTree(Long userId) {
-        log.info("开始获取用户 {} 的菜单树", userId);
+            log.info("开始获取用户 {} 的菜单树", userId);
         
         List<Menu> userMenus;
         if (menuMapper.isUserSuperAdmin(userId)) {
