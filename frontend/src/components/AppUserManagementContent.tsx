@@ -18,6 +18,7 @@ import {
   Dropdown,
   Badge,
   Popover,
+  Pagination,
   type MenuProps,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -29,6 +30,7 @@ import {
   MoreOutlined,
   LockOutlined,
   StopOutlined,
+  DisconnectOutlined,
   UserOutlined,
   MobileOutlined,
   CrownOutlined,
@@ -42,10 +44,17 @@ import {
   deleteAppUser,
   resetPassword,
   banUser,
+  kickAppUserWs,
   getUserBindings,
   unbindDevice,
-  extendMemberDays,
-  batchExtendMemberDays,
+  extendMemberDuration,
+  batchExtendMemberDuration,
+  batchSubtractMemberDuration,
+  batchKickAppUserWs,
+  batchBanAppUsers,
+  batchDeleteAppUsers,
+  extendNotExpiredInApp,
+  subtractNotExpiredInApp,
   setMemberExpiresAt,
   type AppUser,
   type AppUserBinding,
@@ -81,6 +90,10 @@ const AppUserManagementContent: React.FC = () => {
   const [extendModalVisible, setExtendModalVisible] = useState(false);
   const [extendUserId, setExtendUserId] = useState<number | null>(null);
   const [batchExtendVisible, setBatchExtendVisible] = useState(false);
+  const [batchSubtractVisible, setBatchSubtractVisible] = useState(false);
+  const [notExpiredAddVisible, setNotExpiredAddVisible] = useState(false);
+  const [notExpiredSubtractVisible, setNotExpiredSubtractVisible] = useState(false);
+  const [selectedBatchAction, setSelectedBatchAction] = useState<string>();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [memberExpModalVisible, setMemberExpModalVisible] = useState(false);
   const [memberExpUser, setMemberExpUser] = useState<AppUser | null>(null);
@@ -88,6 +101,8 @@ const AppUserManagementContent: React.FC = () => {
   const [passwordForm] = Form.useForm();
   const [extendForm] = Form.useForm();
   const [batchExtendForm] = Form.useForm();
+  const [batchSubtractForm] = Form.useForm();
+  const [notExpiredForm] = Form.useForm();
   const [memberExpForm] = Form.useForm();
   const [listFilterForm] = Form.useForm();
   const [pagination, setPagination] = useState({
@@ -98,6 +113,17 @@ const AppUserManagementContent: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [usernameInput, setUsernameInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+
+  const batchActionOptions = [
+    { label: '批量加时（选中用户）', value: 'batch-add' },
+    { label: '批量扣时（选中用户）', value: 'batch-subtract' },
+    { label: '批量下线（选中用户）', value: 'batch-kick' },
+    { label: '批量封禁（选中用户）', value: 'batch-ban' },
+    { label: '批量解禁（选中用户）', value: 'batch-unban' },
+    { label: '未到期批量加时（按应用）', value: 'app-not-expired-add' },
+    { label: '未到期批量扣时（按应用）', value: 'app-not-expired-subtract' },
+    { label: '批量删除（选中用户）', value: 'batch-delete' },
+  ];
 
   const activeAdvancedFilterCount = [
     filters.appId,
@@ -152,8 +178,8 @@ const AppUserManagementContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setUsernameInput(filters.username ?? '');
-  }, [filters.username]);
+    setUsernameInput(filters.keyword ?? '');
+  }, [filters.keyword]);
 
   const syncListFilterFormFromFilters = () => {
     listFilterForm.setFieldsValue({
@@ -180,6 +206,13 @@ const AppUserManagementContent: React.FC = () => {
       next.username = usernameTrim;
     } else {
       delete next.username;
+    }
+    // 若用户使用高级筛选的「用户名」，默认认为其就是全局关键词
+    if (usernameTrim) {
+      next.keyword = usernameTrim;
+    } else if (!String((usernameInput ?? '')).trim()) {
+      // 主搜索框为空且高级筛选用户名也为空时，清空 keyword，避免残留
+      delete next.keyword;
     }
     const emailTrim = (v.email ?? '').trim();
     if (emailTrim) {
@@ -222,6 +255,7 @@ const AppUserManagementContent: React.FC = () => {
     const next = { ...filters };
     delete next.appId;
     delete next.username;
+    delete next.keyword;
     delete next.email;
     delete next.phone;
     delete next.banned;
@@ -235,9 +269,9 @@ const AppUserManagementContent: React.FC = () => {
     const trimmed = (raw ?? usernameInput).trim();
     const next = { ...filters };
     if (trimmed) {
-      next.username = trimmed;
+      next.keyword = trimmed;
     } else {
-      delete next.username;
+      delete next.keyword;
     }
     setFilters(next);
     fetchUsers(1, pagination.pageSize, next);
@@ -417,9 +451,11 @@ const AppUserManagementContent: React.FC = () => {
 
   const handleExtendMemberOk = async () => {
     try {
-      const { days } = await extendForm.validateFields();
+      const v = await extendForm.validateFields();
       if (!extendUserId) return;
-      const result: any = await extendMemberDays(extendUserId, days);
+      const unit = (v.unit ?? 'DAY') as any;
+      const amount = unit === 'PERMANENT' ? undefined : Number(v.amount);
+      const result: any = await extendMemberDuration(extendUserId, { unit, amount });
       if (result.code === 200) {
         message.success('会员已延长');
         setExtendModalVisible(false);
@@ -438,8 +474,29 @@ const AppUserManagementContent: React.FC = () => {
       message.warning('请先勾选需要加时的用户');
       return;
     }
-    batchExtendForm.setFieldsValue({ days: 30 });
+    batchExtendForm.setFieldsValue({ unit: 'DAY', amount: 30 });
     setBatchExtendVisible(true);
+  };
+
+  const openBatchSubtractModal = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要扣时的用户');
+      return;
+    }
+    batchSubtractForm.setFieldsValue({ unit: 'DAY', amount: 1 });
+    setBatchSubtractVisible(true);
+  };
+
+  const openNotExpiredInAppAddModal = () => {
+    notExpiredForm.resetFields();
+    notExpiredForm.setFieldsValue({ unit: 'DAY', amount: 30 });
+    setNotExpiredAddVisible(true);
+  };
+
+  const openNotExpiredInAppSubtractModal = () => {
+    notExpiredForm.resetFields();
+    notExpiredForm.setFieldsValue({ unit: 'DAY', amount: 1 });
+    setNotExpiredSubtractVisible(true);
   };
 
   const handleBatchExtendOk = async () => {
@@ -448,10 +505,13 @@ const AppUserManagementContent: React.FC = () => {
       return;
     }
     try {
-      const { days } = await batchExtendForm.validateFields();
-      const result: any = await batchExtendMemberDays({
+      const v = await batchExtendForm.validateFields();
+      const unit = (v.unit ?? 'DAY') as any;
+      const amount = unit === 'PERMANENT' ? undefined : Number(v.amount);
+      const result: any = await batchExtendMemberDuration({
         ids: selectedRowKeys.map((k) => Number(k)),
-        days,
+        unit,
+        amount,
       });
       if (result.code === 200 && result.data) {
         const r = result.data;
@@ -483,6 +543,207 @@ const AppUserManagementContent: React.FC = () => {
       }
       console.error(e);
       message.error('批量加时失败');
+    }
+  };
+
+  const handleBatchSubtractOk = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要扣时的用户');
+      return;
+    }
+    try {
+      const v = await batchSubtractForm.validateFields();
+      const unit = (v.unit ?? 'DAY') as any;
+      if (unit === 'PERMANENT') {
+        message.error('扣时不支持永久');
+        return;
+      }
+      const amount = Number(v.amount);
+      const result: any = await batchSubtractMemberDuration({
+        ids: selectedRowKeys.map((k) => Number(k)),
+        unit,
+        amount,
+      });
+      if (result.code === 200 && result.data) {
+        const r = result.data;
+        setBatchSubtractVisible(false);
+        setSelectedRowKeys([]);
+        fetchUsers(pagination.current, pagination.pageSize, filters);
+        message.success(`批量扣时完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        if (r.failures?.length) {
+          Modal.warning({
+            title: '以下用户未扣时',
+            width: 600,
+            content: (
+              <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
+                {r.failures.map((f: { username?: string; id: number; reason: string }, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <Tag>{f.username || `#${f.id}`}</Tag>：{f.reason}
+                  </li>
+                ))}
+              </ul>
+            ),
+          });
+        }
+      } else {
+        message.error(result.message || '批量扣时失败');
+      }
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      console.error(e);
+      message.error('批量扣时失败');
+    }
+  };
+
+  const handleBatchKickWs = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要下线的用户');
+      return;
+    }
+    Modal.confirm({
+      title: '确认批量下线',
+      content: `确定要下线当前勾选的 ${selectedRowKeys.length} 位用户吗？客户端将收到 MEMBER_EXPIRED。`,
+      okText: '下线',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        const result: any = await batchKickAppUserWs({ ids: selectedRowKeys.map((k) => Number(k)) });
+        if (result.code === 200 && result.data) {
+          const r = result.data;
+          setSelectedRowKeys([]);
+          fetchUsers(pagination.current, pagination.pageSize, filters);
+          message.success(`批量下线完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        } else {
+          message.error(result.message || '批量下线失败');
+        }
+      },
+    });
+  };
+
+  const handleBatchBan = async (ban: boolean) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选用户');
+      return;
+    }
+    Modal.confirm({
+      title: ban ? '确认批量封禁' : '确认批量解禁',
+      content: `确定要${ban ? '封禁' : '解禁'}当前勾选的 ${selectedRowKeys.length} 位用户吗？`,
+      okText: ban ? '封禁' : '解禁',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        const result: any = await batchBanAppUsers({
+          ids: selectedRowKeys.map((k) => Number(k)),
+          ban,
+        });
+        if (result.code === 200 && result.data) {
+          const r = result.data;
+          setSelectedRowKeys([]);
+          fetchUsers(pagination.current, pagination.pageSize, filters);
+          message.success(`批量${ban ? '封禁' : '解禁'}完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        } else {
+          message.error(result.message || '操作失败');
+        }
+      },
+    });
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选需要删除的用户');
+      return;
+    }
+    Modal.confirm({
+      title: '确认批量删除',
+      content: `确定要删除当前勾选的 ${selectedRowKeys.length} 位用户吗？此操作不可恢复。`,
+      okText: '删除',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        const result: any = await batchDeleteAppUsers({ ids: selectedRowKeys.map((k) => Number(k)) });
+        if (result.code === 200 && result.data) {
+          const r = result.data;
+          setSelectedRowKeys([]);
+          fetchUsers(pagination.current, pagination.pageSize, filters);
+          message.success(`批量删除完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        } else {
+          message.error(result.message || '批量删除失败');
+        }
+      },
+    });
+  };
+
+  const handleNotExpiredInApp = async (mode: 'ADD' | 'SUBTRACT') => {
+    try {
+      const v = await notExpiredForm.validateFields();
+      const appId = Number(v.appId);
+      const unit = (v.unit ?? 'DAY') as any;
+      if (unit === 'PERMANENT') {
+        message.error('该操作不支持永久');
+        return;
+      }
+      const amount = Number(v.amount);
+      const api = mode === 'ADD' ? extendNotExpiredInApp : subtractNotExpiredInApp;
+      const result: any = await api({ appId, unit, amount });
+      if (result.code === 200 && result.data) {
+        const r = result.data;
+        setNotExpiredAddVisible(false);
+        setNotExpiredSubtractVisible(false);
+        fetchUsers(pagination.current, pagination.pageSize, filters);
+        message.success(`处理完成：成功 ${r.successCount} 条，失败 ${r.failCount} 条`);
+        if (r.failures?.length) {
+          Modal.warning({
+            title: '以下用户未处理',
+            width: 600,
+            content: (
+              <ul style={{ maxHeight: 280, overflow: 'auto', margin: '8px 0 0', paddingLeft: 20 }}>
+                {r.failures.map((f: { username?: string; id: number; reason: string }, i: number) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <Tag>{f.username || `#${f.id}`}</Tag>：{f.reason}
+                  </li>
+                ))}
+              </ul>
+            ),
+          });
+        }
+      } else {
+        message.error(result.message || '操作失败');
+      }
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      console.error(e);
+      message.error('操作失败');
+    }
+  };
+
+  const handleBatchActionConfirm = () => {
+    switch (selectedBatchAction) {
+      case 'batch-add':
+        openBatchExtendModal();
+        break;
+      case 'batch-subtract':
+        openBatchSubtractModal();
+        break;
+      case 'batch-kick':
+        void handleBatchKickWs();
+        break;
+      case 'batch-ban':
+        void handleBatchBan(true);
+        break;
+      case 'batch-unban':
+        void handleBatchBan(false);
+        break;
+      case 'app-not-expired-add':
+        openNotExpiredInAppAddModal();
+        break;
+      case 'app-not-expired-subtract':
+        openNotExpiredInAppSubtractModal();
+        break;
+      case 'batch-delete':
+        void handleBatchDelete();
+        break;
+      default:
+        message.warning('请先选择批量操作');
     }
   };
 
@@ -563,6 +824,30 @@ const AppUserManagementContent: React.FC = () => {
     });
   };
 
+  const handleKickWs = (userId: number, username: string) => {
+    Modal.confirm({
+      title: '确认下线',
+      content: `确定要强制下线用户 "${username}" 吗？客户端将收到 MEMBER_EXPIRED。`,
+      okText: '下线',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          const result: any = await kickAppUserWs(userId);
+          if (result.code === 200) {
+            message.success('已下线');
+            fetchUsers(pagination.current, pagination.pageSize, filters);
+          } else {
+            message.error(result.message || '下线失败');
+          }
+        } catch (error) {
+          message.error('下线失败');
+          console.error('下线失败:', error);
+        }
+      },
+    });
+  };
+
   // 操作菜单
   const getActionMenu = (record: AppUser): MenuProps => ({
     items: [
@@ -612,6 +897,12 @@ const AppUserManagementContent: React.FC = () => {
         label: record.isBanned ? '解封' : '封禁',
         danger: !record.isBanned,
         onClick: () => handleBanUser(record.id, record.username, !!record.isBanned),
+      },
+      {
+        key: 'kick-ws',
+        icon: <DisconnectOutlined />,
+        label: '下线',
+        onClick: () => handleKickWs(record.id, record.username),
       },
       {
         type: 'divider',
@@ -950,13 +1241,6 @@ const AppUserManagementContent: React.FC = () => {
           <Col>
             <Space>
               <Button
-                icon={<ClockCircleOutlined />}
-                disabled={selectedRowKeys.length === 0}
-                onClick={openBatchExtendModal}
-              >
-                批量加时
-              </Button>
-              <Button
                 icon={<ReloadOutlined />}
                 onClick={() => fetchUsers(pagination.current, pagination.pageSize, filters)}
               >
@@ -1107,16 +1391,43 @@ const AppUserManagementContent: React.FC = () => {
             onChange: setSelectedRowKeys,
             preserveSelectedRowKeys: true,
           }}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              fetchUsers(page, pageSize, filters);
-            },
-          }}
+          pagination={false}
           scroll={{ x: 1920 }}
         />
+        <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
+          <Col flex="none">
+            <Space wrap>
+              <Select
+                placeholder="批量操作"
+                allowClear
+                style={{ width: 260 }}
+                value={selectedBatchAction}
+                onChange={(value) => setSelectedBatchAction(value)}
+                options={batchActionOptions}
+              />
+              <Button
+                icon={<ClockCircleOutlined />}
+                disabled={!selectedBatchAction || (selectedRowKeys.length === 0 && !String(selectedBatchAction).startsWith('app-not-expired'))}
+                onClick={handleBatchActionConfirm}
+              >
+                确定
+              </Button>
+              <Text type="secondary">已选择 {selectedRowKeys.length} 条</Text>
+            </Space>
+          </Col>
+          <Col flex="none">
+            <Pagination
+              {...pagination}
+              showSizeChanger
+              pageSizeOptions={['10', '20', '50', '100', '200', '400']}
+              showQuickJumper
+              showTotal={(total) => `共 ${total} 条`}
+              onChange={(page, pageSize) => {
+                fetchUsers(page, pageSize, filters);
+              }}
+            />
+          </Col>
+        </Row>
       </Space>
 
 
@@ -1156,10 +1467,9 @@ const AppUserManagementContent: React.FC = () => {
                 rules={[
                   { required: true, message: '请输入用户名' },
                   { min: 3, max: 20, message: '用户名长度为3-20位' },
-                  { pattern: /^[a-zA-Z0-9_]+$/, message: '只能包含字母、数字和下划线' }
                 ]}
               >
-                <Input placeholder="输入用户名" disabled={!!editingUser} />
+                <Input placeholder="输入用户名" />
               </Form.Item>
             </Col>
           </Row>
@@ -1241,16 +1551,49 @@ const AppUserManagementContent: React.FC = () => {
         cancelText="取消"
       >
         <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            label="增加天数"
-            name="days"
-            rules={[{ required: true, message: '请输入天数' }]}
-            initialValue={30}
-          >
-            <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
-          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="unit"
+                rules={[{ required: true, message: '请选择单位' }]}
+                initialValue="DAY"
+              >
+                <Select
+                  options={[
+                    { label: '分钟', value: 'MINUTE' },
+                    { label: '小时', value: 'HOUR' },
+                    { label: '天', value: 'DAY' },
+                    { label: '周', value: 'WEEK' },
+                    { label: '月', value: 'MONTH' },
+                    { label: '年', value: 'YEAR' },
+                    { label: '永久', value: 'PERMANENT' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="数值"
+                name="amount"
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator: async (_, value) => {
+                      const u = getFieldValue('unit');
+                      if (u === 'PERMANENT') return;
+                      const n = Number(value);
+                      if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                    },
+                  }),
+                ]}
+                initialValue={30}
+              >
+                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            在「当前时间」与「原到期时间」中较晚的时间点上累加天数；未开通则从当前时间起算。
+            在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
           </Text>
         </Form>
       </Modal>
@@ -1265,20 +1608,221 @@ const AppUserManagementContent: React.FC = () => {
         width={520}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按天累加）。
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按单位累加）。
         </Text>
         <Form form={batchExtendForm} layout="vertical">
-          <Form.Item
-            label="增加天数"
-            name="days"
-            rules={[{ required: true, message: '请输入天数' }]}
-            initialValue={30}
-          >
-            <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
-          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="unit"
+                rules={[{ required: true, message: '请选择单位' }]}
+                initialValue="DAY"
+              >
+                <Select
+                  options={[
+                    { label: '分钟', value: 'MINUTE' },
+                    { label: '小时', value: 'HOUR' },
+                    { label: '天', value: 'DAY' },
+                    { label: '周', value: 'WEEK' },
+                    { label: '月', value: 'MONTH' },
+                    { label: '年', value: 'YEAR' },
+                    { label: '永久', value: 'PERMANENT' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="数值"
+                name="amount"
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator: async (_, value) => {
+                      const u = getFieldValue('unit');
+                      if (u === 'PERMANENT') return;
+                      const n = Number(value);
+                      if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                    },
+                  }),
+                ]}
+                initialValue={30}
+              >
+                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            在「当前时间」与「原到期时间」中较晚的时间点上累加天数；未开通则从当前时间起算。
+            在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
           </Text>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="批量扣时"
+        open={batchSubtractVisible}
+        onOk={handleBatchSubtractOk}
+        onCancel={() => setBatchSubtractVisible(false)}
+        okText="确定扣时"
+        cancelText="取消"
+        width={520}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户扣减会员到期时间（按单位扣减）。
+        </Text>
+        <Form form={batchSubtractForm} layout="vertical">
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="unit"
+                rules={[{ required: true, message: '请选择单位' }]}
+                initialValue="DAY"
+              >
+                <Select
+                  options={[
+                    { label: '分钟', value: 'MINUTE' },
+                    { label: '小时', value: 'HOUR' },
+                    { label: '天', value: 'DAY' },
+                    { label: '周', value: 'WEEK' },
+                    { label: '月', value: 'MONTH' },
+                    { label: '年', value: 'YEAR' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="数值"
+                name="amount"
+                rules={[{ required: true, message: '请输入数值' }]}
+                initialValue={1}
+              >
+                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            直接从当前到期时间上扣减；未开通会员会计入失败明细。
+          </Text>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="未到期批量加时（按应用）"
+        open={notExpiredAddVisible}
+        onOk={() => handleNotExpiredInApp('ADD')}
+        onCancel={() => setNotExpiredAddVisible(false)}
+        okText="确定"
+        cancelText="取消"
+        width={560}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量加时。
+        </Text>
+        <Form form={notExpiredForm} layout="vertical">
+          <Form.Item
+            label="应用"
+            name="appId"
+            rules={[{ required: true, message: '请选择应用' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="选择应用"
+              options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+            />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="unit"
+                rules={[{ required: true, message: '请选择单位' }]}
+                initialValue="DAY"
+              >
+                <Select
+                  options={[
+                    { label: '分钟', value: 'MINUTE' },
+                    { label: '小时', value: 'HOUR' },
+                    { label: '天', value: 'DAY' },
+                    { label: '周', value: 'WEEK' },
+                    { label: '月', value: 'MONTH' },
+                    { label: '年', value: 'YEAR' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="数值"
+                name="amount"
+                rules={[{ required: true, message: '请输入数值' }]}
+                initialValue={30}
+              >
+                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="未到期批量扣时（按应用）"
+        open={notExpiredSubtractVisible}
+        onOk={() => handleNotExpiredInApp('SUBTRACT')}
+        onCancel={() => setNotExpiredSubtractVisible(false)}
+        okText="确定"
+        cancelText="取消"
+        width={560}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量扣时。
+        </Text>
+        <Form form={notExpiredForm} layout="vertical">
+          <Form.Item
+            label="应用"
+            name="appId"
+            rules={[{ required: true, message: '请选择应用' }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="选择应用"
+              options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+            />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                label="单位"
+                name="unit"
+                rules={[{ required: true, message: '请选择单位' }]}
+                initialValue="DAY"
+              >
+                <Select
+                  options={[
+                    { label: '分钟', value: 'MINUTE' },
+                    { label: '小时', value: 'HOUR' },
+                    { label: '天', value: 'DAY' },
+                    { label: '周', value: 'WEEK' },
+                    { label: '月', value: 'MONTH' },
+                    { label: '年', value: 'YEAR' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="数值"
+                name="amount"
+                rules={[{ required: true, message: '请输入数值' }]}
+                initialValue={1}
+              >
+                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
 

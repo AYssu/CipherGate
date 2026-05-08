@@ -15,6 +15,9 @@ public class AppUserQueryDTO {
     
     @Schema(description = "用户名(模糊查询)")
     private String username;
+
+    @Schema(description = "全局关键字（对用户名/邮箱/手机号/昵称做模糊匹配）")
+    private String keyword;
     
     @Schema(description = "邮箱(模糊查询)")
     private String email;

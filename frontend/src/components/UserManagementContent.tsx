@@ -9,6 +9,7 @@ import {
   Modal, 
   Form, 
   Select, 
+  Input,
   message,
   Popconfirm,
   Tooltip,
@@ -36,7 +37,7 @@ const UserManagementContent: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
 
-  const [keyword] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [statusFilter] = useState<number | 'all'>('all');
   const [roleFilter] = useState<number | 'all'>('all');
 
@@ -73,7 +74,17 @@ const UserManagementContent: React.FC = () => {
     return users.filter((u) => {
       const matchKeyword = !kw
         ? true
-        : [u.name, u.login, u.email]
+        : [
+            u.name,
+            u.login,
+            u.email,
+            u.githubId,
+            u.status,
+            u.createdAt,
+            u.updatedAt,
+            u.lastLoginAt,
+            (u.roles || []).map((r) => `${r.roleName} ${r.roleCode}`).join(' '),
+          ]
             .filter(Boolean)
             .some((v) => String(v).toLowerCase().includes(kw));
       const matchStatus = statusFilter === 'all' ? true : u.status === statusFilter;
@@ -261,6 +272,14 @@ const UserManagementContent: React.FC = () => {
               刷新
             </Button>
           </div>
+
+          <Input
+            allowClear
+            placeholder="搜索（支持模糊匹配：用户名/邮箱/角色等）"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            style={{ maxWidth: 420 }}
+          />
         </div>
         
         <Table

@@ -16,6 +16,9 @@ public class LicenseKeyQueryDTO {
     
     @Schema(description = "卡密码(模糊查询)")
     private String keyCode;
+
+    @Schema(description = "全局关键字（对卡密/备注/绑定信息/批次名等做模糊匹配）")
+    private String keyword;
     
     @Schema(description = "备注(模糊查询)")
     private String remark;

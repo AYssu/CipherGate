@@ -4,10 +4,15 @@ import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.AppUserDTO;
+import com.ayssu.ciphergate.dto.AppUserAppNotExpiredDurationDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchBanDTO;
 import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDurationDTO;
 import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberResultDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchIdsDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
 import com.ayssu.ciphergate.dto.ExtendMemberDaysDTO;
+import com.ayssu.ciphergate.dto.ExtendMemberDurationDTO;
 import com.ayssu.ciphergate.dto.MemberExpiresAtDTO;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
@@ -195,6 +200,21 @@ public class AppUserController {
             return Result.error("操作失败: " + e.getMessage());
         }
     }
+
+    @PostMapping("/{id}/kick-ws")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "强制下线终端用户WS")
+    @Operation(summary = "强制下线终端用户 WS（CloseStatus=MEMBER_EXPIRED）")
+    public Result<Void> kickWs(@PathVariable Long id) {
+        try {
+            User currentUser = getCurrentUser();
+            appUserService.kickWs(id, currentUser.getId());
+            return Result.success("已下线", null);
+        } catch (Exception e) {
+            log.error("强制下线终端用户WS失败: id={}", id, e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
     
     @GetMapping("/{id}/bindings")
     @RequirePermission("APP_USER_DETAIL")
@@ -249,6 +269,23 @@ public class AppUserController {
         }
     }
 
+    @PostMapping("/{id}/extend-member-duration")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "按单位延长终端用户会员")
+    @Operation(summary = "按单位延长会员（分钟/小时/天/周/月/年/永久）")
+    public Result<AppUser> extendMemberDuration(
+            @PathVariable Long id,
+            @Valid @RequestBody ExtendMemberDurationDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUser updated = appUserService.extendMemberByDuration(id, body, currentUser.getId());
+            return Result.success("延长成功", updated);
+        } catch (Exception e) {
+            log.error("按单位延长会员失败: id={}", id, e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
     @PutMapping("/{id}/member-expires")
     @RequirePermission("APP_USER_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "设置终端用户会员到期")
@@ -283,6 +320,113 @@ public class AppUserController {
             return Result.success("处理完成", r);
         } catch (Exception e) {
             log.error("终端用户批量延长会员失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/batch-extend-member-duration")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "终端用户批量按单位延长会员")
+    @Operation(summary = "批量按单位延长会员（分钟/小时/天/周/月/年/永久）")
+    public Result<AppUserBatchExtendMemberResultDTO> batchExtendMemberDuration(
+            @Valid @RequestBody AppUserBatchExtendMemberDurationDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchExtendMemberDuration(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量按单位延长会员失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/batch-subtract-member-duration")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "终端用户批量按单位扣时")
+    @Operation(summary = "批量按单位扣时（分钟/小时/天/周/月/年；不支持永久）")
+    public Result<AppUserBatchExtendMemberResultDTO> batchSubtractMemberDuration(
+            @Valid @RequestBody AppUserBatchExtendMemberDurationDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchSubtractMemberDuration(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量按单位扣时失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/batch-kick-ws")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "终端用户批量下线WS")
+    @Operation(summary = "批量下线终端用户 WS（CloseStatus=MEMBER_EXPIRED）")
+    public Result<AppUserBatchExtendMemberResultDTO> batchKickWs(@Valid @RequestBody AppUserBatchIdsDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchKickWs(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量下线WS失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/batch-ban")
+    @RequirePermission("APP_USER_BAN")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "终端用户批量封禁/解禁")
+    @Operation(summary = "批量封禁/解禁终端用户（封禁会踢线）")
+    public Result<AppUserBatchExtendMemberResultDTO> batchBan(@Valid @RequestBody AppUserBatchBanDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchBan(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量封禁/解禁失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/batch-delete")
+    @RequirePermission("APP_USER_DELETE")
+    @ActivityLog(actionType = "DELETE", actionTarget = "APP_USER", description = "终端用户批量删除")
+    @Operation(summary = "批量删除终端用户")
+    public Result<AppUserBatchExtendMemberResultDTO> batchDelete(@Valid @RequestBody AppUserBatchIdsDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.batchDelete(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("终端用户批量删除失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/extend-not-expired-in-app")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "按应用未到期会员批量加时")
+    @Operation(summary = "按应用筛选未到期会员并批量加时")
+    public Result<AppUserBatchExtendMemberResultDTO> extendNotExpiredInApp(@Valid @RequestBody AppUserAppNotExpiredDurationDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.extendNotExpiredInApp(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("按应用未到期会员批量加时失败", e);
+            return Result.error("操作失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/subtract-not-expired-in-app")
+    @RequirePermission("APP_USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "APP_USER", description = "按应用未到期会员批量扣时")
+    @Operation(summary = "按应用筛选未到期会员并批量扣时")
+    public Result<AppUserBatchExtendMemberResultDTO> subtractNotExpiredInApp(@Valid @RequestBody AppUserAppNotExpiredDurationDTO body) {
+        try {
+            User currentUser = getCurrentUser();
+            AppUserBatchExtendMemberResultDTO r = appUserService.subtractNotExpiredInApp(body, currentUser.getId());
+            return Result.success("处理完成", r);
+        } catch (Exception e) {
+            log.error("按应用未到期会员批量扣时失败", e);
             return Result.error("操作失败: " + e.getMessage());
         }
     }

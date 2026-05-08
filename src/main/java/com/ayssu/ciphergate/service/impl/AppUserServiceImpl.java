@@ -7,7 +7,12 @@ import com.ayssu.ciphergate.dto.AppUserDTO;
 import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDTO;
 import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberFailItem;
 import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberResultDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchExtendMemberDurationDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchIdsDTO;
+import com.ayssu.ciphergate.dto.AppUserBatchBanDTO;
+import com.ayssu.ciphergate.dto.AppUserAppNotExpiredDurationDTO;
 import com.ayssu.ciphergate.dto.AppUserQueryDTO;
+import com.ayssu.ciphergate.dto.ExtendMemberDurationDTO;
 import com.ayssu.ciphergate.entity.AppAgent;
 import com.ayssu.ciphergate.entity.AppUser;
 import com.ayssu.ciphergate.entity.AppUserBinding;
@@ -72,6 +77,7 @@ public class AppUserServiceImpl implements AppUserService {
 
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForAppUserQuery(wrapper, queryDTO, operatorId);
+        applyGlobalKeywordFilter(wrapper, queryDTO);
         wrapper.like(StringUtils.hasText(queryDTO.getUsername()), AppUser::getUsername, queryDTO.getUsername())
                .like(StringUtils.hasText(queryDTO.getEmail()), AppUser::getEmail, queryDTO.getEmail())
                .like(StringUtils.hasText(queryDTO.getPhone()), AppUser::getPhone, queryDTO.getPhone())
@@ -134,6 +140,29 @@ public class AppUserServiceImpl implements AppUserService {
         result.getRecords().sort((a, b) -> Boolean.compare(Boolean.TRUE.equals(b.getWsOnline()), Boolean.TRUE.equals(a.getWsOnline())));
         
         return result;
+    }
+
+    /**
+     * 全局关键字：对用户名/邮箱/手机号/昵称做 OR like，方便“一个搜索框搜全部”。
+     */
+    private void applyGlobalKeywordFilter(LambdaQueryWrapper<AppUser> wrapper, AppUserQueryDTO queryDTO) {
+        if (wrapper == null || queryDTO == null) {
+            return;
+        }
+        if (!StringUtils.hasText(queryDTO.getKeyword())) {
+            return;
+        }
+        String kw = queryDTO.getKeyword().trim();
+        if (!StringUtils.hasText(kw)) {
+            return;
+        }
+        wrapper.and(w -> w.like(AppUser::getUsername, kw)
+                .or()
+                .like(AppUser::getEmail, kw)
+                .or()
+                .like(AppUser::getPhone, kw)
+                .or()
+                .like(AppUser::getNickname, kw));
     }
 
     /**
@@ -307,6 +336,20 @@ public class AppUserServiceImpl implements AppUserService {
                 throw new RuntimeException("邮箱已存在");
             }
         }
+
+        // 检查用户名是否重复（同一应用下唯一）
+        if (StringUtils.hasText(dto.getUsername()) && !dto.getUsername().equals(appUser.getUsername())) {
+            String newUsername = dto.getUsername().trim();
+            LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(AppUser::getAppId, appUser.getAppId())
+                    .eq(AppUser::getUsername, newUsername)
+                    .eq(AppUser::getDeleted, 0)
+                    .ne(AppUser::getId, id);
+            if (appUserMapper.selectCount(wrapper) > 0) {
+                throw new RuntimeException("用户名已存在");
+            }
+            appUser.setUsername(newUsername);
+        }
         
         // 更新字段
         if (StringUtils.hasText(dto.getEmail())) {
@@ -471,6 +514,22 @@ public class AppUserServiceImpl implements AppUserService {
                 kick.run();
             }
         });
+    }
+
+    @Override
+    public void kickWs(Long id, Long operatorId) {
+        if (id == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        AppUser appUser = appUserMapper.selectById(id);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        // 记录级权限校验：与更新/封禁一致
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+        // 强制下线：客户端按 MEMBER_EXPIRED 处理即可
+        appUserWsSessionKickService.kickByAppUserId(id, null, AppUserWsSessionKickService.KICK_MEMBER_EXPIRED);
+        log.info("强制下线终端用户 WS: id={}, username={}, operatorId={}", id, appUser.getUsername(), operatorId);
     }
     
     @Override
@@ -737,6 +796,102 @@ public class AppUserServiceImpl implements AppUserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public AppUser extendMemberByDuration(Long id, ExtendMemberDurationDTO body, Long operatorId) {
+        if (body == null || !StringUtils.hasText(body.getUnit())) {
+            throw new RuntimeException("单位不能为空");
+        }
+        AppUser appUser = appUserMapper.selectById(id);
+        if (appUser == null || appUser.getDeleted() == 1) {
+            throw new RuntimeException("用户不存在");
+        }
+        ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime base = appUser.getMemberExpiresAt();
+        if (base == null || !base.isAfter(now)) {
+            base = now;
+        }
+
+        String unit = body.getUnit().trim().toUpperCase();
+        Integer amountObj = body.getAmount();
+        int amount = amountObj == null ? 0 : amountObj;
+
+        LocalDateTime newExp = switch (unit) {
+            case "PERMANENT" -> LocalDateTime.of(2099, 12, 31, 23, 59, 59);
+            case "MINUTE" -> base.plusMinutes(requirePositiveAmount(amount, "分钟"));
+            case "HOUR" -> base.plusHours(requirePositiveAmount(amount, "小时"));
+            case "DAY" -> base.plusDays(requirePositiveAmount(amount, "天"));
+            case "WEEK" -> base.plusWeeks(requirePositiveAmount(amount, "周"));
+            case "MONTH" -> base.plusMonths(requirePositiveAmount(amount, "月"));
+            case "YEAR" -> base.plusYears(requirePositiveAmount(amount, "年"));
+            default -> throw new RuntimeException("不支持的单位: " + unit);
+        };
+
+        appUser.setMemberExpiresAt(newExp);
+        appUser.setUpdatedAt(now);
+        appUserMapper.updateById(appUser);
+        log.info("按单位延长会员: userId={}, unit={}, amount={}, newExpiresAt={}, operatorId={}",
+                id, unit, amountObj, newExp, operatorId);
+        fillRelatedInfo(appUser);
+        return appUser;
+    }
+
+    private int requirePositiveAmount(int amount, String label) {
+        if (amount < 1) {
+            throw new RuntimeException("延长" + label + "数至少为 1");
+        }
+        return amount;
+    }
+
+    private LocalDateTime plusByUnit(LocalDateTime base, String unit, int amount, boolean allowPermanent) {
+        if (!StringUtils.hasText(unit)) {
+            throw new RuntimeException("单位不能为空");
+        }
+        String u = unit.trim().toUpperCase();
+        if ("PERMANENT".equals(u)) {
+            if (!allowPermanent) {
+                throw new RuntimeException("永久不支持");
+            }
+            return LocalDateTime.of(2099, 12, 31, 23, 59, 59);
+        }
+        if (amount < 1) {
+            throw new RuntimeException("数值至少为 1");
+        }
+        return switch (u) {
+            case "MINUTE" -> base.plusMinutes(amount);
+            case "HOUR" -> base.plusHours(amount);
+            case "DAY" -> base.plusDays(amount);
+            case "WEEK" -> base.plusWeeks(amount);
+            case "MONTH" -> base.plusMonths(amount);
+            case "YEAR" -> base.plusYears(amount);
+            default -> throw new RuntimeException("不支持的单位: " + u);
+        };
+    }
+
+    private LocalDateTime minusByUnit(LocalDateTime base, String unit, int amount) {
+        if (!StringUtils.hasText(unit)) {
+            throw new RuntimeException("单位不能为空");
+        }
+        String u = unit.trim().toUpperCase();
+        if ("PERMANENT".equals(u)) {
+            throw new RuntimeException("永久不支持");
+        }
+        if (amount < 1) {
+            throw new RuntimeException("数值至少为 1");
+        }
+        return switch (u) {
+            case "MINUTE" -> base.minusMinutes(amount);
+            case "HOUR" -> base.minusHours(amount);
+            case "DAY" -> base.minusDays(amount);
+            case "WEEK" -> base.minusWeeks(amount);
+            case "MONTH" -> base.minusMonths(amount);
+            case "YEAR" -> base.minusYears(amount);
+            default -> throw new RuntimeException("不支持的单位: " + u);
+        };
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public AppUser setMemberExpiresAt(Long id, LocalDateTime memberExpiresAt, Long operatorId) {
         AppUser appUser = appUserMapper.selectById(id);
         if (appUser == null || appUser.getDeleted() == 1) {
@@ -802,6 +957,304 @@ public class AppUserServiceImpl implements AppUserService {
         result.setFailCount(result.getFailures().size());
         log.info("终端用户批量延长会员: operatorId={}, days={}, success={}, fail={}",
                 operatorId, days, success, result.getFailCount());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO batchExtendMemberDuration(AppUserBatchExtendMemberDurationDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        if (!StringUtils.hasText(dto.getUnit())) {
+            throw new RuntimeException("单位不能为空");
+        }
+        String unit = dto.getUnit().trim().toUpperCase();
+        Integer amountObj = dto.getAmount();
+        int amount = amountObj == null ? 0 : amountObj;
+        if (!"PERMANENT".equals(unit) && amount < 1) {
+            throw new RuntimeException("数值至少为 1");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) {
+                continue;
+            }
+            try {
+                AppUser appUser = appUserMapper.selectById(id);
+                if (appUser == null || appUser.getDeleted() == 1) {
+                    result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
+                    continue;
+                }
+                ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+
+                LocalDateTime base = appUser.getMemberExpiresAt();
+                if (base == null || !base.isAfter(now)) {
+                    base = now;
+                }
+                LocalDateTime newExp = switch (unit) {
+                    case "PERMANENT" -> LocalDateTime.of(2099, 12, 31, 23, 59, 59);
+                    case "MINUTE" -> base.plusMinutes(amount);
+                    case "HOUR" -> base.plusHours(amount);
+                    case "DAY" -> base.plusDays(amount);
+                    case "WEEK" -> base.plusWeeks(amount);
+                    case "MONTH" -> base.plusMonths(amount);
+                    case "YEAR" -> base.plusYears(amount);
+                    default -> throw new RuntimeException("不支持的单位: " + unit);
+                };
+                appUser.setMemberExpiresAt(newExp);
+                appUser.setUpdatedAt(now);
+                appUserMapper.updateById(appUser);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        log.info("终端用户批量按单位延长会员: operatorId={}, unit={}, amount={}, success={}, fail={}",
+                operatorId, unit, amountObj, success, result.getFailCount());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO batchSubtractMemberDuration(AppUserBatchExtendMemberDurationDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        if (!StringUtils.hasText(dto.getUnit())) {
+            throw new RuntimeException("单位不能为空");
+        }
+        Integer amountObj = dto.getAmount();
+        int amount = amountObj == null ? 0 : amountObj;
+        LocalDateTime now = LocalDateTime.now();
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) continue;
+            try {
+                AppUser appUser = appUserMapper.selectById(id);
+                if (appUser == null || appUser.getDeleted() == 1) {
+                    result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
+                    continue;
+                }
+                ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
+                LocalDateTime exp = appUser.getMemberExpiresAt();
+                if (exp == null) {
+                    result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, appUser.getUsername(), "该用户未开通会员"));
+                    continue;
+                }
+                LocalDateTime newExp = minusByUnit(exp, dto.getUnit(), amount);
+                appUser.setMemberExpiresAt(newExp);
+                appUser.setUpdatedAt(now);
+                appUserMapper.updateById(appUser);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        return result;
+    }
+
+    @Override
+    public AppUserBatchExtendMemberResultDTO batchKickWs(AppUserBatchIdsDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) continue;
+            try {
+                kickWs(id, operatorId);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO batchBan(AppUserBatchBanDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) continue;
+            try {
+                banUser(id, null, dto.getBan(), dto.getReason(), operatorId);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO batchDelete(AppUserBatchIdsDTO dto, Long operatorId) {
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw new RuntimeException("请至少选择一条终端用户");
+        }
+        int success = 0;
+        LinkedHashSet<Long> idSet = new LinkedHashSet<>(dto.getIds());
+        for (Long id : idSet) {
+            if (id == null) continue;
+            try {
+                deleteAppUser(id, operatorId);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                String uname = null;
+                try {
+                    AppUser u = appUserMapper.selectById(id);
+                    uname = u != null ? u.getUsername() : null;
+                } catch (Exception ignored) {
+                }
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, uname, reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO extendNotExpiredInApp(AppUserAppNotExpiredDurationDTO dto, Long operatorId) {
+        if (dto == null || dto.getAppId() == null) {
+            throw new RuntimeException("appId 不能为空");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ensureAppUserListPermission(dto.getAppId(), operatorId, "无权限操作此应用的终端用户");
+
+        int amount = dto.getAmount() == null ? 0 : dto.getAmount();
+        if (amount < 1) {
+            throw new RuntimeException("数值至少为 1");
+        }
+
+        List<AppUser> list = appUserMapper.selectList(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getAppId, dto.getAppId())
+                .eq(AppUser::getDeleted, 0)
+                .gt(AppUser::getMemberExpiresAt, now)
+                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt));
+
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        int success = 0;
+        for (AppUser u : list) {
+            if (u == null || u.getId() == null) continue;
+            try {
+                LocalDateTime exp = u.getMemberExpiresAt();
+                if (exp == null || !exp.isAfter(now)) continue;
+                LocalDateTime newExp = plusByUnit(exp, dto.getUnit(), amount, false);
+                u.setMemberExpiresAt(newExp);
+                u.setUpdatedAt(now);
+                appUserMapper.updateById(u);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(u.getId(), u.getUsername(), reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AppUserBatchExtendMemberResultDTO subtractNotExpiredInApp(AppUserAppNotExpiredDurationDTO dto, Long operatorId) {
+        if (dto == null || dto.getAppId() == null) {
+            throw new RuntimeException("appId 不能为空");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ensureAppUserListPermission(dto.getAppId(), operatorId, "无权限操作此应用的终端用户");
+
+        int amount = dto.getAmount() == null ? 0 : dto.getAmount();
+        if (amount < 1) {
+            throw new RuntimeException("数值至少为 1");
+        }
+
+        List<AppUser> list = appUserMapper.selectList(new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getAppId, dto.getAppId())
+                .eq(AppUser::getDeleted, 0)
+                .gt(AppUser::getMemberExpiresAt, now)
+                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt));
+
+        AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
+        result.setFailures(new ArrayList<>());
+        int success = 0;
+        for (AppUser u : list) {
+            if (u == null || u.getId() == null) continue;
+            try {
+                LocalDateTime exp = u.getMemberExpiresAt();
+                if (exp == null || !exp.isAfter(now)) continue;
+                LocalDateTime newExp = minusByUnit(exp, dto.getUnit(), amount);
+                u.setMemberExpiresAt(newExp);
+                u.setUpdatedAt(now);
+                appUserMapper.updateById(u);
+                success++;
+            } catch (Exception e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
+                result.getFailures().add(new AppUserBatchExtendMemberFailItem(u.getId(), u.getUsername(), reason));
+            }
+        }
+        result.setSuccessCount(success);
+        result.setFailCount(result.getFailures().size());
         return result;
     }
 

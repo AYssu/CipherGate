@@ -46,6 +46,7 @@ export interface LicenseKeyQuery {
   ids?: number[];
   appId?: number;
   keyCode?: string;
+  keyword?: string;
   remark?: string;
   keyType?: string;
   batchId?: number;

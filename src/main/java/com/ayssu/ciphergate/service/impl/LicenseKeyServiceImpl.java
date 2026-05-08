@@ -80,6 +80,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
         applyRemarkAndBatchNameFilter(wrapper, queryDTO);
+        applyGlobalKeywordFilter(wrapper, queryDTO);
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
@@ -587,6 +588,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             }
         }
         applyRemarkAndBatchNameFilter(wrapper, queryDTO);
+        applyGlobalKeywordFilter(wrapper, queryDTO);
         wrapper.in(queryDTO.getIds() != null && !queryDTO.getIds().isEmpty(), LicenseKey::getId, queryDTO.getIds());
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
@@ -626,6 +628,55 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             }
             wrapper.in(LicenseKey::getBatchId, batchIds);
         }
+    }
+
+    /**
+     * 全局关键字：对常用字段做 OR like，方便“一个搜索框搜全部”。
+     * 注意：该条件与其它筛选是 AND 关系，且内部是 (a like OR b like OR ...).
+     */
+    private void applyGlobalKeywordFilter(LambdaQueryWrapper<LicenseKey> wrapper, LicenseKeyQueryDTO queryDTO) {
+        if (wrapper == null || queryDTO == null) {
+            return;
+        }
+        if (!StringUtils.hasText(queryDTO.getKeyword())) {
+            return;
+        }
+        String kw = queryDTO.getKeyword().trim();
+        if (!StringUtils.hasText(kw)) {
+            return;
+        }
+
+        // 批次名 -> batchId in (...)
+        List<Long> batchIds = null;
+        try {
+            List<LicenseBatch> batches = licenseBatchMapper.selectList(
+                    new LambdaQueryWrapper<LicenseBatch>()
+                            .like(LicenseBatch::getBatchName, kw)
+                            .select(LicenseBatch::getId)
+            );
+            if (batches != null && !batches.isEmpty()) {
+                batchIds = batches.stream().map(LicenseBatch::getId).filter(id -> id != null).collect(Collectors.toList());
+                if (batchIds.isEmpty()) {
+                    batchIds = null;
+                }
+            }
+        } catch (Exception ignored) {
+            // 批次查询失败不影响其它字段 keyword 搜索
+        }
+
+        List<Long> finalBatchIds = batchIds;
+        wrapper.and(w -> {
+            w.like(LicenseKey::getKeyCode, kw)
+                    .or()
+                    .like(LicenseKey::getRemark, kw)
+                    .or()
+                    .like(LicenseKey::getBindDeviceId, kw)
+                    .or()
+                    .like(LicenseKey::getBindIp, kw);
+            if (finalBatchIds != null && !finalBatchIds.isEmpty()) {
+                w.or().in(LicenseKey::getBatchId, finalBatchIds);
+            }
+        });
     }
 
     private static void autoSizeExportColumns(ExcelWriter writer, int columnCount) {

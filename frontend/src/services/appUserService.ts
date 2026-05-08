@@ -60,6 +60,7 @@ export interface AppUserDTO {
 export interface AppUserQueryDTO {
   appId?: number;
   username?: string;
+  keyword?: string;
   email?: string;
   phone?: string;
   nickname?: string;
@@ -107,6 +108,26 @@ export const resetPassword = (id: number, newPassword: string) => {
 export const banUser = (id: number, ban: boolean, reason?: string, bindingId?: number) => {
   return request.post(`/app-users/${id}/ban`, { ban, reason, bindingId });
 };
+
+// 强制下线终端用户 WS（CloseStatus=MEMBER_EXPIRED）
+export const kickAppUserWs = (id: number) => {
+  return request.post(`/app-users/${id}/kick-ws`);
+};
+
+export interface BatchIdsDTO {
+  ids: number[];
+}
+
+export interface BatchBanDTO extends BatchIdsDTO {
+  ban: boolean;
+  reason?: string;
+}
+
+export interface AppUserAppNotExpiredDurationDTO {
+  appId: number;
+  amount: number;
+  unit: Exclude<MemberExtendUnit, 'PERMANENT'>;
+}
 
 // 应用用户绑定类型定义
 export interface AppUserBinding {
@@ -177,6 +198,59 @@ export const extendMemberDays = (id: number, days: number) => {
 /** 批量延长会员天数（按天累加到到期时间） */
 export const batchExtendMemberDays = (data: AppUserBatchExtendMemberDTO) => {
   return request.post('/app-users/batch-extend-member', data);
+};
+
+export type MemberExtendUnit = 'MINUTE' | 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'PERMANENT';
+
+export interface ExtendMemberDurationDTO {
+  amount?: number;
+  unit: MemberExtendUnit;
+}
+
+export interface AppUserBatchExtendMemberDurationDTO {
+  ids: number[];
+  amount?: number;
+  unit: MemberExtendUnit;
+}
+
+/** 按单位延长会员（分钟/小时/天/周/月/年/永久） */
+export const extendMemberDuration = (id: number, body: ExtendMemberDurationDTO) => {
+  return request.post(`/app-users/${id}/extend-member-duration`, body);
+};
+
+/** 批量按单位延长会员（分钟/小时/天/周/月/年/永久） */
+export const batchExtendMemberDuration = (body: AppUserBatchExtendMemberDurationDTO) => {
+  return request.post('/app-users/batch-extend-member-duration', body);
+};
+
+/** 批量按单位扣时（不支持永久） */
+export const batchSubtractMemberDuration = (body: AppUserBatchExtendMemberDurationDTO) => {
+  return request.post('/app-users/batch-subtract-member-duration', body);
+};
+
+/** 批量下线 WS（CloseStatus=MEMBER_EXPIRED） */
+export const batchKickAppUserWs = (body: BatchIdsDTO) => {
+  return request.post('/app-users/batch-kick-ws', body);
+};
+
+/** 批量封禁/解禁（封禁会踢线） */
+export const batchBanAppUsers = (body: BatchBanDTO) => {
+  return request.post('/app-users/batch-ban', body);
+};
+
+/** 批量删除 */
+export const batchDeleteAppUsers = (body: BatchIdsDTO) => {
+  return request.post('/app-users/batch-delete', body);
+};
+
+/** 选中应用：未到期会员批量加时 */
+export const extendNotExpiredInApp = (body: AppUserAppNotExpiredDurationDTO) => {
+  return request.post('/app-users/extend-not-expired-in-app', body);
+};
+
+/** 选中应用：未到期会员批量扣时 */
+export const subtractNotExpiredInApp = (body: AppUserAppNotExpiredDurationDTO) => {
+  return request.post('/app-users/subtract-not-expired-in-app', body);
 };
 
 /** 直接设置或清空会员到期；memberExpiresAt 为 null 表示清空 */

@@ -227,8 +227,8 @@ const LicenseManagementContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setKeyCodeInput(filters.keyCode ?? '');
-  }, [filters.keyCode]);
+    setKeyCodeInput(filters.keyword ?? '');
+  }, [filters.keyword]);
 
   useEffect(() => {
     try {
@@ -321,9 +321,9 @@ const LicenseManagementContent: React.FC = () => {
     const trimmed = (raw ?? keyCodeInput).trim();
     const next = { ...filters };
     if (trimmed) {
-      next.keyCode = trimmed;
+      next.keyword = trimmed;
     } else {
-      delete next.keyCode;
+      delete next.keyword;
     }
     setFilters(next);
     setSelectedRowKeys([]);

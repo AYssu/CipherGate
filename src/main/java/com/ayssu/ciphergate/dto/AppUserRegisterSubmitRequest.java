@@ -18,7 +18,6 @@ public class AppUserRegisterSubmitRequest {
 
     @NotBlank
     @Size(min = 2, max = 50, message = "用户名须为 2～50 个字符")
-    @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "用户名只能包含字母、数字、下划线或中划线")
     @Schema(description = "登录用户名（应用内唯一）", requiredMode = Schema.RequiredMode.REQUIRED)
     private String username;
 

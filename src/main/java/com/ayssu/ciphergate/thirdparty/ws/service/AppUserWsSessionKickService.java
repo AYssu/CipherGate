@@ -18,6 +18,8 @@ public class AppUserWsSessionKickService {
     public static final CloseStatus KICK_DEVICE_BANNED = new CloseStatus(1008, "DEVICE_BANNED");
     /** 同一账号在其他处完成 AUTH，本连接被关闭（与 AUTH 阶段 policy violation 一致） */
     public static final CloseStatus KICK_LOGIN_ELSEWHERE = new CloseStatus(1008, "LOGIN_ELSEWHERE");
+    /** 管理端强制下线：客户端按会员过期处理即可 */
+    public static final CloseStatus KICK_MEMBER_EXPIRED = new CloseStatus(1008, "MEMBER_EXPIRED");
 
     private final ThirdPartyWsSessionRegistry sessionRegistry;
     private final AppUserWsPresenceRegistry presenceRegistry;
