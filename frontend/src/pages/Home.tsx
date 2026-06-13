@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal, Form, Input, message } from 'antd';
+import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal, Form, Input, message, Tabs } from 'antd';
 import {
   SecurityScanOutlined,
   SafetyOutlined,
@@ -9,10 +9,12 @@ import {
   MonitorOutlined,
   RightOutlined,
   CheckCircleOutlined,
-  TeamOutlined, 
+  TeamOutlined,
   MenuOutlined,
   GithubOutlined,
-  SettingOutlined
+  SettingOutlined,
+  UserOutlined,
+  KeyOutlined
 } from '@ant-design/icons';
 import { systemApi } from '../services';
 import safeIcon from '../assets/icons/safe.svg';
@@ -30,6 +32,9 @@ const Home: React.FC = () => {
     publicSecurityRecordNo: '',
     icpLicenseNo: ''
   });
+  const [loginMode, setLoginMode] = useState<'github' | 'password'>('github');
+  const [passwordLoginForm] = Form.useForm();
+  const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
 
   // 检查系统是否已初始化
   useEffect(() => {
@@ -122,6 +127,32 @@ const Home: React.FC = () => {
       }
     } catch {
       // 错误提示由 request 拦截器处理
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    try {
+      const values = await passwordLoginForm.validateFields();
+      setPasswordLoginLoading(true);
+      const response: any = await systemApi.passwordLogin({
+        login: values.login,
+        password: values.password,
+      });
+      if (response?.success) {
+        message.success('登录成功');
+        setLoginModalVisible(false);
+        passwordLoginForm.resetFields();
+        // 跳转到仪表板
+        window.location.href = '/dashboard';
+      } else {
+        message.error(response?.message || '登录失败');
+      }
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('请填写所有必填项');
+      }
+    } finally {
+      setPasswordLoginLoading(false);
     }
   };
 
@@ -790,7 +821,7 @@ const Home: React.FC = () => {
         </div>
       </Footer>
 
-      {/* GitHub登录弹窗 */}
+      {/* 登录弹窗 */}
       <Modal
         title={null}
         open={loginModalVisible}
@@ -808,12 +839,12 @@ const Home: React.FC = () => {
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             margin: window.innerWidth < 768 ? '16px' : 'auto'
           },
-          body: { 
+          body: {
             padding: window.innerWidth < 768 ? '24px 20px 20px' : '32px'
           }
         }}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div>
           {/* 关闭按钮 */}
           <Button
             type="text"
@@ -841,12 +872,12 @@ const Home: React.FC = () => {
             ×
           </Button>
 
-          <div style={{ marginBottom: window.innerWidth < 768 ? 24 : 32 }}>
-            {/* 简化的Logo */}
+          {/* Logo */}
+          <div style={{ textAlign: 'center', marginBottom: window.innerWidth < 768 ? 20 : 24 }}>
             <div style={{
               width: window.innerWidth < 768 ? 40 : 48,
               height: window.innerWidth < 768 ? 40 : 48,
-              margin: window.innerWidth < 768 ? '0 auto 16px' : '0 auto 20px',
+              margin: '0 auto 16px',
               background: '#f8f9fa',
               borderRadius: 8,
               display: 'flex',
@@ -854,71 +885,141 @@ const Home: React.FC = () => {
               justifyContent: 'center',
               border: '1px solid #e9ecef'
             }}>
-              <LockOutlined style={{ 
-                fontSize: window.innerWidth < 768 ? 16 : 20, 
+              <LockOutlined style={{
+                fontSize: window.innerWidth < 768 ? 16 : 20,
                 color: '#1890ff'
               }} />
             </div>
-            
-            <Typography.Title level={4} style={{ 
-              marginBottom: 8,
+
+            <Typography.Title level={4} style={{
+              marginBottom: 4,
               color: '#1a1a1a',
               fontWeight: 600,
               fontSize: window.innerWidth < 768 ? 18 : 20
             }}>
               登录到 CipherGate
             </Typography.Title>
-            
-            <Typography.Paragraph style={{ 
-              color: '#666', 
+
+            <Typography.Paragraph style={{
+              color: '#666',
               marginBottom: 0,
               fontSize: window.innerWidth < 768 ? 13 : 14
             }}>
-              使用 GitHub 账号安全登录
+              选择登录方式
             </Typography.Paragraph>
           </div>
 
-          {/* GitHub登录按钮 */}
-          <Button
-            type="primary"
-            size="large"
-            icon={<GithubOutlined />}
-            onClick={handleGithubLogin}
-            style={{
-              width: '100%',
-              height: window.innerWidth < 768 ? 40 : 44,
-              fontSize: window.innerWidth < 768 ? 14 : 15,
-              fontWeight: 500,
-              borderRadius: 6,
-              background: '#24292e',
-              borderColor: '#24292e',
-              marginBottom: window.innerWidth < 768 ? 16 : 20,
-              boxShadow: 'none'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#2f363d';
-              e.currentTarget.style.borderColor = '#2f363d';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#24292e';
-              e.currentTarget.style.borderColor = '#24292e';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            Continue with GitHub
-          </Button>
+          {/* 登录方式 Tabs */}
+          <Tabs
+            activeKey={loginMode}
+            onChange={(key) => setLoginMode(key as 'github' | 'password')}
+            centered
+            items={[
+              {
+                key: 'github',
+                label: (
+                  <span><GithubOutlined style={{ marginRight: 4 }} />GitHub</span>
+                ),
+                children: (
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<GithubOutlined />}
+                    onClick={handleGithubLogin}
+                    style={{
+                      width: '100%',
+                      height: window.innerWidth < 768 ? 40 : 44,
+                      fontSize: window.innerWidth < 768 ? 14 : 15,
+                      fontWeight: 500,
+                      borderRadius: 6,
+                      background: '#24292e',
+                      borderColor: '#24292e',
+                      boxShadow: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#2f363d';
+                      e.currentTarget.style.borderColor = '#2f363d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#24292e';
+                      e.currentTarget.style.borderColor = '#24292e';
+                    }}
+                  >
+                    Continue with GitHub
+                  </Button>
+                )
+              },
+              {
+                key: 'password',
+                label: (
+                  <span><KeyOutlined style={{ marginRight: 4 }} />密码登录</span>
+                ),
+                children: (
+                  <Form
+                    form={passwordLoginForm}
+                    layout="vertical"
+                    onFinish={handlePasswordLogin}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Form.Item
+                      name="login"
+                      rules={[{ required: true, message: '请输入 GitHub 账号名' }]}
+                      style={{ marginBottom: 12 }}
+                    >
+                      <Input
+                        prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
+                        placeholder="GitHub 账号名"
+                        size="large"
+                        autoComplete="username"
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="password"
+                      rules={[{ required: true, message: '请输入密码' }]}
+                      style={{ marginBottom: 16 }}
+                    >
+                      <Input.Password
+                        prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
+                        placeholder="密码"
+                        size="large"
+                        autoComplete="current-password"
+                      />
+                    </Form.Item>
+                    <Form.Item style={{ marginBottom: 0 }}>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={passwordLoginLoading}
+                        block
+                        size="large"
+                        style={{
+                          height: window.innerWidth < 768 ? 40 : 44,
+                          fontWeight: 500,
+                          borderRadius: 6
+                        }}
+                      >
+                        登录
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                )
+              }
+            ]}
+          />
 
           {/* 底部说明 */}
-          <Typography.Paragraph style={{ 
-            color: '#999', 
-            fontSize: window.innerWidth < 768 ? 11 : 12, 
-            margin: 0,
-            lineHeight: 1.4
+          <Typography.Paragraph style={{
+            color: '#999',
+            fontSize: window.innerWidth < 768 ? 11 : 12,
+            margin: window.innerWidth < 768 ? '16px 0 0' : '20px 0 0',
+            lineHeight: 1.4,
+            textAlign: 'center'
           }}>
+            {loginMode === 'password' && (
+              <span style={{ display: 'block', marginBottom: 4, color: '#faad14' }}>
+                提示：密码登录需要先通过 GitHub 登录并设置密码
+              </span>
+            )}
             点击登录即表示您同意我们的
             <a href="#" style={{ color: '#1890ff', textDecoration: 'none' }}> 服务条款 </a>
             和

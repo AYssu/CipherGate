@@ -22,6 +22,11 @@ public class User implements Serializable {
     private String email;
     private String avatarUrl;
     private String accessToken;
+
+    /**
+     * 密码（BCrypt加密存储，本地账号登录使用）
+     */
+    private String password;
     
     /**
      * 用户状态：1-正常，0-禁用

@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.aspect;
 
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.ActivityLogService;
@@ -36,7 +37,7 @@ public class ActivityLogAspect {
         String userAgent = request != null ? request.getHeader("User-Agent") : "";
         
         // 获取当前用户信息
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = AuthUtils.getAuthentication();
         Long userId = null;
         String username = "匿名用户";
         

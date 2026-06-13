@@ -21,12 +21,13 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final ThirdPartyAuthFilter thirdPartyAuthFilter;
     private final ActiveUserSessionFilter activeUserSessionFilter;
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/error", "/webjars/**", 
+                        .requestMatchers("/", "/login", "/error", "/webjars/**",
                                 "/api/config/init/status",
                                 "/api/config/init",
                                 "/api/config/public/site-info",
@@ -38,6 +39,7 @@ public class SecurityConfig {
                                 "/api/public/license/**",
                                 "/api/user/status",
                                 "/api/v1/**",
+                                "/api/auth/login",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
                         // Swagger(OpenAPI) 文档只允许超级管理员访问
@@ -59,6 +61,7 @@ public class SecurityConfig {
                         .deleteCookies("CIPHERGATE_SESSION")
                 )
                 .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint)
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
                             response.setContentType("application/json;charset=UTF-8");

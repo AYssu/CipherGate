@@ -1,6 +1,7 @@
-import React from 'react';
-import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions } from 'antd';
-import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined, IdcardOutlined, SafetyOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions, Button, Modal, Form, Input, message } from 'antd';
+import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined, IdcardOutlined, SafetyOutlined, KeyOutlined } from '@ant-design/icons';
+import { systemApi } from '../services';
 import type { User } from '../services';
 
 const { Title, Text } = Typography;
@@ -10,6 +11,33 @@ interface ProfileContentProps {
 }
 
 const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleSetPassword = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      setPasswordLoading(true);
+      const response: any = await systemApi.setPassword({
+        newPassword: values.newPassword,
+      });
+      if (response?.success) {
+        message.success('密码设置成功');
+        setPasswordModalVisible(false);
+        passwordForm.resetFields();
+      } else {
+        message.error(response?.message || '密码设置失败');
+      }
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('请填写所有必填项');
+      }
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <div style={{ padding: 0 }}>
       {/* 用户概览卡片 */}
@@ -44,7 +72,7 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
                 <Tag
                   key={role.id}
                   color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
-                  style={{ 
+                  style={{
                     padding: '4px 12px',
                     fontSize: '13px',
                     borderRadius: '16px',
@@ -54,6 +82,14 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
                   {role.roleName}
                 </Tag>
               ))}
+              <Button
+                type="link"
+                icon={<KeyOutlined />}
+                onClick={() => setPasswordModalVisible(true)}
+                style={{ padding: '4px 8px', fontSize: 13 }}
+              >
+                设置密码
+              </Button>
             </Space>
           </Col>
           <Col>
@@ -193,6 +229,78 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
           </Card>
         </Col>
       </Row>
+
+      {/* 设置密码弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <KeyOutlined style={{ color: '#1890ff' }} />
+            <span>设置密码</span>
+          </Space>
+        }
+        open={passwordModalVisible}
+        onCancel={() => {
+          setPasswordModalVisible(false);
+          passwordForm.resetFields();
+        }}
+        onOk={handleSetPassword}
+        confirmLoading={passwordLoading}
+        okText="确认设置"
+        cancelText="取消"
+        width={400}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{
+            padding: '12px 16px',
+            background: '#fff7e6',
+            border: '1px solid #ffd591',
+            borderRadius: 6,
+            marginBottom: 16,
+            fontSize: 13,
+            color: '#ad6800'
+          }}>
+            设置密码后，网络不佳时可使用 GitHub 账号名 + 密码登录
+          </div>
+          <Form form={passwordForm} layout="vertical">
+            <Form.Item
+              name="newPassword"
+              label="新密码"
+              rules={[
+                { required: true, message: '请输入新密码' },
+                { min: 6, message: '密码至少 6 个字符' }
+              ]}
+            >
+              <Input.Password
+                placeholder="请输入新密码（至少 6 个字符）"
+                size="large"
+                autoComplete="new-password"
+              />
+            </Form.Item>
+            <Form.Item
+              name="confirmPassword"
+              label="确认密码"
+              dependencies={['newPassword']}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('两次密码输入不一致'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                placeholder="请再次输入密码"
+                size="large"
+                autoComplete="new-password"
+              />
+            </Form.Item>
+          </Form>
+        </div>
+      </Modal>
     </div>
   );
 };

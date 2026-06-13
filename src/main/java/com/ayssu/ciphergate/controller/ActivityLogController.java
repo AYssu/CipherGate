@@ -7,6 +7,7 @@ import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.ActivityLogService;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,12 +37,14 @@ public class ActivityLogController {
     private final SecurityUtils securityUtils;
 
     private User currentUser(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return null;
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user;
+        if (authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            return userMapper.selectOne(new QueryWrapper<User>().eq("github_id", githubId));
         }
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        return userMapper.selectOne(new QueryWrapper<User>().eq("github_id", githubId));
+        return null;
     }
     
     /**
@@ -105,14 +108,8 @@ public class ActivityLogController {
     @Operation(summary = "获取未读消息统计", description = "获取当前登录用户的未读消息数量统计，包括活动日志和系统消息")
     @GetMapping("/unread/count")
     public Result<Map<String, Object>> getUnreadCount(Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        // 获取用户ID
-        QueryWrapper<User> userQuery = new QueryWrapper<>();
-        userQuery.eq("github_id", githubId);
-        User user = userMapper.selectOne(userQuery);
-        
+        User user = currentUser(authentication);
+
         if (user == null) {
             Map<String, Object> result = new HashMap<>();
             result.put("activityTotal", 0);
@@ -121,13 +118,13 @@ public class ActivityLogController {
             result.put("showBadge", false);
             return Result.success(result);
         }
-        
+
         // 获取活动日志未读统计
-        Map<String, Object> activityStats = activityLogService.getUnreadCount(githubId);
-        
+        Map<String, Object> activityStats = activityLogService.getUnreadCount(user.getGithubId());
+
         // 获取系统消息未读统计
         Map<String, Object> messageStats = systemMessageService.getUnreadCount(user.getId());
-        
+
         // 合并统计
         Map<String, Object> result = new HashMap<>();
         result.put("activityTotal", activityStats.get("total"));
@@ -137,7 +134,7 @@ public class ActivityLogController {
         result.put("systemMessageTotal", messageStats.get("total"));
         result.put("total", (long)activityStats.get("total") + (long)messageStats.get("total"));
         result.put("showBadge", (boolean)activityStats.get("showBadge") || (boolean)messageStats.get("showBadge"));
-        
+
         return Result.success(result);
     }
     
@@ -147,12 +144,12 @@ public class ActivityLogController {
     @Operation(summary = "标记单条活动为已读", description = "将指定的活动日志标记为已读状态")
     @PutMapping("/{id}/read")
     public Result<Void> markAsRead(
-            @Parameter(description = "活动日志ID", example = "1") @PathVariable Long id, 
+            @Parameter(description = "活动日志ID", example = "1") @PathVariable Long id,
             Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        activityLogService.markAsRead(id, githubId);
+        User user = currentUser(authentication);
+        if (user == null) return Result.error("未登录");
+
+        activityLogService.markAsRead(id, user.getGithubId());
         return Result.success(null);
     }
     
@@ -162,12 +159,12 @@ public class ActivityLogController {
     @Operation(summary = "批量标记活动为已读", description = "批量将多条活动日志标记为已读状态")
     @PutMapping("/read/batch")
     public Result<Void> markBatchAsRead(
-            @Parameter(description = "活动日志ID列表") @RequestBody List<Long> ids, 
+            @Parameter(description = "活动日志ID列表") @RequestBody List<Long> ids,
             Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        activityLogService.markBatchAsRead(ids, githubId);
+        User user = currentUser(authentication);
+        if (user == null) return Result.error("未登录");
+
+        activityLogService.markBatchAsRead(ids, user.getGithubId());
         return Result.success(null);
     }
     
@@ -177,10 +174,10 @@ public class ActivityLogController {
     @Operation(summary = "标记所有活动为已读", description = "将当前用户的所有未读活动日志标记为已读状态")
     @PutMapping("/read/all")
     public Result<Void> markAllAsRead(Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        activityLogService.markAllAsRead(githubId);
+        User user = currentUser(authentication);
+        if (user == null) return Result.error("未登录");
+
+        activityLogService.markAllAsRead(user.getGithubId());
         return Result.success(null);
     }
 }

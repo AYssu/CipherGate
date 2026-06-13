@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.AppAgentDTO;
@@ -27,14 +28,16 @@ public class AppAgentController {
     private final UserService userService;
 
     private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        User user = userService.getUserByGithubId(githubId);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user.getId();
+        // 兜底：从 OAuth2 获取
+        Authentication authentication = AuthUtils.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            User oauthUser = userService.getUserByGithubId(githubId);
+            if (oauthUser != null) return oauthUser.getId();
         }
-        return user.getId();
+        throw new RuntimeException("用户不存在");
     }
 
     @GetMapping

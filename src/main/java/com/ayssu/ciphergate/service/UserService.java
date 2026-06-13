@@ -65,4 +65,9 @@ public interface UserService extends IService<User> {
      * 获取所有用户及其角色信息
      */
     List<User> getAllUsersWithRoles();
+
+    /**
+     * 根据登录名查找用户
+     */
+    User findByLogin(String login);
 }

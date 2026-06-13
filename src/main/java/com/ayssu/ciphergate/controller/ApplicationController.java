@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
@@ -39,23 +40,22 @@ public class ApplicationController {
     private final UserService userService;
     
     /**
-     * 获取当前登录用户
+     * 获取当前登录用户（兼容 OAuth2 和密码登录）
      */
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new SecurityException("用户未登录");
+        // 优先从密码登录的 principal 获取
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user;
+
+        // OAuth2 登录
+        Authentication authentication = AuthUtils.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            user = userService.getUserByGithubId(githubId);
+            if (user != null) return user;
         }
-        
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        User user = userService.getUserByGithubId(githubId);
-        
-        if (user == null) {
-            throw new SecurityException("用户不存在");
-        }
-        
-        return user;
+
+        throw new SecurityException("用户未登录");
     }
     
     /**

@@ -133,6 +133,16 @@ export const systemApi = {
     return request.post('/config/settings/geoip', data);
   },
 
+  /** 密码登录 */
+  passwordLogin: (data: { login: string; password: string }) => {
+    return request.post('/auth/login', data);
+  },
+
+  /** 设置密码（已登录用户） */
+  setPassword: (data: { newPassword: string }) => {
+    return request.post('/auth/set-password', data);
+  },
+
   uploadGeoIpDb: (dbType: 'country' | 'city', file: File) => {
     const formData = new FormData();
     formData.append('file', file);

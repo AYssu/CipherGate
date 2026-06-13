@@ -40,3 +40,4 @@ out/
 /EncryptionModule/
 /deploy-bundle/
 /ciphergate-deploy.zip
+/test-results/.last-run.json

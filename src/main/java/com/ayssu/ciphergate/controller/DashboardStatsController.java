@@ -10,6 +10,7 @@ import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.DashboardStatsService;
 import com.ayssu.ciphergate.service.UserService;
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,14 +40,16 @@ public class DashboardStatsController {
             description = "仅统计当前登录用户作为 owner 的应用；卡密/终端用户相关指标均按应用过滤。"
                     + "「今日后台登录」仅 ADMIN / SUPER_ADMIN 返回。")
     public Result<DashboardTodayStatsDTO> todayStats(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return Result.unauthorized("未登录");
+        User user = AuthUtils.getCurrentUser();
+        if (user == null && authentication != null && authentication.isAuthenticated()) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof OAuth2User oauth2User) {
+                String githubId = oauth2User.getAttribute("id").toString();
+                user = userService.getUserByGithubId(githubId);
+            }
         }
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        User user = userService.getUserByGithubId(githubId);
         if (user == null) {
-            return Result.unauthorized("用户不存在");
+            return Result.unauthorized("未登录");
         }
 
         List<Long> ownedAppIds = applicationMapper.selectList(new LambdaQueryWrapper<Application>()
@@ -82,12 +85,16 @@ public class DashboardStatsController {
     }
 
     private List<Long> getOwnedAppIds(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return List.of();
+        // 优先用 AuthUtils 获取用户（兼容密码登录和 OAuth2）
+        User user = AuthUtils.getCurrentUser();
+        if (user == null && authentication != null && authentication.isAuthenticated()) {
+            // OAuth2 兜底
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof OAuth2User oauth2User) {
+                String githubId = oauth2User.getAttribute("id").toString();
+                user = userService.getUserByGithubId(githubId);
+            }
         }
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        User user = userService.getUserByGithubId(githubId);
         if (user == null) {
             return List.of();
         }

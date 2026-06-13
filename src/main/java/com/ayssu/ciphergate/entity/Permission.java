@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -12,7 +13,9 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @TableName("permissions")
-public class Permission {
+public class Permission implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;

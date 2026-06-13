@@ -10,6 +10,7 @@ import com.ayssu.ciphergate.entity.SystemMessageEntity;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.util.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -80,18 +81,11 @@ public class SystemMessageController {
     public Result<List<UserMessageDTO>> getMyMessages(
             @Parameter(description = "获取数量", example = "10") @RequestParam(defaultValue = "10") int limit,
             Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        // 获取用户ID
-        QueryWrapper<User> userQuery = new QueryWrapper<>();
-        userQuery.eq("github_id", githubId);
-        User user = userMapper.selectOne(userQuery);
-        
+        User user = resolveUser(authentication);
         if (user == null) {
             return Result.success(List.of());
         }
-        
+
         List<UserMessageDTO> messages = systemMessageService.getUserMessages(user.getId(), limit);
         return Result.success(messages);
     }
@@ -104,18 +98,23 @@ public class SystemMessageController {
     public Result<Void> markMessageAsRead(
             @Parameter(description = "消息ID", example = "1") @PathVariable Long id,
             Authentication authentication) {
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        
-        // 获取用户ID
-        QueryWrapper<User> userQuery = new QueryWrapper<>();
-        userQuery.eq("github_id", githubId);
-        User user = userMapper.selectOne(userQuery);
-        
+        User user = resolveUser(authentication);
+
         if (user != null) {
             systemMessageService.markAsRead(id, user.getId());
         }
-        
+
         return Result.success(null);
+    }
+
+    private User resolveUser(Authentication authentication) {
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user;
+        if (authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            return userMapper.selectOne(new QueryWrapper<User>().eq("github_id", githubId));
+        }
+        return null;
     }
 }

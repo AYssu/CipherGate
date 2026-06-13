@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
@@ -33,17 +34,17 @@ public class SystemInfoController {
     private final SecurityUtils securityUtils;
 
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new SecurityException("用户未登录");
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user;
+
+        Authentication authentication = AuthUtils.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            user = userService.getUserByGithubId(githubId);
+            if (user != null) return user;
         }
-        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String githubId = oauth2User.getAttribute("id").toString();
-        User user = userService.getUserByGithubId(githubId);
-        if (user == null) {
-            throw new SecurityException("用户不存在");
-        }
-        return user;
+
+        throw new SecurityException("用户未登录");
     }
 
     private void requireSuperAdmin() {

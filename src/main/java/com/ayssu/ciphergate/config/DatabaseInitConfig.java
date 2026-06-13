@@ -37,7 +37,8 @@ public class DatabaseInitConfig implements CommandLineRunner {
 
             // 执行升级脚本（按顺序执行；需要新增升级时，在这里追加一行即可）
             List<String> upgradeSqlFiles = List.of(
-                    "alter_application_unbind_cooldown.sql"
+                    "alter_application_unbind_cooldown.sql",
+                    "alter_add_password.sql"
             );
             for (String file : upgradeSqlFiles) {
                 try {

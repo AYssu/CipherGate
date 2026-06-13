@@ -231,6 +231,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         log.info("根据 GitHub ID [{}] 查找用户: {}", githubId, user);
         return user;
     }
+
+    @Override
+    public User findByLogin(String login) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("login", login);
+        return userMapper.selectOne(queryWrapper);
+    }
     
     private String getStringAttribute(OAuth2User oauth2User, String attributeName) {
         Object value = oauth2User.getAttribute(attributeName);

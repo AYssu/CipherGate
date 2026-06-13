@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.util.AuthUtils;
 import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
@@ -115,23 +116,16 @@ public class ThirdPartyCredentialController {
     }
 
     private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("用户未登录");
+        User user = AuthUtils.getCurrentUser();
+        if (user != null) return user;
+
+        Authentication authentication = AuthUtils.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
+            String githubId = oauth2User.getAttribute("id").toString();
+            user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getGithubId, githubId));
+            if (user != null) return user;
         }
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof OAuth2User oauth2User)) {
-            throw new RuntimeException("无效认证信息");
-        }
-        Object idObj = oauth2User.getAttribute("id");
-        String githubId = idObj == null ? null : idObj.toString();
-        if (githubId == null) {
-            throw new RuntimeException("无法获取GitHub用户ID");
-        }
-        User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getGithubId, githubId));
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
-        }
-        return user;
+
+        throw new RuntimeException("用户未登录");
     }
 }
