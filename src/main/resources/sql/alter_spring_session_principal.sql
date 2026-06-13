@@ -1,0 +1,3 @@
+-- Spring Session PRINCIPAL_NAME 列加长，避免密码登录时 User.toString() 超长报错
+ALTER TABLE SPRING_SESSION
+    MODIFY COLUMN PRINCIPAL_NAME VARCHAR(500);

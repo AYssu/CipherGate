@@ -54,4 +54,13 @@ public class User implements Serializable {
      */
     @TableField(exist = false)
     private List<Menu> menus;
+
+    /**
+     * 覆盖默认 toString，避免 Spring Session JDBC 存储时
+     * PRINCIPAL_NAME 列超长（User 包含大量字段）
+     */
+    @Override
+    public String toString() {
+        return login != null ? login : "user:" + id;
+    }
 }
