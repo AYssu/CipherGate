@@ -36,6 +36,7 @@ public class ThirdPartyCardService {
     private final ApplicationMapper applicationMapper;
     private final LicenseKeyMapper licenseKeyMapper;
     private final ThirdPartyAppVariableService thirdPartyAppVariableService;
+    private final ThirdPartyHeartbeatService thirdPartyHeartbeatService;
     private final LicenseKeyService licenseKeyService;
     private final LicenseUnbindTimeDeductionService licenseUnbindTimeDeductionService;
     private final AccessEventService accessEventService;
@@ -85,9 +86,9 @@ public class ThirdPartyCardService {
             throw new RuntimeException("卡密已禁用");
         }
         if (key.getStatus() != null && key.getStatus() == 3) {
-            throw new RuntimeException("卡密已过期");
-        }
-        if (key.getExpiresAt() != null && !key.getExpiresAt().isAfter(LocalDateTime.now())) {
+            // 登录时持久化过期状态
+            key.setUpdatedAt(LocalDateTime.now());
+            licenseKeyMapper.updateById(key);
             throw new RuntimeException("卡密已过期");
         }
 
@@ -168,6 +169,12 @@ public class ThirdPartyCardService {
         boolean online = lastUsedAt != null
                 && ChronoUnit.MINUTES.between(lastUsedAt, LocalDateTime.now()) < 5;
         resp.setOnline(online);
+
+        // 生成心跳 token
+        String heartbeatToken = thirdPartyHeartbeatService.storeToken(
+                appId, key.getId(), key.getKeyCode(), req.getDeviceId(), key.getExpiresAt());
+        resp.setToken(heartbeatToken);
+
         return resp;
     }
 
@@ -235,9 +242,9 @@ public class ThirdPartyCardService {
             throw new RuntimeException("卡密已禁用");
         }
         if (key.getStatus() != null && key.getStatus() == 3) {
-            throw new RuntimeException("卡密已过期");
-        }
-        if (key.getExpiresAt() != null && !key.getExpiresAt().isAfter(LocalDateTime.now())) {
+            // 换绑时持久化过期状态
+            key.setUpdatedAt(LocalDateTime.now());
+            licenseKeyMapper.updateById(key);
             throw new RuntimeException("卡密已过期");
         }
         if (key.getFirstUsedAt() == null) {

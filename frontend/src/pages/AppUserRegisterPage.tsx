@@ -417,17 +417,29 @@ const AppUserRegisterPage: React.FC = () => {
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 8 }}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                block
-                loading={submitting}
-                disabled={!appId}
-                style={{ height: 44, fontWeight: 600 }}
-              >
-                注册
-              </Button>
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  block
+                  loading={submitting}
+                  disabled={!appId}
+                  style={{ height: 44, fontWeight: 600 }}
+                >
+                  注册
+                </Button>
+                {appId && (
+                  <Button
+                    size="large"
+                    block
+                    href={`/app-user?id=${appId}`}
+                    style={{ height: 44, fontWeight: 500 }}
+                  >
+                    用户查询
+                  </Button>
+                )}
+              </Space>
             </Form.Item>
           </Form>
 

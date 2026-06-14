@@ -84,8 +84,18 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
-               .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
                .orderByDesc(LicenseKey::getCreatedAt);
+
+        // 状态筛选：过期(3)直接比较 expires_at，其他状态用 status 字段
+        if (queryDTO.getStatus() != null) {
+            if (queryDTO.getStatus() == 3) {
+                // 已到期：expires_at <= 当前时间 且 status != 4(已禁用)
+                wrapper.le(LicenseKey::getExpiresAt, LocalDateTime.now())
+                       .ne(LicenseKey::getStatus, 4);
+            } else {
+                wrapper.eq(LicenseKey::getStatus, queryDTO.getStatus());
+            }
+        }
         if (queryDTO.getIsOnline() != null) {
             if (Boolean.TRUE.equals(queryDTO.getIsOnline())) {
                 wrapper.ge(LicenseKey::getLastUsedAt, onlineCutoff);
@@ -593,8 +603,18 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
-               .eq(queryDTO.getStatus() != null, LicenseKey::getStatus, queryDTO.getStatus())
                .orderByDesc(LicenseKey::getCreatedAt);
+
+        // 状态筛选：过期(3)直接比较 expires_at
+        if (queryDTO.getStatus() != null) {
+            if (queryDTO.getStatus() == 3) {
+                wrapper.le(LicenseKey::getExpiresAt, LocalDateTime.now())
+                       .ne(LicenseKey::getStatus, 4);
+            } else {
+                wrapper.eq(LicenseKey::getStatus, queryDTO.getStatus());
+            }
+        }
+
         List<LicenseKey> list = licenseKeyMapper.selectList(wrapper);
         list.forEach(this::syncExpiredStatusIfNeeded);
         return list;
@@ -1088,7 +1108,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
 
     @Override
     public void syncExpiredStatusIfNeeded(LicenseKey licenseKey) {
-        if (licenseKey == null || licenseKey.getId() == null) {
+        if (licenseKey == null) {
             return;
         }
         if (licenseKey.getStatus() != null && licenseKey.getStatus() == 4) {
@@ -1101,13 +1121,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         if (licenseKey.getExpiresAt().isAfter(now)) {
             return;
         }
-        // 已到期：到期时间 <= 当前时间（含刚好到期）
-        if (licenseKey.getStatus() != null && licenseKey.getStatus() == 3) {
-            return;
-        }
+        // 已到期：仅在内存中标记，不写库（查询列表时无需持久化）
         licenseKey.setStatus(3);
-        licenseKey.setUpdatedAt(now);
-        licenseKeyMapper.updateById(licenseKey);
     }
     
     /**

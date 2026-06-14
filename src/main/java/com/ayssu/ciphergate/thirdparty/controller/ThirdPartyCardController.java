@@ -5,6 +5,7 @@ import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyHeaders;
 import com.ayssu.ciphergate.thirdparty.dto.*;
 import com.ayssu.ciphergate.thirdparty.service.ThirdPartyCardService;
 import com.ayssu.ciphergate.thirdparty.service.ThirdPartyCardRateLimitService;
+import com.ayssu.ciphergate.thirdparty.service.ThirdPartyHeartbeatService;
 import com.ayssu.ciphergate.util.IpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class ThirdPartyCardController {
     private final ThirdPartyCardService thirdPartyCardService;
     private final ThirdPartyCardRateLimitService thirdPartyCardRateLimitService;
+    private final ThirdPartyHeartbeatService thirdPartyHeartbeatService;
 
     @PostMapping("/card/login")
     @Operation(summary = "卡密登录")
@@ -65,6 +67,26 @@ public class ThirdPartyCardController {
             String msg = e.getMessage();
             if (msg == null || msg.isBlank()) {
                 msg = "换绑失败";
+            }
+            return Result.error(msg);
+        }
+    }
+
+    @PostMapping("/card/heartbeat")
+    @Operation(summary = "卡密心跳", description = "校验心跳 token，返回新交换 token + 应用变量；最快 30 秒一次")
+    public Result<HeartbeatResponse> heartbeat(@RequestBody HeartbeatRequest req, HttpServletRequest http) {
+        Long appId = (Long) http.getAttribute(ThirdPartyHeaders.ATTR_APPLICATION_ID);
+        if (appId == null) {
+            return Result.unauthorized("未识别应用");
+        }
+        try {
+            HeartbeatResponse resp = thirdPartyHeartbeatService.exchange(req.getToken());
+            return Result.success(resp);
+        } catch (Exception e) {
+            log.warn("heartbeat failed: appId={}, msg={}", appId, e.getMessage());
+            String msg = e.getMessage();
+            if (msg == null || msg.isBlank()) {
+                msg = "心跳失败";
             }
             return Result.error(msg);
         }

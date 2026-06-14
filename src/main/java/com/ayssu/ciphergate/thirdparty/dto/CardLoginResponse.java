@@ -56,5 +56,9 @@ public class CardLoginResponse {
      */
     private String variables;
     private Boolean online;
+    /**
+     * 心跳交换令牌（用于后续心跳接口，免费模式为 null）
+     */
+    private String token;
 }
 

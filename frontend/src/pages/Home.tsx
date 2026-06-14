@@ -160,13 +160,6 @@ const Home: React.FC = () => {
     setLoginModalVisible(true);
   };
 
-  // 主页的“联系/咨询”入口目前没有独立的表单后端接口
-  // 引导用户登录后通过工单方式联系管理员
-  const handleContactInfo = () => {
-    message.info('请先登录后提交工单，我们将由管理员为你处理咨询');
-    showLoginModal();
-  };
-
   const handleCancel = () => {
     setLoginModalVisible(false);
   };
@@ -286,21 +279,21 @@ const Home: React.FC = () => {
           {/* 桌面端按钮 */}
           <div style={{ display: window.innerWidth < 768 ? 'none' : 'block' }}>
             <Space size="middle">
-              <Button 
-                type="text" 
-                size="large" 
+              <Button
+                type="text"
+                size="large"
                 style={{ fontWeight: 500 }}
                 onClick={showLoginModal}
               >
-                登录
+                开发者登录
               </Button>
-              <Button type="primary" size="large" style={{ 
+              <Button type="primary" size="large" style={{
                 fontWeight: 600,
                 height: 44,
                 padding: '0 24px',
                 borderRadius: 8
-              }} onClick={handleContactInfo}>
-                免费咨询
+              }} onClick={showLoginModal}>
+                入驻开发者
               </Button>
             </Space>
           </div>
@@ -451,31 +444,31 @@ const Home: React.FC = () => {
                     <span style={{ color: '#00d4aa' }}>统一管理平台</span>
                   </Title>
                   
-                  <Paragraph style={{ 
-                    color: 'rgba(255,255,255,0.9)', 
-                    fontSize: window.innerWidth < 768 ? 16 : 20, 
+                  <Paragraph style={{
+                    color: 'rgba(255,255,255,0.9)',
+                    fontSize: window.innerWidth < 768 ? 16 : 20,
                     marginBottom: window.innerWidth < 768 ? 32 : 48,
                     lineHeight: 1.6,
                     maxWidth: 600,
                     textAlign: window.innerWidth < 768 ? 'center' : 'left',
                     margin: window.innerWidth < 768 ? '0 auto 32px' : '0 0 48px 0'
                   }}>
-                    CipherGate 聚焦应用授权、终端用户与配置治理，
-                    提供 OAuth2 登录、RBAC 权限、卡密管理、变量管理与审计能力的一体化后台。
+                    入驻成为开发者，开发和管理自己的应用。<br />
+                    一站式解决授权分发、用户管理、卡密运营与安全审计。
                   </Paragraph>
-                  
-                  <div style={{ 
+
+                  <div style={{
                     display: 'flex',
                     flexDirection: window.innerWidth < 768 ? 'column' : 'row',
                     gap: window.innerWidth < 768 ? 16 : 24,
                     alignItems: 'center',
                     justifyContent: window.innerWidth < 768 ? 'center' : 'flex-start'
                   }}>
-                    <Button 
-                      type="primary" 
-                      size="large" 
-                      style={{ 
-                        height: window.innerWidth < 768 ? 48 : 56, 
+                    <Button
+                      type="primary"
+                      size="large"
+                      style={{
+                        height: window.innerWidth < 768 ? 48 : 56,
                         padding: window.innerWidth < 768 ? '0 24px' : '0 32px',
                         fontSize: window.innerWidth < 768 ? 16 : 18,
                         fontWeight: 600,
@@ -487,7 +480,7 @@ const Home: React.FC = () => {
                       }}
                       onClick={showLoginModal}
                     >
-                      立即登录 <RightOutlined />
+                      入驻开发者 <RightOutlined />
                     </Button>
                     <Button
                       size="large"
@@ -693,24 +686,24 @@ const Home: React.FC = () => {
           position: 'relative'
         }}>
           <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 16px', textAlign: 'center' }}>
-            <Title level={2} style={{ 
-              color: 'white', 
+            <Title level={2} style={{
+              color: 'white',
               marginBottom: window.innerWidth < 768 ? 16 : 24,
               fontSize: window.innerWidth < 768 ? 24 : 36,
               fontWeight: 700
             }}>
-              准备好保护您的数字资产了吗？
+              开启您的应用安全之旅
             </Title>
-            <Paragraph style={{ 
-              color: 'rgba(255,255,255,0.9)', 
-              fontSize: window.innerWidth < 768 ? 16 : 18, 
+            <Paragraph style={{
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: window.innerWidth < 768 ? 16 : 18,
               marginBottom: window.innerWidth < 768 ? 32 : 48,
               maxWidth: 600,
               margin: window.innerWidth < 768 ? '0 auto 32px' : '0 auto 48px',
               padding: '0 16px'
             }}>
-              立即联系我们的安全专家，获取个性化的安全解决方案，
-              让您的企业在数字化转型中安全前行
+              立即入驻，免费体验 CipherGate 全部能力，
+              让授权管理更安全、更高效
             </Paragraph>
             
             <div style={{ 
@@ -723,7 +716,7 @@ const Home: React.FC = () => {
               <Button
                 type="primary"
                 size="large"
-                style={{ 
+                style={{
                   height: window.innerWidth < 768 ? 48 : 56,
                   padding: window.innerWidth < 768 ? '0 32px' : '0 40px',
                   fontSize: window.innerWidth < 768 ? 16 : 18,
@@ -734,9 +727,9 @@ const Home: React.FC = () => {
                   color: 'white',
                   width: window.innerWidth < 768 ? '240px' : 'auto'
                 }}
-                onClick={handleContactInfo}
+                onClick={showLoginModal}
               >
-                联系销售顾问
+                立即入驻 <RightOutlined />
               </Button>
             </div>
           </div>
