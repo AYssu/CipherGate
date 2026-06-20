@@ -32,7 +32,6 @@ import {
   LockOutlined,
   StopOutlined,
   DisconnectOutlined,
-  UserOutlined,
   MobileOutlined,
   CrownOutlined,
   FilterOutlined,

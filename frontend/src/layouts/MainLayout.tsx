@@ -668,7 +668,6 @@ const MainLayout: React.FC = () => {
             renderItem={(message) => {
               const importanceTag = getImportanceTag(message.importanceLevel);
               const isUnread = !message.isRead;
-              const isImportant = message.importanceLevel === 'HIGH' || message.importanceLevel === 'URGENT';
               
               return (
                 <List.Item
