@@ -700,19 +700,7 @@ html {
   }
 }
 
-/* 触摸设备优化 */
-@media (hover: none) and (pointer: coarse) {
-  .ant-menu-item,
-  .ant-menu-submenu-title,
-  .ant-btn {
-    min-height: 44px !important;
-  }
 
-  .header-collapse-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
-  }
-}
 /* Dashboard 组件移动端优化 */
 @media (max-width: 767px) {
   /* 欢迎卡片移动端适配 - 仅针对特定的欢迎卡片 */
@@ -1119,15 +1107,27 @@ html {
     margin-top: 4px !important;
   }
 
-  /* 移动端模态框优化 */
+  /* 移动端模态框优化 - 底部弹出 */
+  .mobile-modal.ant-modal {
+    top: auto !important;
+    bottom: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
   .mobile-modal .ant-modal-content {
-    border-radius: 12px !important;
+    border-radius: 16px 16px 0 0 !important;
     overflow: hidden !important;
+    max-height: 85vh !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .mobile-modal .ant-modal-header {
     padding: 16px 20px 12px !important;
     border-bottom: 1px solid #f0f0f0 !important;
+    flex-shrink: 0 !important;
   }
 
   .mobile-modal .ant-modal-title {
@@ -1137,20 +1137,24 @@ html {
 
   .mobile-modal .ant-modal-body {
     padding: 16px 20px !important;
-    max-height: 70vh !important;
     overflow-y: auto !important;
+    flex: 1 !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .mobile-modal .ant-modal-footer {
     padding: 12px 20px 16px !important;
     border-top: 1px solid #f0f0f0 !important;
+    flex-shrink: 0 !important;
   }
 
   .mobile-modal .ant-modal-footer .ant-btn {
-    height: 40px !important;
+    height: 44px !important;
     font-size: 16px !important;
-    border-radius: 6px !important;
+    border-radius: 8px !important;
   }
+
+
 
   /* 移动端加载状态 */
   .mobile-loading {
@@ -1468,5 +1472,85 @@ html {
   .mobile-tree-container {
     background-color: #262626 !important;
     border-color: #404040 !important;
+  }
+}
+
+/* 应用管理移动端卡片样式 */
+@media (max-width: 767px) {
+  .application-mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .application-mobile-card {
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    margin-bottom: 0 !important;
+    background-color: #fff !important;
+  }
+
+  .application-mobile-card .ant-card-body {
+    padding: 12px !important;
+    background-color: #fff !important;
+  }
+
+  .application-mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .application-mobile-card-title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .application-mobile-card-title .ant-typography {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .application-mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .application-mobile-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .application-mobile-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+  }
+}
+
+/* 应用管理移动端触摸优化 */
+@media (hover: none) and (pointer: coarse) {
+  .application-mobile-card {
+    transition: transform 0.1s ease !important;
+  }
+
+  .application-mobile-card:active {
+    transform: scale(0.98) !important;
+  }
+}
+
+/* 应用管理移动端深色模式 */
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+  .application-mobile-card-footer {
+    border-top-color: #404040 !important;
   }
 }

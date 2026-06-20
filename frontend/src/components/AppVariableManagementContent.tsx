@@ -20,6 +20,8 @@ import {
   Divider,
   Badge,
   Popover,
+  Pagination,
+  Grid,
   type MenuProps,
 } from 'antd';
 import {
@@ -138,6 +140,8 @@ const VARIABLE_TEMPLATE_GROUPS: Array<{ title: string; items: VariableTemplateIt
 ];
 
 const AppVariableManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
   const [variables, setVariables] = useState<AppVariable[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -706,132 +710,207 @@ const AppVariableManagementContent: React.FC = () => {
   ];
 
   return (
-    <Card>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4} style={{ margin: 0 }}>
-              变量管理
-            </Title>
-          </Col>
-          <Col>
-            <Space>
-              <Tooltip title="预览当前筛选应用的变量 JSON">
-                <Button icon={<EyeOutlined />} onClick={() => void handlePreviewVariables()}>
-                  变量预览
-                </Button>
-              </Tooltip>
-              <Tooltip title="导入配置会执行批量更新（JSON）">
-                <Button icon={<ImportOutlined />} onClick={() => setImportVisible(true)}>
-                  导入
-                </Button>
-              </Tooltip>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchVariables(pagination.current, pagination.pageSize)}>
+    <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
+      <Space direction="vertical" size={isMobile ? 12 : 'large'} style={{ width: '100%' }}>
+        {/* 标题栏 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>变量管理</Title>
+          {isMobile ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'import', icon: <ImportOutlined />, label: '导入', onClick: () => setImportVisible(true) },
+                    { key: 'preview', icon: <EyeOutlined />, label: '变量预览', onClick: () => void handlePreviewVariables() },
+                    { type: 'divider' },
+                    { key: 'batchDelete', icon: <DeleteOutlined />, label: '批量删除', danger: true, disabled: selectedRowKeys.length === 0, onClick: handleBatchDelete },
+                  ],
+                }}
+                trigger={['click']}
+              >
+                <Button size="small" icon={<MoreOutlined />} style={{ fontSize: 12, padding: '0 6px', height: 24 }}>更多</Button>
+              </Dropdown>
+              <Button
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={() => fetchVariables(pagination.current, pagination.pageSize)}
+                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+              >
                 刷新
               </Button>
-              <Button danger disabled={selectedRowKeys.length === 0} onClick={handleBatchDelete}>
-                批量删除
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => handleOpenEdit()}
+                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+              >
+                新建
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenEdit()}>
-                新建变量
-              </Button>
+            </div>
+          ) : (
+            <Space>
+              <Tooltip title="预览当前筛选应用的变量 JSON">
+                <Button icon={<EyeOutlined />} onClick={() => void handlePreviewVariables()}>变量预览</Button>
+              </Tooltip>
+              <Tooltip title="导入配置会执行批量更新（JSON）">
+                <Button icon={<ImportOutlined />} onClick={() => setImportVisible(true)}>导入</Button>
+              </Tooltip>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchVariables(pagination.current, pagination.pageSize)}>刷新</Button>
+              <Button danger disabled={selectedRowKeys.length === 0} onClick={handleBatchDelete}>批量删除</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenEdit()}>新建变量</Button>
             </Space>
-          </Col>
-        </Row>
+          )}
+        </div>
 
-        {/* 主搜索（变量名）+ 高级筛选 */}
-        <Row gutter={12} align="middle" wrap>
-          <Col flex="none">
-            <Space.Compact
-              style={{
-                width: 360,
-                maxWidth: 'calc(100vw - 120px)',
-              }}
-            >
+        {/* 搜索和筛选 */}
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+          {isMobile ? (
+            <>
               <Input
                 placeholder="变量名模糊匹配"
                 allowClear
                 value={variableNameInput}
                 onChange={(e) => setVariableNameInput(e.target.value)}
                 onPressEnter={() => applyVariableNameSearch()}
-                style={{ minWidth: 0 }}
+                style={{ flex: 1, minWidth: 0 }}
               />
-              <Button type="primary" onClick={() => applyVariableNameSearch()}>
-                搜索
-              </Button>
-            </Space.Compact>
-          </Col>
-          <Col flex="none">
-            <Popover
-              trigger="click"
-              placement="bottomLeft"
-              open={filterPopoverOpen}
-              onOpenChange={(open) => {
-                setFilterPopoverOpen(open);
-                if (open) {
-                  syncListFilterFormFromListFilters();
+              <Button type="primary" onClick={() => applyVariableNameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromListFilters(); }}
+                content={
+                  <div style={{ width: 320, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={12}>
+                        <Col span={24}>
+                          <Form.Item label="应用" name="appId">
+                            <Select allowClear showSearch optionFilterProp="label" placeholder="选择应用" options={appOptions} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={24}>
+                          <Form.Item label="类型" name="variableType">
+                            <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                      </Row>
+                    </Form>
+                  </div>
                 }
-              }}
-              content={
-                <div style={{ width: 420, maxWidth: '90vw' }}>
-                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                    <Row gutter={16}>
-                      <Col span={24}>
-                        <Form.Item label="应用" name="appId">
-                          <Select
-                            allowClear
-                            showSearch
-                            optionFilterProp="label"
-                            placeholder="选择应用"
-                            options={appOptions}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={24}>
-                        <Form.Item label="类型" name="variableType">
-                          <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                      <Col>
-                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                      </Col>
-                      <Col>
-                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                          查询
-                        </Button>
-                      </Col>
-                    </Row>
-                  </Form>
-                </div>
-              }
-            >
-              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                <Button icon={<FilterOutlined />}>筛选</Button>
-              </Badge>
-            </Popover>
-          </Col>
-        </Row>
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
+                </Badge>
+              </Popover>
+            </>
+          ) : (
+            <>
+              <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+                <Input placeholder="变量名模糊匹配" allowClear value={variableNameInput} onChange={(e) => setVariableNameInput(e.target.value)} onPressEnter={() => applyVariableNameSearch()} style={{ minWidth: 0 }} />
+                <Button type="primary" onClick={() => applyVariableNameSearch()}>搜索</Button>
+              </Space.Compact>
+              <Popover
+                trigger="click"
+                placement="bottomLeft"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromListFilters(); }}
+                content={
+                  <div style={{ width: 420, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={16}>
+                        <Col span={24}>
+                          <Form.Item label="应用" name="appId">
+                            <Select allowClear showSearch optionFilterProp="label" placeholder="选择应用" options={appOptions} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={24}>
+                          <Form.Item label="类型" name="variableType">
+                            <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                      </Row>
+                    </Form>
+                  </div>
+                }
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />}>筛选</Button>
+                </Badge>
+              </Popover>
+            </>
+          )}
+        </div>
 
-        <Table
-          columns={columns as any}
-          dataSource={variables}
-          rowKey="id"
-          loading={loading}
-          size="middle"
-          rowSelection={{
-            selectedRowKeys,
-            onChange: (keys) => setSelectedRowKeys(keys),
-          }}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => fetchVariables(page, pageSize),
-          }}
-          scroll={{ x: 1400 }}
-        />
+        {/* 列表 */}
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {loading && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>}
+            {!loading && variables.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无数据</div>}
+            {variables.map((record) => (
+              <div key={record.id} style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #f0f0f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text strong style={{ fontSize: 14 }} ellipsis={{ tooltip: record.variableName }}>{record.variableName}</Text>
+                      {getTypeTag(record.variableType)}
+                      <Tag color={record.enabled ? 'success' : 'default'} style={{ margin: 0 }}>{record.enabled ? '启用' : '停用'}</Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{record.appName || `AppID:${record.appId}`}</Text>
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>{formatTime(record.updatedAt)}</Text>
+                  </div>
+                  <Space size={0}>
+                    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)}>编辑</Button>
+                    <Dropdown menu={{ items: [
+                      { key: 'copy', icon: <CopyOutlined />, label: '复制', onClick: () => handleCopyVariable(record) },
+                      { key: 'history', icon: <HistoryOutlined />, label: '历史记录', onClick: () => openHistory(record) },
+                      { type: 'divider' },
+                      { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => { Modal.confirm({ title: '删除变量', content: `确定要删除变量 "${record.variableName}" 吗？`, okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => handleDelete(record.id) }); } },
+                    ] }} trigger={['click']}>
+                      <Button type="text" size="small" icon={<MoreOutlined />} />
+                    </Dropdown>
+                  </Space>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Table
+            columns={columns as any}
+            dataSource={variables}
+            rowKey="id"
+            loading={loading}
+            size="middle"
+            rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys) }}
+            pagination={{
+              ...pagination,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (page, pageSize) => fetchVariables(page, pageSize),
+            }}
+            scroll={{ x: 1400 }}
+          />
+        )}
+
+        {/* 移动端分页 */}
+        {isMobile && pagination.total > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Pagination current={pagination.current} pageSize={pagination.pageSize} total={pagination.total} onChange={(page, pageSize) => fetchVariables(page, pageSize)} size="small" simple />
+          </div>
+        )}
       </Space>
 
       <Modal
@@ -841,7 +920,8 @@ const AppVariableManagementContent: React.FC = () => {
         onCancel={() => setEditModalVisible(false)}
         okText="确定"
         cancelText="取消"
-        width={780}
+        width={isMobile ? '100%' : 780}
+        className={isMobile ? 'mobile-modal' : undefined}
         styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: 8 } }}
       >
         <Form
@@ -1087,7 +1167,8 @@ const AppVariableManagementContent: React.FC = () => {
         onCancel={() => setImportVisible(false)}
         okText="导入"
         cancelText="取消"
-        width={800}
+        width={isMobile ? '100%' : 800}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary">
           导入会按变量名执行 upsert：已存在则更新，不存在则自动新增。
@@ -1123,7 +1204,8 @@ const AppVariableManagementContent: React.FC = () => {
         onCancel={() => setPreviewVisible(false)}
         okText="复制"
         cancelText="关闭"
-        width={860}
+        width={isMobile ? '100%' : 860}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary">以下为当前应用变量转换后的 JSON 预览。</Text>
         <div style={{ height: 12 }} />
@@ -1157,7 +1239,8 @@ const AppVariableManagementContent: React.FC = () => {
         onCancel={() => setExportVisible(false)}
         okText="复制"
         cancelText="关闭"
-        width={800}
+        width={isMobile ? '100%' : 800}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary">你可以复制后保存到本地，或作为导入模板。</Text>
         <div style={{ height: 12 }} />

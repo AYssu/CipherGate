@@ -1,27 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Typography, 
-  Space, 
-  Button, 
-  Table, 
-  Tag, 
-  Modal, 
-  Form, 
-  Input, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Card,
+  Typography,
+  Space,
+  Button,
+  Table,
+  Tag,
+  Modal,
+  Form,
+  Input,
   message,
   Popconfirm,
   Tree,
-  Checkbox
+  Checkbox,
+  Grid,
+  Dropdown,
 } from 'antd';
-import { 
+import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   ReloadOutlined,
   ApiOutlined,
   MenuOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { roleApi } from '../services';
 import { MenuService } from '../services';
@@ -32,6 +35,8 @@ import type { Menu } from '../services/menuService';
 const { Title, Text } = Typography;
 
 const RoleManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -105,7 +110,7 @@ const RoleManagementContent: React.FC = () => {
   };
 
   // 角色表格列定义
-  const roleColumns = [
+  const allRoleColumns = useMemo(() => [
     {
       title: '角色名称',
       dataIndex: 'roleName',
@@ -137,49 +142,75 @@ const RoleManagementContent: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      render: (record: Role) => (
-        <Space>
-          <Button 
-            type="link" 
-            icon={<MenuOutlined />}
-            onClick={() => handleManageMenus(record)}
-          >
-            菜单权限
-          </Button>
-          <Button 
-            type="link" 
-            icon={<ApiOutlined />}
-            onClick={() => handleManagePermissions(record)}
-          >
-            API权限
-          </Button>
-          <Button 
-            type="link" 
-            icon={<EditOutlined />}
-            onClick={() => handleEditRole(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description={`确定要删除角色 ${record.roleName} 吗？`}
-            onConfirm={() => handleDeleteRole(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button 
-              type="link" 
-              danger
-              icon={<DeleteOutlined />}
-              disabled={record.roleCode === 'SUPER_ADMIN'}
+      width: isMobile ? 80 : undefined,
+      render: (record: Role) => {
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'menu', label: '菜单权限', icon: <MenuOutlined />, onClick: () => handleManageMenus(record) },
+                  { key: 'api', label: 'API权限', icon: <ApiOutlined />, onClick: () => handleManagePermissions(record) },
+                  { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditRole(record) },
+                  { type: 'divider' },
+                  { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, disabled: record.roleCode === 'SUPER_ADMIN', onClick: () => handleDeleteRole(record) },
+                ],
+              }}
+              trigger={['click']}
             >
-              删除
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        return (
+          <Space>
+            <Button
+              type="link"
+              icon={<MenuOutlined />}
+              onClick={() => handleManageMenus(record)}
+            >
+              菜单权限
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            <Button
+              type="link"
+              icon={<ApiOutlined />}
+              onClick={() => handleManagePermissions(record)}
+            >
+              API权限
+            </Button>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleEditRole(record)}
+            >
+              编辑
+            </Button>
+            <Popconfirm
+              title="确认删除"
+              description={`确定要删除角色 ${record.roleName} 吗？`}
+              onConfirm={() => handleDeleteRole(record)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={record.roleCode === 'SUPER_ADMIN'}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
-  ];
+  ], [isMobile]);
+
+  const MOBILE_VISIBLE_KEYS = ['roleName', 'roleCode', 'actions'];
+  const roleColumns = isMobile
+    ? allRoleColumns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes(c.dataIndex as string))
+    : allRoleColumns;
 
   const handleEditRole = (role: Role) => {
     setEditingRole(role);
@@ -303,31 +334,38 @@ const RoleManagementContent: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       <Card>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Space>
-              <SafetyOutlined style={{ color: '#1677ff', fontSize: 20 }} />
-              <Title level={4} style={{ margin: 0 }}>角色管理</Title>
-            </Space>
-            <Space>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleCreateRole}
-              >
-                新建角色
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchRoles}
-                loading={loading}
-              >
-                刷新
-              </Button>
-            </Space>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SafetyOutlined style={{ color: '#1677ff', fontSize: isMobile ? 16 : 20 }} />
+            <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>角色管理</Title>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={fetchRoles}
+              loading={loading}
+              size={isMobile ? 'small' : 'middle'}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateRole}
+              size={isMobile ? 'small' : 'middle'}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              新建角色
+            </Button>
           </div>
         </div>
-        
+
         <Table
           columns={roleColumns}
           dataSource={roles}
@@ -335,10 +373,13 @@ const RoleManagementContent: React.FC = () => {
           loading={loading}
           pagination={{
             pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
+            simple: isMobile,
+            showSizeChanger: !isMobile,
+            showQuickJumper: !isMobile,
+            showTotal: isMobile ? undefined : (total) => `共 ${total} 条记录`,
           }}
+          scroll={{ x: isMobile ? 300 : undefined }}
+          size={isMobile ? 'small' : 'middle'}
           expandable={{
             expandedRowRender: (record: Role) => (
               <div style={{ padding: 16, background: '#fafafa' }}>
@@ -363,7 +404,8 @@ const RoleManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={600}
+        width={isMobile ? '100%' : 600}
+        className={isMobile ? 'mobile-modal' : undefined}
         okText="确定"
         cancelText="取消"
       >
@@ -405,7 +447,8 @@ const RoleManagementContent: React.FC = () => {
         open={menuModalVisible}
         onOk={handleSaveMenuPermissions}
         onCancel={handleMenuModalCancel}
-        width={600}
+        width={isMobile ? '100%' : 600}
+        className={isMobile ? 'mobile-modal' : undefined}
         okText="保存"
         cancelText="取消"
       >
@@ -433,7 +476,8 @@ const RoleManagementContent: React.FC = () => {
         open={permissionModalVisible}
         onOk={handleSaveApiPermissions}
         onCancel={handlePermissionModalCancel}
-        width={800}
+        width={isMobile ? '100%' : 800}
+        className={isMobile ? 'mobile-modal' : undefined}
         okText="保存"
         cancelText="取消"
       >

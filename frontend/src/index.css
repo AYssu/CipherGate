@@ -173,3 +173,13 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* 移动端：覆盖 antd Table 默认 1000px 宽度限制，允许横向滚动 */
+@media (max-width: 767px) {
+  .ant-table-container .ant-table,
+  .ant-table-container > table,
+  table.ant-table {
+    width: auto !important;
+    min-width: 100% !important;
+  }
+}

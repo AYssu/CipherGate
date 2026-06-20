@@ -9,6 +9,7 @@ import {
   message,
   Descriptions,
   Progress,
+  Grid,
 } from 'antd';
 import {
   InfoCircleOutlined,
@@ -24,6 +25,8 @@ import type { SystemInfo, SystemStatus } from '../services';
 const { Title, Text } = Typography;
 
 const SystemInfoContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,53 +91,53 @@ const SystemInfoContent: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <Card style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: '0 0 16px 0' }}>
+      <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: '0 0 16px 0' }}>
           <CloudServerOutlined style={{ marginRight: 8, color: '#1890ff' }} />
           系统状态概览
         </Title>
 
-        <Row gutter={[16, 16]}>
-          <Col span={6}>
+        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
+          <Col span={isMobile ? 24 : 6}>
             <Card size="small">
               <Statistic
                 title="系统版本"
                 value={systemInfo?.application.name}
                 suffix={systemInfo?.application.version}
-                valueStyle={{ fontSize: 16, color: '#1890ff' }}
+                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#1890ff' }}
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col span={isMobile ? 24 : 6}>
             <Card size="small">
               <Statistic
                 title="运行状态"
                 value={systemStatus?.status || '正常运行'}
-                valueStyle={{ fontSize: 16, color: '#52c41a' }}
+                valueStyle={{ fontSize: isMobile ? 14 : 16, color: '#52c41a' }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col span={isMobile ? 24 : 6}>
             <Card size="small">
               <Statistic
                 title="系统负载"
                 value={systemLoad}
                 suffix="%"
                 valueStyle={{
-                  fontSize: 16,
+                  fontSize: isMobile ? 14 : 16,
                   color: systemLoad > 80 ? '#ff4d4f' : systemLoad > 60 ? '#faad14' : '#52c41a'
                 }}
                 prefix={systemLoad > 80 ? <WarningOutlined /> : <CheckCircleOutlined />}
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col span={isMobile ? 24 : 6}>
             <Card size="small">
               <Statistic
                 title="运行时间"
                 value={systemInfo?.application.uptime ? formatUptime(systemInfo.application.uptime) : '-'}
-                valueStyle={{ fontSize: 14, color: '#722ed1' }}
+                valueStyle={{ fontSize: isMobile ? 12 : 14, color: '#722ed1' }}
                 prefix={<ClockCircleOutlined />}
               />
             </Card>
@@ -142,14 +145,14 @@ const SystemInfoContent: React.FC = () => {
         </Row>
       </Card>
 
-      <Card style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: '0 0 16px 0' }}>
+      <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: '0 0 16px 0' }}>
           <DatabaseOutlined style={{ marginRight: 8, color: '#1890ff' }} />
           系统资源监控
         </Title>
 
-        <Row gutter={[24, 24]}>
-          <Col span={12}>
+        <Row gutter={[isMobile ? 16 : 24, isMobile ? 16 : 24]}>
+          <Col span={isMobile ? 24 : 12}>
             <div style={{ marginBottom: 16 }}>
               <Text strong>内存使用情况</Text>
               <div style={{ marginTop: 8 }}>
@@ -176,7 +179,7 @@ const SystemInfoContent: React.FC = () => {
             </div>
           </Col>
 
-          <Col span={12}>
+          <Col span={isMobile ? 24 : 12}>
             <div style={{ marginBottom: 16 }}>
               <Text strong>技术栈信息</Text>
               <div style={{ marginTop: 8 }}>
@@ -192,8 +195,8 @@ const SystemInfoContent: React.FC = () => {
         </Row>
       </Card>
 
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
+      <Row gutter={[isMobile ? 16 : 16, isMobile ? 16 : 16]}>
+        <Col span={isMobile ? 24 : 12}>
           <Card>
             <Title level={5} style={{ margin: '0 0 16px 0' }}>
               <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />
@@ -207,7 +210,7 @@ const SystemInfoContent: React.FC = () => {
           </Card>
         </Col>
 
-        <Col span={12}>
+        <Col span={isMobile ? 24 : 12}>
           <Card>
             <Title level={5} style={{ margin: '0 0 16px 0' }}>
               <InfoCircleOutlined style={{ marginRight: 8, color: '#1890ff' }} />

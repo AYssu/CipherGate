@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Badge, Button, Card, Col, Form, Input, Popover, Row, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Badge, Button, Card, Col, Form, Input, Popover, Row, Select, Space, Table, Tag, Typography, Grid, Pagination, message } from 'antd';
 import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getThirdPartyRechargeLogList, type ThirdPartyRechargeLog } from '../services/callLogService';
 import { getApplicationList, type Application } from '../services/applicationService';
@@ -7,6 +7,9 @@ import { getApplicationList, type Application } from '../services/applicationSer
 const { Text, Title } = Typography;
 
 const CallLogManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<ThirdPartyRechargeLog[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
@@ -134,156 +137,320 @@ const CallLogManagementContent: React.FC = () => {
   };
 
   return (
-    <Card>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col>
-          <Title level={4} style={{ margin: 0 }}>
-            三方调用日志
-          </Title>
-        </Col>
-        <Col>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>
-            刷新
-          </Button>
-        </Col>
-      </Row>
-      <Row gutter={12} align="middle" wrap style={{ marginBottom: 16 }}>
-        <Col flex="none">
-          <Space.Compact
-            style={{
-              width: 360,
-              maxWidth: 'calc(100vw - 120px)',
-            }}
-          >
+    <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
+      {/* 标题栏 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: isMobile ? 12 : 16,
+      }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
+          三方调用日志
+        </Title>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => fetchData()}
+          size={isMobile ? 'small' : 'middle'}
+        >
+          {!isMobile && '刷新'}
+        </Button>
+      </div>
+
+      {/* 搜索和筛选 */}
+      <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'stretch' } : { marginBottom: 16 }}>
+        {isMobile ? (
+          <>
             <Input
               placeholder="搜索用户邮箱"
               allowClear
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               onPressEnter={() => applyEmailSearch()}
-              style={{ minWidth: 0 }}
+              style={{ flex: 1, minWidth: 0 }}
             />
-            <Button type="primary" onClick={() => applyEmailSearch()}>
+            <Button type="primary" onClick={() => applyEmailSearch()} style={{ flexShrink: 0 }}>
               搜索
             </Button>
-          </Space.Compact>
-        </Col>
-        <Col flex="none">
-          <Popover
-            trigger="click"
-            placement="bottomLeft"
-            open={filterPopoverOpen}
-            onOpenChange={(open) => {
-              setFilterPopoverOpen(open);
-              if (open) {
-                syncListFilterFormFromFilters();
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (open) {
+                  syncListFilterFormFromFilters();
+                }
+              }}
+              content={
+                <div style={{ width: 320, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item label="应用" name="appId">
+                          <Select
+                            allowClear
+                            placeholder="选择应用"
+                            options={apps.map((app) => ({
+                              label: app.appName,
+                              value: app.id,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="状态" name="status">
+                          <Select
+                            allowClear
+                            placeholder="状态"
+                            options={[
+                              { label: '成功', value: 1 },
+                              { label: '失败', value: 2 },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item label="订单号" name="outTradeNo">
+                          <Input allowClear placeholder="输入订单号" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col>
+                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                      </Col>
+                      <Col>
+                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                          查询
+                        </Button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
               }
-            }}
-            content={
-              <div style={{ width: 420, maxWidth: '90vw' }}>
-                <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item label="应用" name="appId">
-                        <Select
-                          allowClear
-                          placeholder="选择应用"
-                          options={apps.map((app) => ({
-                            label: app.appName,
-                            value: app.id,
-                          }))}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item label="状态" name="status">
-                        <Select
-                          allowClear
-                          placeholder="状态"
-                          options={[
-                            { label: '成功', value: 1 },
-                            { label: '失败', value: 2 },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={24}>
-                      <Form.Item label="订单号" name="outTradeNo">
-                        <Input allowClear placeholder="输入订单号" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                    <Col>
-                      <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                    </Col>
-                    <Col>
-                      <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                        查询
-                      </Button>
-                    </Col>
-                  </Row>
-                </Form>
-              </div>
-            }
-          >
-            <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-              <Button icon={<FilterOutlined />}>筛选</Button>
-            </Badge>
-          </Popover>
-        </Col>
-      </Row>
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
+              </Badge>
+            </Popover>
+          </>
+        ) : (
+          <>
+            <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+              <Input
+                placeholder="搜索用户邮箱"
+                allowClear
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                onPressEnter={() => applyEmailSearch()}
+                style={{ minWidth: 0 }}
+              />
+              <Button type="primary" onClick={() => applyEmailSearch()}>
+                搜索
+              </Button>
+            </Space.Compact>
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => {
+                setFilterPopoverOpen(open);
+                if (open) {
+                  syncListFilterFormFromFilters();
+                }
+              }}
+              content={
+                <div style={{ width: 420, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="应用" name="appId">
+                          <Select
+                            allowClear
+                            placeholder="选择应用"
+                            options={apps.map((app) => ({
+                              label: app.appName,
+                              value: app.id,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="状态" name="status">
+                          <Select
+                            allowClear
+                            placeholder="状态"
+                            options={[
+                              { label: '成功', value: 1 },
+                              { label: '失败', value: 2 },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item label="订单号" name="outTradeNo">
+                          <Input allowClear placeholder="输入订单号" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col>
+                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                      </Col>
+                      <Col>
+                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                          查询
+                        </Button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </div>
+              }
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />}>筛选</Button>
+              </Badge>
+            </Popover>
+          </>
+        )}
+      </div>
 
-      <Table<ThirdPartyRechargeLog>
-        rowKey="id"
-        loading={loading}
-        dataSource={list}
-        pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          onChange: (page, size) => fetchData(page, size, filters),
-        }}
-        columns={[
-          { title: 'ID', dataIndex: 'id', width: 80 },
-          { title: '应用ID', dataIndex: 'appId', width: 90 },
-          { title: '凭证ID', dataIndex: 'credentialId', width: 100 },
-          { title: '用户邮箱', dataIndex: 'userEmail', width: 220 },
-          { title: '加时天数', dataIndex: 'days', width: 90 },
-          { title: '订单号', dataIndex: 'outTradeNo', width: 180, ellipsis: true },
-          { title: 'IP', dataIndex: 'requestIp', width: 140 },
-          {
-            title: '状态',
-            dataIndex: 'status',
-            width: 90,
-            render: (v?: number) => <Tag color={v === 1 ? 'success' : 'error'}>{v === 1 ? '成功' : '失败'}</Tag>,
-          },
-          {
-            title: '签名',
-            dataIndex: 'signValid',
-            width: 90,
-            render: (v?: number) => <Tag color={v === 1 ? 'blue' : 'default'}>{v === 1 ? '通过' : '未通过'}</Tag>,
-          },
-          {
-            title: '前后到期',
-            width: 280,
-            render: (_, r) => (
-              <Space direction="vertical" size={0}>
-                <Text type="secondary">前: {formatDateTime(r.beforeExpiresAt)}</Text>
-                <Text>后: {formatDateTime(r.afterExpiresAt)}</Text>
-              </Space>
-            ),
-          },
-          { title: '错误信息', dataIndex: 'errorMessage', width: 260, ellipsis: true },
-          {
-            title: '时间',
-            dataIndex: 'createdAt',
-            width: 170,
-            render: (v?: string) => <Text style={{ fontSize: 12 }}>{formatDateTime(v)}</Text>,
-          },
-        ]}
-        scroll={{ x: 1800 }}
-      />
+      {/* 用户列表 */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {loading && (
+            <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>
+          )}
+          {!loading && list.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无数据</div>
+          )}
+          {list.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                background: '#fafafa',
+                borderRadius: 8,
+                padding: '10px 12px',
+                border: '1px solid #f0f0f0',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Tag color={item.status === 1 ? 'success' : 'error'} style={{ margin: 0 }}>
+                      {item.status === 1 ? '成功' : '失败'}
+                    </Tag>
+                    <Tag color={item.signValid === 1 ? 'blue' : 'default'} style={{ margin: 0 }}>
+                      签名{item.signValid === 1 ? '通过' : '未通过'}
+                    </Tag>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {formatDateTime(item.createdAt)}
+                    </Text>
+                  </div>
+                  <Text
+                    style={{ fontSize: 13, display: 'block', marginTop: 4 }}
+                    ellipsis={{ tooltip: item.userEmail }}
+                  >
+                    {item.userEmail || '-'}
+                  </Text>
+                </div>
+                <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap', marginLeft: 8 }}>
+                  +{item.days}天
+                </Text>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, fontSize: 12, color: '#666' }}>
+                <Text type="secondary">ID: {item.id}</Text>
+                <Text type="secondary">|</Text>
+                <Text type="secondary">IP: {item.requestIp || '-'}</Text>
+              </div>
+              {item.outTradeNo && (
+                <div style={{ marginTop: 4 }}>
+                  <Text
+                    type="secondary"
+                    style={{ fontSize: 11, fontFamily: 'monospace' }}
+                    ellipsis={{ tooltip: item.outTradeNo }}
+                  >
+                    订单: {item.outTradeNo}
+                  </Text>
+                </div>
+              )}
+              {item.errorMessage && (
+                <div style={{ marginTop: 4 }}>
+                  <Text type="danger" style={{ fontSize: 11 }} ellipsis={{ tooltip: item.errorMessage }}>
+                    {item.errorMessage}
+                  </Text>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Table<ThirdPartyRechargeLog>
+          rowKey="id"
+          loading={loading}
+          dataSource={list}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            onChange: (page, size) => fetchData(page, size, filters),
+          }}
+          columns={[
+            { title: 'ID', dataIndex: 'id', width: 80 },
+            { title: '应用ID', dataIndex: 'appId', width: 90 },
+            { title: '凭证ID', dataIndex: 'credentialId', width: 100 },
+            { title: '用户邮箱', dataIndex: 'userEmail', width: 220 },
+            { title: '加时天数', dataIndex: 'days', width: 90 },
+            { title: '订单号', dataIndex: 'outTradeNo', width: 180, ellipsis: true },
+            { title: 'IP', dataIndex: 'requestIp', width: 140 },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 90,
+              render: (v?: number) => <Tag color={v === 1 ? 'success' : 'error'}>{v === 1 ? '成功' : '失败'}</Tag>,
+            },
+            {
+              title: '签名',
+              dataIndex: 'signValid',
+              width: 90,
+              render: (v?: number) => <Tag color={v === 1 ? 'blue' : 'default'}>{v === 1 ? '通过' : '未通过'}</Tag>,
+            },
+            {
+              title: '前后到期',
+              width: 280,
+              render: (_, r) => (
+                <Space direction="vertical" size={0}>
+                  <Text type="secondary">前: {formatDateTime(r.beforeExpiresAt)}</Text>
+                  <Text>后: {formatDateTime(r.afterExpiresAt)}</Text>
+                </Space>
+              ),
+            },
+            { title: '错误信息', dataIndex: 'errorMessage', width: 260, ellipsis: true },
+            {
+              title: '时间',
+              dataIndex: 'createdAt',
+              width: 170,
+              render: (v?: string) => <Text style={{ fontSize: 12 }}>{formatDateTime(v)}</Text>,
+            },
+          ]}
+          scroll={{ x: 1800 }}
+        />
+      )}
+
+      {/* 移动端分页 */}
+      {isMobile && pagination.total > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination
+            current={pagination.current}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onChange={(page, size) => fetchData(page, size, filters)}
+            size="small"
+            simple
+          />
+        </div>
+      )}
     </Card>
   );
 };

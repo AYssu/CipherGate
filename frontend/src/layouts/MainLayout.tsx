@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Badge, Drawer, List, Tag, Empty, Modal } from 'antd';
+import { Layout, Menu, Typography, Space, Avatar, Dropdown, Button, Badge, Drawer, List, Tag, Empty, Modal, Grid } from 'antd';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   AppstoreOutlined,
@@ -28,9 +28,12 @@ const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 const MainLayout: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md; // < 768px
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showBadge, setShowBadge] = useState(false);
@@ -158,7 +161,8 @@ const MainLayout: React.FC = () => {
     if (minutes < 60) return `${minutes}分钟前`;
     if (hours < 24) return `${hours}小时前`;
     if (days < 7) return `${days}天前`;
-    return date.toLocaleDateString();
+    if (days < 30) return `${days}天前`;
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
   // 获取重要程度标签
@@ -413,11 +417,11 @@ const MainLayout: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh'
       }}>
         <SafetyOutlined spin style={{ fontSize: 48, color: '#1890ff' }} />
       </div>
@@ -426,56 +430,102 @@ const MainLayout: React.FC = () => {
 
   const sidebarMenuItems = userInfo?.menus ? generateSidebarMenus(userInfo.menus) : [];
 
+  // 移动端：点击菜单项后关闭抽屉
+  const mobileDrawerMenuItems = sidebarMenuItems.map(item => {
+    if (item.children) {
+      return {
+        ...item,
+        children: item.children.map((child: any) => ({
+          ...child,
+          onClick: () => {
+            child.onClick?.();
+            setMobileDrawerOpen(false);
+          },
+        })),
+      };
+    }
+    return {
+      ...item,
+      onClick: () => {
+        (item as any).onClick?.();
+        setMobileDrawerOpen(false);
+      },
+    };
+  });
+
+  const siderContent = (
+    <>
+      <div className="sider-logo" style={{
+        padding: collapsed && !isMobile ? '24px 8px' : '24px 16px',
+        borderBottom: '1px solid #f0f0f0',
+        textAlign: 'center',
+        transition: 'all 0.2s'
+      }}>
+        <SafetyOutlined style={{
+          fontSize: 32,
+          color: '#1890ff',
+          marginBottom: collapsed && !isMobile ? 0 : 8
+        }} />
+        {(!collapsed || isMobile) && (
+          <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+            CipherGate
+          </Title>
+        )}
+      </div>
+
+      <Menu
+        mode="inline"
+        selectedKeys={[selectedMenu]}
+        openKeys={isMobile ? undefined : (collapsed ? [] : openKeys)}
+        onOpenChange={isMobile ? undefined : handleOpenChange}
+        inlineCollapsed={isMobile ? false : collapsed}
+        items={isMobile ? mobileDrawerMenuItems : sidebarMenuItems}
+        style={{
+          border: 'none',
+          padding: '16px 0',
+          fontSize: '14px'
+        }}
+        className="dashboard-sidebar-menu"
+      />
+    </>
+  );
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        theme="light"
-        width={250}
-        collapsed={collapsed}
-        style={{
-          boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-          borderRight: '1px solid #f0f0f0'
-        }}
-      >
-        <div className="sider-logo" style={{
-          padding: collapsed ? '24px 8px' : '24px 16px',
-          borderBottom: '1px solid #f0f0f0',
-          textAlign: 'center',
-          transition: 'all 0.2s'
-        }}>
-          <SafetyOutlined style={{ 
-            fontSize: 32, 
-            color: '#1890ff', 
-            marginBottom: collapsed ? 0 : 8
-          }} />
-          {!collapsed && (
-            <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
-              CipherGate
-            </Title>
-          )}
-        </div>
-        
-        <Menu
-          mode="inline"
-          selectedKeys={[selectedMenu]}
-          openKeys={collapsed ? [] : openKeys}
-          onOpenChange={handleOpenChange}
-          inlineCollapsed={collapsed}
-          items={sidebarMenuItems}
-          style={{ 
-            border: 'none', 
-            padding: '16px 0',
-            fontSize: '14px'
+      {/* 桌面端：固定侧边栏 */}
+      {!isMobile && (
+        <Sider
+          theme="light"
+          width={250}
+          collapsed={collapsed}
+          style={{
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            borderRight: '1px solid #f0f0f0'
           }}
-          className="dashboard-sidebar-menu"
-        />
-      </Sider>
+        >
+          {siderContent}
+        </Sider>
+      )}
+
+      {/* 移动端：侧边栏抽屉 */}
+      {isMobile && (
+        <Drawer
+          placement="left"
+          open={mobileDrawerOpen}
+          onClose={() => setMobileDrawerOpen(false)}
+          width={280}
+          styles={{ body: { padding: 0 } }}
+          closable={false}
+        >
+          {siderContent}
+        </Drawer>
+      )}
 
       <Layout>
         <Header style={{
           background: '#fff',
-          padding: '0 24px',
-          height: '64px',
+          padding: isMobile ? '0 16px' : '0 24px',
+          height: isMobile ? 56 : 64,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           borderBottom: '1px solid #f0f0f0',
           display: 'flex',
@@ -483,84 +533,90 @@ const MainLayout: React.FC = () => {
           position: 'relative'
         }}>
           {/* 左侧区域 */}
-          <div style={{ 
-            display: 'flex', 
+          <div style={{
+            display: 'flex',
             alignItems: 'center',
             position: 'absolute',
-            left: '24px'
+            left: isMobile ? 16 : 24
           }}>
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+              icon={isMobile ? <MenuOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+              onClick={() => isMobile ? setMobileDrawerOpen(true) : setCollapsed(!collapsed)}
               style={{
-                fontSize: '16px',
-                width: 32,
-                height: 32,
+                fontSize: isMobile ? 18 : 16,
+                width: isMobile ? 40 : 32,
+                height: isMobile ? 40 : 32,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
             />
-            <Title 
+            <Title
               level={4}
-              style={{ 
-                margin: '0 0 0 12px', 
+              style={{
+                margin: '0 0 0 8px',
                 color: '#1a1a2e',
-                fontSize: '18px',
+                fontSize: isMobile ? 16 : 18,
                 fontWeight: 500,
-                lineHeight: 1
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: isMobile ? 120 : undefined
               }}
             >
               {pageTitle}
             </Title>
           </div>
-          
+
           {/* 右侧区域 */}
           <div style={{
             position: 'absolute',
-            right: '24px',
+            right: isMobile ? 16 : 24,
             top: '50%',
             transform: 'translateY(-50%)'
           }}>
-            <Space size={12} align="center">
-              <Badge 
-                count={unreadCount} 
+            <Space size={isMobile ? 8 : 12} align="center">
+              <Badge
+                count={unreadCount}
                 size="small"
                 dot={showBadge && unreadCount === 0}
                 offset={[-2, 2]}
               >
-                <BellOutlined style={{ 
-                  fontSize: 16, 
+                <BellOutlined style={{
+                  fontSize: 16,
                   cursor: 'pointer',
                   color: showBadge ? '#ff4d4f' : undefined
-                }} 
+                }}
                 onClick={handleOpenNotification}
                 />
               </Badge>
-              
+
               <Dropdown
                 menu={{ items: userMenuItems }}
                 placement="bottomRight"
               >
-                <Space style={{ cursor: 'pointer' }} size={8} align="center">
-                  <Avatar 
-                    src={userInfo?.avatarUrl} 
+                <Space style={{ cursor: 'pointer' }} size={isMobile ? 4 : 8} align="center">
+                  <Avatar
+                    src={userInfo?.avatarUrl}
                     icon={<UserOutlined />}
-                    size={32}
+                    size={isMobile ? 28 : 32}
                   />
-                  <Text strong style={{ fontSize: '14px' }}>
-                    {userInfo?.name || userInfo?.login}
-                  </Text>
+                  {!isMobile && (
+                    <Text strong style={{ fontSize: '14px' }}>
+                      {userInfo?.name || userInfo?.login}
+                    </Text>
+                  )}
                 </Space>
               </Dropdown>
             </Space>
           </div>
         </Header>
 
-        <Content style={{ 
-          padding: '24px', 
-          background: '#f5f5f5' 
+        <Content style={{
+          padding: isMobile ? '12px' : '24px',
+          background: '#f5f5f5'
         }}>
           <Outlet context={{ userInfo }} />
         </Content>
@@ -569,14 +625,35 @@ const MainLayout: React.FC = () => {
       {/* 消息通知抽屉 */}
       <Drawer
         title="系统消息"
-        placement="right"
+        placement={isMobile ? 'bottom' : 'right'}
         onClose={handleCloseNotification}
         open={notificationVisible}
-        width={380}
+        width={isMobile ? undefined : 380}
+        height={isMobile ? '70vh' : undefined}
         styles={{
-          body: { padding: 0 }
+          body: { padding: 0 },
+          header: isMobile ? { borderBottom: '1px solid #f0f0f0' } : undefined,
+          content: isMobile ? { borderRadius: '16px 16px 0 0' } : undefined,
         }}
       >
+        {isMobile && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            padding: '8px 0 4px',
+            position: 'sticky',
+            top: 0,
+            background: '#fff',
+            zIndex: 1
+          }}>
+            <div style={{
+              width: 36,
+              height: 4,
+              borderRadius: 2,
+              background: '#d9d9d9'
+            }} />
+          </div>
+        )}
         {messages.length === 0 ? (
           <div style={{ padding: '80px 24px', textAlign: 'center' }}>
             <Empty 
@@ -596,81 +673,93 @@ const MainLayout: React.FC = () => {
               return (
                 <List.Item
                   style={{
-                    padding: '14px 20px',
-                    backgroundColor: isUnread ? '#e6f7ff' : '#fff',
-                    borderLeft: isImportant ? `3px solid ${message.importanceLevel === 'URGENT' ? '#ff4d4f' : '#faad14'}` : isUnread ? '3px solid #1890ff' : 'none',
+                    padding: isMobile ? '12px 16px' : '12px 16px',
+                    backgroundColor: isUnread ? '#f0f7ff' : '#fff',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s',
-                    borderBottom: '1px solid #f0f0f0'
+                    borderBottom: '1px solid #f0f0f0',
+                    position: 'relative'
                   }}
                   onClick={() => handleOpenMessageDetail(message)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isUnread ? '#bae7ff' : '#fafafa';
+                    e.currentTarget.style.backgroundColor = isUnread ? '#e6f4ff' : '#fafafa';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isUnread ? '#e6f7ff' : '#fff';
+                    e.currentTarget.style.backgroundColor = isUnread ? '#f0f7ff' : '#fff';
                   }}
                 >
-                  <div style={{ width: '100%' }}>
-                    {/* 标题行 */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      marginBottom: 6
-                    }}>
-                      <Space size={6}>
-                        {isUnread && (
-                          <Badge 
-                            status="processing" 
-                            text=""
-                          />
-                        )}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    {/* 未读标记 */}
+                    {isUnread && (
+                      <div style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#1890ff',
+                        marginTop: 6,
+                        flexShrink: 0
+                      }} />
+                    )}
+                    {!isUnread && <div style={{ width: 8, flexShrink: 0 }} />}
+                    
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* 标题行 */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: 4,
+                        gap: 8
+                      }}>
                         <Text 
                           strong 
                           style={{ 
                             fontSize: 14,
-                            color: isUnread ? '#1890ff' : '#262626'
+                            color: '#1a1a1a',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0
                           }}
                         >
                           {message.title}
                         </Text>
-                      </Space>
+                        
+                        <Tag 
+                          color={importanceTag.color}
+                          style={{ 
+                            margin: 0,
+                            fontSize: 11,
+                            lineHeight: '18px',
+                            padding: '0 6px'
+                          }}
+                        >
+                          {importanceTag.text}
+                        </Tag>
+                      </div>
                       
-                      <Tag 
-                        color={importanceTag.color}
+                      {/* 消息内容预览 */}
+                      <Text 
                         style={{ 
-                          margin: 0,
-                          fontSize: 12
+                          fontSize: 13, 
+                          display: 'block', 
+                          marginBottom: 6,
+                          color: '#666',
+                          lineHeight: '1.5',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        {importanceTag.text}
-                      </Tag>
-                    </div>
-                    
-                    {/* 消息内容预览 */}
-                    <Text 
-                      style={{ 
-                        fontSize: 13, 
-                        display: 'block', 
-                        marginBottom: 8,
-                        color: '#595959',
-                        lineHeight: '1.6',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {message.content}
-                    </Text>
-                    
-                    {/* 时间 */}
-                    <Space size={4}>
-                      <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {message.content}
+                      </Text>
+                      
+                      {/* 时间 */}
+                      <Text type="secondary" style={{ fontSize: 12, color: '#999' }}>
                         {formatTime(message.createdTime)}
                       </Text>
-                    </Space>
+                    </div>
                   </div>
                 </List.Item>
               );
@@ -683,7 +772,7 @@ const MainLayout: React.FC = () => {
       <Modal
         title={
           <Space>
-            <Text strong style={{ fontSize: 16 }}>消息详情</Text>
+            <Text strong style={{ fontSize: isMobile ? 15 : 16 }}>消息详情</Text>
             {selectedMessage && !selectedMessage.isRead && (
               <Badge status="processing" text="未读" />
             )}
@@ -692,45 +781,46 @@ const MainLayout: React.FC = () => {
         open={messageDetailVisible}
         onCancel={handleCloseMessageDetail}
         footer={[
-          <Button key="close" type="primary" onClick={handleCloseMessageDetail}>
+          <Button key="close" type="primary" onClick={handleCloseMessageDetail} block={isMobile}>
             关闭
           </Button>
         ]}
-        width={600}
+        width={isMobile ? '92vw' : 600}
+        styles={isMobile ? { content: { padding: '12px' } } : undefined}
       >
         {selectedMessage && (
           <div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: isMobile ? 12 : 16 }}>
               <Space>
-                <Text type="secondary">重要程度：</Text>
-                <Tag color={getImportanceTag(selectedMessage.importanceLevel).color}>
+                <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>重要程度：</Text>
+                <Tag color={getImportanceTag(selectedMessage.importanceLevel).color} style={{ fontSize: isMobile ? 11 : 12 }}>
                   {getImportanceTag(selectedMessage.importanceLevel).text}
                 </Tag>
               </Space>
             </div>
             
-            <div style={{ marginBottom: 16 }}>
-              <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
+            <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+              <Text strong style={{ fontSize: isMobile ? 15 : 16, display: 'block', marginBottom: isMobile ? 6 : 8 }}>
                 {selectedMessage.title}
               </Text>
             </div>
             
             <div style={{ 
-              marginBottom: 16,
-              padding: 16,
+              marginBottom: isMobile ? 12 : 16,
+              padding: isMobile ? 12 : 16,
               backgroundColor: '#fafafa',
-              borderRadius: 4,
-              lineHeight: '1.8'
+              borderRadius: 8,
+              lineHeight: '1.7'
             }}>
-              <Text style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>
+              <Text style={{ fontSize: isMobile ? 13 : 14, whiteSpace: 'pre-wrap' }}>
                 {selectedMessage.content}
               </Text>
             </div>
             
             <div>
               <Space size={4}>
-                <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+                <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
                   {new Date(selectedMessage.createdTime).toLocaleString('zh-CN')}
                 </Text>
               </Space>

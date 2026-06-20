@@ -1,27 +1,30 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { 
-  Card, 
-  Typography, 
-  Space, 
-  Button, 
-  Table, 
-  Tag, 
-  Modal, 
-  Form, 
-  Select, 
+import {
+  Card,
+  Typography,
+  Space,
+  Button,
+  Table,
+  Tag,
+  Modal,
+  Form,
+  Select,
   Input,
   message,
   Popconfirm,
   Tooltip,
-  Avatar
+  Avatar,
+  Grid,
+  Dropdown,
 } from 'antd';
-import { 
+import {
   EditOutlined,
   DeleteOutlined,
   ReloadOutlined,
   StopOutlined,
   CheckCircleOutlined,
   UserOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import { roleApi } from '../services/roleService';
@@ -30,6 +33,8 @@ import type { User, Role } from '../services/userService';
 const { Text } = Typography;
 
 const UserManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,20 +102,20 @@ const UserManagementContent: React.FC = () => {
   }, [keyword, roleFilter, statusFilter, users]);
 
   // 用户表格列定义
-  const userColumns = [
+  const allUserColumns = useMemo(() => [
     {
       title: '用户',
       key: 'user',
       render: (record: User) => (
         <Space>
-          <Avatar 
-            src={record.avatarUrl} 
+          <Avatar
+            src={record.avatarUrl}
             icon={<UserOutlined />}
-            size={32}
+            size={isMobile ? 28 : 32}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>{record.name || record.login}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>@{record.login}</Text>
+            <div style={{ fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{record.name || record.login}</div>
+            <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>@{record.login}</Text>
           </div>
         </Space>
       ),
@@ -124,12 +129,14 @@ const UserManagementContent: React.FC = () => {
     {
       title: '角色',
       key: 'roles',
+      width: isMobile ? 100 : undefined,
       render: (record: User) => (
-        <Space wrap>
+        <Space wrap size={4}>
           {record.roles?.map(role => (
-            <Tag 
+            <Tag
               key={role.id}
               color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
+              style={{ margin: 0, fontSize: isMobile ? 11 : 12 }}
             >
               {role.roleName}
             </Tag>
@@ -140,10 +147,12 @@ const UserManagementContent: React.FC = () => {
     {
       title: '状态',
       key: 'status',
+      width: 70,
       render: (record: User) => (
-        <Tag 
-          color={record.status === 1 ? 'green' : 'red'} 
+        <Tag
+          color={record.status === 1 ? 'green' : 'red'}
           icon={record.status === 1 ? <CheckCircleOutlined /> : <StopOutlined />}
+          style={{ margin: 0, fontSize: isMobile ? 11 : 12 }}
         >
           {record.status === 1 ? '正常' : '禁用'}
         </Tag>
@@ -164,39 +173,58 @@ const UserManagementContent: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      render: (record: User) => (
-        <Space>
-          <Tooltip title="编辑用户">
-            <Button 
-              type="link" 
-              icon={<EditOutlined />}
-              onClick={() => handleEditUser(record)}
-              size="small"
+      width: 60,
+      render: (record: User) => {
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditUser(record) },
+                  { type: 'divider' },
+                  { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, disabled: record.roles?.some(role => role.roleCode === 'SUPER_ADMIN'), onClick: () => handleDeleteUser(record) },
+                ],
+              }}
+              trigger={['click']}
             >
-              编辑
-            </Button>
-          </Tooltip>
-          <Popconfirm
-            title="确认删除"
-            description={`确定要删除用户 ${record.name || record.login} 吗？`}
-            onConfirm={() => handleDeleteUser(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button 
-              type="link" 
-              danger
-              icon={<DeleteOutlined />}
-              disabled={record.roles?.some(role => role.roleCode === 'SUPER_ADMIN')}
-              size="small"
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        return (
+          <Space>
+            <Tooltip title="编辑用户">
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                onClick={() => handleEditUser(record)}
+                size="small"
+              >
+                编辑
+              </Button>
+            </Tooltip>
+            <Popconfirm
+              title="确认删除"
+              description={`确定要删除用户 ${record.name || record.login} 吗？`}
+              onConfirm={() => handleDeleteUser(record)}
+              okText="确定"
+              cancelText="取消"
             >
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={record.roles?.some(role => role.roleCode === 'SUPER_ADMIN')}
+                size="small"
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
-  ];
+  ], [isMobile]);
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
@@ -239,63 +267,127 @@ const UserManagementContent: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              marginBottom: 16
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flex: 1,
-              }}
-            >
-              <UserOutlined style={{ color: '#1677ff', fontSize: 20 }} />
-              <Text strong style={{ fontSize: 20 }}>
-                用户管理
-              </Text>
-            </div>
-
-            <Button
-              type="text"
-              icon={<ReloadOutlined />}
-              onClick={fetchUsers}
-              loading={loading}
-            >
-              刷新
-            </Button>
+      <Card
+        styles={{ body: { padding: isMobile ? 12 : 24 } }}
+      >
+        {/* 标题栏 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMobile ? 12 : 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserOutlined style={{ color: '#1677ff', fontSize: isMobile ? 18 : 20 }} />
+            <Text strong style={{ fontSize: isMobile ? 16 : 20, whiteSpace: 'nowrap' }}>
+              用户管理
+            </Text>
           </div>
-
-          <Input
-            allowClear
-            placeholder="搜索（支持模糊匹配：用户名/邮箱/角色等）"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            style={{ maxWidth: 420 }}
-          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchUsers}
+            loading={loading}
+            size={isMobile ? 'small' : 'middle'}
+          >
+            {!isMobile && '刷新'}
+          </Button>
         </div>
-        
-        <Table
-          columns={userColumns}
-          dataSource={filteredUsers}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100', '200', '400'],
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-          }}
-          scroll={{ x: 1200 }}
+
+        {/* 搜索框 */}
+        <Input
+          allowClear
+          prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
+          placeholder="搜索用户名、邮箱、角色..."
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          style={{ width: '100%', marginBottom: isMobile ? 12 : 16 }}
         />
+
+        {/* 用户列表 */}
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {loading && (
+              <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>
+            )}
+            {!loading && filteredUsers.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无用户</div>
+            )}
+            {filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                style={{
+                  background: '#fafafa',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid #f0f0f0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Avatar
+                    src={user.avatarUrl}
+                    icon={<UserOutlined />}
+                    size={36}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Text strong style={{ fontSize: 14 }}>
+                        {user.name || user.login}
+                      </Text>
+                      <Tag
+                        color={user.status === 1 ? 'green' : 'red'}
+                        style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 4px' }}
+                      >
+                        {user.status === 1 ? '正常' : '禁用'}
+                      </Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>@{user.login}</Text>
+                    {user.roles && user.roles.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        {user.roles.map(role => (
+                          <Tag
+                            key={role.id}
+                            color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
+                            style={{ margin: 0, fontSize: 11 }}
+                          >
+                            {role.roleName}
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Dropdown
+                    menu={{
+                      items: [
+                        { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditUser(user) },
+                        { type: 'divider' },
+                        { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, disabled: user.roles?.some(role => role.roleCode === 'SUPER_ADMIN'), onClick: () => handleDeleteUser(user) },
+                      ],
+                    }}
+                    trigger={['click']}
+                  >
+                    <Button type="text" size="small" icon={<MoreOutlined />} />
+                  </Dropdown>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Table
+            columns={allUserColumns}
+            dataSource={filteredUsers}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+            }}
+            scroll={{ x: 1200 }}
+            size="middle"
+          />
+        )}
       </Card>
 
       {/* 编辑用户模态框 */}
@@ -304,7 +396,8 @@ const UserManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={600}
+        width={isMobile ? '100%' : 600}
+        className={isMobile ? 'mobile-modal' : undefined}
         okText="确定"
         cancelText="取消"
       >

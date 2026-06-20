@@ -19,6 +19,8 @@ import {
   Dropdown,
   Upload,
   Switch,
+  Grid,
+  Pagination,
   type MenuProps,
 } from 'antd';
 import {
@@ -73,6 +75,8 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const ApplicationManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -97,9 +101,9 @@ const ApplicationManagementContent: React.FC = () => {
   const [agentList, setAgentList] = useState<AppAgentDTO[]>([]);
   const [editingAgent, setEditingAgent] = useState<AppAgentDTO | null>(null);
   const [agentForm] = Form.useForm();
+  const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
   const [bindGithubId, setBindGithubId] = useState('');
   const [bindLookupLoading, setBindLookupLoading] = useState(false);
-  const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
 
   const getEncryptionJsonError = (raw: string): string | null => {
     const trimmed = (raw || '').trim();
@@ -505,6 +509,195 @@ const ApplicationManagementContent: React.FC = () => {
     }
   };
 
+  const getAppMenuItems = (record: Application): MenuProps['items'] => [
+    {
+      key: 'edit',
+      icon: <EditOutlined />,
+      label: '编辑',
+      onClick: () => handleOpenModal(record),
+    },
+    {
+      key: 'encryptionConfig',
+      icon: <SlidersOutlined />,
+      label: '加密配置',
+      onClick: () => void openEncryptionConfigModal(record),
+    },
+    {
+      key: 'agentConfig',
+      icon: <TeamOutlined />,
+      label: '代理配置',
+      onClick: () => void openAgentModal(record),
+    },
+    {
+      key: 'appRegister',
+      icon: <UserAddOutlined />,
+      label: '应用注册页',
+      onClick: () => {
+        const base = import.meta.env.BASE_URL || '/';
+        const path = `${base.endsWith('/') ? base : `${base}/`}register?id=${record.id}`;
+        window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+      },
+    },
+    {
+      key: 'licenseSelf',
+      icon: <KeyOutlined />,
+      label: '卡密自助页',
+      onClick: () => {
+        const base = import.meta.env.BASE_URL || '/';
+        const path = `${base.endsWith('/') ? base : `${base}/`}license?id=${record.id}`;
+        window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+      },
+    },
+    {
+      key: 'appUserSelf',
+      icon: <UserAddOutlined />,
+      label: '用户自助页',
+      onClick: () => {
+        const base = import.meta.env.BASE_URL || '/';
+        const path = `${base.endsWith('/') ? base : `${base}/`}app-user?id=${record.id}`;
+        window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+      },
+    },
+    {
+      key: 'resetKeys',
+      icon: <KeyOutlined />,
+      label: '重置密钥',
+      onClick: () => {
+        Modal.confirm({
+          title: '重置密钥',
+          content: '确定要重置密钥吗？重置后旧密钥将立即失效。',
+          okText: '确定',
+          cancelText: '取消',
+          onOk: () => handleResetKeys(record.id),
+        });
+      },
+    },
+    {
+      key: 'status',
+      icon: record.status === 1 ? <PoweroffOutlined /> : <CheckCircleOutlined />,
+      label: record.status === 1 ? '停用' : '启用',
+      onClick: () => {
+        const newStatus = record.status === 1 ? 3 : 1;
+        const action = record.status === 1 ? '停用' : '启用';
+        Modal.confirm({
+          title: `${action}应用`,
+          content: `确定要${action}应用"${record.appName}"吗？`,
+          okText: '确定',
+          cancelText: '取消',
+          onOk: () => handleUpdateStatus(record.id, newStatus),
+        });
+      },
+    },
+    { type: 'divider' },
+    {
+      key: 'delete',
+      icon: <DeleteOutlined />,
+      label: '删除',
+      danger: true,
+      onClick: () => {
+        Modal.confirm({
+          title: '删除应用',
+          content: `确定要删除应用"${record.appName}"吗？删除后无法恢复。`,
+          okText: '确定',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => handleDelete(record.id),
+        });
+      },
+    },
+  ];
+
+  const renderMobileCard = (app: Application) => {
+    const category = app.category?.toLowerCase();
+    const getIcon = () => {
+      if (category?.includes('工具')) return <ApiOutlined style={{ fontSize: 18, color: '#1890ff' }} />;
+      if (category?.includes('游戏')) return <RocketOutlined style={{ fontSize: 18, color: '#52c41a' }} />;
+      if (category?.includes('办公')) return <DatabaseOutlined style={{ fontSize: 18, color: '#722ed1' }} />;
+      if (category?.includes('安全')) return <SafetyOutlined style={{ fontSize: 18, color: '#fa8c16' }} />;
+      return <CloudOutlined style={{ fontSize: 18, color: '#13c2c2' }} />;
+    };
+
+    const statusMap: Record<number, { text: string; status: 'success' | 'warning' | 'error' | 'default' }> = {
+      1: { text: '正常', status: 'success' },
+      2: { text: '维护', status: 'warning' },
+      3: { text: '停用', status: 'error' },
+    };
+    const statusInfo = statusMap[app.status] || { text: '未知', status: 'default' };
+
+    const modelMap: Record<number, { text: string; color: string }> = {
+      1: { text: '付费', color: 'blue' },
+      2: { text: '免费', color: 'green' },
+      3: { text: '试用+付费', color: 'orange' },
+    };
+    const modelInfo = modelMap[app.businessModel] || { text: '未知', color: 'default' };
+
+    const used = app.trafficUsed || 0;
+    const limit = app.trafficLimit || 0;
+
+    return (
+      <Card key={app.id} size="small" className="application-mobile-card" style={{ backgroundColor: '#fff' }}>
+        <div className="application-mobile-card-header">
+          <div className="application-mobile-card-title">
+            {getIcon()}
+            <Text strong style={{ fontSize: 15, marginLeft: 8 }}>{app.appName}</Text>
+          </div>
+          <Space size={8} align="center">
+            <Badge status={statusInfo.status} text={<span style={{ fontSize: 12 }}>{statusInfo.text}</span>} />
+            <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          </Space>
+        </div>
+
+        <div className="application-mobile-card-body">
+          <div className="application-mobile-card-row">
+            <Text type="secondary" style={{ fontSize: 12 }}>AppKey</Text>
+            <Space size={4}>
+              <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
+                {app.appKey ? `${app.appKey.substring(0, 16)}...` : '-'}
+              </Text>
+            </Space>
+          </div>
+
+          <div className="application-mobile-card-row">
+            <Text type="secondary" style={{ fontSize: 12 }}>AppSecret</Text>
+            <Space size={4}>
+              <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
+                {app.appSecret ? (showSecret[app.id] ? `${app.appSecret.substring(0, 12)}...` : '••••••') : '-'}
+              </Text>
+              {app.appSecret && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={showSecret[app.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                  onClick={() => toggleShowSecret(app.id)}
+                  style={{ padding: '0 4px' }}
+                />
+              )}
+            </Space>
+          </div>
+
+          <div className="application-mobile-card-row">
+            <Text type="secondary" style={{ fontSize: 12 }}>业务模式</Text>
+            <Tag color={modelInfo.color} style={{ fontSize: 11, margin: 0 }}>{modelInfo.text}</Tag>
+          </div>
+
+          <div className="application-mobile-card-row">
+            <Text type="secondary" style={{ fontSize: 12 }}>流量使用</Text>
+            <Text style={{ fontSize: 12 }}>{formatBytes(used)} / {limit > 0 ? formatBytes(limit) : '不限'}</Text>
+          </div>
+        </div>
+
+        <div className="application-mobile-card-footer">
+          <Text type="secondary" style={{ fontSize: 11 }}>{app.ownerName || '-'}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {new Date(app.createdAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </div>
+      </Card>
+    );
+  };
+
   // 业务模式标签
   const getBusinessModelTag = (model: number) => {
     const map: Record<number, { text: string; color: string }> = {
@@ -513,7 +706,7 @@ const ApplicationManagementContent: React.FC = () => {
       3: { text: '试用+付费', color: 'orange' },
     };
     const item = map[model] || { text: '未知', color: 'default' };
-    return <Tag color={item.color}>{item.text}</Tag>;
+    return <Tag color={item.color} style={isMobile ? { fontSize: 10, margin: 0, padding: '0 2px', lineHeight: '16px' } : undefined}>{item.text}</Tag>;
   };
 
   // 状态标签
@@ -524,33 +717,33 @@ const ApplicationManagementContent: React.FC = () => {
       3: { text: '停用', status: 'error' },
     };
     const item = map[status] || { text: '未知', status: 'default' };
-    return <Badge status={item.status} text={item.text} />;
+    return <Badge status={item.status} text={<span style={isMobile ? { fontSize: 11 } : undefined}>{item.text}</span>} />;
   };
 
   // 表格列定义
-  const columns = [
+  const allColumns = [
     {
       title: '应用名称',
       dataIndex: 'appName',
       key: 'appName',
-      width: 200,
+      width: isMobile ? 140 : 200,
+      ...(isMobile ? {} : { fixed: 'left' as const }),
       render: (text: string, record: Application) => {
-        // 根据分类选择不同的图标
         const getIcon = () => {
           const category = record.category?.toLowerCase();
-          if (category?.includes('工具')) return <ApiOutlined style={{ fontSize: 20, color: '#1890ff' }} />;
-          if (category?.includes('游戏')) return <RocketOutlined style={{ fontSize: 20, color: '#52c41a' }} />;
-          if (category?.includes('办公')) return <DatabaseOutlined style={{ fontSize: 20, color: '#722ed1' }} />;
-          if (category?.includes('安全')) return <SafetyOutlined style={{ fontSize: 20, color: '#fa8c16' }} />;
-          return <CloudOutlined style={{ fontSize: 20, color: '#13c2c2' }} />;
+          if (category?.includes('工具')) return <ApiOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#1890ff' }} />;
+          if (category?.includes('游戏')) return <RocketOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#52c41a' }} />;
+          if (category?.includes('办公')) return <DatabaseOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#722ed1' }} />;
+          if (category?.includes('安全')) return <SafetyOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#fa8c16' }} />;
+          return <CloudOutlined style={{ fontSize: isMobile ? 16 : 20, color: '#13c2c2' }} />;
         };
 
         return (
-          <Space>
+          <Space size={isMobile ? 4 : 8}>
             {getIcon()}
             <div>
-              <div><Text strong>{text}</Text></div>
-              <div><Text type="secondary" style={{ fontSize: 12 }}>ID: {record.id}</Text></div>
+              <div><Text strong style={{ fontSize: isMobile ? 13 : 14 }}>{text}</Text></div>
+              {!isMobile && <div><Text type="secondary" style={{ fontSize: 12 }}>ID: {record.id}</Text></div>}
             </div>
           </Space>
         );
@@ -560,14 +753,14 @@ const ApplicationManagementContent: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
-      render: (text: string) => <Tag>{text || '未分类'}</Tag>,
+      width: 80,
+      render: (text: string) => <Tag style={{ fontSize: isMobile ? 10 : 12, margin: 0, padding: isMobile ? '0 2px' : undefined, lineHeight: isMobile ? '16px' : undefined }}>{text || '未分类'}</Tag>,
     },
     {
       title: 'AppKey',
       dataIndex: 'appKey',
       key: 'appKey',
-      width: 180,
+      width: isMobile ? 120 : 180,
       render: (text: string) => {
         if (!text) {
           return <Text type="secondary">-</Text>;
@@ -575,9 +768,9 @@ const ApplicationManagementContent: React.FC = () => {
         return (
           <Text
             copyable={{ text, tooltips: ['复制', '已复制'] }}
-            style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 11, color: '#666' }}
           >
-            {text.substring(0, 12)}...
+            {text.substring(0, isMobile ? 8 : 12)}...
           </Text>
         );
       },
@@ -586,11 +779,11 @@ const ApplicationManagementContent: React.FC = () => {
       title: 'AppSecret',
       dataIndex: 'appSecret',
       key: 'appSecret',
-      width: 180,
+      width: isMobile ? 100 : 180,
       render: (text: string, record: Application) => (
         <Space size="small">
-          <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
-            {!text ? '-' : (showSecret[record.id] ? text.substring(0, 12) + '...' : '••••••••••••')}
+          <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 11, color: '#666' }}>
+            {!text ? '-' : (showSecret[record.id] ? text.substring(0, isMobile ? 6 : 12) + '...' : '••••••')}
           </Text>
           {text && (
             <Button
@@ -598,9 +791,10 @@ const ApplicationManagementContent: React.FC = () => {
               size="small"
               icon={showSecret[record.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
               onClick={() => toggleShowSecret(record.id)}
+              style={{ padding: isMobile ? '0 2px' : undefined }}
             />
           )}
-          {text && showSecret[record.id] && (
+          {!isMobile && text && showSecret[record.id] && (
             <Button
               type="text"
               size="small"
@@ -615,7 +809,7 @@ const ApplicationManagementContent: React.FC = () => {
       title: '业务模式',
       dataIndex: 'businessModel',
       key: 'businessModel',
-      width: 100,
+      width: 80,
       align: 'center' as const,
       render: (model: number) => getBusinessModelTag(model),
     },
@@ -623,22 +817,22 @@ const ApplicationManagementContent: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 80,
+      width: 70,
       align: 'center' as const,
       render: (status: number) => getStatusBadge(status),
     },
     {
       title: '流量使用',
       key: 'traffic',
-      width: 120,
+      width: isMobile ? 80 : 120,
       align: 'right' as const,
       render: (_: any, record: Application) => {
         const used = record.trafficUsed || 0;
         const limit = record.trafficLimit || 0;
         return (
           <div style={{ textAlign: 'right' }}>
-            <div><Text style={{ fontSize: 12 }}>{formatBytes(used)}</Text></div>
-            <div><Text type="secondary" style={{ fontSize: 11 }}>/ {formatBytes(limit)}</Text></div>
+            <div><Text style={{ fontSize: 11 }}>{formatBytes(used)}</Text></div>
+            <div><Text type="secondary" style={{ fontSize: 10 }}>/ {formatBytes(limit)}</Text></div>
           </div>
         );
       },
@@ -647,143 +841,42 @@ const ApplicationManagementContent: React.FC = () => {
       title: '创建者',
       dataIndex: 'ownerName',
       key: 'ownerName',
-      width: 100,
-      render: (text: string) => <Text>{text || '-'}</Text>,
+      width: isMobile ? 80 : 100,
+      render: (text: string) => <Text style={{ fontSize: isMobile ? 12 : 14 }}>{text || '-'}</Text>,
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 160,
+      width: isMobile ? 100 : 160,
       render: (text: string) => (
-        <Text style={{ fontSize: 12 }}>
-          {new Date(text).toLocaleString('zh-CN', { 
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+        <Text style={{ fontSize: 11 }}>
+          {isMobile
+            ? new Date(text).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : new Date(text).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          }
         </Text>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      width: 150,
-      fixed: 'right' as const,
+      width: 100,
+      ...(isMobile ? {} : { fixed: 'right' as const }),
       render: (_: any, record: Application) => {
-        const menuItems: MenuProps['items'] = [
-          {
-            key: 'edit',
-            icon: <EditOutlined />,
-            label: '编辑',
-            onClick: () => handleOpenModal(record),
-          },
-          {
-            key: 'encryptionConfig',
-            icon: <SlidersOutlined />,
-            label: '加密配置',
-            onClick: () => void openEncryptionConfigModal(record),
-          },
-          {
-            key: 'agentConfig',
-            icon: <TeamOutlined />,
-            label: '代理配置',
-            onClick: () => void openAgentModal(record),
-          },
-          {
-            key: 'appRegister',
-            icon: <UserAddOutlined />,
-            label: '应用注册页',
-            onClick: () => {
-              const base = import.meta.env.BASE_URL || '/';
-              const path = `${base.endsWith('/') ? base : `${base}/`}register?id=${record.id}`;
-              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
-            },
-          },
-          {
-            key: 'licenseSelf',
-            icon: <KeyOutlined />,
-            label: '卡密自助页',
-            onClick: () => {
-              const base = import.meta.env.BASE_URL || '/';
-              const path = `${base.endsWith('/') ? base : `${base}/`}license?id=${record.id}`;
-              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
-            },
-          },
-          {
-            key: 'appUserSelf',
-            icon: <UserAddOutlined />,
-            label: '用户自助页',
-            onClick: () => {
-              const base = import.meta.env.BASE_URL || '/';
-              const path = `${base.endsWith('/') ? base : `${base}/`}app-user?id=${record.id}`;
-              window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
-            },
-          },
-          {
-            key: 'resetKeys',
-            icon: <KeyOutlined />,
-            label: '重置密钥',
-            onClick: () => {
-              Modal.confirm({
-                title: '重置密钥',
-                content: '确定要重置密钥吗？重置后旧密钥将立即失效。',
-                okText: '确定',
-                cancelText: '取消',
-                onOk: () => handleResetKeys(record.id),
-              });
-            },
-          },
-          {
-            key: 'status',
-            icon: record.status === 1 ? <PoweroffOutlined /> : <CheckCircleOutlined />,
-            label: record.status === 1 ? '停用' : '启用',
-            onClick: () => {
-              const newStatus = record.status === 1 ? 3 : 1;
-              const action = record.status === 1 ? '停用' : '启用';
-              Modal.confirm({
-                title: `${action}应用`,
-                content: `确定要${action}应用"${record.appName}"吗？`,
-                okText: '确定',
-                cancelText: '取消',
-                onOk: () => handleUpdateStatus(record.id, newStatus),
-              });
-            },
-          },
-          {
-            type: 'divider',
-          },
-          {
-            key: 'delete',
-            icon: <DeleteOutlined />,
-            label: '删除',
-            danger: true,
-            onClick: () => {
-              Modal.confirm({
-                title: '删除应用',
-                content: `确定要删除应用"${record.appName}"吗？删除后无法恢复。`,
-                okText: '确定',
-                okType: 'danger',
-                cancelText: '取消',
-                onOk: () => handleDelete(record.id),
-              });
-            },
-          },
-        ];
-
         return (
           <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenModal(record)}
-            >
-              编辑
-            </Button>
-            <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+            {!isMobile && (
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleOpenModal(record)}
+              >
+                编辑
+              </Button>
+            )}
+            <Dropdown menu={{ items: getAppMenuItems(record) }} trigger={['click']}>
               <Button type="text" size="small" icon={<MoreOutlined />} />
             </Dropdown>
           </Space>
@@ -805,45 +898,78 @@ const ApplicationManagementContent: React.FC = () => {
     <Card>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* 标题和操作栏 */}
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4} style={{ margin: 0 }}>应用管理</Title>
-          </Col>
-          <Col>
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchApplications(pagination.current, pagination.pageSize)}
-              >
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => handleOpenModal()}
-              >
-                创建应用
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>应用管理</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Button
+              size={isMobile ? 'small' : 'middle'}
+              icon={<ReloadOutlined />}
+              onClick={() => fetchApplications(pagination.current, pagination.pageSize)}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              size={isMobile ? 'small' : 'middle'}
+              icon={<PlusOutlined />}
+              onClick={() => handleOpenModal()}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              创建应用
+            </Button>
+          </div>
+        </div>
 
-        {/* 应用列表表格 */}
-        <Table
-          columns={columns}
-          dataSource={applications}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              fetchApplications(page, pageSize);
-            },
-          }}
-          scroll={{ x: 1500 }}
-        />
+        {/* 应用列表 */}
+        {isMobile ? (
+          <div className="application-mobile-card-list">
+            {loading ? (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <Text type="secondary">加载中...</Text>
+              </div>
+            ) : applications.length === 0 ? (
+              <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                <Text type="secondary">暂无数据</Text>
+              </div>
+            ) : (
+              applications.map(app => renderMobileCard(app))
+            )}
+            {pagination.total > pagination.pageSize && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                <Pagination
+                  current={pagination.current}
+                  pageSize={pagination.pageSize}
+                  total={pagination.total}
+                  size="small"
+                  simple
+                  onChange={(page, pageSize) => fetchApplications(page, pageSize)}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <Table
+            columns={allColumns}
+            dataSource={applications}
+            rowKey="id"
+            loading={loading}
+            size="middle"
+            pagination={{
+              ...pagination,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (page, pageSize) => {
+                fetchApplications(page, pageSize);
+              },
+            }}
+            scroll={{ x: 1000 }}
+          />
+        )}
       </Space>
 
       {/* 创建/编辑弹窗 */}
@@ -852,10 +978,10 @@ const ApplicationManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={700}
+        width={isMobile ? '100%' : 700}
         okText="确定"
         cancelText="取消"
-        className="app-edit-modal"
+        className={`app-edit-modal${isMobile ? ' mobile-modal' : ''}`}
       >
         <style>{`
           /* Modal 滚动条样式 */
@@ -921,8 +1047,8 @@ const ApplicationManagementContent: React.FC = () => {
             />
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? [8, 0] : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="应用分类"
                 name="category"
@@ -931,7 +1057,7 @@ const ApplicationManagementContent: React.FC = () => {
                 <Input placeholder="如：游戏、工具等" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="标签"
                 name="tags"
@@ -942,8 +1068,8 @@ const ApplicationManagementContent: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? [8, 0] : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="业务模式"
                 name="businessModel"
@@ -956,7 +1082,7 @@ const ApplicationManagementContent: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="状态" name="status">
                 <Select>
                   <Select.Option value={1}>正常</Select.Option>
@@ -983,8 +1109,8 @@ const ApplicationManagementContent: React.FC = () => {
           <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
             仅当终端通过三方接口 <strong>POST /api/v1/card/rebind</strong> 换绑设备时，若该卡密<strong>原先已有设备绑定</strong>，才按此处规则从<strong>到期时间</strong>扣减；管理员在后台「解绑设备 / 解绑 IP」<strong>不扣时</strong>。无到期时间（永久）的卡密不扣时。默认不扣。
           </Text>
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? [8, 0] : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item label="扣时模式" name="unbindTimeDeductMode">
                 <Select
                   options={[
@@ -995,7 +1121,7 @@ const ApplicationManagementContent: React.FC = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item noStyle shouldUpdate={(prev, cur) => prev.unbindTimeDeductMode !== cur.unbindTimeDeductMode}>
                 {() => {
                   const mode = form.getFieldValue('unbindTimeDeductMode') as string | undefined;
@@ -1034,8 +1160,8 @@ const ApplicationManagementContent: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? [8, 0] : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item
                 label="解绑冷却时间(小时)"
                 name="unbindCooldownHours"
@@ -1049,13 +1175,13 @@ const ApplicationManagementContent: React.FC = () => {
 
           <Divider>版本信息（可选）</Divider>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? [8, 0] : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item label="当前版本" name="currentVersion">
                 <Input placeholder="如：1.0.0" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="最低支持版本" name="minVersion">
                 <Input placeholder="如：1.0.0" />
               </Form.Item>
@@ -1131,13 +1257,14 @@ const ApplicationManagementContent: React.FC = () => {
           setEncryptionModalVisible(false);
           setEncryptionApp(null);
         }}
-        width={720}
+        width={isMobile ? '100%' : 720}
         okText="保存"
         cancelText="取消"
         confirmLoading={encryptionSaving}
         okButtonProps={{ disabled: !!encryptionJsonError || encryptionLoading }}
         onOk={() => void handleSaveEncryptionConfig()}
-        destroyOnClose
+        destroyOnHidden
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
@@ -1194,18 +1321,20 @@ const ApplicationManagementContent: React.FC = () => {
           setBindUser(null);
           agentForm.resetFields();
         }}
-        width={960}
+        width={isMobile ? '100%' : 960}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
+        className={isMobile ? 'mobile-modal' : undefined}
       >
-        <Row gutter={16}>
-          <Col span={14}>
+        <Row gutter={isMobile ? [0, 16] : 16}>
+          <Col xs={24} sm={14}>
             <Table
               size="small"
               rowKey="id"
               loading={agentLoading}
               dataSource={agentList}
               pagination={false}
+              scroll={isMobile ? { x: 400 } : undefined}
               columns={[
                 { title: '代理名', dataIndex: 'agentCode', key: 'agentCode' },
                 {
@@ -1227,7 +1356,7 @@ const ApplicationManagementContent: React.FC = () => {
               ]}
             />
           </Col>
-          <Col span={10}>
+          <Col xs={24} sm={10}>
             <Card size="small" title={editingAgent ? '编辑代理' : '新建代理'}>
               <Form
                 form={agentForm}

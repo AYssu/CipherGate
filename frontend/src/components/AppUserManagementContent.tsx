@@ -19,6 +19,7 @@ import {
   Badge,
   Popover,
   Pagination,
+  Grid,
   type MenuProps,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -74,7 +75,25 @@ function formatOnlineSeconds(sec?: number | null): string {
   return `${s}秒`;
 }
 
+function getUserAvatar(record: AppUser): string {
+  if (record.avatarUrl) {
+    return record.avatarUrl;
+  }
+  if (record.email && record.email.endsWith('@qq.com')) {
+    const qqNumber = record.email.split('@')[0];
+    return `http://q.qlogo.cn/headimg_dl?dst_uin=${qqNumber}&spec=640&img_type=jpg`;
+  }
+  return '';
+}
+
+function getUserInitial(record: AppUser): string {
+  const name = record.nickname || record.username;
+  return name ? name.charAt(0).toUpperCase() : '?';
+}
+
 const AppUserManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [users, setUsers] = useState<AppUser[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
@@ -189,6 +208,7 @@ const AppUserManagementContent: React.FC = () => {
       phone: filters.phone,
       banned: filters.banned,
       memberStatus: filters.memberStatus,
+      expiresFilter: filters.memberStatus === 'ACTIVE' ? 'not_expired' : filters.memberStatus === 'EXPIRED' ? 'expired' : undefined,
       wsOnline: filters.wsOnline,
     });
   };
@@ -236,6 +256,12 @@ const AppUserManagementContent: React.FC = () => {
     if (v.memberStatus) {
       next.memberStatus = v.memberStatus;
     } else {
+      delete next.memberStatus;
+    }
+
+    if (v.expiresFilter) {
+      next.memberStatus = v.expiresFilter === 'not_expired' ? 'ACTIVE' : 'EXPIRED';
+    } else if (!v.memberStatus) {
       delete next.memberStatus;
     }
 
@@ -923,20 +949,51 @@ const AppUserManagementContent: React.FC = () => {
       title: '用户名',
       dataIndex: 'username',
       key: 'username',
-      width: 150,
-      render: (text: string) => (
-        <Space>
-          <UserOutlined style={{ color: '#1890ff' }} />
-          <Text
-            strong
-            copyable={{ text, tooltips: ['复制用户名', '已复制'] }}
-            ellipsis={{ tooltip: text }}
-            style={{ display: 'block', maxWidth: 110 }}
-          >
-            {text}
-          </Text>
-        </Space>
-      ),
+      width: 180,
+      render: (_: string, record: AppUser) => {
+        const avatarUrl = getUserAvatar(record);
+        const initial = getUserInitial(record);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: avatarUrl ? 'transparent' : '#1890ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 500,
+              flexShrink: 0,
+              overflow: 'hidden',
+            }}>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={record.username}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).parentElement!.innerHTML = initial;
+                  }}
+                />
+              ) : (
+                initial
+              )}
+            </div>
+            <Text
+              strong
+              copyable={{ text: record.username, tooltips: ['复制用户名', '已复制'] }}
+              ellipsis={{ tooltip: record.username }}
+              style={{ display: 'block', maxWidth: 110 }}
+            >
+              {record.username}
+            </Text>
+          </div>
+        );
+      },
     },
     {
       title: '昵称',
@@ -1230,198 +1287,295 @@ const AppUserManagementContent: React.FC = () => {
     },
   ];
 
+  const MOBILE_VISIBLE_KEYS = ['username', 'member', 'wsOnline', 'action'];
+  const displayColumns = isMobile
+    ? columns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string))
+    : columns;
+
+  const mobileUserCard = (record: AppUser) => {
+    const avatarUrl = getUserAvatar(record);
+    const initial = getUserInitial(record);
+    return (
+      <div
+        key={record.id}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '10px 12px',
+          borderBottom: '1px solid #f0f0f0',
+          background: '#fff',
+          gap: 10,
+        }}
+      >
+        <div style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          background: avatarUrl ? 'transparent' : '#1890ff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: 500,
+          flexShrink: 0,
+          overflow: 'hidden',
+        }}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={record.username}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).parentElement!.innerHTML = initial;
+              }}
+            />
+          ) : (
+            initial
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+            <Text strong ellipsis style={{ fontSize: 14, maxWidth: 120 }}>{record.username}</Text>
+            {record.appName && <Tag color="blue" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>{record.appName}</Tag>}
+            {record.isBanned && <Tag color="red" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>封禁</Tag>}
+            {record.wsOnline && <Tag color="success" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>在线</Tag>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {record.nickname && (
+              <Text type="secondary" style={{ fontSize: 12 }}>{record.nickname}</Text>
+            )}
+            {record.memberExpiresAt && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                会员{record.memberActive ? '有效' : '已过期'} {dayjs(record.memberExpiresAt).format('MM/DD')}
+              </Text>
+            )}
+            {record.bindingCount != null && record.bindingCount > 0 && (
+              <Text type="secondary" style={{ fontSize: 11 }}>绑定 {record.bindingCount} 台</Text>
+            )}
+            {record.loginCount > 0 && (
+              <Text type="secondary" style={{ fontSize: 11 }}>登录 {record.loginCount} 次</Text>
+            )}
+          </div>
+        </div>
+        <Dropdown menu={getActionMenu(record)} trigger={['click']}>
+          <Button type="text" size="small" icon={<MoreOutlined />} />
+        </Dropdown>
+      </div>
+    );
+  };
+
   return (
-    <Card>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Card style={isMobile ? { padding: 0 } : undefined} styles={isMobile ? { body: { padding: 12 } } : undefined}>
+      <Space direction="vertical" size={isMobile ? 'middle' : 'large'} style={{ width: '100%' }}>
         {/* 标题和操作栏 */}
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4} style={{ margin: 0 }}>终端用户管理</Title>
-          </Col>
-          <Col>
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchUsers(pagination.current, pagination.pageSize, filters)}
-              >
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => handleOpenModal()}
-              >
-                创建用户
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMobile ? 12 : 16,
+        }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>终端用户管理</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Button
+              size={isMobile ? 'small' : 'middle'}
+              icon={<ReloadOutlined />}
+              onClick={() => fetchUsers(pagination.current, pagination.pageSize, filters)}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              size={isMobile ? 'small' : 'middle'}
+              icon={<PlusOutlined />}
+              onClick={() => handleOpenModal()}
+              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+            >
+              创建
+            </Button>
+          </div>
+        </div>
 
         {/* 主搜索（用户名）+ 高级筛选 */}
-        <Row gutter={12} align="middle" wrap>
-          <Col flex="none">
-            <Space.Compact
-              style={{
-                width: 360,
-                maxWidth: 'calc(100vw - 120px)',
-              }}
-            >
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+          {isMobile ? (
+            <>
               <Input
                 placeholder="搜索用户名"
                 allowClear
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
                 onPressEnter={() => applyUsernameSearch()}
-                style={{ minWidth: 0 }}
+                style={{ flex: 1, minWidth: 0 }}
               />
-              <Button type="primary" onClick={() => applyUsernameSearch()}>
-                搜索
-              </Button>
-            </Space.Compact>
-          </Col>
-          <Col flex="none">
-            <Popover
-              trigger="click"
-              placement="bottomLeft"
-              open={filterPopoverOpen}
-              onOpenChange={(open) => {
-                setFilterPopoverOpen(open);
-                if (open) {
-                  syncListFilterFormFromFilters();
+              <Button type="primary" onClick={() => applyUsernameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
+                content={
+                  <div style={{ width: 320, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={12}>
+                        <Col span={12}>
+                          <Form.Item label="应用" name="appId">
+                            <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="状态" name="status">
+                            <Select allowClear placeholder="状态" options={[{ label: '正常', value: 1 }, { label: '封禁', value: 2 }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="创建来源" name="creatorType">
+                            <Select allowClear placeholder="创建来源" options={[{ label: '自己创建', value: 'SELF' }, { label: '代理创建', value: 'AGENT' }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="到期时间" name="expiresFilter">
+                            <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                      </Row>
+                    </Form>
+                  </div>
                 }
-              }}
-              content={
-                <div style={{ width: 560, maxWidth: '90vw' }}>
-                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                    <Row gutter={16}>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="应用" name="appId">
-                          <Select
-                            allowClear
-                            placeholder="选择应用"
-                            options={applications.map((app) => ({
-                              label: app.appName,
-                              value: app.id,
-                            }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="用户名" name="username">
-                          <Input allowClear placeholder="搜索用户名" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="邮箱" name="email">
-                          <Input allowClear placeholder="搜索邮箱" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="手机号" name="phone">
-                          <Input allowClear placeholder="搜索手机号" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="封禁状态" name="banned">
-                          <Select
-                            allowClear
-                            placeholder="全部"
-                            options={[
-                              { label: '正常', value: false },
-                              { label: '已封禁', value: true },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="会员状态" name="memberStatus">
-                          <Select
-                            allowClear
-                            placeholder="全部"
-                            options={[
-                              { label: '未到期（会员有效）', value: 'ACTIVE' },
-                              { label: '已到期', value: 'EXPIRED' },
-                              { label: '未开通', value: 'NONE' },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="WS 在线" name="wsOnline">
-                          <Select
-                            allowClear
-                            placeholder="全部"
-                            options={[
-                              { label: '离线', value: false },
-                              { label: '在线', value: true },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                      <Col>
-                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                      </Col>
-                      <Col>
-                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                          查询
-                        </Button>
-                      </Col>
-                    </Row>
-                  </Form>
-                </div>
-              }
-            >
-              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                <Button icon={<FilterOutlined />}>筛选</Button>
-              </Badge>
-            </Popover>
-          </Col>
-        </Row>
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
+                </Badge>
+              </Popover>
+            </>
+          ) : (
+            <>
+              <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+                <Input placeholder="搜索用户名" allowClear value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} onPressEnter={() => applyUsernameSearch()} style={{ minWidth: 0 }} />
+                <Button type="primary" onClick={() => applyUsernameSearch()}>搜索</Button>
+              </Space.Compact>
+              <Popover
+                trigger="click"
+                placement="bottomLeft"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
+                content={
+                  <div style={{ width: 420, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item label="应用" name="appId">
+                            <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="状态" name="status">
+                            <Select allowClear placeholder="状态" options={[{ label: '正常', value: 1 }, { label: '封禁', value: 2 }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="创建来源" name="creatorType">
+                            <Select allowClear placeholder="创建来源" options={[{ label: '自己创建', value: 'SELF' }, { label: '代理创建', value: 'AGENT' }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="到期时间" name="expiresFilter">
+                            <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                      </Row>
+                    </Form>
+                  </div>
+                }
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />}>筛选</Button>
+                </Badge>
+              </Popover>
+            </>
+          )}
+        </div>
 
-        {/* 用户列表表格 */}
-        <Table
-          columns={columns}
-          dataSource={users}
-          rowKey="id"
-          loading={loading}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-            preserveSelectedRowKeys: true,
-          }}
-          pagination={false}
-          scroll={{ x: 1920 }}
-        />
+        {/* 用户列表 */}
+        {isMobile ? (
+          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+            {loading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>加载中...</div>
+            ) : users.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
+            ) : (
+              users.map(mobileUserCard)
+            )}
+          </div>
+        ) : (
+          <Table
+            columns={displayColumns}
+            dataSource={users}
+            rowKey="id"
+            loading={loading}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+              preserveSelectedRowKeys: true,
+            }}
+            pagination={false}
+            scroll={{ x: 1920 }}
+            size="middle"
+          />
+        )}
         <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
           <Col flex="none">
-            <Space wrap>
-              <Select
-                placeholder="批量操作"
-                allowClear
-                style={{ width: 260 }}
-                value={selectedBatchAction}
-                onChange={(value) => setSelectedBatchAction(value)}
-                options={batchActionOptions}
-              />
+            <Space wrap size={isMobile ? 'small' : 'middle'}>
+              {isMobile ? (
+                <Dropdown
+                  menu={{
+                    items: batchActionOptions.map(opt => ({ key: opt.value, label: opt.label, onClick: () => setSelectedBatchAction(opt.value) })),
+                  }}
+                  trigger={['click']}
+                >
+                  <Button size="small" icon={<ClockCircleOutlined />}>批量操作</Button>
+                </Dropdown>
+              ) : (
+                <Select
+                  placeholder="批量操作"
+                  allowClear
+                  style={{ width: 260 }}
+                  size="middle"
+                  value={selectedBatchAction}
+                  onChange={(value) => setSelectedBatchAction(value)}
+                  options={batchActionOptions}
+                />
+              )}
               <Button
+                size={isMobile ? 'small' : 'middle'}
                 icon={<ClockCircleOutlined />}
                 disabled={!selectedBatchAction || (selectedRowKeys.length === 0 && !String(selectedBatchAction).startsWith('app-not-expired'))}
                 onClick={handleBatchActionConfirm}
               >
                 确定
               </Button>
-              <Text type="secondary">已选择 {selectedRowKeys.length} 条</Text>
+              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>已选 {selectedRowKeys.length} 条</Text>
             </Space>
           </Col>
           <Col flex="none">
             <Pagination
               {...pagination}
-              showSizeChanger
+              size={isMobile ? 'small' : 'default'}
+              showSizeChanger={false}
               pageSizeOptions={['10', '20', '50', '100', '200', '400']}
-              showQuickJumper
-              showTotal={(total) => `共 ${total} 条`}
+              showQuickJumper={false}
+              simple={isMobile}
+              showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
               onChange={(page, pageSize) => {
                 fetchUsers(page, pageSize, filters);
               }}
@@ -1437,9 +1591,10 @@ const AppUserManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        width={isMobile ? '100%' : 600}
         okText="确定"
         cancelText="取消"
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form
           form={form}
@@ -1549,6 +1704,8 @@ const AppUserManagementContent: React.FC = () => {
         }}
         okText="确定"
         cancelText="取消"
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
           <Row gutter={12}>
@@ -1605,7 +1762,8 @@ const AppUserManagementContent: React.FC = () => {
         onCancel={() => setBatchExtendVisible(false)}
         okText="确定加时"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按单位累加）。
@@ -1665,7 +1823,8 @@ const AppUserManagementContent: React.FC = () => {
         onCancel={() => setBatchSubtractVisible(false)}
         okText="确定扣时"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户扣减会员到期时间（按单位扣减）。
@@ -1715,7 +1874,8 @@ const AppUserManagementContent: React.FC = () => {
         onCancel={() => setNotExpiredAddVisible(false)}
         okText="确定"
         cancelText="取消"
-        width={560}
+        width={isMobile ? '100%' : 560}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
           将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量加时。
@@ -1774,7 +1934,8 @@ const AppUserManagementContent: React.FC = () => {
         onCancel={() => setNotExpiredSubtractVisible(false)}
         okText="确定"
         cancelText="取消"
-        width={560}
+        width={isMobile ? '100%' : 560}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
           将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量扣时。
@@ -1845,6 +2006,8 @@ const AppUserManagementContent: React.FC = () => {
             保存
           </Button>,
         ]}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form form={memberExpForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item label="到期时间" name="expires">
@@ -1869,6 +2032,8 @@ const AppUserManagementContent: React.FC = () => {
         }}
         okText="确定"
         cancelText="取消"
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form
           form={passwordForm}
@@ -1927,7 +2092,8 @@ const AppUserManagementContent: React.FC = () => {
             关闭
           </Button>
         ]}
-        width={1000}
+        width={isMobile ? '100%' : 1000}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Table
           columns={[

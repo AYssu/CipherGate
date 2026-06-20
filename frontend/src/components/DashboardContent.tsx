@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Avatar, 
-  Typography, 
-  Space, 
-  Statistic, 
-  Button, 
+import {
+  Card,
+  Row,
+  Col,
+  Avatar,
+  Typography,
+  Space,
+  Statistic,
+  Button,
   List,
   Tag,
   message,
   Modal,
-  Pagination
+  Pagination,
+  Grid
 } from 'antd';
 import {
   UserOutlined,
@@ -66,11 +67,13 @@ const AnimatedNumber: React.FC<{ value: number; durationMs?: number }> = ({ valu
   return <>{display.toLocaleString()}</>;
 };
 
-const DashboardContent: React.FC<DashboardContentProps> = ({ 
-  userInfo, 
-  isAdmin, 
-  setSelectedMenu 
+const DashboardContent: React.FC<DashboardContentProps> = ({
+  userInfo,
+  isAdmin,
+  setSelectedMenu
 }) => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md; // < 768px
   const [currentTime, setCurrentTime] = useState(new Date());
   const [recentActivities, setRecentActivities] = useState<ActivityLog[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
@@ -297,34 +300,51 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     legend: {
       data: ['注册', '卡密登录', '终端登录'],
       top: 8,
+      textStyle: { fontSize: isMobile ? 11 : 13 },
+      itemWidth: isMobile ? 14 : 20,
+      itemHeight: isMobile ? 8 : 12,
     },
-    grid: { left: 24, right: 24, top: 56, bottom: 40, containLabel: true },
+    grid: {
+      left: isMobile ? 8 : 24,
+      right: isMobile ? 8 : 24,
+      top: isMobile ? 40 : 56,
+      bottom: isMobile ? 28 : 40,
+      containLabel: true
+    },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: trend7d.map((p) => p.date.slice(5)),
+      axisLabel: { fontSize: isMobile ? 10 : 12 },
     },
     yAxis: {
       type: 'value',
       minInterval: 1,
+      axisLabel: { fontSize: isMobile ? 10 : 12 },
     },
     series: [
       {
         name: '注册',
         type: 'line',
         smooth: true,
+        symbol: isMobile ? 'none' : 'circle',
+        symbolSize: 6,
         data: trend7d.map((p) => p.appUserRegistered),
       },
       {
         name: '卡密登录',
         type: 'line',
         smooth: true,
+        symbol: isMobile ? 'none' : 'circle',
+        symbolSize: 6,
         data: trend7d.map((p) => p.cardLogin),
       },
       {
         name: '终端登录',
         type: 'line',
         smooth: true,
+        symbol: isMobile ? 'none' : 'circle',
+        symbolSize: 6,
         data: trend7d.map((p) => p.appUserWsLogin),
       },
     ],
@@ -337,33 +357,33 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   return (
     <div style={{ padding: 0 }}>
       {/* 简洁的欢迎区域 */}
-      <Card style={{ marginBottom: 24 }}>
-        <Row align="middle" gutter={24}>
-          <Col>
+      <Card style={{ marginBottom: isMobile ? 16 : 24 }} className="dashboard-welcome-card">
+        <Row align="middle" gutter={isMobile ? [16, 12] : [24, 0]}>
+          <Col xs={24} sm="auto" style={{ textAlign: isMobile ? 'center' : undefined }}>
             <Avatar
               src={userInfo?.avatarUrl}
-              size={72}
+              size={isMobile ? 56 : 72}
               icon={<UserOutlined />}
             />
           </Col>
-          <Col flex={1}>
-            <Title level={3} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
+          <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'center' : undefined }}>
+            <Title level={isMobile ? 4 : 3} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
               {getGreeting()}, {userInfo?.name || userInfo?.login}
             </Title>
-            <Space size={16}>
-              <Text type="secondary" style={{ fontSize: 14 }}>
+            <Space size={isMobile ? 8 : 16} direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+              <Text type="secondary" style={{ fontSize: isMobile ? 13 : 14 }}>
                 <GithubOutlined /> @{userInfo?.login}
               </Text>
-              <Text type="secondary" style={{ fontSize: 14 }}>
+              <Text type="secondary" style={{ fontSize: isMobile ? 13 : 14 }}>
                 <ClockCircleOutlined /> {currentTime.toLocaleString()}
               </Text>
             </Space>
             <div style={{ marginTop: 8 }}>
-              <Space wrap>
+              <Space wrap size={4}>
                 {userInfo?.roles?.map(role => (
                   <Tag
                     key={role.id}
-                    color={role.roleCode === 'SUPER_ADMIN' ? 'red' : 
+                    color={role.roleCode === 'SUPER_ADMIN' ? 'red' :
                            role.roleCode === 'ADMIN' ? 'blue' : 'green'}
                   >
                     {role.roleName}
@@ -372,22 +392,24 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               </Space>
             </div>
           </Col>
-          <Col>
-            <div style={{ textAlign: 'right' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>系统状态</Text>
-              <div style={{ fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
-                <CheckCircleOutlined /> 正常运行
+          {!isMobile && (
+            <Col>
+              <div style={{ textAlign: 'right' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>系统状态</Text>
+                <div style={{ fontSize: 16, fontWeight: 500, color: '#52c41a' }}>
+                  <CheckCircleOutlined /> 正常运行
+                </div>
               </div>
-            </div>
-          </Col>
+            </Col>
+          )}
         </Row>
       </Card>
 
       {/* 今日业务统计（自然日按服务器时区；卡密/终端登录自 access_event 表，需已执行建表脚本） */}
-      <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: isMobile ? 8 : 12, fontSize: isMobile ? 12 : 13 }}>
         卡密与终端用户指标仅统计您作为创建者的应用；「今日后台登录」仅管理员可见且为全平台 GitHub 登录次数。
       </Text>
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} wrap>
+      <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }} wrap>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loadingTodayStats}>
             <Statistic
@@ -398,9 +420,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               prefix={<KeyOutlined />}
               suffix="张"
             />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              今日首次绑定/激活的卡密
-            </Text>
+            {!isMobile && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                今日首次绑定/激活的卡密
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -413,9 +437,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               prefix={<LoginOutlined />}
               suffix="次"
             />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              每次卡密验证成功计一次
-            </Text>
+            {!isMobile && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                每次卡密验证成功计一次
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -428,9 +454,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               prefix={<UserAddOutlined />}
               suffix="人"
             />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              含自助注册与后台创建
-            </Text>
+            {!isMobile && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                含自助注册与后台创建
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -443,9 +471,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
               prefix={<ApiOutlined />}
               suffix="次"
             />
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              终端 WS 账号登录成功
-            </Text>
+            {!isMobile && (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                终端 WS 账号登录成功
+              </Text>
+            )}
           </Card>
         </Col>
         {typeof todayStats?.platformLoginToday === 'number' && (
@@ -459,18 +489,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 prefix={<GithubOutlined />}
                 suffix="次"
               />
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                全平台 GitHub 登录
-              </Text>
+              {!isMobile && (
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                  全平台 GitHub 登录
+                </Text>
+              )}
             </Card>
           </Col>
         )}
       </Row>
 
-      <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: isMobile ? 8 : 12, fontSize: isMobile ? 12 : 13 }}>
         总览与在线指标按当前登录用户拥有的应用统计，在线口径：卡密 5 分钟内有使用记录，用户为 WS 在线会话。
       </Text>
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} wrap>
+      <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }} wrap>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loadingOverview}>
             <Statistic title="应用总数" value={overview?.appCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#1890ff' }} suffix="个" />
@@ -509,17 +541,17 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       </Row>
 
       <Card
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: isMobile ? 16 : 24 }}
         title={<Space><LineChartOutlined style={{ color: '#1890ff' }} /><span>近7天趋势</span></Space>}
         loading={loadingOverview}
       >
-        <ReactECharts option={trendOption} style={{ height: 340, width: '100%' }} notMerge />
+        <ReactECharts option={trendOption} style={{ height: isMobile ? 220 : 340, width: '100%' }} notMerge />
       </Card>
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
         {/* 快速操作 */}
-        <Col span={12}>
-          <Card 
+        <Col xs={24} md={12}>
+          <Card
             title={
               <Space>
                 <BarChartOutlined style={{ color: '#1890ff' }} />
@@ -528,31 +560,33 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             }
             style={{ height: '100%' }}
           >
-            <Row gutter={[12, 12]}>
+            <Row gutter={[isMobile ? 8 : 12, isMobile ? 8 : 12]}>
               {quickActions
                 .filter(action => !action.adminOnly || isAdmin())
                 .map((action, index) => (
-                <Col span={12} key={index}>
-                  <Card 
+                <Col xs={12} key={index}>
+                  <Card
                     size="small"
                     hoverable
                     onClick={action.action}
-                    style={{ 
+                    style={{
                       textAlign: 'center',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease'
                     }}
-                    styles={{ body: { padding: '16px 8px' } }}
+                    styles={{ body: { padding: isMobile ? '12px 4px' : '16px 8px' } }}
                   >
-                    <div style={{ fontSize: 24, color: '#1890ff', marginBottom: 8 }}>
+                    <div style={{ fontSize: isMobile ? 20 : 24, color: '#1890ff', marginBottom: isMobile ? 4 : 8 }}>
                       {action.icon}
                     </div>
-                    <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                    <div style={{ fontWeight: 500, marginBottom: 4, fontSize: isMobile ? 13 : 14 }}>
                       {action.title}
                     </div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {action.description}
-                    </Text>
+                    {!isMobile && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {action.description}
+                      </Text>
+                    )}
                   </Card>
                 </Col>
               ))}
@@ -561,8 +595,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Col>
 
         {/* 最近活动 */}
-        <Col span={12}>
-          <Card 
+        <Col xs={24} md={12}>
+          <Card
             title={
               <Space>
                 <EyeOutlined style={{ color: '#1890ff' }} />
@@ -630,36 +664,38 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                         </div>
                       }
                       description={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                          <Space size={8}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {formatRelativeTime(activity.createdTime)}
-                            </Text>
-                            <Tag 
-                              color={importanceBadge.color}
-                              style={{ fontSize: 10, margin: 0 }}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginTop: 4,
+                          flexWrap: 'wrap',
+                          gap: isMobile ? '2px 6px' : '0 8px'
+                        }}>
+                          <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
+                            {formatRelativeTime(activity.createdTime)}
+                          </Text>
+                          <Tag
+                            color={importanceBadge.color}
+                            style={{ fontSize: 10, margin: 0 }}
+                          >
+                            {importanceBadge.text}
+                          </Tag>
+                          <Tag
+                            color={actionDisplay.color}
+                            style={{ fontSize: 10, margin: 0 }}
+                          >
+                            {activity.status === 'SUCCESS' ? '成功' : '失败'}
+                          </Tag>
+                          {needRead && !activity.isRead && (
+                            <Button
+                              type="link"
+                              size="small"
+                              style={{ fontSize: isMobile ? 11 : 12, padding: 0, height: 'auto' }}
+                              onClick={() => handleMarkAsRead(activity.id)}
                             >
-                              {importanceBadge.text}
-                            </Tag>
-                          </Space>
-                          <Space size={4}>
-                            <Tag 
-                              color={actionDisplay.color}
-                              style={{ fontSize: 10, margin: 0 }}
-                            >
-                              {activity.status === 'SUCCESS' ? '成功' : '失败'}
-                            </Tag>
-                            {needRead && !activity.isRead && (
-                              <Button 
-                                type="link" 
-                                size="small" 
-                                style={{ fontSize: 12, padding: 0, height: 'auto' }}
-                                onClick={() => handleMarkAsRead(activity.id)}
-                              >
-                                标记已读
-                              </Button>
-                            )}
-                          </Space>
+                              标记已读
+                            </Button>
+                          )}
                         </div>
                       }
                     />
@@ -677,12 +713,12 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         open={allActivitiesVisible}
         onCancel={() => setAllActivitiesVisible(false)}
         footer={null}
-        width={700}
+        width={isMobile ? '95vw' : 700}
         styles={{
-          body: { 
-            maxHeight: '60vh', 
-            overflowY: 'auto', 
-            padding: '16px 24px',
+          body: {
+            maxHeight: isMobile ? '70vh' : '60vh',
+            overflowY: 'auto',
+            padding: isMobile ? '12px 16px' : '16px 24px',
             scrollbarWidth: 'thin',
             scrollbarColor: '#d9d9d9 transparent'
           }
@@ -763,36 +799,38 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     </div>
                   }
                   description={
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-                      <Space size={6}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {formatRelativeTime(activity.createdTime)}
-                        </Text>
-                        <Tag 
-                          color={importanceBadge.color}
-                          style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginTop: 2,
+                      flexWrap: 'wrap',
+                      gap: isMobile ? '2px 6px' : '0 6px'
+                    }}>
+                      <Text type="secondary" style={{ fontSize: isMobile ? 10 : 11 }}>
+                        {formatRelativeTime(activity.createdTime)}
+                      </Text>
+                      <Tag
+                        color={importanceBadge.color}
+                        style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}
+                      >
+                        {importanceBadge.text}
+                      </Tag>
+                      <Tag
+                        color={actionDisplay.color}
+                        style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}
+                      >
+                        {activity.status === 'SUCCESS' ? '成功' : '失败'}
+                      </Tag>
+                      {needRead && !activity.isRead && (
+                        <Button
+                          type="link"
+                          size="small"
+                          style={{ fontSize: isMobile ? 10 : 11, padding: 0, height: 'auto' }}
+                          onClick={() => handleMarkAsRead(activity.id)}
                         >
-                          {importanceBadge.text}
-                        </Tag>
-                      </Space>
-                      <Space size={4}>
-                        <Tag 
-                          color={actionDisplay.color}
-                          style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}
-                        >
-                          {activity.status === 'SUCCESS' ? '成功' : '失败'}
-                        </Tag>
-                        {needRead && !activity.isRead && (
-                          <Button 
-                            type="link" 
-                            size="small" 
-                            style={{ fontSize: 11, padding: 0, height: 'auto' }}
-                            onClick={() => handleMarkAsRead(activity.id)}
-                          >
-                            标记已读
-                          </Button>
-                        )}
-                      </Space>
+                          标记已读
+                        </Button>
+                      )}
                     </div>
                   }
                 />
@@ -800,16 +838,17 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             );
           }}
         />
-        <div style={{ marginTop: 12, textAlign: 'right', paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ marginTop: 12, textAlign: isMobile ? 'center' : 'right', paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
           <Pagination
             current={currentPage}
             pageSize={pageSize}
             total={total}
             onChange={handlePageChange}
-            showSizeChanger
-            showTotal={(total) => `共 ${total} 条`}
+            showSizeChanger={!isMobile}
+            showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
             pageSizeOptions={['10', '20', '50', '100']}
             size="small"
+            simple={isMobile}
           />
         </div>
       </Modal>

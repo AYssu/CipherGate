@@ -19,7 +19,9 @@ import {
   Table,
   Tag,
   Typography,
+  Pagination,
   type MenuProps,
+  Grid,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, KeyOutlined, CopyOutlined, EyeOutlined, EyeInvisibleOutlined, MoreOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { FilterOutlined } from '@ant-design/icons';
@@ -37,6 +39,8 @@ import { getApplicationList, type Application } from '../services/applicationSer
 const { Text, Title } = Typography;
 
 const ThirdPartyCredentialManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<ThirdPartyCredential[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
@@ -257,227 +261,245 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
     setShowSecret((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const getCredentialMenuItems = (r: ThirdPartyCredential): MenuProps['items'] => [
+    { key: 'edit', icon: <EditOutlined />, label: '编辑', onClick: () => onEdit(r) },
+    { key: 'rotate', icon: <KeyOutlined />, label: '重置密钥', onClick: () => onRotate(r.id) },
+    { type: 'divider' },
+    { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除', onClick: () => confirmDelete(r.id) },
+  ];
+
   return (
-    <Card>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col>
-          <Title level={4} style={{ margin: 0 }}>
-            三方凭证管理
-          </Title>
-        </Col>
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>
+    <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
+      {/* 标题栏 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: isMobile ? 12 : 16,
+      }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>
+          三方凭证管理
+        </Title>
+        {isMobile ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => fetchData()}
+              style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+            >
               刷新
             </Button>
             <Button
               type="primary"
+              size="small"
               icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingCredential(null);
-                form.resetFields();
-                form.setFieldsValue({ status: 1 });
-                setModalVisible(true);
-              }}
+              onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1 }); setModalVisible(true); }}
+              style={{ fontSize: 12, padding: '0 6px', height: 24 }}
             >
-              新增凭证
+              新增
             </Button>
+          </div>
+        ) : (
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1 }); setModalVisible(true); }}>新增凭证</Button>
           </Space>
-        </Col>
-      </Row>
-      <Row gutter={12} align="middle" wrap style={{ marginBottom: 16 }}>
-        <Col flex="none">
-          <Space.Compact
-            style={{
-              width: 360,
-              maxWidth: 'calc(100vw - 120px)',
-            }}
-          >
+        )}
+      </div>
+
+      {/* 搜索和筛选 */}
+      <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'stretch' } : { marginBottom: 16 }}>
+        {isMobile ? (
+          <>
             <Input
               placeholder="搜索凭证名称"
               allowClear
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onPressEnter={() => applyNameSearch()}
-              style={{ minWidth: 0 }}
+              style={{ flex: 1, minWidth: 0 }}
             />
-            <Button type="primary" onClick={() => applyNameSearch()}>
-              搜索
-            </Button>
-          </Space.Compact>
-        </Col>
-        <Col flex="none">
-          <Popover
-            trigger="click"
-            placement="bottomLeft"
-            open={filterPopoverOpen}
-            onOpenChange={(open) => {
-              setFilterPopoverOpen(open);
-              if (open) {
-                syncListFilterFormFromFilters();
+            <Button type="primary" onClick={() => applyNameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
+              content={
+                <div style={{ width: 320, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item label="应用" name="appId">
+                          <Select allowClear placeholder="选择应用" options={apps.map((app) => ({ label: app.appName, value: app.id }))} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="状态" name="status">
+                          <Select allowClear placeholder="状态" options={[{ label: '启用', value: 1 }, { label: '禁用', value: 0 }]} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                      <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                    </Row>
+                  </Form>
+                </div>
               }
-            }}
-            content={
-              <div style={{ width: 420, maxWidth: '90vw' }}>
-                <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item label="应用" name="appId">
-                        <Select
-                          allowClear
-                          placeholder="选择应用"
-                          options={apps.map((app) => ({
-                            label: app.appName,
-                            value: app.id,
-                          }))}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item label="状态" name="status">
-                        <Select
-                          allowClear
-                          placeholder="状态"
-                          options={[
-                            { label: '启用', value: 1 },
-                            { label: '禁用', value: 0 },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                    <Col>
-                      <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                    </Col>
-                    <Col>
-                      <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                        查询
-                      </Button>
-                    </Col>
-                  </Row>
-                </Form>
-              </div>
-            }
-          >
-            <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-              <Button icon={<FilterOutlined />}>筛选</Button>
-            </Badge>
-          </Popover>
-        </Col>
-      </Row>
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
+              </Badge>
+            </Popover>
+          </>
+        ) : (
+          <>
+            <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+              <Input placeholder="搜索凭证名称" allowClear value={nameInput} onChange={(e) => setNameInput(e.target.value)} onPressEnter={() => applyNameSearch()} style={{ minWidth: 0 }} />
+              <Button type="primary" onClick={() => applyNameSearch()}>搜索</Button>
+            </Space.Compact>
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              open={filterPopoverOpen}
+              onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
+              content={
+                <div style={{ width: 420, maxWidth: '90vw' }}>
+                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="应用" name="appId">
+                          <Select allowClear placeholder="选择应用" options={apps.map((app) => ({ label: app.appName, value: app.id }))} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="状态" name="status">
+                          <Select allowClear placeholder="状态" options={[{ label: '启用', value: 1 }, { label: '禁用', value: 0 }]} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                      <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                      <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                    </Row>
+                  </Form>
+                </div>
+              }
+            >
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />}>筛选</Button>
+              </Badge>
+            </Popover>
+          </>
+        )}
+      </div>
 
-      <Table<ThirdPartyCredential>
-        rowKey="id"
-        loading={loading}
-        dataSource={list}
-        pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          onChange: (page, size) => fetchData(page, size, filters),
-        }}
-        columns={[
-          { title: 'ID', dataIndex: 'id', width: 80 },
-          { title: '应用ID', dataIndex: 'appId', width: 90 },
-          { title: '凭证名称', dataIndex: 'name', width: 180 },
-          {
-            title: 'API Key',
-            dataIndex: 'apiKey',
-            width: 200,
-            render: (text: string) => {
-              if (!text) return <Text type="secondary">-</Text>;
-              return (
-                <Text
-                  copyable={{ text, tooltips: ['复制', '已复制'] }}
-                  style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}
-                >
-                  {text.substring(0, 12)}...
-                </Text>
-              );
-            },
-          },
-          {
-            title: 'API Secret',
-            key: 'apiSecret',
-            width: 210,
-            render: (_, r) => {
-              const secret = rotatedSecretMap[r.id];
-              const visible = !!showSecret[r.id] && !!secret;
-              return (
-                <Space size="small">
-                  <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
-                    {visible ? `${secret.substring(0, 12)}...` : '••••••••••••'}
-                  </Text>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={visible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                    onClick={() => toggleShowSecret(r.id)}
-                  />
-                  {visible && (
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      onClick={() => copyText(secret)}
-                    />
+      {/* 列表 */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {loading && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>}
+          {!loading && list.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无数据</div>}
+          {list.map((r) => (
+            <div key={r.id} style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #f0f0f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text strong style={{ fontSize: 14 }}>{r.name || '-'}</Text>
+                    <Tag color={r.status === 1 ? 'success' : 'default'} style={{ margin: 0 }}>{r.status === 1 ? '启用' : '禁用'}</Tag>
+                  </div>
+                  {r.apiKey && (
+                    <Text type="secondary" style={{ fontSize: 11, fontFamily: 'Consolas, Monaco, monospace', display: 'block', marginTop: 2 }} ellipsis={{ tooltip: r.apiKey }}>
+                      Key: {r.apiKey.substring(0, 16)}...
+                    </Text>
                   )}
-                </Space>
-              );
-            },
-          },
-          {
-            title: '状态',
-            dataIndex: 'status',
-            width: 90,
-            render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag>,
-          },
-          { title: '日调用上限', dataIndex: 'dailyLimit', width: 110, render: (v?: number) => v ?? '-' },
-          { title: '总调用上限', dataIndex: 'totalCallLimit', width: 110, render: (v?: number) => v ?? '-' },
-          { title: '总消耗天数上限', dataIndex: 'totalDaysLimit', width: 130, render: (v?: number) => v ?? '-' },
-          {
-            title: '已用次数/天数',
-            width: 140,
-            render: (_, r) => `${r.usedCallCount || 0} / ${r.usedDaysCount || 0}`,
-          },
-          {
-            title: '操作',
-            width: 90,
-            fixed: 'right',
-            align: 'center' as const,
-            render: (_, r) => {
-              const menuItems: MenuProps['items'] = [
-                {
-                  key: 'edit',
-                  icon: <EditOutlined />,
-                  label: '编辑',
-                  onClick: () => onEdit(r),
-                },
-                {
-                  key: 'rotate',
-                  icon: <KeyOutlined />,
-                  label: '重置密钥',
-                  onClick: () => onRotate(r.id),
-                },
-                {
-                  key: 'delete',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                  label: '删除',
-                  onClick: () => confirmDelete(r.id),
-                },
-              ];
-              return (
-                <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, fontSize: 12, color: '#666' }}>
+                    <Text type="secondary">日限: {r.dailyLimit ?? '-'}</Text>
+                    <Text type="secondary">|</Text>
+                    <Text type="secondary">已用: {r.usedCallCount || 0}次 / {r.usedDaysCount || 0}天</Text>
+                  </div>
+                </div>
+                <Dropdown menu={{ items: getCredentialMenuItems(r) }} trigger={['click']}>
                   <Button type="text" size="small" icon={<MoreOutlined />} />
                 </Dropdown>
-              );
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Table<ThirdPartyCredential>
+          rowKey="id"
+          loading={loading}
+          dataSource={list}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            onChange: (page, size) => fetchData(page, size, filters),
+          }}
+          columns={[
+            { title: 'ID', dataIndex: 'id', width: 80 },
+            { title: '应用ID', dataIndex: 'appId', width: 90 },
+            { title: '凭证名称', dataIndex: 'name', width: 180 },
+            {
+              title: 'API Key',
+              dataIndex: 'apiKey',
+              width: 200,
+              render: (text: string) => {
+                if (!text) return <Text type="secondary">-</Text>;
+                return (
+                  <Text
+                    copyable={{ text, tooltips: ['复制', '已复制'] }}
+                    style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}
+                  >
+                    {text.substring(0, 12)}...
+                  </Text>
+                );
+              },
             },
-          },
-        ]}
-        scroll={{ x: 1500 }}
-      />
+            {
+              title: 'API Secret',
+              key: 'apiSecret',
+              width: 210,
+              render: (_, r) => {
+                const secret = rotatedSecretMap[r.id];
+                const visible = !!showSecret[r.id] && !!secret;
+                return (
+                  <Space size="small">
+                    <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
+                      {visible ? `${secret.substring(0, 12)}...` : '••••••••••••'}
+                    </Text>
+                    <Button type="text" size="small" icon={visible ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => toggleShowSecret(r.id)} />
+                    {visible && <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => copyText(secret)} />}
+                  </Space>
+                );
+              },
+            },
+            { title: '状态', dataIndex: 'status', width: 90, render: (v: number) => <Tag color={v === 1 ? 'success' : 'default'}>{v === 1 ? '启用' : '禁用'}</Tag> },
+            { title: '日调用上限', dataIndex: 'dailyLimit', width: 110, render: (v?: number) => v ?? '-' },
+            { title: '总调用上限', dataIndex: 'totalCallLimit', width: 110, render: (v?: number) => v ?? '-' },
+            { title: '总消耗天数上限', dataIndex: 'totalDaysLimit', width: 130, render: (v?: number) => v ?? '-' },
+            { title: '已用次数/天数', width: 140, render: (_, r) => `${r.usedCallCount || 0} / ${r.usedDaysCount || 0}` },
+            {
+              title: '操作', width: 90, fixed: 'right', align: 'center' as const,
+              render: (_, r) => (
+                <Dropdown menu={{ items: getCredentialMenuItems(r) }} trigger={['click']}>
+                  <Button type="text" size="small" icon={<MoreOutlined />} />
+                </Dropdown>
+              ),
+            },
+          ]}
+          scroll={{ x: 1500 }}
+        />
+      )}
+
+      {/* 移动端分页 */}
+      {isMobile && pagination.total > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination current={pagination.current} pageSize={pagination.pageSize} total={pagination.total} onChange={(page, size) => fetchData(page, size, filters)} size="small" simple />
+        </div>
+      )}
 
       <Modal
         title={editingCredential ? '编辑三方凭证' : '新增三方凭证'}
@@ -487,7 +509,8 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           setEditingCredential(null);
         }}
         onOk={onCreate}
-        width={720}
+        width={isMobile ? '100%' : 720}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form
           form={form}
@@ -541,7 +564,8 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             我已保存
           </Button>,
         ]}
-        width={640}
+        width={isMobile ? '100%' : 640}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Alert
           type="warning"

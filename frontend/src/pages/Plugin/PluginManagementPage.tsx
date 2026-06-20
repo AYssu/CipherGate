@@ -12,9 +12,11 @@ import {
   Typography,
   Upload,
   Popconfirm,
+  Dropdown,
   message,
+  Grid,
 } from 'antd';
-import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, UploadOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   disablePlugin,
@@ -36,6 +38,8 @@ const statusMap: Record<number, { text: string; color: string }> = {
 };
 
 const PluginManagementPage = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -108,7 +112,7 @@ const PluginManagementPage = () => {
     }
   };
 
-  const columns: ColumnsType<PluginModule> = useMemo(
+  const allColumns: ColumnsType<PluginModule> = useMemo(
     () => [
       { title: 'ID', dataIndex: 'id', width: 80 },
       { title: '插件ID', dataIndex: 'pluginId' },
@@ -135,57 +139,46 @@ const PluginManagementPage = () => {
       {
         title: '操作',
         key: 'actions',
-        width: 300,
-        render: (_, record) => (
-          <Space>
-            <Button size="small" onClick={() => openConfig(record)}>
-              配置
-            </Button>
-            <Button
-              type="primary"
-              size="small"
-              disabled={record.status === 1}
-              onClick={async () => {
-                await enablePlugin(record.id);
-                message.success('插件已启用');
-                await loadPlugins();
-              }}
-            >
-              启用
-            </Button>
-            <Button
-              danger
-              size="small"
-              disabled={record.status !== 1}
-              onClick={async () => {
-                await disablePlugin(record.id);
-                message.success('插件已停用');
-                await loadPlugins();
-              }}
-            >
-              停用
-            </Button>
-            <Popconfirm
-              title="确认删除该插件？"
-              description="删除后不可恢复，如插件已加载会先卸载。"
-              okText="删除"
-              cancelText="取消"
-              onConfirm={async () => {
-                await deletePlugin(record.id);
-                message.success('插件已删除');
-                await loadPlugins();
-              }}
-            >
-              <Button danger size="small">
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
+        width: isMobile ? 80 : 300,
+        render: (_, record) => {
+          if (isMobile) {
+            return (
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'config', label: '配置', onClick: () => openConfig(record) },
+                    { key: 'enable', label: '启用', disabled: record.status === 1, onClick: async () => { await enablePlugin(record.id); message.success('插件已启用'); await loadPlugins(); } },
+                    { key: 'disable', label: '停用', disabled: record.status !== 1, onClick: async () => { await disablePlugin(record.id); message.success('插件已停用'); await loadPlugins(); } },
+                    { type: 'divider' },
+                    { key: 'delete', label: '删除', danger: true, onClick: async () => { await deletePlugin(record.id); message.success('插件已删除'); await loadPlugins(); } },
+                  ],
+                }}
+                trigger={['click']}
+              >
+                <Button type="text" size="small" icon={<MoreOutlined />} />
+              </Dropdown>
+            );
+          }
+          return (
+            <Space>
+              <Button size="small" onClick={() => openConfig(record)}>配置</Button>
+              <Button type="primary" size="small" disabled={record.status === 1} onClick={async () => { await enablePlugin(record.id); message.success('插件已启用'); await loadPlugins(); }}>启用</Button>
+              <Button danger size="small" disabled={record.status !== 1} onClick={async () => { await disablePlugin(record.id); message.success('插件已停用'); await loadPlugins(); }}>停用</Button>
+              <Popconfirm title="确认删除该插件？" description="删除后不可恢复，如插件已加载会先卸载。" okText="删除" cancelText="取消" onConfirm={async () => { await deletePlugin(record.id); message.success('插件已删除'); await loadPlugins(); }}>
+                <Button danger size="small">删除</Button>
+              </Popconfirm>
+            </Space>
+          );
+        },
       },
     ],
-    []
+    [isMobile]
   );
+
+  const MOBILE_VISIBLE_KEYS = ['pluginName', 'status', 'actions'];
+  const displayColumns = isMobile
+    ? allColumns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes((c as any).dataIndex as string))
+    : allColumns;
 
   const handleSubmitUpload = async () => {
     const values = await form.validateFields();
@@ -224,24 +217,43 @@ const PluginManagementPage = () => {
         description="插件 Jar 会上传到 MinIO，启用时下载到后端临时目录并加载。"
       />
       <Card
-        title="插件列表"
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadPlugins}>
-              刷新
-            </Button>
-            <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>
-              上传插件
-            </Button>
-          </Space>
+        title={
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <Typography.Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>插件列表</Typography.Title>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Button
+                size={isMobile ? 'small' : 'middle'}
+                icon={<ReloadOutlined />}
+                onClick={loadPlugins}
+                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+              >
+                刷新
+              </Button>
+              <Button
+                type="primary"
+                size={isMobile ? 'small' : 'middle'}
+                icon={<UploadOutlined />}
+                onClick={() => setUploadOpen(true)}
+                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+              >
+                上传插件
+              </Button>
+            </div>
+          </div>
         }
       >
         <Table
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={displayColumns}
           dataSource={plugins}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 10, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }}
+          scroll={{ x: isMobile ? 300 : undefined }}
+          size={isMobile ? 'small' : 'middle'}
         />
       </Card>
 
@@ -251,6 +263,8 @@ const PluginManagementPage = () => {
         onCancel={() => setUploadOpen(false)}
         onOk={handleSubmitUpload}
         confirmLoading={uploading}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form form={form} layout="vertical">
           <Form.Item label="插件名称" name="pluginName">
@@ -289,7 +303,8 @@ const PluginManagementPage = () => {
           setActivePlugin(null);
         }}
         footer={null}
-        width={900}
+        width={isMobile ? '100%' : 900}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Alert

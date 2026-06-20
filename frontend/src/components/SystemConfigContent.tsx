@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Row, Space, Spin, Switch, Tabs, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, Form, Input, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { SystemSettings } from '../services/systemService';
@@ -7,6 +7,8 @@ import type { SystemSettings } from '../services/systemService';
 const { Title, Text } = Typography;
 
 const SystemConfigContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [geoIpSaving, setGeoIpSaving] = useState(false);
@@ -140,33 +142,35 @@ const SystemConfigContent: React.FC = () => {
 
   return (
     <Card>
-      <Title level={4} style={{ marginTop: 0 }}>系统配置</Title>
+      <Title level={isMobile ? 5 : 4} style={{ marginTop: 0 }}>系统配置</Title>
       <Tabs
+        tabPosition={isMobile ? 'top' : 'top'}
+        size={isMobile ? 'small' : 'middle'}
         items={[
           {
             key: 'github',
             label: 'GitHub 配置',
             children: (
               <Form form={githubForm} layout="vertical">
-                <Row gutter={16}>
-                  <Col span={12}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="clientId" label="Client ID" rules={[{ required: true, message: '请输入 Client ID' }]}>
                       <Input placeholder="GitHub OAuth2 Client ID" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="clientSecret" label="Client Secret（不填则保持不变）">
                       <Input.Password placeholder="GitHub OAuth2 Client Secret" />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Row gutter={16}>
-                  <Col span={12}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="redirectUri" label="Redirect URI" rules={[{ required: true, message: '请输入 Redirect URI' }]}>
                       <Input placeholder="http://localhost:8080/login/oauth2/code/github" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="frontendUrl" label="前端地址" rules={[{ required: true, message: '请输入前端地址' }]}>
                       <Input placeholder="http://localhost:5173/dashboard" />
                     </Form.Item>
@@ -180,23 +184,23 @@ const SystemConfigContent: React.FC = () => {
           },
           {
             key: 'site',
-            label: '主页备案信息',
+            label: '备案信息',
             children: (
               <Form form={siteForm} layout="vertical">
-                <Row gutter={16}>
-                  <Col span={12}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="publicSecurityRecordNo" label="公网安备号">
                       <Input placeholder="京公网安备11000002000001号" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="icpLicenseNo" label="ICP证号">
                       <Input placeholder="京ICP证030173号" />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Row gutter={16}>
-                  <Col span={12}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="icpRecordNo" label="ICP备案号（可选）">
                       <Input placeholder="京ICP备xxxxxxx号" />
                     </Form.Item>
@@ -213,41 +217,41 @@ const SystemConfigContent: React.FC = () => {
             label: '邮箱配置',
             children: (
               <Form form={emailForm} layout="vertical">
-                <Row gutter={16}>
-                  <Col span={8}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="smtpHost" label="SMTP Host">
                       <Input placeholder="smtp.example.com" />
                     </Form.Item>
                   </Col>
-                  <Col span={4}>
+                  <Col span={isMobile ? 24 : 4}>
                     <Form.Item name="smtpPort" label="SMTP Port">
                       <Input placeholder="465/587" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="smtpUsername" label="SMTP 用户名">
                       <Input placeholder="username@example.com" />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Row gutter={16}>
-                  <Col span={8}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="smtpPassword" label="SMTP 密码（不填则保持不变）">
                       <Input.Password placeholder="******" />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="fromEmail" label="发件人邮箱">
                       <Input placeholder="noreply@example.com" />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="enabled" label="启用邮箱通知" valuePropName="checked">
                       <Switch />
                     </Form.Item>
                   </Col>
                 </Row>
-                <Row gutter={16}>
+                <Row gutter={isMobile ? [0, 0] : 16}>
                   <Col span={24}>
                     <Form.Item
                       name="fromDisplayName"
@@ -258,8 +262,8 @@ const SystemConfigContent: React.FC = () => {
                     </Form.Item>
                   </Col>
                 </Row>
-                <Space align="center">
-                  <Button type="primary" loading={saving} onClick={submitEmail}>保存邮箱配置</Button>
+                <Space align="center" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+                  <Button type="primary" loading={saving} onClick={submitEmail} block={isMobile}>保存邮箱配置</Button>
                   <Text type="secondary">
                     当前密码状态：{settings?.emailPasswordSet ? '已设置' : '未设置'}
                   </Text>
@@ -269,14 +273,14 @@ const SystemConfigContent: React.FC = () => {
           },
           {
             key: 'geoip',
-            label: 'IP地理解析',
+            label: 'IP解析',
             children: (
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Row gutter={16}>
-                  <Col span={8}>
+                <Row gutter={isMobile ? [0, 8] : 16} align="middle">
+                  <Col span={isMobile ? 16 : 8}>
                     <Text>启用 IP 地理解析</Text>
                   </Col>
-                  <Col span={16}>
+                  <Col span={isMobile ? 8 : 16}>
                     <Switch
                       checked={!!settings?.geoIpEnabled}
                       loading={geoIpSaving}
@@ -284,8 +288,8 @@ const SystemConfigContent: React.FC = () => {
                     />
                   </Col>
                 </Row>
-                <Row gutter={16}>
-                  <Col span={12}>
+                <Row gutter={isMobile ? [0, 16] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Space>
                       <Text>Country 库：</Text>
                       <Text type={settings?.geoIpCountryUploaded ? 'success' : 'secondary'}>
@@ -298,11 +302,11 @@ const SystemConfigContent: React.FC = () => {
                         showUploadList={false}
                         beforeUpload={(file) => uploadGeoDb('country', file)}
                       >
-                        <Button icon={<UploadOutlined />} loading={geoIpSaving}>上传 Country.mmdb</Button>
+                        <Button icon={<UploadOutlined />} loading={geoIpSaving} block={isMobile}>上传 Country.mmdb</Button>
                       </Upload>
                     </div>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Space>
                       <Text>City 库：</Text>
                       <Text type={settings?.geoIpCityUploaded ? 'success' : 'secondary'}>
@@ -315,7 +319,7 @@ const SystemConfigContent: React.FC = () => {
                         showUploadList={false}
                         beforeUpload={(file) => uploadGeoDb('city', file)}
                       >
-                        <Button icon={<UploadOutlined />} loading={geoIpSaving}>上传 City.mmdb</Button>
+                        <Button icon={<UploadOutlined />} loading={geoIpSaving} block={isMobile}>上传 City.mmdb</Button>
                       </Upload>
                     </div>
                   </Col>

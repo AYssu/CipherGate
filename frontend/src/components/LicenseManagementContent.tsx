@@ -24,6 +24,7 @@ import {
   Popover,
   Checkbox,
   Pagination,
+  Grid,
 } from 'antd';
 import {
   PlusOutlined,
@@ -72,6 +73,8 @@ const BATCH_FORM_PRESET_KEY = 'license.batchFormPreset.v1';
 const CREATE_FORM_PRESET_KEY = 'license.createFormPreset.v1';
 
 const LicenseManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [licenses, setLicenses] = useState<LicenseKey[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1225,14 +1228,16 @@ const LicenseManagementContent: React.FC = () => {
 
         return (
           <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenModal(record)}
-            >
-              编辑
-            </Button>
+            {!isMobile && (
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleOpenModal(record)}
+              >
+                编辑
+              </Button>
+            )}
             <Dropdown menu={{ items: menuItems }} trigger={['click']}>
               <Button type="text" size="small" icon={<MoreOutlined />} />
             </Dropdown>
@@ -1242,68 +1247,301 @@ const LicenseManagementContent: React.FC = () => {
     },
   ];
 
+  const MOBILE_VISIBLE_KEYS = ['keyCode', 'keyType', 'status', 'isOnline', 'action'];
+  const displayColumns = isMobile
+    ? columns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string))
+    : columns;
+
+  const getLicenseMenuItems = (record: LicenseKey): MenuProps['items'] => {
+    const menuItems: MenuProps['items'] = [
+      {
+        key: 'edit',
+        icon: <EditOutlined />,
+        label: '编辑',
+        onClick: () => handleOpenModal(record),
+      },
+      {
+        key: 'status',
+        icon: record.status === 4 ? <CheckCircleOutlined /> : <PoweroffOutlined />,
+        label: record.status === 4 ? '启用' : '禁用',
+        onClick: () => {
+          const newStatus = record.status === 4 ? 1 : 4;
+          const action = record.status === 4 ? '启用' : '禁用';
+          Modal.confirm({
+            title: `${action}卡密`,
+            content: `确定要${action}卡密"${record.keyCode}"吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: () => handleUpdateStatus(record.id, newStatus),
+          });
+        },
+      },
+    ];
+    if (record.bindDeviceId?.trim()) {
+      menuItems.push({
+        key: 'unbindDevice',
+        icon: <DisconnectOutlined />,
+        label: '解绑设备',
+        onClick: () => {
+          Modal.confirm({
+            title: '解绑设备',
+            content: (
+              <div>
+                <p>
+                  确定解绑卡密「{record.keyCode}」的当前设备吗？
+                </p>
+                <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+              </div>
+            ),
+            okText: '解绑',
+            cancelText: '取消',
+            onOk: () => handleUnbindDevice(record.id),
+          });
+        },
+      });
+    }
+    if (record.bindIp?.trim()) {
+      menuItems.push({
+        key: 'unbindIp',
+        icon: <DisconnectOutlined />,
+        label: '解绑IP',
+        onClick: () => {
+          Modal.confirm({
+            title: '解绑IP',
+            content: (
+              <div>
+                <p>
+                  确定解绑卡密「{record.keyCode}」的当前绑定 IP 吗？
+                </p>
+                <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>{unbindQuotaHint(record)}</p>
+              </div>
+            ),
+            okText: '解绑',
+            cancelText: '取消',
+            onOk: () => handleUnbindIp(record.id),
+          });
+        },
+      });
+    }
+    menuItems.push(
+      { type: 'divider' },
+      {
+        key: 'delete',
+        icon: <DeleteOutlined />,
+        label: '删除',
+        danger: true,
+        onClick: () => {
+          Modal.confirm({
+            title: '删除卡密',
+            content: `确定要删除卡密"${record.keyCode}"吗？删除后无法恢复。`,
+            okText: '确定',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: () => handleDelete(record.id),
+          });
+        },
+      }
+    );
+    return menuItems;
+  };
+
+  const renderMobileLicenseCard = (record: LicenseKey) => {
+    const statusMap: Record<number, { text: string; color: string }> = {
+      1: { text: '未使用', color: 'default' },
+      2: { text: '使用中', color: 'processing' },
+      3: { text: '已到期', color: 'error' },
+      4: { text: '已禁用', color: 'error' },
+    };
+    const statusInfo = statusMap[record.status] || { text: '未知', color: 'default' };
+
+    let typeLabel = getKeyTypeLabel(record.keyType);
+    if (record.keyType === 'CUSTOM' && record.durationValue && record.durationUnit) {
+      const unitMap: Record<string, string> = { 'HOUR': '小时', 'DAY': '天', 'MONTH': '月', 'YEAR': '年' };
+      typeLabel = `${record.durationValue}${unitMap[record.durationUnit] || record.durationUnit}`;
+    } else if (record.keyType !== 'PERMANENT' && record.durationValue) {
+      typeLabel = `${record.durationValue}x${typeLabel}`;
+    }
+
+    const isExpired = record.expiresAt && new Date(record.expiresAt) < new Date();
+
+    return (
+      <div
+        key={record.id}
+        style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid #f0f0f0',
+          background: '#fff',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+            <Text
+              copyable={{ text: record.keyCode, tooltips: ['复制', '已复制'] }}
+              style={{
+                fontFamily: 'Consolas, Monaco, monospace',
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#1a1a1a',
+              }}
+            >
+              {record.keyCode}
+            </Text>
+          </div>
+          <Dropdown menu={{ items: getLicenseMenuItems(record) }} trigger={['click']}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          <Badge status={statusInfo.color as any} text={<span style={{ fontSize: 12 }}>{statusInfo.text}</span>} />
+          {record.isOnline && <Tag color="success" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>在线</Tag>}
+          <Tag color="blue" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>{typeLabel}</Tag>
+          {record.appName && <Tag style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>{record.appName}</Tag>}
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#8c8c8c' }}>
+          {record.expiresAt && (
+            <span style={{ color: isExpired ? '#ff4d4f' : undefined }}>
+              {isExpired ? '已过期' : '到期'} {dayjs(record.expiresAt).format('MM/DD HH:mm')}
+            </span>
+          )}
+          <span>使用 {record.useCount}/{record.useLimit === 0 ? '∞' : record.useLimit}</span>
+          {(record.unbindLimit ?? 0) > 0 && (
+            <span>解绑 {record.unbindCount ?? 0}/{record.unbindLimit}</span>
+          )}
+          {record.bindDeviceId?.trim() && <span style={{ color: '#fa8c16' }}>已绑设备</span>}
+          {record.bindIp?.trim() && <span style={{ color: '#1890ff' }}>已绑IP</span>}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* 标题和操作栏 */}
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4} style={{ margin: 0 }}>卡密管理</Title>
-          </Col>
-          <Col>
-            <Space>
-              <Button
-                icon={<ExportOutlined />}
-                onClick={handleExport}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>卡密管理</Title>
+          {isMobile ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'batch', icon: <KeyOutlined />, label: '批量生成', onClick: handleOpenBatchModal },
+                    { key: 'export', icon: <ExportOutlined />, label: '导出', onClick: handleExport },
+                  ],
+                }}
+                trigger={['click']}
               >
-                导出
-              </Button>
+                <Button size="small" icon={<MoreOutlined />} style={{ fontSize: 12, padding: '0 6px', height: 24 }}>更多</Button>
+              </Dropdown>
               <Button
+                size="small"
                 icon={<ReloadOutlined />}
                 onClick={() => fetchLicenses(pagination.current, pagination.pageSize, filters)}
+                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
               >
                 刷新
               </Button>
               <Button
-                icon={<KeyOutlined />}
-                onClick={handleOpenBatchModal}
-              >
-                批量生成
-              </Button>
-              <Button
                 type="primary"
+                size="small"
                 icon={<PlusOutlined />}
                 onClick={() => handleOpenModal()}
+                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
               >
-                创建卡密
+                创建
               </Button>
+            </div>
+          ) : (
+            <Space>
+              <Button icon={<ExportOutlined />} onClick={handleExport}>导出</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchLicenses(pagination.current, pagination.pageSize, filters)}>刷新</Button>
+              <Button icon={<KeyOutlined />} onClick={handleOpenBatchModal}>批量生成</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>创建卡密</Button>
             </Space>
-          </Col>
-        </Row>
+          )}
+        </div>
 
-        {/* 主搜索 + 高级筛选（搜索框固定常规宽度，不占满整行） */}
-        <Row gutter={12} align="middle" wrap>
-          <Col flex="none">
-            <Space.Compact
-              style={{
-                width: 360,
-                maxWidth: 'calc(100vw - 120px)',
-              }}
-            >
+        {/* 主搜索 + 高级筛选 */}
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+          {isMobile ? (
+            <>
               <Input
                 placeholder="搜索卡密"
                 allowClear
                 value={keyCodeInput}
                 onChange={(e) => setKeyCodeInput(e.target.value)}
                 onPressEnter={() => applyKeyCodeSearch()}
-                style={{ minWidth: 0 }}
+                style={{ flex: 1, minWidth: 0 }}
               />
-              <Button type="primary" onClick={() => applyKeyCodeSearch()}>
-                搜索
-              </Button>
+              <Button type="primary" onClick={() => applyKeyCodeSearch()} style={{ flexShrink: 0 }}>搜索</Button>
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
+                content={
+                  <div style={{ width: 320, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={12}>
+                        <Col span={12}>
+                          <Form.Item label="应用" name="appId">
+                            <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="卡密类型" name="keyType">
+                            <Select allowClear placeholder="卡密类型" options={keyTypeOptions.map((opt) => ({ label: opt.label, value: opt.value }))} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="批次名称" name="batchName">
+                            <Input allowClear placeholder="模糊匹配" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="备注" name="remark">
+                            <Input allowClear placeholder="模糊匹配" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="状态" name="status">
+                            <Select allowClear placeholder="状态" options={[{ label: '未使用', value: 1 }, { label: '使用中', value: 2 }, { label: '已到期', value: 3 }, { label: '已禁用', value: 4 }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="在线状态" name="isOnline">
+                            <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
+                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
+                      </Row>
+                    </Form>
+                  </div>
+                }
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
+                </Badge>
+              </Popover>
+            </>
+          ) : (
+            <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+              <Input placeholder="搜索卡密" allowClear value={keyCodeInput} onChange={(e) => setKeyCodeInput(e.target.value)} onPressEnter={() => applyKeyCodeSearch()} style={{ minWidth: 0 }} />
+              <Button type="primary" onClick={() => applyKeyCodeSearch()}>搜索</Button>
             </Space.Compact>
-          </Col>
-          <Col flex="none">
+          )}
+        </div>
+        {!isMobile && (
+          <div>
             <Popover
               trigger="click"
               placement="bottomLeft"
@@ -1397,52 +1635,69 @@ const LicenseManagementContent: React.FC = () => {
                 <Button icon={<FilterOutlined />}>筛选</Button>
               </Badge>
             </Popover>
-          </Col>
-        </Row>
+          </div>
+        )}
 
-        {/* 卡密列表表格 */}
-        <Table
-          columns={columns}
-          dataSource={licenses}
-          rowKey="id"
-          loading={loading}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-          }}
-          pagination={false}
-          scroll={{ x: 2000 }}
-        />
+        {/* 卡密列表 */}
+        {isMobile ? (
+          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+            {loading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>加载中...</div>
+            ) : licenses.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无数据</div>
+            ) : (
+              licenses.map(renderMobileLicenseCard)
+            )}
+          </div>
+        ) : (
+          <Table
+            columns={displayColumns}
+            dataSource={licenses}
+            rowKey="id"
+            loading={loading}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+            }}
+            pagination={false}
+            scroll={{ x: 2000 }}
+            size="middle"
+          />
+        )}
         <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
           <Col flex="none">
-            <Space wrap>
+            <Space wrap size={isMobile ? 'small' : 'middle'}>
               <Select
                 placeholder="批量操作"
                 allowClear
-                style={{ width: 220 }}
+                style={{ width: isMobile ? 140 : 220 }}
+                size={isMobile ? 'small' : 'middle'}
                 value={selectedBatchAction}
                 onChange={(value) => setSelectedBatchAction(value)}
                 options={batchActionOptions}
               />
               <Button
+                size={isMobile ? 'small' : 'middle'}
                 icon={<ClockCircleOutlined />}
                 disabled={selectedRowKeys.length === 0 || !selectedBatchAction}
                 onClick={handleBatchActionConfirm}
               >
                 确定
               </Button>
-              <Text type="secondary">
-                已选择 {selectedRowKeys.length} 条
+              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+                已选 {selectedRowKeys.length} 条
               </Text>
             </Space>
           </Col>
           <Col flex="none">
             <Pagination
               {...pagination}
-              showSizeChanger
+              size={isMobile ? 'small' : 'default'}
+              showSizeChanger={!isMobile}
               pageSizeOptions={['10', '20', '50', '100', '200', '400']}
-              showQuickJumper
-              showTotal={(total) => `共 ${total} 条`}
+              showQuickJumper={!isMobile}
+              simple={isMobile}
+              showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
               onChange={(page, pageSize) => {
                 fetchLicenses(page, pageSize, filters);
               }}
@@ -1457,9 +1712,10 @@ const LicenseManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={700}
+        width={isMobile ? '100%' : 700}
         okText="确定"
         cancelText="取消"
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form
           form={form}
@@ -1716,9 +1972,10 @@ const LicenseManagementContent: React.FC = () => {
         open={batchModalVisible}
         onOk={handleBatchSubmit}
         onCancel={() => setBatchModalVisible(false)}
-        width={700}
+        width={isMobile ? '100%' : 700}
         okText="生成"
         cancelText="取消"
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Form
           form={batchForm}
@@ -1926,7 +2183,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchUnbindVisible(false)}
         okText="确定解绑"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密执行解绑操作。
@@ -1952,7 +2210,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchUseLimitVisible(false)}
         okText="确定设置"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置使用次数限制。
@@ -1976,7 +2235,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchUnbindLimitVisible(false)}
         okText="确定设置"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置解绑次数限制。
@@ -2000,7 +2260,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchUseTimeVisible(false)}
         okText="确定设置"
         cancelText="取消"
-        width={560}
+        width={isMobile ? '100%' : 560}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置可使用时间段。
@@ -2054,7 +2315,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchAddTimeVisible(false)}
         okText="确定加时"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密延长到期时间。
@@ -2097,7 +2359,8 @@ const LicenseManagementContent: React.FC = () => {
         onCancel={() => setBatchSubtractTimeVisible(false)}
         okText="确定扣时"
         cancelText="取消"
-        width={520}
+        width={isMobile ? '100%' : 520}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密扣减到期时间。

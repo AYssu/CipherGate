@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -14,13 +14,16 @@ import {
   Tag,
   Row,
   Col,
-  Typography
+  Typography,
+  Grid,
+  Dropdown,
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { permissionApi } from '../services/permissionService';
 import type { Permission } from '../services/permissionService';
@@ -29,6 +32,8 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const PermissionManagementContent: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -158,7 +163,7 @@ const PermissionManagementContent: React.FC = () => {
       : <Tag color="error">禁用</Tag>;
   };
 
-  const columns = [
+  const allColumns = useMemo(() => [
     {
       title: '权限名称',
       dataIndex: 'permissionName',
@@ -209,36 +214,59 @@ const PermissionManagementContent: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
-      render: (_: any, record: Permission) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定要删除这个权限吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
+      width: isMobile ? 80 : 150,
+      render: (_: any, record: Permission) => {
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEdit(record) },
+                  { type: 'divider' },
+                  { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDelete(record.id) },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        return (
+          <Space size="small">
             <Button
               type="link"
               size="small"
-              danger
-              icon={<DeleteOutlined />}
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
             >
-              删除
+              编辑
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            <Popconfirm
+              title="确定要删除这个权限吗？"
+              onConfirm={() => handleDelete(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
-  ];
+  ], [isMobile]);
+
+  const MOBILE_VISIBLE_KEYS = ['permissionName', 'resourceType', 'status', 'action'];
+  const columns = isMobile
+    ? allColumns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes(c.dataIndex as string))
+    : allColumns;
 
   const rowSelection = {
     selectedRowKeys,
@@ -249,42 +277,49 @@ const PermissionManagementContent: React.FC = () => {
 
   return (
     <Card>
-      <div style={{ marginBottom: 16 }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4}>权限管理</Title>
-          </Col>
-          <Col>
-            <Space>
-              {selectedRowKeys.length > 0 && (
-                <Popconfirm
-                  title={`确定要删除选中的 ${selectedRowKeys.length} 个权限吗？`}
-                  onConfirm={handleBatchDelete}
-                  okText="确定"
-                  cancelText="取消"
-                >
-                  <Button danger>
-                    批量删除 ({selectedRowKeys.length})
-                  </Button>
-                </Popconfirm>
-              )}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+      }}>
+        <Title level={isMobile ? 5 : 4} style={{ margin: 0, whiteSpace: 'nowrap' }}>权限管理</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title={`确定要删除选中的 ${selectedRowKeys.length} 个权限吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确定"
+              cancelText="取消"
+            >
               <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchPermissions}
-                loading={loading}
+                danger
+                size={isMobile ? 'small' : 'middle'}
+                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
               >
-                刷新
+                批量删除 ({selectedRowKeys.length})
               </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAdd}
-              >
-                新增权限
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+            </Popconfirm>
+          )}
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchPermissions}
+            loading={loading}
+            size={isMobile ? 'small' : 'middle'}
+            style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+          >
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAdd}
+            size={isMobile ? 'small' : 'middle'}
+            style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+          >
+            新增权限
+          </Button>
+        </div>
       </div>
 
       <Table
@@ -292,13 +327,15 @@ const PermissionManagementContent: React.FC = () => {
         dataSource={permissions}
         rowKey="id"
         loading={loading}
-        rowSelection={rowSelection}
+        rowSelection={isMobile ? undefined : rowSelection}
         pagination={{
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条记录`,
+          simple: isMobile,
+          showSizeChanger: !isMobile,
+          showQuickJumper: !isMobile,
+          showTotal: isMobile ? undefined : (total) => `共 ${total} 条记录`,
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: isMobile ? 300 : 1200 }}
+        size={isMobile ? 'small' : 'middle'}
       />
 
       <Modal
@@ -306,7 +343,8 @@ const PermissionManagementContent: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        width={isMobile ? '100%' : 600}
+        className={isMobile ? 'mobile-modal' : undefined}
         destroyOnHidden
       >
         <Form
@@ -317,8 +355,8 @@ const PermissionManagementContent: React.FC = () => {
             status: true
           }}
         >
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col span={isMobile ? 24 : 12}>
               <Form.Item
                 label="权限名称"
                 name="permissionName"
@@ -327,7 +365,7 @@ const PermissionManagementContent: React.FC = () => {
                 <Input placeholder="请输入权限名称" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={isMobile ? 24 : 12}>
               <Form.Item
                 label="权限编码"
                 name="permissionCode"
@@ -338,8 +376,8 @@ const PermissionManagementContent: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={isMobile ? 0 : 16}>
+            <Col span={isMobile ? 24 : 12}>
               <Form.Item
                 label="资源类型"
                 name="resourceType"
@@ -354,7 +392,7 @@ const PermissionManagementContent: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={isMobile ? 24 : 12}>
               <Form.Item
                 label="HTTP方法"
                 name="httpMethod"

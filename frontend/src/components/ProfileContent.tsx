@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions, Button, Modal, Form, Input, message } from 'antd';
+import { Card, Row, Col, Avatar, Typography, Space, Tag, Statistic, Descriptions, Button, Modal, Form, Input, message, Grid } from 'antd';
 import { UserOutlined, GithubOutlined, MailOutlined, TeamOutlined, IdcardOutlined, SafetyOutlined, KeyOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { User } from '../services';
@@ -11,6 +11,8 @@ interface ProfileContentProps {
 }
 
 const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordForm] = Form.useForm();
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -41,40 +43,42 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
   return (
     <div style={{ padding: 0 }}>
       {/* 用户概览卡片 */}
-      <Card style={{ marginBottom: 24 }}>
-        <Row align="middle" gutter={32}>
+      <Card style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <Row align="middle" gutter={isMobile ? [0, 16] : 32} style={isMobile ? { flexDirection: 'column', textAlign: 'center' } : undefined}>
           <Col>
-            <Avatar
-              src={userInfo?.avatarUrl}
-              size={88}
-              icon={<UserOutlined />}
-              style={{ border: '3px solid #f0f0f0' }}
-            />
+            <div style={{ display: 'flex', justifyContent: isMobile ? 'center' : undefined }}>
+              <Avatar
+                src={userInfo?.avatarUrl}
+                size={isMobile ? 64 : 88}
+                icon={<UserOutlined />}
+                style={{ border: '3px solid #f0f0f0' }}
+              />
+            </div>
           </Col>
           <Col flex={1}>
-            <div style={{ marginBottom: 16 }}>
-              <Title level={2} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
+            <div style={{ marginBottom: isMobile ? 8 : 16 }}>
+              <Title level={isMobile ? 4 : 2} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
                 {userInfo?.name || userInfo?.login}
               </Title>
-              <Space size={16}>
-                <Text type="secondary" style={{ fontSize: 16 }}>
+              <Space size={isMobile ? 8 : 16} wrap style={isMobile ? { justifyContent: 'center' } : undefined}>
+                <Text type="secondary" style={{ fontSize: isMobile ? 13 : 16 }}>
                   <GithubOutlined /> @{userInfo?.login}
                 </Text>
                 {userInfo?.email && (
-                  <Text type="secondary" style={{ fontSize: 16 }}>
+                  <Text type="secondary" style={{ fontSize: isMobile ? 13 : 16 }}>
                     <MailOutlined /> {userInfo?.email}
                   </Text>
                 )}
               </Space>
             </div>
-            <Space wrap size={8}>
+            <Space wrap size={8} style={isMobile ? { justifyContent: 'center' } : undefined}>
               {userInfo?.roles?.map(role => (
                 <Tag
                   key={role.id}
                   color={role.roleCode === 'SUPER_ADMIN' ? 'red' : role.roleCode === 'ADMIN' ? 'blue' : 'green'}
                   style={{
-                    padding: '4px 12px',
-                    fontSize: '13px',
+                    padding: isMobile ? '2px 8px' : '4px 12px',
+                    fontSize: isMobile ? 12 : 13,
                     borderRadius: '16px',
                     border: 'none'
                   }}
@@ -86,41 +90,43 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
                 type="link"
                 icon={<KeyOutlined />}
                 onClick={() => setPasswordModalVisible(true)}
-                style={{ padding: '4px 8px', fontSize: 13 }}
+                style={{ padding: '4px 8px', fontSize: isMobile ? 12 : 13 }}
               >
                 设置密码
               </Button>
             </Space>
           </Col>
-          <Col>
-            <Row gutter={32}>
-              <Col>
-                <Statistic
-                  title="角色权限"
-                  value={userInfo?.roles?.length || 0}
-                  prefix={<TeamOutlined />}
-                  valueStyle={{ color: '#1890ff', fontSize: 28 }}
-                />
-              </Col>
-              <Col>
-                <Statistic
-                  title="账户状态"
-                  value={userInfo?.status === 1 ? '正常' : '禁用'}
-                  prefix={<SafetyOutlined />}
-                  valueStyle={{ 
-                    color: userInfo?.status === 1 ? '#52c41a' : '#ff4d4f',
-                    fontSize: 20
-                  }}
-                />
-              </Col>
-            </Row>
-          </Col>
+          {!isMobile && (
+            <Col>
+              <Row gutter={32}>
+                <Col>
+                  <Statistic
+                    title="角色权限"
+                    value={userInfo?.roles?.length || 0}
+                    prefix={<TeamOutlined />}
+                    valueStyle={{ color: '#1890ff', fontSize: 28 }}
+                  />
+                </Col>
+                <Col>
+                  <Statistic
+                    title="账户状态"
+                    value={userInfo?.status === 1 ? '正常' : '禁用'}
+                    prefix={<SafetyOutlined />}
+                    valueStyle={{ 
+                      color: userInfo?.status === 1 ? '#52c41a' : '#ff4d4f',
+                      fontSize: 20
+                    }}
+                  />
+                </Col>
+              </Row>
+            </Col>
+          )}
         </Row>
       </Card>
 
-      <Row gutter={24}>
+      <Row gutter={isMobile ? [0, 16] : 24}>
         {/* 账户详细信息 */}
-        <Col span={14}>
+        <Col span={isMobile ? 24 : 14}>
           <Card 
             title={
               <Space>
@@ -131,7 +137,7 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
             style={{ height: '100%' }}
           >
             <Descriptions
-              column={2}
+              column={isMobile ? 1 : 2}
               size="middle"
               styles={{
                 label: {
@@ -160,7 +166,7 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
         </Col>
 
         {/* 角色与权限 */}
-        <Col span={10}>
+        <Col span={isMobile ? 24 : 10}>
           <Card 
             title={
               <Space>
@@ -247,7 +253,8 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
         confirmLoading={passwordLoading}
         okText="确认设置"
         cancelText="取消"
-        width={400}
+        width={isMobile ? '100%' : 400}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <div style={{ padding: '8px 0' }}>
           <div style={{
