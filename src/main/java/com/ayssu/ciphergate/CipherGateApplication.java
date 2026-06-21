@@ -6,6 +6,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,6 +15,7 @@ import java.util.TimeZone;
 @SpringBootApplication
 @MapperScan("com.ayssu.ciphergate.mapper")
 @EnableConfigurationProperties(ThirdPartyPublicProperties.class)
+@EnableScheduling
 @Slf4j
 public class CipherGateApplication {
 

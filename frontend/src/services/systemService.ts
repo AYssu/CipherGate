@@ -133,6 +133,20 @@ export const systemApi = {
     return request.post('/config/settings/geoip', data);
   },
 
+  getPaymentConfig: () => {
+    return request.get('/config/payment');
+  },
+
+  updatePaymentConfig: (data: {
+    epayUrl?: string;
+    epayPid?: string;
+    epayKey?: string;
+    epayNotifyUrl?: string;
+    epayReturnUrl?: string;
+  }) => {
+    return request.post('/config/payment', data);
+  },
+
   /** 密码登录 */
   passwordLogin: (data: { login: string; password: string }) => {
     return request.post('/auth/login', data);

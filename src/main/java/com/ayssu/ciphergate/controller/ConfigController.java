@@ -532,4 +532,59 @@ public class ConfigController {
     private String toSafeValue(String value) {
         return value == null ? "" : value.trim();
     }
+
+    // ==================== 支付配置 ====================
+
+    @GetMapping("/payment")
+    @RequirePermission("CONFIG_LIST")
+    @Operation(summary = "获取支付配置")
+    public Result<Map<String, Object>> getPaymentConfig() {
+        try {
+            requireSuperAdmin();
+            Map<String, Object> data = new HashMap<>();
+            data.put("epayUrl", systemConfigService.getConfigValue("payment.epay.url", ""));
+            data.put("epayPid", systemConfigService.getConfigValue("payment.epay.pid", ""));
+            data.put("epayKeySet", StringUtils.hasText(systemConfigService.getConfigValue("payment.epay.key", "")));
+            data.put("epayNotifyUrl", systemConfigService.getConfigValue("payment.epay.notify.url", ""));
+            data.put("epayReturnUrl", systemConfigService.getConfigValue("payment.epay.return.url", ""));
+            data.put("successRedirectUrl", systemConfigService.getConfigValue("payment.success.redirect.url", "/user/balance"));
+            return Result.success(data);
+        } catch (Exception e) {
+            log.error("获取支付配置失败: {}", e.getMessage());
+            return Result.error("获取支付配置失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/payment")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新支付配置")
+    @Operation(summary = "更新支付配置")
+    public Result<Void> updatePaymentConfig(@RequestBody Map<String, String> body) {
+        try {
+            requireSuperAdmin();
+            if (body.containsKey("epayUrl")) {
+                systemConfigService.setConfigValue("payment.epay.url", toSafeValue(body.get("epayUrl")), "易支付接口地址", false);
+            }
+            if (body.containsKey("epayPid")) {
+                systemConfigService.setConfigValue("payment.epay.pid", toSafeValue(body.get("epayPid")), "易支付商户ID", false);
+            }
+            if (body.containsKey("epayKey")) {
+                systemConfigService.setConfigValue("payment.epay.key", toSafeValue(body.get("epayKey")), "易支付密钥", true);
+            }
+            if (body.containsKey("epayNotifyUrl")) {
+                systemConfigService.setConfigValue("payment.epay.notify.url", toSafeValue(body.get("epayNotifyUrl")), "易支付异步回调地址", false);
+            }
+            if (body.containsKey("epayReturnUrl")) {
+                systemConfigService.setConfigValue("payment.epay.return.url", toSafeValue(body.get("epayReturnUrl")), "易支付同步跳转地址", false);
+            }
+            if (body.containsKey("successRedirectUrl")) {
+                systemConfigService.setConfigValue("payment.success.redirect.url", toSafeValue(body.get("successRedirectUrl")), "支付成功跳转地址", false);
+            }
+            systemConfigService.refreshCache();
+            return Result.success("支付配置更新成功", null);
+        } catch (Exception e) {
+            log.error("更新支付配置失败: {}", e.getMessage());
+            return Result.error("更新支付配置失败: " + e.getMessage());
+        }
+    }
 }

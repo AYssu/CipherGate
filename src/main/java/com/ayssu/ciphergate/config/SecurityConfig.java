@@ -40,6 +40,8 @@ public class SecurityConfig {
                                 "/api/user/status",
                                 "/api/v1/**",
                                 "/api/auth/login",
+                                "/api/payment/notify",
+                                "/api/payment/return",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
                         // Swagger(OpenAPI) 文档只允许超级管理员访问

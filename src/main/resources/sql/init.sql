@@ -1161,3 +1161,148 @@ CREATE TABLE IF NOT EXISTS app_user_trial (
     INDEX idx_app (app_id),
     INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户试用记录表';
+
+-- ========================================
+-- 会员体系初始数据
+-- ========================================
+
+-- 会员等级初始数据
+INSERT IGNORE INTO membership_level (level, level_name, price, app_quota, license_quota, user_register_quota, traffic_quota, duration_days, description, sort_order) VALUES
+(1, '初级开发者', 0, 1, 200, 10, 52428800, 0, '新用户默认等级，基础功能体验', 1),
+(2, '铜牌开发者', 9.90, 3, 1000, 50, 2147483648, 30, '适合个人开发者，满足基本需求', 2),
+(3, '银牌开发者', 29.90, 10, 5000, 200, 5368709120, 90, '适合小型团队，更多额度支持', 3),
+(4, '金牌开发者', 59.90, 30, 20000, 1000, 10737418240, 180, '适合中型团队，丰富功能体验', 4),
+(5, '永久会员', 99.00, -1, -1, -1, 21474836480, 0, '尊享永久会员，不限额度', 5);
+
+-- 额度商品初始数据
+INSERT IGNORE INTO quota_product (product_code, product_name, product_type, quota_value, price, description, sort_order) VALUES
+('APP_QUOTA_1', '创建应用 x1', 'APP_QUOTA', 1, 500, '增加1个应用创建额度', 1),
+('APP_QUOTA_5', '创建应用 x5', 'APP_QUOTA', 5, 2000, '增加5个应用创建额度', 2),
+('APP_QUOTA_10', '创建应用 x10', 'APP_QUOTA', 10, 3500, '增加10个应用创建额度', 3),
+('LICENSE_QUOTA_100', '卡密额度 x100', 'LICENSE_QUOTA', 100, 300, '增加100张卡密创建额度', 10),
+('LICENSE_QUOTA_500', '卡密额度 x500', 'LICENSE_QUOTA', 500, 1200, '增加500张卡密创建额度', 11),
+('LICENSE_QUOTA_1000', '卡密额度 x1000', 'LICENSE_QUOTA', 1000, 2000, '增加1000张卡密创建额度', 12),
+('USER_REGISTER_QUOTA_10', '终端用户注册 x10', 'USER_REGISTER_QUOTA', 10, 200, '增加10个终端用户注册额度', 20),
+('USER_REGISTER_QUOTA_50', '终端用户注册 x50', 'USER_REGISTER_QUOTA', 50, 800, '增加50个终端用户注册额度', 21),
+('USER_REGISTER_QUOTA_100', '终端用户注册 x100', 'USER_REGISTER_QUOTA', 100, 1500, '增加100个终端用户注册额度', 22),
+('TRAFFIC_QUOTA_1GB', '流量额度 x1GB', 'TRAFFIC_QUOTA', 1073741824, 500, '增加1GB流量额度', 30),
+('TRAFFIC_QUOTA_5GB', '流量额度 x5GB', 'TRAFFIC_QUOTA', 5368709120, 2000, '增加5GB流量额度', 31),
+('TRAFFIC_QUOTA_10GB', '流量额度 x10GB', 'TRAFFIC_QUOTA', 10737418240, 3500, '增加10GB流量额度', 32),
+('MEMBERSHIP_UPGRADE_2', '升级铜牌会员', 'MEMBERSHIP', 2, 990, '升级为铜牌开发者会员', 40),
+('MEMBERSHIP_UPGRADE_3', '升级银牌会员', 'MEMBERSHIP', 3, 2990, '升级为银牌开发者会员', 41),
+('MEMBERSHIP_UPGRADE_4', '升级金牌会员', 'MEMBERSHIP', 4, 5990, '升级为金牌开发者会员', 42),
+('MEMBERSHIP_UPGRADE_5', '升级永久会员', 'MEMBERSHIP', 5, 9900, '升级为永久会员', 43);
+
+-- 会员管理权限
+INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('会员等级列表', 'MEMBERSHIP_LEVEL_LIST', 'API', '/api/membership/levels', 'GET', '查看会员等级列表', 1),
+('创建会员等级', 'MEMBERSHIP_LEVEL_CREATE', 'API', '/api/membership/levels', 'POST', '创建会员等级', 1),
+('更新会员等级', 'MEMBERSHIP_LEVEL_UPDATE', 'API', '/api/membership/levels/*', 'PUT', '更新会员等级', 1),
+('删除会员等级', 'MEMBERSHIP_LEVEL_DELETE', 'API', '/api/membership/levels/*', 'DELETE', '删除会员等级', 1),
+('用户会员列表', 'USER_MEMBERSHIP_LIST', 'API', '/api/membership/users', 'GET', '查看用户会员列表', 1),
+('用户会员详情', 'USER_MEMBERSHIP_DETAIL', 'API', '/api/membership/users/*', 'GET', '查看用户会员详情', 1),
+('更新用户会员', 'USER_MEMBERSHIP_UPDATE', 'API', '/api/membership/users/*', 'PUT', '更新用户会员信息', 1),
+('管理员充值余额', 'USER_MEMBERSHIP_GRANT_BALANCE', 'API', '/api/membership/users/*/grant-balance', 'POST', '管理员为用户充值余额', 1),
+('额度商品列表', 'QUOTA_PRODUCT_LIST', 'API', '/api/quota-products', 'GET', '查看额度商品列表', 1),
+('创建额度商品', 'QUOTA_PRODUCT_CREATE', 'API', '/api/quota-products', 'POST', '创建额度商品', 1),
+('更新额度商品', 'QUOTA_PRODUCT_UPDATE', 'API', '/api/quota-products/*', 'PUT', '更新额度商品', 1),
+('删除额度商品', 'QUOTA_PRODUCT_DELETE', 'API', '/api/quota-products/*', 'DELETE', '删除额度商品', 1),
+('支付订单列表', 'PAYMENT_ORDER_LIST', 'API', '/api/payment/orders', 'GET', '查看支付订单列表', 1),
+('支付订单详情', 'PAYMENT_ORDER_DETAIL', 'API', '/api/payment/orders/*', 'GET', '查看支付订单详情', 1),
+('管理员订单列表', 'PAYMENT_ORDER_ADMIN_LIST', 'API', '/api/admin/payment/orders', 'GET', '管理员查看所有订单', 1),
+('管理员订单操作', 'PAYMENT_ORDER_ADMIN_UPDATE', 'API', '/api/admin/payment/orders/*', 'PUT', '管理员修改订单状态', 1),
+('管理员订单退款', 'PAYMENT_ORDER_ADMIN_REFUND', 'API', '/api/admin/payment/orders/*/refund', 'POST', '管理员退款', 1),
+('管理员手动发放', 'PAYMENT_ORDER_ADMIN_GRANT', 'API', '/api/admin/payment/grant', 'POST', '管理员手动发放订单', 1),
+('工单列表', 'TICKET_LIST', 'API', '/api/tickets', 'GET', '查看工单列表', 1),
+('工单详情', 'TICKET_DETAIL', 'API', '/api/tickets/*', 'GET', '查看工单详情', 1),
+('创建工单', 'TICKET_CREATE', 'API', '/api/tickets', 'POST', '创建工单', 1),
+('工单消息', 'TICKET_MESSAGE', 'API', '/api/tickets/*/messages', 'POST', '发送工单消息', 1),
+('关闭工单', 'TICKET_CLOSE', 'API', '/api/tickets/*/close', 'POST', '关闭工单', 1),
+('催办工单', 'TICKET_URGE', 'API', '/api/tickets/*/urge', 'POST', '催办工单', 1),
+('管理员工单列表', 'TICKET_ADMIN_LIST', 'API', '/api/admin/tickets', 'GET', '管理员查看所有工单', 1),
+('管理员工单详情', 'TICKET_ADMIN_DETAIL', 'API', '/api/admin/tickets/*', 'GET', '管理员查看工单详情', 1),
+('管理员分配工单', 'TICKET_ADMIN_ASSIGN', 'API', '/api/admin/tickets/*/assign', 'PUT', '管理员分配工单', 1),
+('管理员回复工单', 'TICKET_ADMIN_REPLY', 'API', '/api/admin/tickets/*/messages', 'POST', '管理员回复工单', 1),
+('管理员更新工单状态', 'TICKET_ADMIN_UPDATE_STATUS', 'API', '/api/admin/tickets/*/status', 'PUT', '管理员更新工单状态', 1);
+
+-- 为超级管理员分配新增权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN (
+    'MEMBERSHIP_LEVEL_LIST', 'MEMBERSHIP_LEVEL_CREATE', 'MEMBERSHIP_LEVEL_UPDATE', 'MEMBERSHIP_LEVEL_DELETE',
+    'USER_MEMBERSHIP_LIST', 'USER_MEMBERSHIP_DETAIL', 'USER_MEMBERSHIP_UPDATE', 'USER_MEMBERSHIP_GRANT_BALANCE',
+    'QUOTA_PRODUCT_LIST', 'QUOTA_PRODUCT_CREATE', 'QUOTA_PRODUCT_UPDATE', 'QUOTA_PRODUCT_DELETE',
+    'PAYMENT_ORDER_LIST', 'PAYMENT_ORDER_DETAIL', 'PAYMENT_ORDER_ADMIN_LIST', 'PAYMENT_ORDER_ADMIN_UPDATE',
+    'PAYMENT_ORDER_ADMIN_REFUND', 'PAYMENT_ORDER_ADMIN_GRANT',
+    'TICKET_LIST', 'TICKET_DETAIL', 'TICKET_CREATE', 'TICKET_MESSAGE', 'TICKET_CLOSE', 'TICKET_URGE',
+    'TICKET_ADMIN_LIST', 'TICKET_ADMIN_DETAIL', 'TICKET_ADMIN_ASSIGN', 'TICKET_ADMIN_REPLY', 'TICKET_ADMIN_UPDATE_STATUS'
+)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 为管理员分配部分新增权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'ADMIN'
+AND p.permission_code IN (
+    'TICKET_LIST', 'TICKET_DETAIL', 'TICKET_CREATE', 'TICKET_MESSAGE', 'TICKET_CLOSE', 'TICKET_URGE',
+    'TICKET_ADMIN_LIST', 'TICKET_ADMIN_DETAIL', 'TICKET_ADMIN_ASSIGN', 'TICKET_ADMIN_REPLY', 'TICKET_ADMIN_UPDATE_STATUS'
+)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 为普通用户分配用户端权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN (
+    'TICKET_LIST', 'TICKET_DETAIL', 'TICKET_CREATE', 'TICKET_MESSAGE', 'TICKET_CLOSE', 'TICKET_URGE'
+)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 我的会员菜单（顶级，所有登录用户可见）
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('我的会员', 'MY_MEMBERSHIP', 0, 1, '/user', NULL, 'crown', 5, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+SET @my_membership_id = (SELECT id FROM menus WHERE menu_code = 'MY_MEMBERSHIP');
+
+INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('会员信息', 'MEMBERSHIP_INFO', @my_membership_id, 2, '/user/membership', 'MembershipInfo', NULL, 1, 1, 1, NOW(), NOW()),
+('余额管理', 'BALANCE_MANAGEMENT', @my_membership_id, 2, '/user/balance', 'Balance', NULL, 2, 1, 1, NOW(), NOW()),
+('每日签到', 'DAILY_CHECKIN', @my_membership_id, 2, '/user/checkin', 'Checkin', NULL, 3, 1, 1, NOW(), NOW()),
+('邀请有奖', 'INVITE_REWARD', @my_membership_id, 2, '/user/invite', 'InviteReward', NULL, 4, 1, 1, NOW(), NOW()),
+('我的订单', 'MY_ORDERS', @my_membership_id, 2, '/user/orders', 'UserOrders', NULL, 5, 1, 1, NOW(), NOW()),
+('我的工单', 'MY_TICKETS', @my_membership_id, 2, '/user/tickets', 'UserTickets', NULL, 6, 1, 1, NOW(), NOW());
+
+-- 为所有角色分配我的会员菜单
+INSERT IGNORE INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN', 'USER')
+AND m.menu_code IN ('MY_MEMBERSHIP', 'MEMBERSHIP_INFO', 'BALANCE_MANAGEMENT', 'DAILY_CHECKIN', 'INVITE_REWARD', 'MY_ORDERS', 'MY_TICKETS')
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 调整系统管理菜单顺序
+UPDATE menus SET sort_order = 6 WHERE menu_code = 'SYSTEM_MANAGEMENT';
+UPDATE menus SET sort_order = 7 WHERE menu_code = 'PROFILE';
+
+-- 系统管理子菜单（会员和工单管理）
+SET @system_mgmt_id = (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT');
+
+INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('会员等级管理', 'MEMBERSHIP_LEVEL_MANAGEMENT', @system_mgmt_id, 2, '/system/membership-levels', 'SystemManagement', 'crown', 7, 1, 1, NOW(), NOW()),
+('用户会员管理', 'USER_MEMBERSHIP_MANAGEMENT', @system_mgmt_id, 2, '/system/user-memberships', 'SystemManagement', 'team', 8, 1, 1, NOW(), NOW()),
+('额度商品管理', 'QUOTA_PRODUCT_MANAGEMENT', @system_mgmt_id, 2, '/system/quota-products', 'SystemManagement', 'shopping', 9, 1, 1, NOW(), NOW()),
+('订单管理', 'ORDER_MANAGEMENT', @system_mgmt_id, 2, '/system/orders', 'SystemManagement', 'file-text', 10, 1, 1, NOW(), NOW()),
+('工单管理', 'TICKET_MANAGEMENT', @system_mgmt_id, 2, '/system/tickets', 'SystemManagement', 'message', 11, 1, 1, NOW(), NOW());
+
+-- 为超级管理员分配新增菜单
+INSERT IGNORE INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code IN ('MEMBERSHIP_LEVEL_MANAGEMENT', 'USER_MEMBERSHIP_MANAGEMENT', 'QUOTA_PRODUCT_MANAGEMENT', 'ORDER_MANAGEMENT', 'TICKET_MANAGEMENT')
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);

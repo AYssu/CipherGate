@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   AppstoreOutlined,
   AuditOutlined,
+  CrownOutlined,
   DashboardOutlined,
   FolderOutlined,
   LockOutlined,
@@ -223,6 +224,10 @@ const MainLayout: React.FC = () => {
       tool: <ToolOutlined />,
       appstoreoutlined: <AppstoreOutlined />,
       appstore: <AppstoreOutlined />,
+      crown: <CrownOutlined />,
+      shopping: <AppstoreOutlined />,
+      'file-text': <AuditOutlined />,
+      message: <AuditOutlined />,
     };
     return iconMap[key] || <FolderOutlined />;
   };
@@ -268,6 +273,17 @@ const MainLayout: React.FC = () => {
       system_info: '/system/info',
       system_setting: '/system/config',
       system_settings: '/system/config',
+      membership_info: '/user/membership',
+      balance_management: '/user/balance',
+      daily_checkin: '/user/checkin',
+      invite_reward: '/user/invite',
+      my_orders: '/user/orders',
+      my_tickets: '/user/tickets',
+      membership_level_management: '/system/membership-levels',
+      user_membership_management: '/system/user-memberships',
+      quota_product_management: '/system/quota-products',
+      order_management: '/system/orders',
+      ticket_management: '/system/tickets',
       app_list_page: '/applications/list',
       license_management: '/applications/licenses',
       app_user_management: '/applications/users',
@@ -299,6 +315,11 @@ const MainLayout: React.FC = () => {
         system_setting: '/system/config',
         system_settings: '/system/config',
         config: '/system/config',
+        membership_level_management: '/system/membership-levels',
+        user_membership_management: '/system/user-memberships',
+        quota_product_management: '/system/quota-products',
+        order_management: '/system/orders',
+        ticket_management: '/system/tickets',
       };
       const matchedPath = systemRouteMap[childKey];
       if (matchedPath) return matchedPath;
@@ -317,6 +338,18 @@ const MainLayout: React.FC = () => {
 
     if (parentKey === 'plugin_management') {
       return childKey === 'plugin_list_page' ? '/plugins/list' : `/plugins/${childKey}`;
+    }
+
+    if (parentKey === 'my_membership') {
+      const membershipRouteMap: Record<string, string> = {
+        membership_info: '/user/membership',
+        balance_management: '/user/balance',
+        daily_checkin: '/user/checkin',
+        invite_reward: '/user/invite',
+        my_orders: '/user/orders',
+        my_tickets: '/user/tickets',
+      };
+      return membershipRouteMap[childKey] || `/user/${childKey}`;
     }
 
     // 最终兜底：尽量落到控制台，避免命中 * 路由被重定向回 /

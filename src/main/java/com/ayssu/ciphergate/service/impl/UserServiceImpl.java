@@ -11,9 +11,11 @@ import com.ayssu.ciphergate.mapper.RoleMapper;
 import com.ayssu.ciphergate.service.UserService;
 import com.ayssu.ciphergate.service.RoleService;
 import com.ayssu.ciphergate.service.MenuService;
+import com.ayssu.ciphergate.service.UserMembershipService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +40,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     
     @Autowired
     private MenuService menuService;
+    
+    @Lazy
+    @Autowired
+    private UserMembershipService userMembershipService;
     
     @Override
     public User getUserByGithubId(String githubId) {
@@ -74,6 +80,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             newUser.setUpdatedAt(LocalDateTime.now());
             save(newUser);
             
+            // 初始化新用户会员配置
+            try {
+                userMembershipService.initMembershipForUser(newUser.getId());
+            } catch (Exception e) {
+                log.warn("初始化用户会员配置失败: {}", e.getMessage());
+            }
 
 ;
             
@@ -218,6 +230,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             save(newUser);
             log.info("用户创建成功，ID: {}", newUser.getId());
             
+            // 初始化新用户会员配置
+            try {
+                userMembershipService.initMembershipForUser(newUser.getId());
+            } catch (Exception e) {
+                log.warn("初始化用户会员配置失败: {}", e.getMessage());
+            }
+            
             // 为新用户分配默认角色
             assignDefaultRole(newUser.getId());
             
@@ -236,7 +255,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User findByLogin(String login) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("login", login);
-        return userMapper.selectOne(queryWrapper);
+        User user = userMapper.selectOne(queryWrapper);
+        // 兼容老用户：检查并初始化会员配置
+        if (user != null) {
+            try {
+                userMembershipService.initMembershipForUser(user.getId());
+            } catch (Exception e) {
+                log.debug("初始化用户会员配置跳过: {}", e.getMessage());
+            }
+        }
+        return user;
     }
     
     private String getStringAttribute(OAuth2User oauth2User, String attributeName) {

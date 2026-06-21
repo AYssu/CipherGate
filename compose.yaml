@@ -28,3 +28,13 @@ services:
     command: [ "redis-server", "--appendonly", "yes" ]
     ports:
       - '16379:6379'
+
+  rabbitmq:
+    image: 'rabbitmq:3-management'
+    container_name: local-rabbitmq
+    environment:
+      - 'RABBITMQ_DEFAULT_USER=ciphergate'
+      - 'RABBITMQ_DEFAULT_PASS=ciphergate_rabbit123'
+    ports:
+      - '5672:5672'
+      - '15672:15672'

@@ -16,6 +16,8 @@ const SystemConfigContent: React.FC = () => {
   const [githubForm] = Form.useForm();
   const [siteForm] = Form.useForm();
   const [emailForm] = Form.useForm();
+  const [paymentForm] = Form.useForm();
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -43,6 +45,19 @@ const SystemConfigContent: React.FC = () => {
         fromDisplayName: data.emailFromDisplayName || '',
         enabled: !!data.emailEnabled
       });
+      // 加载支付配置
+      try {
+        const payRes = await systemApi.getPaymentConfig();
+        const payData = payRes.data;
+        paymentForm.setFieldsValue({
+          epayUrl: payData?.epayUrl || '',
+          epayPid: payData?.epayPid || '',
+          epayKey: '',
+          epayNotifyUrl: payData?.epayNotifyUrl || '',
+          epayReturnUrl: payData?.epayReturnUrl || '',
+          successRedirectUrl: payData?.successRedirectUrl || '/user/balance',
+        });
+      } catch {}
     } catch (error) {
       console.error('加载系统配置失败:', error);
       message.error('加载系统配置失败');
@@ -102,6 +117,30 @@ const SystemConfigContent: React.FC = () => {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submitPayment = async () => {
+    try {
+      const values = await paymentForm.validateFields();
+      setPaymentSaving(true);
+      const data: any = {};
+      if (values.epayUrl) data.epayUrl = values.epayUrl;
+      if (values.epayPid) data.epayPid = values.epayPid;
+      if (values.epayKey) data.epayKey = values.epayKey;
+      if (values.epayNotifyUrl) data.epayNotifyUrl = values.epayNotifyUrl;
+      if (values.epayReturnUrl) data.epayReturnUrl = values.epayReturnUrl;
+      if (values.successRedirectUrl) data.successRedirectUrl = values.successRedirectUrl;
+      await systemApi.updatePaymentConfig(data);
+      message.success('支付配置已保存');
+      paymentForm.setFieldValue('epayKey', '');
+      await loadSettings();
+    } catch (error: any) {
+      if (!error?.errorFields) {
+        message.error(error?.message || '保存支付配置失败');
+      }
+    } finally {
+      setPaymentSaving(false);
     }
   };
 
@@ -267,6 +306,56 @@ const SystemConfigContent: React.FC = () => {
                   <Text type="secondary">
                     当前密码状态：{settings?.emailPasswordSet ? '已设置' : '未设置'}
                   </Text>
+                </Space>
+              </Form>
+            )
+          },
+          {
+            key: 'payment',
+            label: '支付配置',
+            children: (
+              <Form form={paymentForm} layout="vertical">
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="epayUrl" label="易支付接口地址" rules={[{ required: true, message: '请输入接口地址' }]}>
+                      <Input placeholder="https://pay.ayssu.com" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="epayPid" label="商户ID (PID)" rules={[{ required: true, message: '请输入商户ID' }]}>
+                      <Input placeholder="10001" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="epayKey" label="商户密钥（不填则保持不变）">
+                      <Input.Password placeholder="输入密钥" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="epayNotifyUrl" label="异步回调地址" rules={[{ required: true, message: '请输入回调地址' }]}>
+                      <Input placeholder="https://你的域名/api/payment/notify" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="epayReturnUrl" label="同步跳转地址" rules={[{ required: true, message: '请输入跳转地址' }]}>
+                      <Input placeholder="https://你的域名/api/payment/return" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="successRedirectUrl" label="支付成功跳转地址" tooltip="支付成功后前端跳转的页面地址">
+                      <Input placeholder="/user/balance" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Space align="center" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
+                  <Button type="primary" loading={paymentSaving} onClick={submitPayment} block={isMobile}>保存支付配置</Button>
+                  <Text type="secondary">支持易支付协议（支付宝/微信/QQ钱包）</Text>
                 </Space>
               </Form>
             )

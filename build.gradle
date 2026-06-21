@@ -44,6 +44,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-webclient'
     implementation 'org.springframework.boot:spring-boot-starter-aspectj'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
     // Swagger (OpenAPI 3) - Springdoc 官方 Swagger UI
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14"

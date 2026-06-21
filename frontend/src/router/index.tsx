@@ -19,6 +19,17 @@ import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
 import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
 import PluginManagementPage from '../pages/Plugin/PluginManagementPage';
+import MembershipInfoPage from '../pages/Membership/MembershipInfoPage';
+import BalancePage from '../pages/Membership/BalancePage';
+import CheckinPage from '../pages/Membership/CheckinPage';
+import InvitePage from '../pages/Membership/InvitePage';
+import UserOrderPage from '../pages/Membership/UserOrderPage';
+import UserTicketPage from '../pages/Membership/UserTicketPage';
+import MembershipLevelPage from '../pages/System/MembershipLevelPage';
+import UserMembershipPage from '../pages/System/UserMembershipPage';
+import QuotaProductPage from '../pages/System/QuotaProductPage';
+import AdminOrderPage from '../pages/System/AdminOrderPage';
+import AdminTicketPage from '../pages/System/AdminTicketPage';
 
 export const router = createBrowserRouter([
   {
@@ -55,68 +66,45 @@ export const router = createBrowserRouter([
       {
         path: '/applications',
         children: [
-          {
-            path: 'list',
-            element: <ApplicationManagementPage />,
-          },
-          {
-            path: 'licenses',
-            element: <LicenseManagementPage />,
-          },
-          {
-            path: 'users',
-            element: <AppUserManagementPage />,
-          },
-          {
-            path: 'variables',
-            element: <AppVariableManagementPage />,
-          },
-          {
-            path: 'credentials',
-            element: <ThirdPartyCredentialManagementPage />,
-          },
-          {
-            path: 'call-logs',
-            element: <CallLogManagementPage />,
-          },
+          { path: 'list', element: <ApplicationManagementPage /> },
+          { path: 'licenses', element: <LicenseManagementPage /> },
+          { path: 'users', element: <AppUserManagementPage /> },
+          { path: 'variables', element: <AppVariableManagementPage /> },
+          { path: 'credentials', element: <ThirdPartyCredentialManagementPage /> },
+          { path: 'call-logs', element: <CallLogManagementPage /> },
+        ],
+      },
+      {
+        path: '/user',
+        children: [
+          { path: 'membership', element: <MembershipInfoPage /> },
+          { path: 'balance', element: <BalancePage /> },
+          { path: 'checkin', element: <CheckinPage /> },
+          { path: 'invite', element: <InvitePage /> },
+          { path: 'orders', element: <UserOrderPage /> },
+          { path: 'tickets', element: <UserTicketPage /> },
         ],
       },
       {
         path: '/system',
         children: [
-          {
-            path: 'users',
-            element: <UserManagementPage />,
-          },
-          {
-            path: 'roles',
-            element: <RoleManagementPage />,
-          },
-          {
-            path: 'menus',
-            element: <MenuManagementPage />,
-          },
-          {
-            path: 'permissions',
-            element: <PermissionManagementPage />,
-          },
-          {
-            path: 'info',
-            element: <SystemInfoPage />,
-          },
-          {
-            path: 'config',
-            element: <SystemConfigPage />,
-          },
+          { path: 'users', element: <UserManagementPage /> },
+          { path: 'roles', element: <RoleManagementPage /> },
+          { path: 'menus', element: <MenuManagementPage /> },
+          { path: 'permissions', element: <PermissionManagementPage /> },
+          { path: 'info', element: <SystemInfoPage /> },
+          { path: 'config', element: <SystemConfigPage /> },
+          { path: 'membership-levels', element: <MembershipLevelPage /> },
+          { path: 'user-memberships', element: <UserMembershipPage /> },
+          { path: 'quota-products', element: <QuotaProductPage /> },
+          { path: 'orders', element: <AdminOrderPage /> },
+          { path: 'tickets', element: <AdminTicketPage /> },
         ],
       },
       {
         path: '/plugins',
         children: [
-          {
-            path: 'list',
-            element: <PluginManagementPage />,
-          },
+          { path: 'list', element: <PluginManagementPage /> },
         ],
       },
     ],
