@@ -145,8 +145,10 @@ const AppUserManagementContent: React.FC = () => {
 
   const activeAdvancedFilterCount = [
     filters.appId,
+    filters.username,
     filters.email,
     filters.phone,
+    filters.nickname,
     filters.banned,
     filters.memberStatus,
     filters.wsOnline,
@@ -205,6 +207,7 @@ const AppUserManagementContent: React.FC = () => {
       username: filters.username,
       email: filters.email,
       phone: filters.phone,
+      nickname: filters.nickname,
       banned: filters.banned,
       memberStatus: filters.memberStatus,
       expiresFilter: filters.memberStatus === 'ACTIVE' ? 'not_expired' : filters.memberStatus === 'EXPIRED' ? 'expired' : undefined,
@@ -246,6 +249,13 @@ const AppUserManagementContent: React.FC = () => {
       delete next.phone;
     }
 
+    const nicknameTrim = (v.nickname ?? '').trim();
+    if (nicknameTrim) {
+      next.nickname = nicknameTrim;
+    } else {
+      delete next.nickname;
+    }
+
     if (v.banned === true || v.banned === false) {
       next.banned = v.banned;
     } else {
@@ -283,6 +293,7 @@ const AppUserManagementContent: React.FC = () => {
     delete next.keyword;
     delete next.email;
     delete next.phone;
+    delete next.nickname;
     delete next.banned;
     delete next.memberStatus;
     delete next.wsOnline;
@@ -1398,10 +1409,11 @@ const AppUserManagementContent: React.FC = () => {
         </div>
 
         {/* 主搜索（用户名）+ 高级筛选 */}
-        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'center' } : undefined}>
           {isMobile ? (
             <>
               <Input
+                size="small"
                 placeholder="搜索用户名"
                 allowClear
                 value={usernameInput}
@@ -1425,18 +1437,38 @@ const AppUserManagementContent: React.FC = () => {
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="状态" name="status">
-                            <Select allowClear placeholder="状态" options={[{ label: '正常', value: 1 }, { label: '封禁', value: 2 }]} />
+                          <Form.Item label="用户名" name="username">
+                            <Input allowClear placeholder="模糊查询" />
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="创建来源" name="creatorType">
-                            <Select allowClear placeholder="创建来源" options={[{ label: '自己创建', value: 'SELF' }, { label: '代理创建', value: 'AGENT' }]} />
+                          <Form.Item label="昵称" name="nickname">
+                            <Input allowClear placeholder="模糊查询" />
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="到期时间" name="expiresFilter">
+                          <Form.Item label="邮箱" name="email">
+                            <Input allowClear placeholder="模糊查询" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="手机号" name="phone">
+                            <Input allowClear placeholder="模糊查询" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="封禁状态" name="banned">
+                            <Select allowClear placeholder="选择状态" options={[{ label: '已封禁', value: true }, { label: '正常', value: false }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="会员状态" name="expiresFilter">
                             <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="在线状态" name="wsOnline">
+                            <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
                           </Form.Item>
                         </Col>
                       </Row>
@@ -1454,7 +1486,7 @@ const AppUserManagementContent: React.FC = () => {
               </Popover>
             </>
           ) : (
-            <>
+            <Space size={12}>
               <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
                 <Input placeholder="搜索用户名" allowClear value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} onPressEnter={() => applyUsernameSearch()} style={{ minWidth: 0 }} />
                 <Button type="primary" onClick={() => applyUsernameSearch()}>搜索</Button>
@@ -1474,18 +1506,38 @@ const AppUserManagementContent: React.FC = () => {
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="状态" name="status">
-                            <Select allowClear placeholder="状态" options={[{ label: '正常', value: 1 }, { label: '封禁', value: 2 }]} />
+                          <Form.Item label="用户名" name="username">
+                            <Input allowClear placeholder="模糊查询" />
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="创建来源" name="creatorType">
-                            <Select allowClear placeholder="创建来源" options={[{ label: '自己创建', value: 'SELF' }, { label: '代理创建', value: 'AGENT' }]} />
+                          <Form.Item label="昵称" name="nickname">
+                            <Input allowClear placeholder="模糊查询" />
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="到期时间" name="expiresFilter">
+                          <Form.Item label="邮箱" name="email">
+                            <Input allowClear placeholder="模糊查询" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="手机号" name="phone">
+                            <Input allowClear placeholder="模糊查询" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="封禁状态" name="banned">
+                            <Select allowClear placeholder="选择状态" options={[{ label: '已封禁', value: true }, { label: '正常', value: false }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="会员状态" name="expiresFilter">
                             <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="在线状态" name="wsOnline">
+                            <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
                           </Form.Item>
                         </Col>
                       </Row>
@@ -1501,7 +1553,7 @@ const AppUserManagementContent: React.FC = () => {
                   <Button icon={<FilterOutlined />}>筛选</Button>
                 </Badge>
               </Popover>
-            </>
+            </Space>
           )}
         </div>
 

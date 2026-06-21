@@ -768,10 +768,11 @@ const AppVariableManagementContent: React.FC = () => {
         </div>
 
         {/* 搜索和筛选 */}
-        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'center' } : undefined}>
           {isMobile ? (
             <>
               <Input
+                size="small"
                 placeholder="变量名模糊匹配"
                 allowClear
                 value={variableNameInput}
@@ -814,7 +815,7 @@ const AppVariableManagementContent: React.FC = () => {
               </Popover>
             </>
           ) : (
-            <>
+            <Space size={12}>
               <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
                 <Input placeholder="变量名模糊匹配" allowClear value={variableNameInput} onChange={(e) => setVariableNameInput(e.target.value)} onPressEnter={() => applyVariableNameSearch()} style={{ minWidth: 0 }} />
                 <Button type="primary" onClick={() => applyVariableNameSearch()}>搜索</Button>
@@ -851,7 +852,7 @@ const AppVariableManagementContent: React.FC = () => {
                   <Button icon={<FilterOutlined />}>筛选</Button>
                 </Badge>
               </Popover>
-            </>
+            </Space>
           )}
         </div>
 

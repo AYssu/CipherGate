@@ -760,6 +760,14 @@ html {
 
 /* 表格组件移动端优化 */
 @media (max-width: 767px) {
+  .ant-badge-count {
+    font-size: 8px !important;
+    min-width: 14px !important;
+    height: 14px !important;
+    line-height: 14px !important;
+    padding: 0 4px !important;
+  }
+
   .ant-table-wrapper {
     border-radius: 8px !important;
     overflow: hidden !important;

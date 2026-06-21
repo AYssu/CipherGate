@@ -158,10 +158,11 @@ const CallLogManagementContent: React.FC = () => {
       </div>
 
       {/* 搜索和筛选 */}
-      <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'stretch' } : { marginBottom: 16 }}>
+      <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' } : { marginBottom: 16 }}>
         {isMobile ? (
           <>
             <Input
+              size="small"
               placeholder="搜索用户邮箱"
               allowClear
               value={emailInput}
@@ -236,7 +237,7 @@ const CallLogManagementContent: React.FC = () => {
             </Popover>
           </>
         ) : (
-          <>
+          <Space size={12}>
             <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
               <Input
                 placeholder="搜索用户邮箱"
@@ -312,7 +313,7 @@ const CallLogManagementContent: React.FC = () => {
                 <Button icon={<FilterOutlined />}>筛选</Button>
               </Badge>
             </Popover>
-          </>
+          </Space>
         )}
       </div>
 

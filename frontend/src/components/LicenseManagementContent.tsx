@@ -1468,7 +1468,7 @@ const LicenseManagementContent: React.FC = () => {
         </div>
 
         {/* 主搜索 + 高级筛选 */}
-        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'stretch' } : undefined}>
+        <div style={isMobile ? { display: 'flex', gap: 8, alignItems: 'center' } : undefined}>
           {isMobile ? (
             <>
               <Input
@@ -1478,6 +1478,7 @@ const LicenseManagementContent: React.FC = () => {
                 onChange={(e) => setKeyCodeInput(e.target.value)}
                 onPressEnter={() => applyKeyCodeSearch()}
                 style={{ flex: 1, minWidth: 0 }}
+                size="small"
               />
               <Button type="primary" onClick={() => applyKeyCodeSearch()} style={{ flexShrink: 0 }}>搜索</Button>
               <Popover
@@ -1534,109 +1535,107 @@ const LicenseManagementContent: React.FC = () => {
               </Popover>
             </>
           ) : (
-            <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
-              <Input placeholder="搜索卡密" allowClear value={keyCodeInput} onChange={(e) => setKeyCodeInput(e.target.value)} onPressEnter={() => applyKeyCodeSearch()} style={{ minWidth: 0 }} />
-              <Button type="primary" onClick={() => applyKeyCodeSearch()}>搜索</Button>
-            </Space.Compact>
+            <Space size={12}>
+              <Space.Compact style={{ width: 360, maxWidth: 'calc(100vw - 120px)' }}>
+                <Input placeholder="搜索卡密" allowClear value={keyCodeInput} onChange={(e) => setKeyCodeInput(e.target.value)} onPressEnter={() => applyKeyCodeSearch()} style={{ minWidth: 0 }} />
+                <Button type="primary" onClick={() => applyKeyCodeSearch()}>搜索</Button>
+              </Space.Compact>
+              <Popover
+                trigger="click"
+                placement="bottomLeft"
+                open={filterPopoverOpen}
+                onOpenChange={(open) => {
+                  setFilterPopoverOpen(open);
+                  if (open) {
+                    syncListFilterFormFromFilters();
+                  }
+                }}
+                content={
+                  <div style={{ width: 420, maxWidth: '90vw' }}>
+                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item label="应用" name="appId">
+                            <Select
+                              allowClear
+                              placeholder="选择应用"
+                              options={applications.map((app) => ({
+                                label: app.appName,
+                                value: app.id,
+                              }))}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="卡密类型" name="keyType">
+                            <Select
+                              allowClear
+                              placeholder="卡密类型"
+                              options={keyTypeOptions.map((opt) => ({
+                                label: opt.label,
+                                value: opt.value,
+                              }))}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="批次名称" name="batchName">
+                            <Input allowClear placeholder="模糊匹配批次名称" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="备注" name="remark">
+                            <Input allowClear placeholder="模糊匹配备注" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="状态" name="status">
+                            <Select
+                              allowClear
+                              placeholder="状态"
+                              options={[
+                                { label: '未使用', value: 1 },
+                                { label: '使用中', value: 2 },
+                                { label: '已到期', value: 3 },
+                                { label: '已禁用', value: 4 },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="在线状态" name="isOnline">
+                            <Select
+                              allowClear
+                              placeholder="在线状态"
+                              options={[
+                                { label: '在线', value: true },
+                                { label: '离线', value: false },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
+                        <Col>
+                          <Button onClick={handleAdvancedFilterReset}>重置</Button>
+                        </Col>
+                        <Col>
+                          <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
+                            查询
+                          </Button>
+                        </Col>
+                      </Row>
+                    </Form>
+                  </div>
+                }
+              >
+                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                  <Button icon={<FilterOutlined />}>筛选</Button>
+                </Badge>
+              </Popover>
+            </Space>
           )}
         </div>
-        {!isMobile && (
-          <div>
-            <Popover
-              trigger="click"
-              placement="bottomLeft"
-              open={filterPopoverOpen}
-              onOpenChange={(open) => {
-                setFilterPopoverOpen(open);
-                if (open) {
-                  syncListFilterFormFromFilters();
-                }
-              }}
-              content={
-                <div style={{ width: 420, maxWidth: '90vw' }}>
-                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item label="应用" name="appId">
-                          <Select
-                            allowClear
-                            placeholder="选择应用"
-                            options={applications.map((app) => ({
-                              label: app.appName,
-                              value: app.id,
-                            }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="卡密类型" name="keyType">
-                          <Select
-                            allowClear
-                            placeholder="卡密类型"
-                            options={keyTypeOptions.map((opt) => ({
-                              label: opt.label,
-                              value: opt.value,
-                            }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="批次名称" name="batchName">
-                          <Input allowClear placeholder="模糊匹配批次名称" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="备注" name="remark">
-                          <Input allowClear placeholder="模糊匹配备注" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="状态" name="status">
-                          <Select
-                            allowClear
-                            placeholder="状态"
-                            options={[
-                              { label: '未使用', value: 1 },
-                              { label: '使用中', value: 2 },
-                              { label: '已到期', value: 3 },
-                              { label: '已禁用', value: 4 },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="在线状态" name="isOnline">
-                          <Select
-                            allowClear
-                            placeholder="在线状态"
-                            options={[
-                              { label: '在线', value: true },
-                              { label: '离线', value: false },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                      <Col>
-                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                      </Col>
-                      <Col>
-                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                          查询
-                        </Button>
-                      </Col>
-                    </Row>
-                  </Form>
-                </div>
-              }
-            >
-              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                <Button icon={<FilterOutlined />}>筛选</Button>
-              </Badge>
-            </Popover>
-          </div>
-        )}
 
         {/* 卡密列表 */}
         {isMobile ? (

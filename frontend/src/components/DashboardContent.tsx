@@ -306,7 +306,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     },
     grid: {
       left: isMobile ? 8 : 24,
-      right: isMobile ? 8 : 24,
+      right: isMobile ? 32 : 48,
       top: isMobile ? 40 : 56,
       bottom: isMobile ? 28 : 40,
       containLabel: true
@@ -317,15 +317,28 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       data: trend7d.map((p) => p.date.slice(5)),
       axisLabel: { fontSize: isMobile ? 10 : 12 },
     },
-    yAxis: {
-      type: 'value',
-      minInterval: 1,
-      axisLabel: { fontSize: isMobile ? 10 : 12 },
-    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '注册',
+        minInterval: 1,
+        axisLabel: { fontSize: isMobile ? 10 : 12 },
+        nameTextStyle: { fontSize: isMobile ? 10 : 12 },
+        splitLine: { show: false },
+      },
+      {
+        type: 'value',
+        name: '登录',
+        minInterval: 1,
+        axisLabel: { fontSize: isMobile ? 10 : 12 },
+        nameTextStyle: { fontSize: isMobile ? 10 : 12 },
+      },
+    ],
     series: [
       {
         name: '注册',
         type: 'line',
+        yAxisIndex: 0,
         smooth: true,
         symbol: isMobile ? 'none' : 'circle',
         symbolSize: 6,
@@ -334,6 +347,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       {
         name: '卡密登录',
         type: 'line',
+        yAxisIndex: 1,
         smooth: true,
         symbol: isMobile ? 'none' : 'circle',
         symbolSize: 6,
@@ -342,6 +356,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       {
         name: '终端登录',
         type: 'line',
+        yAxisIndex: 1,
         smooth: true,
         symbol: isMobile ? 'none' : 'circle',
         symbolSize: 6,
