@@ -1,11 +1,20 @@
 import React from 'react';
-import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Popconfirm, Badge } from 'antd';
-import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Popconfirm, Badge, Grid, Dropdown } from 'antd';
+import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined, MoreOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+const MenuPopup: React.FC<{ items: MenuProps['items'] }> = ({ items }) => (
+  <Dropdown menu={{ items }} trigger={['click']}>
+    <Button type="text" size="small" icon={<MoreOutlined />} />
+  </Dropdown>
+);
+
 const AdminTicketPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [tickets, setTickets] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [detailVisible, setDetailVisible] = React.useState(false);
@@ -106,51 +115,81 @@ const AdminTicketPage: React.FC = () => {
     return tickets.filter(t => t.status === status);
   };
 
+  const getActionMenuItems = (record: any): MenuProps['items'] => {
+    const items: MenuProps['items'] = [
+      { key: 'view', icon: <MessageOutlined />, label: record.status === 0 ? '接单处理' : record.status === 2 ? '查看回复' : '查看', onClick: () => viewDetail(record) },
+    ];
+    if (record.status === 0) {
+      items.push({ key: 'accept', label: '接单', onClick: () => { setSelectedTicket(record); handleStatusChange(record.ticketNo, 1); } });
+    }
+    if (record.status === 1) {
+      items.push({ key: 'resolve', icon: <CheckCircleOutlined />, label: '标记已解决', danger: false, onClick: () => handleStatusChange(record.ticketNo, 3) });
+    }
+    return items;
+  };
+
   const columns = [
-    { title: '工单号', dataIndex: 'ticketNo', key: 'no', width: 160 },
+    { title: '工单号', dataIndex: 'ticketNo', key: 'no', width: isMobile ? 120 : 160 },
     { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
-    { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80, render: (v: number) => <Tag color={priorityMap[v]?.color}>{priorityMap[v]?.text}</Tag> },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (v: number) => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
-    { title: '最后回复', dataIndex: 'lastReplyAt', key: 'lastReply', width: 160, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+    ...(!isMobile ? [
+      { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80, render: (v: number) => <Tag color={priorityMap[v]?.color}>{priorityMap[v]?.text}</Tag> },
+      { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (v: number) => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
+      { title: '最后回复', dataIndex: 'lastReplyAt', key: 'lastReply', width: 160, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+    ] : []),
+    ...(isMobile ? [
+      { title: '状态', dataIndex: 'status', key: 'status', width: 70, render: (v: number) => <Tag color={statusMap[v]?.color} style={{ margin: 0 }}>{statusMap[v]?.text}</Tag> },
+    ] : []),
     {
-      title: '操作', key: 'action', width: 180,
-      render: (_: any, record: any) => (
-        <Space>
-          <Button type="link" size="small" icon={<MessageOutlined />} onClick={() => viewDetail(record)}>
-            {record.status === 0 ? '接单处理' : record.status === 2 ? '查看回复' : '查看'}
-          </Button>
-          {record.status === 0 && (
-            <Button type="link" size="small" style={{ color: '#1890ff' }} onClick={() => { setSelectedTicket(record); handleStatusChange(record.ticketNo, 1); }}>
-              接单
+      title: '操作', key: 'action', width: isMobile ? 60 : 180,
+      render: (_: any, record: any) => {
+        if (isMobile) {
+          return (
+            <MenuPopup items={getActionMenuItems(record)} />
+          );
+        }
+        return (
+          <Space>
+            <Button type="link" size="small" icon={<MessageOutlined />} onClick={() => viewDetail(record)}>
+              {record.status === 0 ? '接单处理' : record.status === 2 ? '查看回复' : '查看'}
             </Button>
-          )}
-          {record.status === 1 && (
-            <Popconfirm title="确认标记为已解决？" onConfirm={() => handleStatusChange(record.ticketNo, 3)}>
-              <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<CheckCircleOutlined />}>解决</Button>
-            </Popconfirm>
-          )}
-        </Space>
-      )
+            {record.status === 0 && (
+              <Button type="link" size="small" style={{ color: '#1890ff' }} onClick={() => { setSelectedTicket(record); handleStatusChange(record.ticketNo, 1); }}>
+                接单
+              </Button>
+            )}
+            {record.status === 1 && (
+              <Popconfirm title="确认标记为已解决？" onConfirm={() => handleStatusChange(record.ticketNo, 3)}>
+                <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<CheckCircleOutlined />}>解决</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      }
     },
   ];
 
   const tabItems = [
     { key: 'all', label: `全部 (${tickets.length})` },
     { key: '0', label: <Badge count={counts[0] || 0} offset={[6, 0]}>待处理</Badge> },
-    { key: '1', label: <Badge count={counts[1] || 0} offset={[6, 0]} color="blue">处理中</Badge> },
-    { key: '2', label: <Badge count={counts[2] || 0} offset={[6, 0]} color="orange">等待回复</Badge> },
+    ...(!isMobile ? [
+      { key: '1', label: <Badge count={counts[1] || 0} offset={[6, 0]} color="blue">处理中</Badge> },
+      { key: '2', label: <Badge count={counts[2] || 0} offset={[6, 0]} color="orange">等待回复</Badge> },
+    ] : [
+      { key: '1', label: `处理中 (${counts[1] || 0})` },
+      { key: '2', label: `等待回复 (${counts[2] || 0})` },
+    ]),
     { key: '3', label: `已解决 (${counts[3] || 0})` },
     { key: '4', label: `已关闭 (${counts[4] || 0})` },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>工单管理</Title>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>工单管理</Title>
         </div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
 
         <Modal
           title={
@@ -161,35 +200,36 @@ const AdminTicketPage: React.FC = () => {
           }
           open={detailVisible}
           onCancel={() => setDetailVisible(false)}
-          width={700}
+          width={isMobile ? '95%' : 700}
+          className={isMobile ? 'mobile-modal' : undefined}
           footer={
             selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {selectedTicket.status === 0 && (
-                    <Button type="primary" onClick={handleAcceptAndReply} style={{ marginRight: 8 }}>
+                    <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={handleAcceptAndReply}>
                       接单并回复
                     </Button>
                   )}
                   {selectedTicket.status === 1 && (
-                    <Button onClick={() => { sendReply(); }} style={{ marginRight: 8 }}>
+                    <Button size={isMobile ? 'small' : 'middle'} onClick={() => { sendReply(); }}>
                       发送回复
                     </Button>
                   )}
                   {selectedTicket.status === 2 && (
-                    <Button type="primary" onClick={sendReply} style={{ marginRight: 8 }}>
+                    <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={sendReply}>
                       发送回复
                     </Button>
                   )}
                 </div>
-                <div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   <Popconfirm title="确认标记为已解决？" onConfirm={handleResolve}>
-                    <Button type="primary" ghost style={{ color: '#52c41a', borderColor: '#52c41a', marginRight: 8 }}>
+                    <Button type="primary" ghost size={isMobile ? 'small' : 'middle'} style={{ color: '#52c41a', borderColor: '#52c41a' }}>
                       <CheckCircleOutlined /> 标记已解决
                     </Button>
                   </Popconfirm>
                   <Popconfirm title="确认关闭此工单？" onConfirm={handleClose}>
-                    <Button danger>
+                    <Button danger size={isMobile ? 'small' : 'middle'}>
                       <CloseCircleOutlined /> 关闭工单
                     </Button>
                   </Popconfirm>

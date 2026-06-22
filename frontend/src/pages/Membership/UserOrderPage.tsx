@@ -1,9 +1,11 @@
 import React from 'react';
-import { Card, Table, Tag, Typography } from 'antd';
+import { Card, Table, Tag, Typography, Grid } from 'antd';
 
 const { Title } = Typography;
 
 const UserOrderPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [orders, setOrders] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -31,10 +33,10 @@ const UserOrderPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
-        <Title level={4}>我的订单</Title>
-        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Title level={isMobile ? 5 : 4}>我的订单</Title>
+        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ pageSize: 10, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
       </Card>
     </div>
   );

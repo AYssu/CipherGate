@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Row, Col, Divider, Tabs, Statistic } from 'antd';
+import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Row, Col, Divider, Tabs, Statistic, Grid, Dropdown } from 'antd';
+import { MoreOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +19,8 @@ const formatMoney = (fen: number | null | undefined) => {
 };
 
 const UserMembershipPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [users, setUsers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [levels, setLevels] = React.useState<any[]>([]);
@@ -129,7 +132,7 @@ const UserMembershipPage: React.FC = () => {
     }
   };
 
-  const columns = [
+  const allColumns = [
     { title: 'ID', dataIndex: 'userId', key: 'userId', width: 70 },
     { title: '会员等级', dataIndex: 'levelName', key: 'levelName', render: (v: string, r: any) => <Tag color="blue">{v}</Tag> },
     { title: '余额', dataIndex: 'balance', key: 'balance', render: (v: number) => formatMoney(v) },
@@ -142,16 +145,42 @@ const UserMembershipPage: React.FC = () => {
     { title: '到期时间', dataIndex: 'memberExpiresAt', key: 'memberExpiresAt', render: (v: string) => v || '永久' },
     {
       title: '操作', key: 'action', width: 200,
-      render: (_: any, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => openDetail(record)}>详情</Button>
-          <Button type="link" size="small" onClick={() => openEditLevel(record)}>改等级</Button>
-          <Button type="link" size="small" onClick={() => openEditExtraQuota(record)}>改额度</Button>
-          <Button type="link" size="small" onClick={() => openEditBalance(record)}>充值</Button>
-        </Space>
-      )
+      render: (_: any, record: any) => {
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'detail', label: '详情', onClick: () => openDetail(record) },
+                  { key: 'level', label: '改等级', onClick: () => openEditLevel(record) },
+                  { key: 'quota', label: '改额度', onClick: () => openEditExtraQuota(record) },
+                  { key: 'balance', label: '充值', onClick: () => openEditBalance(record) },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        return (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => openDetail(record)}>详情</Button>
+            <Button type="link" size="small" onClick={() => openEditLevel(record)}>改等级</Button>
+            <Button type="link" size="small" onClick={() => openEditExtraQuota(record)}>改额度</Button>
+            <Button type="link" size="small" onClick={() => openEditBalance(record)}>充值</Button>
+          </Space>
+        );
+      }
     },
   ];
+
+  const MOBILE_VISIBLE_KEYS = ['levelName', 'app', 'traffic', 'action'];
+  const displayColumns = isMobile
+    ? allColumns
+        .filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes((c as any).dataIndex as string))
+        .map((c) => c.key === 'action' ? { ...c, width: 60 } : c)
+    : allColumns;
 
   const renderEditContent = () => {
     if (editType === 'level') {
@@ -205,18 +234,20 @@ const UserMembershipPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>用户会员管理</Title>
-          <Button onClick={fetchUsers} loading={loading}>刷新</Button>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>用户会员管理</Title>
+          <Button size={isMobile ? 'small' : 'middle'} onClick={fetchUsers} loading={loading}>刷新</Button>
         </div>
         <Table
-          columns={columns}
+          columns={displayColumns}
           dataSource={users}
           rowKey="userId"
           loading={loading}
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 个用户` }}
+          size={isMobile ? 'small' : 'middle'}
+          scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }}
+          pagination={{ pageSize: 20, simple: isMobile, showSizeChanger: !isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 个用户` }}
         />
       </Card>
 
@@ -225,7 +256,8 @@ const UserMembershipPage: React.FC = () => {
         open={editType !== ''}
         onOk={handleSave}
         onCancel={() => { setEditType(''); setEditingUser(null); }}
-        width={500}
+        width={isMobile ? '95%' : 500}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         {renderEditContent()}
       </Modal>
@@ -235,7 +267,8 @@ const UserMembershipPage: React.FC = () => {
         open={detailVisible}
         onCancel={() => { setDetailVisible(false); setEditingUser(null); }}
         footer={null}
-        width={700}
+        width={isMobile ? '95%' : 700}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         {editingUser && (
           <Tabs items={[
@@ -243,7 +276,7 @@ const UserMembershipPage: React.FC = () => {
               key: 'basic',
               label: '基本信息',
               children: (
-                <Descriptions column={2} bordered size="small">
+                <Descriptions column={isMobile ? 1 : 2} bordered size="small">
                   <Descriptions.Item label="用户ID">{editingUser.userId}</Descriptions.Item>
                   <Descriptions.Item label="会员等级"><Tag color="blue">{editingUser.levelName}</Tag></Descriptions.Item>
                   <Descriptions.Item label="余额">{formatMoney(editingUser.balance)}</Descriptions.Item>
@@ -259,7 +292,7 @@ const UserMembershipPage: React.FC = () => {
               key: 'quota',
               label: '额度使用',
               children: (
-                <Descriptions column={2} bordered size="small">
+                <Descriptions column={isMobile ? 1 : 2} bordered size="small">
                   <Descriptions.Item label="应用额度">{editingUser.appUsed || 0} / {editingUser.appTotal}</Descriptions.Item>
                   <Descriptions.Item label="额外应用额度">{editingUser.extraAppQuota || 0}</Descriptions.Item>
                   <Descriptions.Item label="卡密额度">{editingUser.licenseUsed || 0} / {editingUser.licenseTotal}</Descriptions.Item>
@@ -275,7 +308,7 @@ const UserMembershipPage: React.FC = () => {
               key: 'checkin',
               label: '签到信息',
               children: (
-                <Descriptions column={2} bordered size="small">
+                <Descriptions column={isMobile ? 1 : 2} bordered size="small">
                   <Descriptions.Item label="连续签到天数">{editingUser.consecutiveCheckinDays || 0}</Descriptions.Item>
                   <Descriptions.Item label="累计签到天数">{editingUser.totalCheckinDays || 0}</Descriptions.Item>
                   <Descriptions.Item label="最后签到日期">{editingUser.lastCheckinDate || '-'}</Descriptions.Item>

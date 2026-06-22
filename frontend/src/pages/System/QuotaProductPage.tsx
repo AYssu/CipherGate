@@ -1,9 +1,11 @@
 import React from 'react';
-import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Grid } from 'antd';
 
 const { Title } = Typography;
 
 const QuotaProductPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [products, setProducts] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [editVisible, setEditVisible] = React.useState(false);
@@ -40,14 +42,29 @@ const QuotaProductPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>额度商品管理</Title>
-          <Button type="primary" onClick={() => { setEditing(null); form.resetFields(); setEditVisible(true); }}>新增商品</Button>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>额度商品管理</Title>
+          <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={() => { setEditing(null); form.resetFields(); setEditVisible(true); }}>新增商品</Button>
         </div>
-        <Table columns={columns} dataSource={products} rowKey="id" loading={loading} pagination={false} />
-        <Modal title={editing ? '编辑商品' : '新增商品'} open={editVisible} onOk={handleSave} onCancel={() => setEditVisible(false)}>
+        <Table
+          columns={columns}
+          dataSource={products}
+          rowKey="id"
+          loading={loading}
+          size={isMobile ? 'small' : 'middle'}
+          scroll={{ x: isMobile ? 300 : undefined }}
+          pagination={false}
+        />
+        <Modal
+          title={editing ? '编辑商品' : '新增商品'}
+          open={editVisible}
+          onOk={handleSave}
+          onCancel={() => setEditVisible(false)}
+          width={isMobile ? '95%' : 520}
+          className={isMobile ? 'mobile-modal' : undefined}
+        >
           <Form form={form} layout="vertical">
             <Form.Item name="productCode" label="商品编码" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="productName" label="商品名称" rules={[{ required: true }]}><Input /></Form.Item>

@@ -1,11 +1,13 @@
 import React from 'react';
-import { Card, Table, Tag, Button, Modal, Form, Input, Select, message, Typography, List, Avatar, Space, Tabs, Badge, Empty } from 'antd';
-import { UserOutlined, RobotOutlined, PlusOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Button, Modal, Form, Input, Select, message, Typography, List, Avatar, Space, Tabs, Badge, Empty, Grid, Dropdown } from 'antd';
+import { UserOutlined, RobotOutlined, PlusOutlined, MoreOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const UserTicketPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [tickets, setTickets] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [createVisible, setCreateVisible] = React.useState(false);
@@ -98,15 +100,34 @@ const UserTicketPage: React.FC = () => {
     { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (v: number) => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
     { title: '创建时间', dataIndex: 'createdAt', key: 'time', width: 160, render: (v: string) => new Date(v).toLocaleString('zh-CN') },
     {
-      title: '操作', key: 'action', width: 200,
-      render: (_: any, record: any) => (
-        <Space>
-          <Button type="link" size="small" onClick={() => viewDetail(record)}>查看</Button>
-          {(record.status === 0 || record.status === 1) && (
-            <Button type="link" size="small" onClick={() => handleUrge(record.ticketNo)}>催办</Button>
-          )}
-        </Space>
-      )
+      title: '操作', key: 'action', width: isMobile ? 80 : 200,
+      render: (_: any, record: any) => {
+        if (isMobile) {
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'view', label: '查看', onClick: () => viewDetail(record) },
+                  ...(record.status === 0 || record.status === 1
+                    ? [{ key: 'urge', label: '催办', onClick: () => handleUrge(record.ticketNo) }]
+                    : []),
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          );
+        }
+        return (
+          <Space>
+            <Button type="link" size="small" onClick={() => viewDetail(record)}>查看</Button>
+            {(record.status === 0 || record.status === 1) && (
+              <Button type="link" size="small" onClick={() => handleUrge(record.ticketNo)}>催办</Button>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -120,16 +141,16 @@ const UserTicketPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>我的工单</Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>创建工单</Button>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>我的工单</Title>
+          <Button type="primary" size={isMobile ? 'small' : 'middle'} icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>创建工单</Button>
         </div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} />
+        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
 
-        <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)}>
+        <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
           <Form form={form} layout="vertical">
             <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入工单标题' }]}>
               <Input placeholder="简要描述您的问题" />
@@ -164,7 +185,8 @@ const UserTicketPage: React.FC = () => {
           }
           open={detailVisible}
           onCancel={() => setDetailVisible(false)}
-          width={700}
+          width={isMobile ? '95%' : 700}
+          className={isMobile ? 'mobile-modal' : undefined}
           footer={
             selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>

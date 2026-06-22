@@ -555,12 +555,8 @@ html {
   }
 
   /* 移动端表格适配 */
-  .ant-table-wrapper {
-    overflow-x: auto !important;
-  }
-
   .ant-table {
-    min-width: 600px !important;
+    min-width: unset !important;
   }
 
   /* 移动端表单适配 */
@@ -770,7 +766,6 @@ html {
 
   .ant-table-wrapper {
     border-radius: 8px !important;
-    overflow: hidden !important;
   }
 
   .ant-table-thead > tr > th {
@@ -786,7 +781,7 @@ html {
 
   .ant-table-pagination {
     margin: 16px 0 0 0 !important;
-    text-align: center !important;
+    text-align: right !important;
   }
 
   /* 操作按钮组移动端适配 */

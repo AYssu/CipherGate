@@ -1,10 +1,13 @@
 import React from 'react';
-import { Card, Button, Typography, Statistic, Row, Col, Tag, message } from 'antd';
+import { Card, Button, Typography, Statistic, Row, Col, Tag, message, Grid } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 const CheckinPage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+
   const [status, setStatus] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [checkinLoading, setCheckinLoading] = React.useState(false);
@@ -36,21 +39,21 @@ const CheckinPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <div style={{ textAlign: 'center' }}>
-          <Title level={3}>每日签到</Title>
-          <CheckCircleOutlined style={{ fontSize: 64, color: status?.checkedIn ? '#52c41a' : '#d9d9d9', margin: '24px 0' }} />
+          <Title level={isMobile ? 4 : 3}>每日签到</Title>
+          <CheckCircleOutlined style={{ fontSize: isMobile ? 48 : 64, color: status?.checkedIn ? '#52c41a' : '#d9d9d9', margin: isMobile ? '16px 0' : '24px 0' }} />
           <div>
             {status?.checkedIn ? (
-              <Tag color="success" style={{ fontSize: 16, padding: '4px 16px' }}>今日已签到</Tag>
+              <Tag color="success" style={{ fontSize: isMobile ? 14 : 16, padding: isMobile ? '2px 12px' : '4px 16px' }}>今日已签到</Tag>
             ) : (
-              <Button type="primary" size="large" loading={checkinLoading} onClick={handleCheckin}>签到</Button>
+              <Button type="primary" size={isMobile ? 'middle' : 'large'} loading={checkinLoading} onClick={handleCheckin}>签到</Button>
             )}
           </div>
-          <Row gutter={16} style={{ marginTop: 24 }}>
-            <Col span={8}><Statistic title="连续签到" value={status?.todayRecord?.consecutiveDays || 0} suffix="天" /></Col>
-            <Col span={8}><Statistic title="累计签到" value={status?.todayRecord?.consecutiveDays || 0} suffix="天" /></Col>
+          <Row gutter={isMobile ? 8 : 16} style={{ marginTop: isMobile ? 16 : 24 }}>
+            <Col span={isMobile ? 12 : 8}><Statistic title="连续签到" value={status?.todayRecord?.consecutiveDays || 0} suffix="天" valueStyle={{ fontSize: isMobile ? 20 : 24 }} /></Col>
+            <Col span={isMobile ? 12 : 8}><Statistic title="累计签到" value={status?.todayRecord?.consecutiveDays || 0} suffix="天" valueStyle={{ fontSize: isMobile ? 20 : 24 }} /></Col>
           </Row>
         </div>
       </Card>

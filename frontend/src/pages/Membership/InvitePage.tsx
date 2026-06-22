@@ -1,10 +1,12 @@
 import React from 'react';
-import { Card, Typography, Table, Button, Input, message, Space, Statistic, Row, Col } from 'antd';
+import { Card, Typography, Table, Button, Input, message, Space, Statistic, Row, Col, Grid } from 'antd';
 import { CopyOutlined, ShareAltOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 const InvitePage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [stats, setStats] = React.useState<any>({});
   const [records, setRecords] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -34,25 +36,25 @@ const InvitePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
-            <Title level={3}>邀请有奖</Title>
+            <Title level={isMobile ? 5 : 4}>邀请有奖</Title>
             <Text type="secondary">每邀请1位新用户，获得3元余额奖励</Text>
           </div>
-          <Row gutter={16} style={{ textAlign: 'center' }}>
-            <Col span={8}><Statistic title="已邀请" value={stats.inviteCount || 0} suffix={`/ ${stats.maxInviteCount || 20}`} /></Col>
-            <Col span={8}><Statistic title="累计奖励" value={(stats.totalReward || 0) / 100} prefix="¥" /></Col>
-            <Col span={8}><Statistic title="剩余可邀请" value={(stats.maxInviteCount || 20) - (stats.inviteCount || 0)} /></Col>
+          <Row gutter={isMobile ? 8 : 16} style={{ textAlign: 'center' }}>
+            <Col xs={8}><Statistic title="已邀请" value={stats.inviteCount || 0} suffix={`/ ${stats.maxInviteCount || 20}`} /></Col>
+            <Col xs={8}><Statistic title="累计奖励" value={(stats.totalReward || 0) / 100} prefix="¥" /></Col>
+            <Col xs={8}><Statistic title="剩余可邀请" value={(stats.maxInviteCount || 20) - (stats.inviteCount || 0)} /></Col>
           </Row>
           <Card type="inner" title="我的邀请码">
-            <Space>
-              <Input value={stats.inviteCode || ''} readOnly style={{ width: 200 }} />
-              <Button icon={<CopyOutlined />} onClick={copyInviteCode}>复制</Button>
+            <Space wrap>
+              <Input value={stats.inviteCode || ''} readOnly style={{ width: isMobile ? 140 : 200 }} />
+              <Button size={isMobile ? 'small' : 'middle'} icon={<CopyOutlined />} onClick={copyInviteCode}>复制</Button>
             </Space>
           </Card>
-          <Table columns={columns} dataSource={records} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+          <Table columns={columns} dataSource={records} rowKey="id" loading={loading} pagination={{ pageSize: 10, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
         </Space>
       </Card>
     </div>

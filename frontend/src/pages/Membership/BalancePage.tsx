@@ -1,9 +1,12 @@
 import React from 'react';
-import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, List, Radio } from 'antd';
+import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, List, Radio, Grid } from 'antd';
 
 const { Title, Text } = Typography;
 
 const BalancePage: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+
   const [balance, setBalance] = React.useState(0);
   const [transactions, setTransactions] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -96,32 +99,44 @@ const BalancePage: React.FC = () => {
   const columns = [
     { title: '类型', dataIndex: 'transactionType', key: 'type', render: (v: string) => <Tag color={typeMap[v]?.color}>{typeMap[v]?.text || v}</Tag> },
     { title: '金额', dataIndex: 'amount', key: 'amount', render: (v: number) => <span style={{ color: v > 0 ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>{v > 0 ? '+' : ''}{(v / 100).toFixed(2)}元</span> },
-    { title: '余额', dataIndex: 'balanceAfter', key: 'balance', render: (v: number) => `${(v / 100).toFixed(2)}元` },
+    ...(!isMobile ? [{ title: '余额', dataIndex: 'balanceAfter', key: 'balance', render: (v: number) => `${(v / 100).toFixed(2)}元` }] : []),
     { title: '描述', dataIndex: 'description', key: 'desc', ellipsis: true },
-    { title: '时间', dataIndex: 'createdAt', key: 'time', width: 170, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+    { title: '时间', dataIndex: 'createdAt', key: 'time', width: isMobile ? 120 : 170, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card style={{ marginBottom: 16 }}>
-        <Row gutter={24} align="middle">
+        <Row gutter={isMobile ? 12 : 24} align="middle">
           <Col flex="auto">
-            <Statistic title="当前余额" value={(balance / 100).toFixed(2)} prefix="¥" valueStyle={{ fontSize: 32, color: '#1890ff' }} />
+            <Statistic title="当前余额" value={(balance / 100).toFixed(2)} prefix="¥" valueStyle={{ fontSize: isMobile ? 24 : 32, color: '#1890ff' }} />
           </Col>
           <Col>
-            <Space>
-              <Button type="primary" size="large" onClick={() => setRechargeVisible(true)}>充值余额</Button>
-              <Button size="large" onClick={() => setPurchaseVisible(true)}>购买额度/会员</Button>
+            <Space direction={isMobile ? 'vertical' : 'horizontal'} size={8}>
+              <Button type="primary" size={isMobile ? 'middle' : 'large'} onClick={() => setRechargeVisible(true)}>充值余额</Button>
+              <Button size={isMobile ? 'middle' : 'large'} onClick={() => setPurchaseVisible(true)}>购买额度/会员</Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
       <Card title="余额流水">
-        <Table columns={columns} dataSource={transactions} rowKey="id" loading={loading} pagination={{ pageSize: 15, showTotal: (total) => `共 ${total} 条` }} />
+        <Table
+          columns={columns}
+          dataSource={transactions}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 15,
+            simple: isMobile,
+            showTotal: isMobile ? undefined : (total) => `共 ${total} 条`
+          }}
+          scroll={{ x: isMobile ? 460 : undefined, y: isMobile ? 450 : undefined }}
+          size={isMobile ? 'small' : 'middle'}
+        />
       </Card>
 
-      <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)}>
+      <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
         <div style={{ padding: '16px 0' }}>
           <Text>请输入充值金额：</Text>
           <div style={{ margin: '16px 0' }}>
@@ -132,14 +147,14 @@ const BalancePage: React.FC = () => {
                 value={rechargeAmount}
                 onChange={(v) => setRechargeAmount(v || 10)}
                 addonBefore="¥"
-                style={{ width: 200 }}
-                size="large"
+                style={{ width: isMobile ? 150 : 200 }}
+                size={isMobile ? 'middle' : 'large'}
               />
             </Space>
           </div>
-          <Space style={{ marginTop: 8 }}>
+          <Space wrap size={isMobile ? 'small' : 'middle'}>
             {[10, 20, 50, 100, 200, 500].map(amount => (
-              <Button key={amount} type={rechargeAmount === amount ? 'primary' : 'default'} onClick={() => setRechargeAmount(amount)}>
+              <Button key={amount} type={rechargeAmount === amount ? 'primary' : 'default'} size={isMobile ? 'small' : 'middle'} onClick={() => setRechargeAmount(amount)}>
                 ¥{amount}
               </Button>
             ))}
@@ -152,7 +167,7 @@ const BalancePage: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }}>
+      <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
         <div style={{ padding: '8px 0' }}>
           {['APP_QUOTA', 'LICENSE_QUOTA', 'USER_REGISTER_QUOTA', 'TRAFFIC_QUOTA', 'MEMBERSHIP'].map(type => {
             const items = products.filter(p => p.productType === type);
@@ -168,9 +183,9 @@ const BalancePage: React.FC = () => {
                       key={p.id}
                       onClick={() => setSelectedProduct(p)}
                       style={{
-                        display: 'inline-block',
-                        padding: '8px 16px',
-                        margin: '4px 8px 4px 0',
+                        display: isMobile ? 'block' : 'inline-block',
+                        padding: isMobile ? '6px 10px' : '8px 16px',
+                        margin: isMobile ? '4px 0' : '4px 8px 4px 0',
                         border: selectedProduct?.id === p.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
                         borderRadius: 8,
                         cursor: 'pointer',
