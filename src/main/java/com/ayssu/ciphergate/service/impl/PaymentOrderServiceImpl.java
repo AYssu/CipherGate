@@ -216,19 +216,17 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
 
     private void grantQuotaByProduct(Long userId, QuotaProduct product, int quantity) {
         long totalQuota = product.getQuotaValue() * quantity;
+        var membership = userMembershipService.getByUserId(userId);
+        if (membership == null) return;
+
         switch (product.getProductType()) {
-            case "APP_QUOTA" -> {
-                var membership = userMembershipService.getByUserId(userId);
-                if (membership != null) {
-                    membership.setAppUsed(membership.getAppUsed() - (int) totalQuota);
-                    userMembershipService.updateById(membership);
-                }
-            }
-            case "LICENSE_QUOTA" -> userMembershipService.consumeLicenseQuota(userId, -totalQuota);
-            case "USER_REGISTER_QUOTA" -> userMembershipService.consumeUserRegisterQuota(userId, -(int) totalQuota);
-            case "TRAFFIC_QUOTA" -> userMembershipService.consumeTrafficQuota(userId, -totalQuota);
-            default -> log.warn("未知商品类型: {}", product.getProductType());
+            case "APP_QUOTA" -> membership.setExtraAppQuota((membership.getExtraAppQuota() != null ? membership.getExtraAppQuota() : 0) + totalQuota);
+            case "LICENSE_QUOTA" -> membership.setExtraLicenseQuota((membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0) + totalQuota);
+            case "USER_REGISTER_QUOTA" -> membership.setExtraUserRegisterQuota((membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0) + totalQuota);
+            case "TRAFFIC_QUOTA" -> membership.setExtraTrafficQuota((membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0) + totalQuota);
+            default -> { return; }
         }
+        userMembershipService.updateById(membership);
     }
 
     private String generateOrderNo() {

@@ -14,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/user/membership")
@@ -26,7 +29,7 @@ public class UserMembershipSelfController {
 
     @GetMapping("/info")
     @Operation(summary = "获取我的会员信息")
-    public Result<UserMembership> getMyMembership(HttpSession session) {
+    public Result<Map<String, Object>> getMyMembership(HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user == null) {
             return Result.error(401, "未登录");
@@ -36,7 +39,36 @@ public class UserMembershipSelfController {
             userMembershipService.initMembershipForUser(user.getId());
             membership = userMembershipService.getByUserId(user.getId());
         }
-        return Result.success(membership);
+
+        // 从实际数据表统计
+        long actualAppUsed = userMembershipService.countUserApps(user.getId());
+        long actualLicenseUsed = userMembershipService.countUserLicenses(user.getId());
+        long actualUserRegisterUsed = userMembershipService.countUserAppUsers(user.getId());
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", membership.getId());
+        data.put("userId", membership.getUserId());
+        data.put("levelId", membership.getLevelId());
+        data.put("appUsed", actualAppUsed);
+        data.put("licenseUsed", actualLicenseUsed);
+        data.put("userRegisterUsed", actualUserRegisterUsed);
+        data.put("trafficUsed", membership.getTrafficUsed() != null ? membership.getTrafficUsed() : 0L);
+        data.put("extraAppQuota", membership.getExtraAppQuota() != null ? membership.getExtraAppQuota() : 0L);
+        data.put("extraLicenseQuota", membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0L);
+        data.put("extraUserRegisterQuota", membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0L);
+        data.put("extraTrafficQuota", membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0L);
+        data.put("balance", membership.getBalance());
+        data.put("inviteCode", membership.getInviteCode());
+        data.put("invitedBy", membership.getInvitedBy());
+        data.put("inviteCount", membership.getInviteCount());
+        data.put("memberExpiresAt", membership.getMemberExpiresAt());
+        data.put("lastCheckinDate", membership.getLastCheckinDate());
+        data.put("consecutiveCheckinDays", membership.getConsecutiveCheckinDays());
+        data.put("totalCheckinDays", membership.getTotalCheckinDays());
+        data.put("createdAt", membership.getCreatedAt());
+        data.put("updatedAt", membership.getUpdatedAt());
+
+        return Result.success(data);
     }
 
     @GetMapping("/balance")

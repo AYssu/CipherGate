@@ -353,7 +353,7 @@ const Home: React.FC = () => {
               position: 'absolute',
               top: '20%',
               left: '20%',
-              perspective: '000px',
+              perspective: '1000px',
               zIndex: 1
             }}>
               <div style={{

@@ -15,6 +15,7 @@ import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.service.ApplicationService;
 import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -65,6 +67,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final SystemMessageService systemMessageService;
     private final MinioObjectService minioObjectService;
     private final MinioProperties minioProperties;
+    @Lazy
+    private final UserMembershipService userMembershipService;
     
     @Override
     public Page<Application> getApplicationPage(ApplicationQueryDTO queryDTO, Long operatorId) {
@@ -207,6 +211,11 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Application createApplication(ApplicationDTO dto, Long userId) {
+        // 检查应用额度
+        if (!userMembershipService.checkAppQuota(userId)) {
+            throw new RuntimeException("应用创建额度不足，请升级会员或购买额度");
+        }
+
         Application application = new Application();
         BeanUtils.copyProperties(dto, application);
         

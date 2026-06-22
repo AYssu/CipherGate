@@ -66,9 +66,9 @@ public class CheckinServiceImpl extends ServiceImpl<CheckinRecordMapper, Checkin
         membership.setLastCheckinDate(today);
         membership.setConsecutiveCheckinDays(consecutiveDays);
         membership.setTotalCheckinDays(membership.getTotalCheckinDays() + 1);
-        membership.setLicenseUsed(membership.getLicenseUsed() - licenseReward);
-        membership.setUserRegisterUsed(membership.getUserRegisterUsed() - userRegisterReward);
-        membership.setTrafficUsed(membership.getTrafficUsed() - trafficReward);
+        membership.setExtraLicenseQuota((membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0) + licenseReward);
+        membership.setExtraUserRegisterQuota((membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0) + userRegisterReward);
+        membership.setExtraTrafficQuota((membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0) + trafficReward);
         userMembershipService.updateById(membership);
 
         Map<String, Object> result = new HashMap<>();

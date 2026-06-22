@@ -34,4 +34,10 @@ public interface UserMembershipService extends IService<UserMembership> {
     void consumeTrafficQuota(Long userId, long bytes);
 
     boolean isSuperAdmin(Long userId);
+
+    long countUserLicenses(Long userId);
+
+    long countUserAppUsers(Long userId);
+
+    long countUserApps(Long userId);
 }

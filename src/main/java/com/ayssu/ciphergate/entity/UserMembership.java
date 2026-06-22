@@ -22,6 +22,10 @@ public class UserMembership implements Serializable {
     private Long licenseUsed;
     private Long userRegisterUsed;
     private Long trafficUsed;
+    private Long extraAppQuota;
+    private Long extraLicenseQuota;
+    private Long extraUserRegisterQuota;
+    private Long extraTrafficQuota;
     private Long balance;
     private String inviteCode;
     private Long invitedBy;

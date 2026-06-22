@@ -28,6 +28,7 @@ import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.GeoIpService;
 import com.ayssu.ciphergate.service.LicenseKeyService;
+import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.ExcelWriter;
@@ -38,6 +39,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -69,6 +71,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     private final SecurityUtils securityUtils;
     private final AgentAuthorizationService agentAuthorizationService;
     private final GeoIpService geoIpService;
+    @Lazy
+    private final UserMembershipService userMembershipService;
     
     @Override
     public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId) {
@@ -145,6 +149,12 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         AppAgent agent = ensureLicensePermission(dto.getAppId(), userId, AgentPermissionCodes.LICENSE_CREATE, "无权限操作此应用的卡密");
+        
+        // 检查卡密额度（代理操作时检查应用创建者的额度）
+        Long quotaOwnerId = agent != null ? application.getOwnerId() : userId;
+        if (!userMembershipService.checkLicenseQuota(quotaOwnerId, 1)) {
+            throw new RuntimeException("卡密额度不足，请升级会员或购买额度");
+        }
         
         LicenseKey licenseKey = new LicenseKey();
         BeanUtils.copyProperties(dto, licenseKey);
@@ -228,6 +238,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         licenseKey.setUpdatedAt(now);
         
         licenseKeyMapper.insert(licenseKey);
+        userMembershipService.consumeLicenseQuota(quotaOwnerId, 1);
         
         log.info("创建卡密成功: keyCode={}, appId={}, userId={}", 
                 licenseKey.getKeyCode(), dto.getAppId(), userId);
@@ -245,6 +256,14 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         }
         
         AppAgent agent = ensureLicensePermission(dto.getAppId(), userId, AgentPermissionCodes.LICENSE_CREATE, "无权限操作此应用的卡密");
+        
+        // 检查卡密额度（代理操作时检查应用创建者的额度）
+        int count = dto.getTotalCount() != null ? dto.getTotalCount() : 0;
+        Long quotaOwnerId = agent != null ? application.getOwnerId() : userId;
+        if (count > 0 && !userMembershipService.checkLicenseQuota(quotaOwnerId, count)) {
+            throw new RuntimeException("卡密额度不足，本次需要 " + count + " 张，请升级会员或购买额度");
+        }
+        
         if (agent != null) {
             long total = dto.getTotalCount() == null ? 0 : dto.getTotalCount();
             agentAuthorizationService.consumeQuotaOrThrow(agent.getId(), dto.getKeyType(), total);
@@ -327,6 +346,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             
             licenseKeyMapper.insert(licenseKey);
             licenseKeys.add(licenseKey);
+        }
+        
+        if (count > 0) {
+            userMembershipService.consumeLicenseQuota(quotaOwnerId, count);
         }
         
         log.info("批量生成卡密成功: batchId={}, count={}, appId={}, userId={}", 

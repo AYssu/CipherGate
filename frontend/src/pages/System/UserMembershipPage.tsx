@@ -1,56 +1,290 @@
 import React from 'react';
-import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag } from 'antd';
+import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Row, Col, Divider, Tabs, Statistic } from 'antd';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+const formatBytes = (bytes: number | null | undefined) => {
+  if (bytes == null || bytes < 0) return '0 B';
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const formatMoney = (fen: number | null | undefined) => {
+  if (fen == null) return '¥0.00';
+  return `¥${(fen / 100).toFixed(2)}`;
+};
 
 const UserMembershipPage: React.FC = () => {
   const [users, setUsers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [editVisible, setEditVisible] = React.useState(false);
+  const [levels, setLevels] = React.useState<any[]>([]);
+  const [detailVisible, setDetailVisible] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<any>(null);
+  const [editType, setEditType] = React.useState<string>('');
   const [form] = Form.useForm();
 
-  React.useEffect(() => { fetchUsers(); }, []);
+  React.useEffect(() => {
+    fetchUsers();
+    fetchLevels();
+  }, []);
 
   const fetchUsers = () => {
-    fetch('/api/users', { credentials: 'include' })
+    setLoading(true);
+    fetch('/api/membership/users', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setUsers(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
-  const handleGrantBalance = async () => {
-    const values = await form.validateFields();
-    const res = await fetch(`/api/membership/users/${editingUser.id}/grant-balance`, {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: values.amount * 100, description: values.description })
+  const fetchLevels = () => {
+    fetch('/api/membership/levels', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => { if (data.success) setLevels(data.data || []); })
+      .catch(() => {});
+  };
+
+  const getLevelName = (levelId: number) => {
+    const level = levels.find((l: any) => l.id === levelId);
+    return level ? level.levelName : '未知';
+  };
+
+  const openDetail = (record: any) => {
+    setEditingUser(record);
+    setDetailVisible(true);
+  };
+
+  const openEditLevel = (record: any) => {
+    setEditingUser(record);
+    setEditType('level');
+    form.setFieldsValue({ levelId: record.levelId });
+  };
+
+  const openEditExtraQuota = (record: any) => {
+    setEditingUser(record);
+    setEditType('extraQuota');
+    form.setFieldsValue({
+      extraAppQuota: record.extraAppQuota || 0,
+      extraLicenseQuota: record.extraLicenseQuota || 0,
+      extraUserRegisterQuota: record.extraUserRegisterQuota || 0,
+      extraTrafficQuota: record.extraTrafficQuota || 0,
     });
-    const data = await res.json();
-    if (data.success) { message.success('充值成功'); setEditVisible(false); }
-    else message.error(data.message);
+  };
+
+  const openEditBalance = (record: any) => {
+    setEditingUser(record);
+    setEditType('balance');
+    form.resetFields();
+  };
+
+  const openEditExpires = (record: any) => {
+    setEditingUser(record);
+    setEditType('expires');
+    form.setFieldsValue({ memberExpiresAt: record.memberExpiresAt || '' });
+  };
+
+  const handleSave = async () => {
+    const values = await form.validateFields();
+    if (!editingUser) return;
+
+    let res: Response;
+    if (editType === 'level') {
+      res = await fetch(`/api/membership/users/${editingUser.userId}`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ levelId: values.levelId, remark: '管理员手动调整' })
+      });
+    } else if (editType === 'extraQuota') {
+      res = await fetch(`/api/membership/users/${editingUser.userId}/extra-quota`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values)
+      });
+    } else if (editType === 'balance') {
+      res = await fetch(`/api/membership/users/${editingUser.userId}/grant-balance`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: values.amount * 100, description: values.description || '管理员充值' })
+      });
+    } else if (editType === 'expires') {
+      res = await fetch(`/api/membership/users/${editingUser.userId}/expires`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberExpiresAt: values.memberExpiresAt || null })
+      });
+    } else {
+      return;
+    }
+
+    const data = await res!.json();
+    if (data.success) {
+      message.success('更新成功');
+      setDetailVisible(false);
+      setEditType('');
+      fetchUsers();
+    } else {
+      message.error(data.message);
+    }
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id' },
-    { title: '用户名', dataIndex: 'login', key: 'login' },
-    { title: '姓名', dataIndex: 'name', key: 'name' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (v: number) => <Tag color={v === 1 ? 'success' : 'error'}>{v === 1 ? '正常' : '禁用'}</Tag> },
-    { title: '操作', key: 'action', render: (_: any, record: any) => <Button type="link" onClick={() => { setEditingUser(record); form.resetFields(); setEditVisible(true); }}>充值余额</Button> },
+    { title: 'ID', dataIndex: 'userId', key: 'userId', width: 70 },
+    { title: '会员等级', dataIndex: 'levelName', key: 'levelName', render: (v: string, r: any) => <Tag color="blue">{v}</Tag> },
+    { title: '余额', dataIndex: 'balance', key: 'balance', render: (v: number) => formatMoney(v) },
+    { title: '应用', key: 'app', render: (_: any, r: any) => <span>{r.appUsed || 0} / {r.appTotal}</span> },
+    { title: '卡密', key: 'license', render: (_: any, r: any) => <span>{r.licenseUsed || 0} / {r.licenseTotal}</span> },
+    { title: '终端用户', key: 'userReg', render: (_: any, r: any) => <span>{r.userRegisterUsed || 0} / {r.userRegisterTotal}</span> },
+    { title: '流量', key: 'traffic', render: (_: any, r: any) => <span>{formatBytes(r.trafficUsed)} / {formatBytes(r.trafficTotal)}</span> },
+    { title: '邀请人数', dataIndex: 'inviteCount', key: 'inviteCount', render: (v: number) => v || 0 },
+    { title: '签到天数', dataIndex: 'totalCheckinDays', key: 'totalCheckinDays', render: (v: number) => v || 0 },
+    { title: '到期时间', dataIndex: 'memberExpiresAt', key: 'memberExpiresAt', render: (v: string) => v || '永久' },
+    {
+      title: '操作', key: 'action', width: 200,
+      render: (_: any, record: any) => (
+        <Space size="small">
+          <Button type="link" size="small" onClick={() => openDetail(record)}>详情</Button>
+          <Button type="link" size="small" onClick={() => openEditLevel(record)}>改等级</Button>
+          <Button type="link" size="small" onClick={() => openEditExtraQuota(record)}>改额度</Button>
+          <Button type="link" size="small" onClick={() => openEditBalance(record)}>充值</Button>
+        </Space>
+      )
+    },
   ];
+
+  const renderEditContent = () => {
+    if (editType === 'level') {
+      return (
+        <Form form={form} layout="vertical">
+          <Form.Item name="levelId" label="会员等级" rules={[{ required: true }]}>
+            <select style={{ width: '100%', padding: '4px 8px', borderRadius: 4, border: '1px solid #d9d9d9' }}>
+              {levels.map((l: any) => <option key={l.id} value={l.id}>{l.levelName} (¥{l.price})</option>)}
+            </select>
+          </Form.Item>
+        </Form>
+      );
+    }
+    if (editType === 'extraQuota') {
+      return (
+        <Form form={form} layout="vertical">
+          <Form.Item name="extraAppQuota" label="额外应用额度"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="extraLicenseQuota" label="额外卡密额度"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="extraUserRegisterQuota" label="额外终端用户额度"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="extraTrafficQuota" label="额外流量额度(字节)"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
+        </Form>
+      );
+    }
+    if (editType === 'balance') {
+      return (
+        <Form form={form} layout="vertical">
+          <Form.Item name="amount" label="充值金额(元)" rules={[{ required: true }]}><InputNumber min={0.01} step={0.01} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="description" label="备注"><Input /></Form.Item>
+        </Form>
+      );
+    }
+    if (editType === 'expires') {
+      return (
+        <Form form={form} layout="vertical">
+          <Form.Item name="memberExpiresAt" label="到期时间（留空=永久）">
+            <Input placeholder="格式: 2026-12-31 23:59:59" />
+          </Form.Item>
+        </Form>
+      );
+    }
+    return null;
+  };
+
+  const getEditTitle = () => {
+    const name = editingUser?.userId || '';
+    if (editType === 'level') return `修改用户 ${name} 的会员等级`;
+    if (editType === 'extraQuota') return `修改用户 ${name} 的额外额度`;
+    if (editType === 'balance') return `为用户 ${name} 充值余额`;
+    if (editType === 'expires') return `设置用户 ${name} 的到期时间`;
+    return '';
+  };
 
   return (
     <div style={{ padding: 24 }}>
       <Card>
-        <Title level={4}>用户会员管理</Title>
-        <Table columns={columns} dataSource={users} rowKey="id" loading={loading} />
-        <Modal title={`为 ${editingUser?.login} 充值余额`} open={editVisible} onOk={handleGrantBalance} onCancel={() => setEditVisible(false)}>
-          <Form form={form} layout="vertical">
-            <Form.Item name="amount" label="充值金额(元)" rules={[{ required: true }]}><InputNumber min={0.01} step={0.01} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="description" label="备注"><Input /></Form.Item>
-          </Form>
-        </Modal>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>用户会员管理</Title>
+          <Button onClick={fetchUsers} loading={loading}>刷新</Button>
+        </div>
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="userId"
+          loading={loading}
+          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 个用户` }}
+        />
       </Card>
+
+      <Modal
+        title={getEditTitle()}
+        open={editType !== ''}
+        onOk={handleSave}
+        onCancel={() => { setEditType(''); setEditingUser(null); }}
+        width={500}
+      >
+        {renderEditContent()}
+      </Modal>
+
+      <Modal
+        title={`用户 ${editingUser?.userId} 会员详情`}
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setEditingUser(null); }}
+        footer={null}
+        width={700}
+      >
+        {editingUser && (
+          <Tabs items={[
+            {
+              key: 'basic',
+              label: '基本信息',
+              children: (
+                <Descriptions column={2} bordered size="small">
+                  <Descriptions.Item label="用户ID">{editingUser.userId}</Descriptions.Item>
+                  <Descriptions.Item label="会员等级"><Tag color="blue">{editingUser.levelName}</Tag></Descriptions.Item>
+                  <Descriptions.Item label="余额">{formatMoney(editingUser.balance)}</Descriptions.Item>
+                  <Descriptions.Item label="邀请码">{editingUser.inviteCode || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="邀请人数">{editingUser.inviteCount || 0}</Descriptions.Item>
+                  <Descriptions.Item label="邀请人">{editingUser.invitedBy || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="到期时间">{editingUser.memberExpiresAt || '永久'}</Descriptions.Item>
+                  <Descriptions.Item label="创建时间">{editingUser.createdAt}</Descriptions.Item>
+                </Descriptions>
+              )
+            },
+            {
+              key: 'quota',
+              label: '额度使用',
+              children: (
+                <Descriptions column={2} bordered size="small">
+                  <Descriptions.Item label="应用额度">{editingUser.appUsed || 0} / {editingUser.appTotal}</Descriptions.Item>
+                  <Descriptions.Item label="额外应用额度">{editingUser.extraAppQuota || 0}</Descriptions.Item>
+                  <Descriptions.Item label="卡密额度">{editingUser.licenseUsed || 0} / {editingUser.licenseTotal}</Descriptions.Item>
+                  <Descriptions.Item label="额外卡密额度">{editingUser.extraLicenseQuota || 0}</Descriptions.Item>
+                  <Descriptions.Item label="终端用户额度">{editingUser.userRegisterUsed || 0} / {editingUser.userRegisterTotal}</Descriptions.Item>
+                  <Descriptions.Item label="额外终端用户额度">{editingUser.extraUserRegisterQuota || 0}</Descriptions.Item>
+                  <Descriptions.Item label="流量额度">{formatBytes(editingUser.trafficUsed)} / {formatBytes(editingUser.trafficTotal)}</Descriptions.Item>
+                  <Descriptions.Item label="额外流量额度">{formatBytes(editingUser.extraTrafficQuota)}</Descriptions.Item>
+                </Descriptions>
+              )
+            },
+            {
+              key: 'checkin',
+              label: '签到信息',
+              children: (
+                <Descriptions column={2} bordered size="small">
+                  <Descriptions.Item label="连续签到天数">{editingUser.consecutiveCheckinDays || 0}</Descriptions.Item>
+                  <Descriptions.Item label="累计签到天数">{editingUser.totalCheckinDays || 0}</Descriptions.Item>
+                  <Descriptions.Item label="最后签到日期">{editingUser.lastCheckinDate || '-'}</Descriptions.Item>
+                </Descriptions>
+              )
+            }
+          ]} />
+        )}
+      </Modal>
     </div>
   );
 };

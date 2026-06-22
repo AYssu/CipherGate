@@ -39,6 +39,7 @@ public class AppUserRegisterVerificationService {
     private final AppUserRegisterOtpRedisService otpRedisService;
     private final SystemSmtpMailService systemSmtpMailService;
     private final StringRedisTemplate redisTemplate;
+    private final UserMembershipService userMembershipService;
 
     public void sendRegisterEmailVerificationCode(Long appId, String emailRaw, String clientIp) {
         if (appId == null || appId <= 0) {
@@ -112,6 +113,10 @@ public class AppUserRegisterVerificationService {
             throw new IllegalStateException("应用暂不可注册");
         }
 
+        if (!userMembershipService.checkUserRegisterQuota(app.getOwnerId(), 1)) {
+            throw new IllegalStateException("终端用户注册额度不足，请联系应用管理员升级会员");
+        }
+
         if (!otpRedisService.matchesOtp(appId, email, emailCode)) {
             throw new IllegalArgumentException("验证码无效或已过期");
         }
@@ -145,6 +150,7 @@ public class AppUserRegisterVerificationService {
         row.setUpdatedAt(now);
         appUserMapper.insert(row);
         otpRedisService.removeOtp(appId, email);
+        userMembershipService.consumeUserRegisterQuota(app.getOwnerId(), 1);
         log.info("应用用户自助注册成功: appId={}, userId={}, username={}", appId, row.getId(), username);
     }
 

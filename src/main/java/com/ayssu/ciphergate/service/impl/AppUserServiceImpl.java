@@ -28,6 +28,7 @@ import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
 import com.ayssu.ciphergate.service.GeoIpService;
 import com.ayssu.ciphergate.service.SystemMessageService;
+import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
 import com.ayssu.ciphergate.util.SecurityUtils;
@@ -36,6 +37,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -68,6 +70,8 @@ public class AppUserServiceImpl implements AppUserService {
     private final GeoIpService geoIpService;
     private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
     private final AppUserWsSessionKickService appUserWsSessionKickService;
+    @Lazy
+    private final UserMembershipService userMembershipService;
     
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
@@ -268,6 +272,12 @@ public class AppUserServiceImpl implements AppUserService {
         // 检查权限
         AppAgent agent = ensureAppUserPermission(dto.getAppId(), operatorId, AgentPermissionCodes.APP_USER_CREATE, "无权限操作此应用的用户");
         
+        // 检查用户注册额度（代理操作时检查应用创建者的额度）
+        Long quotaOwnerId = agent != null ? application.getOwnerId() : operatorId;
+        if (!userMembershipService.checkUserRegisterQuota(quotaOwnerId, 1)) {
+            throw new RuntimeException("终端用户注册额度不足，请升级会员或购买额度");
+        }
+        
         // 检查用户名是否重复
         LambdaQueryWrapper<AppUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AppUser::getAppId, dto.getAppId())
@@ -307,6 +317,7 @@ public class AppUserServiceImpl implements AppUserService {
         appUser.setUpdatedAt(now);
         
         appUserMapper.insert(appUser);
+        userMembershipService.consumeUserRegisterQuota(quotaOwnerId, 1);
         
         log.info("创建终端用户成功: username={}, appId={}, operatorId={}", 
                 appUser.getUsername(), dto.getAppId(), operatorId);

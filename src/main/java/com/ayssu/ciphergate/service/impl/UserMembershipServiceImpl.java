@@ -8,8 +8,12 @@ import com.ayssu.ciphergate.mapper.BalanceTransactionMapper;
 import com.ayssu.ciphergate.mapper.MembershipChangeLogMapper;
 import com.ayssu.ciphergate.mapper.MembershipLevelMapper;
 import com.ayssu.ciphergate.mapper.UserMembershipMapper;
+import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
+import com.ayssu.ciphergate.mapper.AppUserMapper;
+import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.service.UserService;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +41,15 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Autowired
     private BalanceTransactionMapper balanceTransactionMapper;
+
+    @Autowired
+    private LicenseKeyMapper licenseKeyMapper;
+
+    @Autowired
+    private AppUserMapper appUserMapper;
+
+    @Autowired
+    private ApplicationMapper applicationMapper;
 
     @Lazy
     @Autowired
@@ -180,46 +193,58 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Override
     public boolean checkAppQuota(Long userId) {
-        if (isSuperAdmin(userId)) return true;
         UserMembership membership = getByUserId(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
-        if (level.getAppQuota() == -1) return true;
-        return membership.getAppUsed() < level.getAppQuota();
+        long baseQuota = level.getAppQuota() == -1 ? Long.MAX_VALUE : level.getAppQuota();
+        long extraQuota = membership.getExtraAppQuota() != null ? membership.getExtraAppQuota() : 0;
+        long totalQuota = baseQuota + extraQuota;
+        if (totalQuota < 0) totalQuota = Long.MAX_VALUE;
+        long actualUsed = countUserApps(userId);
+        return actualUsed < totalQuota;
     }
 
     @Override
     public boolean checkLicenseQuota(Long userId, int count) {
-        if (isSuperAdmin(userId)) return true;
         UserMembership membership = getByUserId(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
-        if (level.getLicenseQuota() == -1) return true;
-        return membership.getLicenseUsed() + count <= level.getLicenseQuota();
+        long baseQuota = level.getLicenseQuota() == -1 ? Long.MAX_VALUE : level.getLicenseQuota();
+        long extraQuota = membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0;
+        long totalQuota = baseQuota + extraQuota;
+        if (totalQuota < 0) totalQuota = Long.MAX_VALUE;
+        long actualUsed = countUserLicenses(userId);
+        return actualUsed + count <= totalQuota;
     }
 
     @Override
     public boolean checkUserRegisterQuota(Long userId, int count) {
-        if (isSuperAdmin(userId)) return true;
         UserMembership membership = getByUserId(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
-        if (level.getUserRegisterQuota() == -1) return true;
-        return membership.getUserRegisterUsed() + count <= level.getUserRegisterQuota();
+        long baseQuota = level.getUserRegisterQuota() == -1 ? Long.MAX_VALUE : level.getUserRegisterQuota();
+        long extraQuota = membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0;
+        long totalQuota = baseQuota + extraQuota;
+        if (totalQuota < 0) totalQuota = Long.MAX_VALUE;
+        long actualUsed = countUserAppUsers(userId);
+        return actualUsed + count <= totalQuota;
     }
 
     @Override
     public boolean checkTrafficQuota(Long userId, long bytes) {
-        if (isSuperAdmin(userId)) return true;
         UserMembership membership = getByUserId(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
-        if (level.getTrafficQuota() == -1) return true;
-        return membership.getTrafficUsed() + bytes <= level.getTrafficQuota();
+        long baseQuota = level.getTrafficQuota() == -1 ? Long.MAX_VALUE : level.getTrafficQuota();
+        long extraQuota = membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0;
+        long totalQuota = baseQuota + extraQuota;
+        if (totalQuota < 0) totalQuota = Long.MAX_VALUE;
+        long actualUsed = membership.getTrafficUsed() != null ? membership.getTrafficUsed() : 0;
+        return actualUsed + bytes <= totalQuota;
     }
 
     @Override
@@ -261,6 +286,43 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     @Override
     public boolean isSuperAdmin(Long userId) {
         return userService.hasRole(userId, "SUPER_ADMIN");
+    }
+
+    /**
+     * 统计用户所有应用下的卡密总数（包括已删除的）
+     */
+    public long countUserLicenses(Long userId) {
+        return licenseKeyMapper.selectCount(
+                new QueryWrapper<com.ayssu.ciphergate.entity.LicenseKey>()
+                        .eq("owner_id", userId));
+    }
+
+    /**
+     * 统计用户所有应用下的终端用户总数（包括已删除的）
+     */
+    public long countUserAppUsers(Long userId) {
+        // 获取用户所有应用ID
+        var appIds = applicationMapper.selectList(
+                new QueryWrapper<com.ayssu.ciphergate.entity.Application>()
+                        .eq("owner_id", userId)
+                        .select("id"))
+                .stream()
+                .map(com.ayssu.ciphergate.entity.Application::getId)
+                .toList();
+        if (appIds.isEmpty()) return 0;
+
+        return appUserMapper.selectCount(
+                new QueryWrapper<com.ayssu.ciphergate.entity.AppUser>()
+                        .in("app_id", appIds));
+    }
+
+    /**
+     * 统计用户创建的应用总数（包括已删除的）
+     */
+    public long countUserApps(Long userId) {
+        return applicationMapper.selectCount(
+                new QueryWrapper<com.ayssu.ciphergate.entity.Application>()
+                        .eq("owner_id", userId));
     }
 
     private String generateInviteCode() {
