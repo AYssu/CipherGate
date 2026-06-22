@@ -11,6 +11,8 @@ public interface UserMembershipService extends IService<UserMembership> {
 
     void initMembershipForUser(Long userId);
 
+    void regenerateInviteCode(Long userId);
+
     void upgradeLevel(Long userId, Long toLevelId, Long operatorId, String remark);
 
     void grantBalance(Long userId, Long amount, Long operatorId, String description);

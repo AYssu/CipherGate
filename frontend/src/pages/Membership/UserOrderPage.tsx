@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Table, Tag, Typography, Grid } from 'antd';
+import { Card, Table, Tag, Typography, Grid, Button } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -35,8 +36,11 @@ const UserOrderPage: React.FC = () => {
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
-        <Title level={isMobile ? 5 : 4}>我的订单</Title>
-        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ pageSize: 10, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 12 : 16 }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>我的订单</Title>
+          <Button icon={<ReloadOutlined />} size="small" onClick={() => { setLoading(true); fetch('/api/payment/orders?page=1&size=20', { credentials: 'include' }).then(res => res.json()).then(data => { if (data.success) setOrders(data.data?.records || []); setLoading(false); }).catch(() => setLoading(false)); }} loading={loading}>刷新</Button>
+        </div>
+        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ pageSize: 10, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
       </Card>
     </div>
   );

@@ -350,7 +350,7 @@ const RoleManagementContent: React.FC = () => {
               onClick={fetchRoles}
               loading={loading}
               size={isMobile ? 'small' : 'middle'}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               刷新
             </Button>
@@ -359,7 +359,7 @@ const RoleManagementContent: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={handleCreateRole}
               size={isMobile ? 'small' : 'middle'}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               新建角色
             </Button>

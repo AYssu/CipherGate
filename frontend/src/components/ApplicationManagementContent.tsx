@@ -608,21 +608,12 @@ const ApplicationManagementContent: React.FC = () => {
   ];
 
   const renderMobileCard = (app: Application) => {
-    const category = app.category?.toLowerCase();
-    const getIcon = () => {
-      if (category?.includes('工具')) return <ApiOutlined style={{ fontSize: 18, color: '#1890ff' }} />;
-      if (category?.includes('游戏')) return <RocketOutlined style={{ fontSize: 18, color: '#52c41a' }} />;
-      if (category?.includes('办公')) return <DatabaseOutlined style={{ fontSize: 18, color: '#722ed1' }} />;
-      if (category?.includes('安全')) return <SafetyOutlined style={{ fontSize: 18, color: '#fa8c16' }} />;
-      return <CloudOutlined style={{ fontSize: 18, color: '#13c2c2' }} />;
+    const statusMap: Record<number, { text: string; color: string }> = {
+      1: { text: '正常', color: 'success' },
+      2: { text: '维护', color: 'warning' },
+      3: { text: '停用', color: 'error' },
     };
-
-    const statusMap: Record<number, { text: string; status: 'success' | 'warning' | 'error' | 'default' }> = {
-      1: { text: '正常', status: 'success' },
-      2: { text: '维护', status: 'warning' },
-      3: { text: '停用', status: 'error' },
-    };
-    const statusInfo = statusMap[app.status] || { text: '未知', status: 'default' };
+    const statusInfo = statusMap[app.status] || { text: '未知', color: 'default' };
 
     const modelMap: Record<number, { text: string; color: string }> = {
       1: { text: '付费', color: 'blue' },
@@ -635,64 +626,42 @@ const ApplicationManagementContent: React.FC = () => {
     const limit = app.trafficLimit || 0;
 
     return (
-      <Card key={app.id} size="small" className="application-mobile-card" style={{ backgroundColor: '#fff' }}>
-        <div className="application-mobile-card-header">
-          <div className="application-mobile-card-title">
-            {getIcon()}
-            <Text strong style={{ fontSize: 15, marginLeft: 8 }}>{app.appName}</Text>
-          </div>
-          <Space size={8} align="center">
-            <Badge status={statusInfo.status} text={<span style={{ fontSize: 12 }}>{statusInfo.text}</span>} />
-            <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
-              <Button type="text" size="small" icon={<MoreOutlined />} />
-            </Dropdown>
-          </Space>
-        </div>
-
-        <div className="application-mobile-card-body">
-          <div className="application-mobile-card-row">
-            <Text type="secondary" style={{ fontSize: 12 }}>AppKey</Text>
-            <Space size={4}>
-              <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
-                {app.appKey ? `${app.appKey.substring(0, 16)}...` : '-'}
-              </Text>
-            </Space>
-          </div>
-
-          <div className="application-mobile-card-row">
-            <Text type="secondary" style={{ fontSize: 12 }}>AppSecret</Text>
-            <Space size={4}>
-              <Text style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12, color: '#666' }}>
-                {app.appSecret ? (showSecret[app.id] ? `${app.appSecret.substring(0, 12)}...` : '••••••') : '-'}
-              </Text>
-              {app.appSecret && (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={showSecret[app.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                  onClick={() => toggleShowSecret(app.id)}
-                  style={{ padding: '0 4px' }}
-                />
-              )}
-            </Space>
-          </div>
-
-          <div className="application-mobile-card-row">
-            <Text type="secondary" style={{ fontSize: 12 }}>业务模式</Text>
-            <Tag color={modelInfo.color} style={{ fontSize: 11, margin: 0 }}>{modelInfo.text}</Tag>
-          </div>
-
-          <div className="application-mobile-card-row">
-            <Text type="secondary" style={{ fontSize: 12 }}>流量使用</Text>
-            <Text style={{ fontSize: 12 }}>{formatBytes(used)} / {limit > 0 ? formatBytes(limit) : '不限'}</Text>
+      <Card
+        key={app.id}
+        size="small"
+        style={{ marginBottom: 12 }}
+        extra={
+          <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        }
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ fontSize: 15 }}>{app.appName}</Text>
+            <div style={{ marginTop: 4, display: 'flex', gap: 6 }}>
+              <Tag color={statusInfo.color} style={{ margin: 0 }}>{statusInfo.text}</Tag>
+              <Tag color={modelInfo.color} style={{ margin: 0 }}>{modelInfo.text}</Tag>
+              {app.category && <Tag style={{ margin: 0 }}>{app.category}</Tag>}
+            </div>
           </div>
         </div>
 
-        <div className="application-mobile-card-footer">
-          <Text type="secondary" style={{ fontSize: 11 }}>{app.ownerName || '-'}</Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {new Date(app.createdAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-          </Text>
+        <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span>AppKey</span>
+            <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'monospace', fontSize: 12 }}>
+              {app.appKey ? `${app.appKey.substring(0, 12)}...` : '-'}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span>流量</span>
+            <span>{formatBytes(used)} / {limit > 0 ? formatBytes(limit) : '不限'}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#bfbfbf' }}>
+            <span>{app.ownerName || '-'}</span>
+            <span>{app.createdAt ? new Date(app.createdAt).toLocaleDateString('zh-CN') : '-'}</span>
+          </div>
         </div>
       </Card>
     );
@@ -909,7 +878,7 @@ const ApplicationManagementContent: React.FC = () => {
               size={isMobile ? 'small' : 'middle'}
               icon={<ReloadOutlined />}
               onClick={() => fetchApplications(pagination.current, pagination.pageSize)}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               刷新
             </Button>
@@ -918,7 +887,7 @@ const ApplicationManagementContent: React.FC = () => {
               size={isMobile ? 'small' : 'middle'}
               icon={<PlusOutlined />}
               onClick={() => handleOpenModal()}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               创建应用
             </Button>

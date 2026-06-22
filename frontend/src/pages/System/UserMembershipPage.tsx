@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Row, Col, Divider, Tabs, Statistic, Grid, Dropdown } from 'antd';
-import { MoreOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Tabs, Grid, Dropdown, Select } from 'antd';
+import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -27,6 +27,7 @@ const UserMembershipPage: React.FC = () => {
   const [detailVisible, setDetailVisible] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<any>(null);
   const [editType, setEditType] = React.useState<string>('');
+  const [selectedRowKeys, setSelectedRowKeys] = React.useState<number[]>([]);
   const [form] = Form.useForm();
 
   React.useEffect(() => {
@@ -47,11 +48,6 @@ const UserMembershipPage: React.FC = () => {
       .then(res => res.json())
       .then(data => { if (data.success) setLevels(data.data || []); })
       .catch(() => {});
-  };
-
-  const getLevelName = (levelId: number) => {
-    const level = levels.find((l: any) => l.id === levelId);
-    return level ? level.levelName : '未知';
   };
 
   const openDetail = (record: any) => {
@@ -80,12 +76,6 @@ const UserMembershipPage: React.FC = () => {
     setEditingUser(record);
     setEditType('balance');
     form.resetFields();
-  };
-
-  const openEditExpires = (record: any) => {
-    setEditingUser(record);
-    setEditType('expires');
-    form.setFieldsValue({ memberExpiresAt: record.memberExpiresAt || '' });
   };
 
   const handleSave = async () => {
@@ -134,7 +124,7 @@ const UserMembershipPage: React.FC = () => {
 
   const allColumns = [
     { title: 'ID', dataIndex: 'userId', key: 'userId', width: 70 },
-    { title: '会员等级', dataIndex: 'levelName', key: 'levelName', render: (v: string, r: any) => <Tag color="blue">{v}</Tag> },
+    { title: '会员等级', dataIndex: 'levelName', key: 'levelName', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: '余额', dataIndex: 'balance', key: 'balance', render: (v: number) => formatMoney(v) },
     { title: '应用', key: 'app', render: (_: any, r: any) => <span>{r.appUsed || 0} / {r.appTotal}</span> },
     { title: '卡密', key: 'license', render: (_: any, r: any) => <span>{r.licenseUsed || 0} / {r.licenseTotal}</span> },
@@ -187,9 +177,9 @@ const UserMembershipPage: React.FC = () => {
       return (
         <Form form={form} layout="vertical">
           <Form.Item name="levelId" label="会员等级" rules={[{ required: true }]}>
-            <select style={{ width: '100%', padding: '4px 8px', borderRadius: 4, border: '1px solid #d9d9d9' }}>
-              {levels.map((l: any) => <option key={l.id} value={l.id}>{l.levelName} (¥{l.price})</option>)}
-            </select>
+            <Select placeholder="选择会员等级">
+              {levels.map((l: any) => <Select.Option key={l.id} value={l.id}>{l.levelName} (¥{l.price})</Select.Option>)}
+            </Select>
           </Form.Item>
         </Form>
       );
@@ -236,9 +226,14 @@ const UserMembershipPage: React.FC = () => {
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 12 : 16 }}>
           <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>用户会员管理</Title>
-          <Button size={isMobile ? 'small' : 'middle'} onClick={fetchUsers} loading={loading}>刷新</Button>
+          <Space size="small">
+            {selectedRowKeys.length > 0 && (
+              <Text type="secondary" style={{ fontSize: 12 }}>已选 {selectedRowKeys.length} 项</Text>
+            )}
+            <Button icon={<ReloadOutlined />} size="small" onClick={fetchUsers} loading={loading}>刷新</Button>
+          </Space>
         </div>
         <Table
           columns={displayColumns}
@@ -248,6 +243,7 @@ const UserMembershipPage: React.FC = () => {
           size={isMobile ? 'small' : 'middle'}
           scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }}
           pagination={{ pageSize: 20, simple: isMobile, showSizeChanger: !isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 个用户` }}
+          rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as number[]) }}
         />
       </Card>
 
@@ -256,7 +252,7 @@ const UserMembershipPage: React.FC = () => {
         open={editType !== ''}
         onOk={handleSave}
         onCancel={() => { setEditType(''); setEditingUser(null); }}
-        width={isMobile ? '95%' : 500}
+        width={isMobile ? '100%' : 500}
         className={isMobile ? 'mobile-modal' : undefined}
       >
         {renderEditContent()}
@@ -267,7 +263,7 @@ const UserMembershipPage: React.FC = () => {
         open={detailVisible}
         onCancel={() => { setDetailVisible(false); setEditingUser(null); }}
         footer={null}
-        width={isMobile ? '95%' : 700}
+        width={isMobile ? '100%' : 700}
         className={isMobile ? 'mobile-modal' : undefined}
       >
         {editingUser && (

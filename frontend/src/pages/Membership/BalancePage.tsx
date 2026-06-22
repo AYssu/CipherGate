@@ -1,7 +1,8 @@
 import React from 'react';
-import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, List, Radio, Grid } from 'antd';
+import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, Grid } from 'antd';
+import { WalletOutlined, CrownOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const BalancePage: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -113,8 +114,8 @@ const BalancePage: React.FC = () => {
           </Col>
           <Col>
             <Space direction={isMobile ? 'vertical' : 'horizontal'} size={8}>
-              <Button type="primary" size={isMobile ? 'middle' : 'large'} onClick={() => setRechargeVisible(true)}>充值余额</Button>
-              <Button size={isMobile ? 'middle' : 'large'} onClick={() => setPurchaseVisible(true)}>购买额度/会员</Button>
+              <Button type="primary" size={isMobile ? 'small' : 'large'} icon={<WalletOutlined />} onClick={() => setRechargeVisible(true)}>充值余额</Button>
+              <Button size={isMobile ? 'small' : 'large'} icon={<CrownOutlined />} onClick={() => setPurchaseVisible(true)}>购买额度/会员</Button>
             </Space>
           </Col>
         </Row>
@@ -136,7 +137,7 @@ const BalancePage: React.FC = () => {
         />
       </Card>
 
-      <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
+      <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
         <div style={{ padding: '16px 0' }}>
           <Text>请输入充值金额：</Text>
           <div style={{ margin: '16px 0' }}>
@@ -167,7 +168,7 @@ const BalancePage: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
+      <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
         <div style={{ padding: '8px 0' }}>
           {['APP_QUOTA', 'LICENSE_QUOTA', 'USER_REGISTER_QUOTA', 'TRAFFIC_QUOTA', 'MEMBERSHIP'].map(type => {
             const items = products.filter(p => p.productType === type);

@@ -148,9 +148,9 @@ const UserTicketPage: React.FC = () => {
           <Button type="primary" size={isMobile ? 'small' : 'middle'} icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>创建工单</Button>
         </div>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
+        <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
 
-        <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} width={isMobile ? '95%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
+        <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
           <Form form={form} layout="vertical">
             <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入工单标题' }]}>
               <Input placeholder="简要描述您的问题" />
@@ -185,7 +185,7 @@ const UserTicketPage: React.FC = () => {
           }
           open={detailVisible}
           onCancel={() => setDetailVisible(false)}
-          width={isMobile ? '95%' : 700}
+          width={isMobile ? '100%' : 700}
           className={isMobile ? 'mobile-modal' : undefined}
           footer={
             selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (

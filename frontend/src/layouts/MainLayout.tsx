@@ -279,11 +279,11 @@ const MainLayout: React.FC = () => {
       invite_reward: '/user/invite',
       my_orders: '/user/orders',
       my_tickets: '/user/tickets',
-      membership_level_management: '/system/membership-levels',
-      user_membership_management: '/system/user-memberships',
-      quota_product_management: '/system/quota-products',
-      order_management: '/system/orders',
-      ticket_management: '/system/tickets',
+      membership_level_management: '/membership/levels',
+      user_membership_management: '/membership/users',
+      quota_product_management: '/membership/products',
+      order_management: '/operation/orders',
+      ticket_management: '/operation/tickets',
       app_list_page: '/applications/list',
       license_management: '/applications/licenses',
       app_user_management: '/applications/users',
@@ -315,15 +315,31 @@ const MainLayout: React.FC = () => {
         system_setting: '/system/config',
         system_settings: '/system/config',
         config: '/system/config',
-        membership_level_management: '/system/membership-levels',
-        user_membership_management: '/system/user-memberships',
-        quota_product_management: '/system/quota-products',
-        order_management: '/system/orders',
-        ticket_management: '/system/tickets',
       };
       const matchedPath = systemRouteMap[childKey];
       if (matchedPath) return matchedPath;
       return '/system/info';
+    }
+
+    if (parentKey === 'membership_management') {
+      const membershipRouteMap: Record<string, string> = {
+        membership_level_management: '/membership/levels',
+        user_membership_management: '/membership/users',
+        quota_product_management: '/membership/products',
+      };
+      const matchedPath = membershipRouteMap[childKey];
+      if (matchedPath) return matchedPath;
+      return '/membership/levels';
+    }
+
+    if (parentKey === 'operation_management') {
+      const operationRouteMap: Record<string, string> = {
+        order_management: '/operation/orders',
+        ticket_management: '/operation/tickets',
+      };
+      const matchedPath = operationRouteMap[childKey];
+      if (matchedPath) return matchedPath;
+      return '/operation/orders';
     }
 
     if (parentKey === 'app_management') {

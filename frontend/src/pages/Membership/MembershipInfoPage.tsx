@@ -1,17 +1,17 @@
 import React from 'react';
-import { Card, Typography, Tag, Statistic, Row, Col, Progress, Spin, Space, Grid, Divider } from 'antd';
+import { Card, Typography, Tag, Statistic, Row, Col, Progress, Spin, Space, Grid, Modal, Tooltip } from 'antd';
 import {
   CrownOutlined,
   AppstoreOutlined,
   KeyOutlined,
   TeamOutlined,
   CloudOutlined,
-  CalendarOutlined,
   FireOutlined,
   ArrowUpOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const MembershipInfoPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -19,6 +19,8 @@ const MembershipInfoPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [membership, setMembership] = React.useState<any>(null);
   const [level, setLevel] = React.useState<any>(null);
+  const [allLevels, setAllLevels] = React.useState<any[]>([]);
+  const [showLevelCompare, setShowLevelCompare] = React.useState(false);
 
   React.useEffect(() => {
     Promise.all([
@@ -27,9 +29,12 @@ const MembershipInfoPage: React.FC = () => {
     ]).then(([memRes, lvlRes]) => {
       const mem = memRes.data;
       setMembership(mem);
-      if (mem && lvlRes.data) {
-        const lvl = lvlRes.data.find((l: any) => l.id === mem.levelId);
-        setLevel(lvl);
+      if (lvlRes.data) {
+        setAllLevels(lvlRes.data.sort((a: any, b: any) => a.level - b.level));
+        if (mem) {
+          const lvl = lvlRes.data.find((l: any) => l.id === mem.levelId);
+          setLevel(lvl);
+        }
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -79,7 +84,15 @@ const MembershipInfoPage: React.FC = () => {
               <div>
                 <Space size={8} align="center">
                   <Text style={{ fontSize: 20, fontWeight: 600 }}>{level.levelName}</Text>
-                  <Tag color="purple" style={{ margin: 0 }}>Lv.{level.level}</Tag>
+                  <Tooltip title="点击查看等级对比">
+                    <Tag
+                      color="purple"
+                      style={{ margin: 0, cursor: 'pointer' }}
+                      onClick={() => setShowLevelCompare(true)}
+                    >
+                      Lv.{level.level}
+                    </Tag>
+                  </Tooltip>
                 </Space>
                 <div style={{ marginTop: 4 }}>
                   <Text type="secondary" style={{ fontSize: 13 }}>
@@ -105,7 +118,7 @@ const MembershipInfoPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={6}>
           <Card bordered={false} size="small">
-            <Statistic title="已邀请人数" value={membership.inviteCount || 0} suffix="/ 20" valueStyle={{ fontSize: 20 }} />
+            <Statistic title="已邀请人数" value={membership.inviteCount || 0} valueStyle={{ fontSize: 20 }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
@@ -125,7 +138,7 @@ const MembershipInfoPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card bordered={false} size="small">
+          <Card bordered={false} size="small" hoverable onClick={() => setShowLevelCompare(true)} style={{ cursor: 'pointer' }}>
             <Statistic title="会员等级" value={`Lv.${level.level}`} valueStyle={{ fontSize: 20, color: '#722ed1' }} prefix={<CrownOutlined />} />
           </Card>
         </Col>
@@ -173,6 +186,138 @@ const MembershipInfoPage: React.FC = () => {
           })}
         </Row>
       </Card>
+
+      {/* 等级对比弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <CrownOutlined style={{ color: '#722ed1' }} />
+            <span>会员等级对比</span>
+          </Space>
+        }
+        open={showLevelCompare}
+        onCancel={() => setShowLevelCompare(false)}
+        footer={null}
+        width={isMobile ? '100%' : 800}
+        styles={{ body: { padding: isMobile ? 12 : 24 } }}
+      >
+        <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f6f0ff', borderRadius: 8, border: '1px solid #d3adf7' }}>
+          <Text style={{ color: '#531dab' }}>
+            <CrownOutlined style={{ marginRight: 8 }} />
+            升级会员等级，解锁更多额度和专属权益
+          </Text>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 500 : '100%' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 600, minWidth: 100 }}>等级</th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>价格</th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>
+                  <Space size={4}><AppstoreOutlined />应用</Space>
+                </th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>
+                  <Space size={4}><KeyOutlined />卡密</Space>
+                </th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>
+                  <Space size={4}><TeamOutlined />用户</Space>
+                </th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>
+                  <Space size={4}><CloudOutlined />流量</Space>
+                </th>
+                <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>时长</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allLevels.map((l: any) => {
+                const isCurrent = l.id === level?.id;
+                const isHigher = l.level > (level?.level || 0);
+                const rowBg = isCurrent ? '#f6f0ff' : isHigher ? '#f6ffed' : '#fafafa';
+                const rowBorder = isCurrent ? '2px solid #722ed1' : '1px solid #f0f0f0';
+
+                const formatQuota = (v: number) => v === -1 ? '不限' : v?.toLocaleString() || '0';
+                const formatBytes = (bytes: number) => {
+                  if (!bytes || bytes === 0) return '0 B';
+                  if (bytes === -1) return '不限';
+                  const k = 1024;
+                  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                  const i = Math.floor(Math.log(bytes) / Math.log(k));
+                  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+                };
+
+                return (
+                  <tr key={l.id} style={{ background: rowBg, borderBottom: rowBorder }}>
+                    <td style={{ padding: '12px 8px' }}>
+                      <Space size={8}>
+                        <Tag color={isCurrent ? 'purple' : isHigher ? 'green' : 'default'} style={{ margin: 0 }}>
+                          Lv.{l.level}
+                        </Tag>
+                        <Text strong={isCurrent}>{l.levelName}</Text>
+                        {isCurrent && <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>当前</Tag>}
+                      </Space>
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      <div>
+                        {l.price > 0 ? (
+                          <>
+                            <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
+                              ¥{Math.max(0, l.price - 60)}
+                            </Text>
+                            <Text type="secondary" style={{ textDecoration: 'line-through', marginLeft: 4, fontSize: 12 }}>
+                              ¥{l.price}
+                            </Text>
+                          </>
+                        ) : (
+                          <Text strong style={{ color: '#52c41a', fontSize: 16 }}>免费</Text>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      {l.appQuota === -1 ? (
+                        <Text style={{ color: '#52c41a', fontWeight: 600 }}>不限</Text>
+                      ) : (
+                        <Text>{l.appQuota || 0}</Text>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      {l.licenseQuota === -1 ? (
+                        <Text style={{ color: '#52c41a', fontWeight: 600 }}>不限</Text>
+                      ) : (
+                        <Text>{formatQuota(l.licenseQuota)}</Text>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      {l.userRegisterQuota === -1 ? (
+                        <Text style={{ color: '#52c41a', fontWeight: 600 }}>不限</Text>
+                      ) : (
+                        <Text>{formatQuota(l.userRegisterQuota)}</Text>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      {l.trafficQuota === -1 ? (
+                        <Text style={{ color: '#52c41a', fontWeight: 600 }}>不限</Text>
+                      ) : (
+                        <Text>{formatBytes(l.trafficQuota)}</Text>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      <Text>{l.durationDays > 0 ? `${l.durationDays}天` : '永久'}</Text>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {level && (
+          <div style={{ marginTop: 16, padding: '12px 16px', background: '#fffbe6', borderRadius: 8, border: '1px solid #ffe58f' }}>
+            <Text style={{ color: '#ad6800' }}>
+              <FireOutlined style={{ marginRight: 8 }} />
+              邀请好友注册即可获得 ¥3/人余额奖励，邀请满20人可获 ¥60，足够购买任意等级会员
+            </Text>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

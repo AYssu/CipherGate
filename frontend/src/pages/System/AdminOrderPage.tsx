@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Table, Tag, Button, message, Typography, Grid, Dropdown, Space } from 'antd';
-import { MoreOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Button, message, Typography, Grid, Dropdown } from 'antd';
+import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -60,8 +60,11 @@ const AdminOrderPage: React.FC = () => {
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
-        <Title level={isMobile ? 5 : 4}>订单管理</Title>
-        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 12 : 16 }}>
+          <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>订单管理</Title>
+          <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders} loading={loading}>刷新</Button>
+        </div>
+        <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
       </Card>
     </div>
   );

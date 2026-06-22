@@ -12,12 +12,15 @@ const SystemConfigContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [geoIpSaving, setGeoIpSaving] = useState(false);
+  const [ip2RegionSaving, setIp2RegionSaving] = useState(false);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [githubForm] = Form.useForm();
   const [siteForm] = Form.useForm();
   const [emailForm] = Form.useForm();
   const [paymentForm] = Form.useForm();
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [inviteForm] = Form.useForm();
+  const [inviteSaving, setInviteSaving] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -56,6 +59,16 @@ const SystemConfigContent: React.FC = () => {
           epayNotifyUrl: payData?.epayNotifyUrl || '',
           epayReturnUrl: payData?.epayReturnUrl || '',
           successRedirectUrl: payData?.successRedirectUrl || '/user/balance',
+        });
+      } catch {}
+      // 加载邀请配置
+      try {
+        const inviteRes = await systemApi.getInviteConfig();
+        const inviteData = inviteRes.data;
+        inviteForm.setFieldsValue({
+          enabled: inviteData?.enabled !== false,
+          maxCount: inviteData?.maxCount ?? 20,
+          rewardAmount: inviteData?.rewardAmount ? inviteData.rewardAmount / 100 : 3,
         });
       } catch {}
     } catch (error) {
@@ -144,6 +157,26 @@ const SystemConfigContent: React.FC = () => {
     }
   };
 
+  const submitInvite = async () => {
+    try {
+      const values = await inviteForm.validateFields();
+      setInviteSaving(true);
+      await systemApi.updateInviteConfig({
+        enabled: values.enabled,
+        maxCount: values.maxCount,
+        rewardAmount: Math.round(values.rewardAmount * 100),
+      });
+      message.success('邀请配置已保存');
+      await loadSettings();
+    } catch (error: any) {
+      if (!error?.errorFields) {
+        message.error(error?.message || '保存邀请配置失败');
+      }
+    } finally {
+      setInviteSaving(false);
+    }
+  };
+
   const toggleGeoIp = async (enabled: boolean) => {
     try {
       setGeoIpSaving(true);
@@ -167,6 +200,33 @@ const SystemConfigContent: React.FC = () => {
       message.error(error?.message || '上传失败');
     } finally {
       setGeoIpSaving(false);
+    }
+    return false;
+  };
+
+  const toggleIp2Region = async (enabled: boolean) => {
+    try {
+      setIp2RegionSaving(true);
+      await systemApi.updateIp2RegionSettings({ enabled });
+      message.success(enabled ? '已开启 ip2region' : '已关闭 ip2region');
+      await loadSettings();
+    } catch (error: any) {
+      message.error(error?.message || '更新 ip2region 开关失败');
+    } finally {
+      setIp2RegionSaving(false);
+    }
+  };
+
+  const uploadIp2RegionDb = async (file: File) => {
+    try {
+      setIp2RegionSaving(true);
+      await systemApi.uploadIp2RegionDb(file);
+      message.success('ip2region 数据库上传成功');
+      await loadSettings();
+    } catch (error: any) {
+      message.error(error?.message || '上传失败');
+    } finally {
+      setIp2RegionSaving(false);
     }
     return false;
   };
@@ -365,9 +425,77 @@ const SystemConfigContent: React.FC = () => {
             label: 'IP解析',
             children: (
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Title level={5}>ip2region（推荐）</Title>
+                <Text type="secondary">
+                  ip2region 是一个离线IP地址定位库，支持中国IP精准定位，数据库文件约7MB，查询速度极快。
+                </Text>
+                <div style={{ padding: '8px 12px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #d0d7de' }}>
+                  <Text strong>下载地址：</Text>
+                  <br />
+                  <Text>
+                    <a href="https://github.com/lionsoul2014/ip2region/tree/master/data" target="_blank" rel="noopener noreferrer">
+                      https://github.com/lionsoul2014/ip2region/tree/master/data
+                    </a>
+                  </Text>
+                  <br />
+                  <Text type="secondary">下载 ip2region.xdb 文件，上传到此处即可。</Text>
+                </div>
                 <Row gutter={isMobile ? [0, 8] : 16} align="middle">
                   <Col span={isMobile ? 16 : 8}>
-                    <Text>启用 IP 地理解析</Text>
+                    <Text>启用 ip2region</Text>
+                  </Col>
+                  <Col span={isMobile ? 8 : 16}>
+                    <Switch
+                      checked={!!settings?.ip2RegionEnabled}
+                      loading={ip2RegionSaving}
+                      onChange={toggleIp2Region}
+                    />
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 16] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Space>
+                      <Text>ip2region 数据库：</Text>
+                      <Text type={settings?.ip2RegionUploaded ? 'success' : 'secondary'}>
+                        {settings?.ip2RegionUploaded ? '已上传' : '未上传'}
+                      </Text>
+                    </Space>
+                    <div style={{ marginTop: 8 }}>
+                      <Upload
+                        accept=".xdb"
+                        showUploadList={false}
+                        beforeUpload={(file) => uploadIp2RegionDb(file)}
+                      >
+                        <Button icon={<UploadOutlined />} loading={ip2RegionSaving} block={isMobile}>上传 ip2region.xdb</Button>
+                      </Upload>
+                    </div>
+                  </Col>
+                </Row>
+                <Text type={settings?.ip2RegionReady ? 'success' : 'warning'}>
+                  当前状态：{settings?.ip2RegionReady ? '就绪' : '未就绪'}
+                  {settings?.ip2RegionLastError ? `（${settings.ip2RegionLastError}）` : ''}
+                </Text>
+
+                <Title level={5}>MaxMind GeoIP（备用）</Title>
+                <Text type="secondary">
+                  MaxMind GeoIP2 是国际通用的IP地理定位库，需要同时上传 Country 和 City 两个数据库文件。
+                </Text>
+                <div style={{ padding: '8px 12px', background: '#f6f8fa', borderRadius: 6, border: '1px solid #d0d7de' }}>
+                  <Text strong>下载地址：</Text>
+                  <br />
+                  <Text>
+                    <a href="https://dev.maxmind.com/geoip/geolite2-free-geolocation-data" target="_blank" rel="noopener noreferrer">
+                      https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+                    </a>
+                  </Text>
+                  <br />
+                  <Text type="secondary">
+                    需要注册 MaxMind 账号（免费），下载 GeoLite2 Country 和 GeoLite2 City 的 .mmdb 格式文件。
+                  </Text>
+                </div>
+                <Row gutter={isMobile ? [0, 8] : 16} align="middle">
+                  <Col span={isMobile ? 16 : 8}>
+                    <Text>启用 MaxMind GeoIP</Text>
                   </Col>
                   <Col span={isMobile ? 8 : 16}>
                     <Switch
@@ -419,7 +547,35 @@ const SystemConfigContent: React.FC = () => {
                 </Text>
               </Space>
             ),
-          }
+          },
+          {
+            key: 'invite',
+            label: '邀请有奖',
+            children: (
+              <Form form={inviteForm} layout="vertical">
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="enabled" label="启用邀请功能" valuePropName="checked">
+                      <Switch />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="maxCount" label="最大邀请人数" rules={[{ required: true, message: '请输入最大邀请人数' }]}>
+                      <Input type="number" min={1} placeholder="20" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="rewardAmount" label="每人奖励金额（元）" rules={[{ required: true, message: '请输入奖励金额' }]}>
+                      <Input type="number" min={0} step={0.1} placeholder="3" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Space>
+                  <Button type="primary" loading={inviteSaving} onClick={submitInvite}>保存邀请配置</Button>
+                </Space>
+              </Form>
+            ),
+          },
         ]}
       />
     </Card>

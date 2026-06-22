@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Grid } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -44,9 +45,9 @@ const QuotaProductPage: React.FC = () => {
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 12 : 16 }}>
           <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>额度商品管理</Title>
-          <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={() => { setEditing(null); form.resetFields(); setEditVisible(true); }}>新增商品</Button>
+          <Button type="primary" size={isMobile ? 'small' : 'middle'} icon={<PlusOutlined />} onClick={() => { setEditing(null); form.resetFields(); setEditVisible(true); }}>新增商品</Button>
         </div>
         <Table
           columns={columns}
@@ -54,7 +55,7 @@ const QuotaProductPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           size={isMobile ? 'small' : 'middle'}
-          scroll={{ x: isMobile ? 300 : undefined }}
+          scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }}
           pagination={false}
         />
         <Modal
@@ -62,7 +63,7 @@ const QuotaProductPage: React.FC = () => {
           open={editVisible}
           onOk={handleSave}
           onCancel={() => setEditVisible(false)}
-          width={isMobile ? '95%' : 520}
+          width={isMobile ? '100%' : 520}
           className={isMobile ? 'mobile-modal' : undefined}
         >
           <Form form={form} layout="vertical">

@@ -94,9 +94,19 @@ export const router = createBrowserRouter([
           { path: 'permissions', element: <PermissionManagementPage /> },
           { path: 'info', element: <SystemInfoPage /> },
           { path: 'config', element: <SystemConfigPage /> },
-          { path: 'membership-levels', element: <MembershipLevelPage /> },
-          { path: 'user-memberships', element: <UserMembershipPage /> },
-          { path: 'quota-products', element: <QuotaProductPage /> },
+        ],
+      },
+      {
+        path: '/membership',
+        children: [
+          { path: 'levels', element: <MembershipLevelPage /> },
+          { path: 'users', element: <UserMembershipPage /> },
+          { path: 'products', element: <QuotaProductPage /> },
+        ],
+      },
+      {
+        path: '/operation',
+        children: [
           { path: 'orders', element: <AdminOrderPage /> },
           { path: 'tickets', element: <AdminTicketPage /> },
         ],

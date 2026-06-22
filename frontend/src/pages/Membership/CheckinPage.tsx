@@ -2,14 +2,14 @@ import React from 'react';
 import { Card, Button, Typography, Statistic, Row, Col, Tag, message, Grid } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 const CheckinPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
 
   const [status, setStatus] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [_loading, setLoading] = React.useState(true);
   const [checkinLoading, setCheckinLoading] = React.useState(false);
 
   React.useEffect(() => {

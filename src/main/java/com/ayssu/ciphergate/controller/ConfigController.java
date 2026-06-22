@@ -7,6 +7,7 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.GeoIpService;
+import com.ayssu.ciphergate.service.Ip2RegionService;
 import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.service.SystemConfigService;
 import com.ayssu.ciphergate.service.UserService;
@@ -44,6 +45,7 @@ public class ConfigController {
     private final Environment environment;
     private final UserService userService;
     private final SecurityUtils securityUtils;
+    private final Ip2RegionService ip2RegionService;
     
     @Value("${app.security.init-reset-enabled:false}")
     private boolean initResetEnabled;
@@ -280,6 +282,11 @@ public class ConfigController {
             data.put("geoIpCityUploaded", minioObjectService.contentLengthDefaultBucket(cityKey) > 0);
             data.put("geoIpReady", geoIpService.isReady());
             data.put("geoIpLastError", geoIpService.getLastError());
+            data.put("ip2RegionEnabled", ip2RegionService.isEnabled());
+            String ip2RegionKey = systemConfigService.getConfigValue(Ip2RegionService.CONFIG_IP2REGION_OBJECT_KEY, "");
+            data.put("ip2RegionUploaded", minioObjectService.contentLengthDefaultBucket(ip2RegionKey) > 0);
+            data.put("ip2RegionReady", ip2RegionService.isReady());
+            data.put("ip2RegionLastError", ip2RegionService.getLastError());
             return Result.success(data);
         } catch (SecurityException e) {
             return Result.error(e.getMessage());
@@ -417,7 +424,94 @@ public class ConfigController {
             return Result.error("上传 GeoIP 数据库失败: " + e.getMessage());
         }
     }
-    
+
+    @PostMapping("/settings/ip2region")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新ip2region开关")
+    @Operation(summary = "更新ip2region开关")
+    public Result<Void> updateIp2RegionSettings(@RequestBody Map<String, Object> request) {
+        try {
+            requireSuperAdmin();
+            Object enabledObj = request.get("enabled");
+            boolean enabled = enabledObj instanceof Boolean b && b;
+            systemConfigService.setConfigValue(Ip2RegionService.CONFIG_IP2REGION_ENABLED, String.valueOf(enabled), "ip2region 开关", false);
+            ip2RegionService.reloadSearcher();
+            if (enabled && !ip2RegionService.isReady()) {
+                return Result.error("已开启但 ip2region 未就绪: " + (ip2RegionService.getLastError() == null ? "请先上传 xdb 文件" : ip2RegionService.getLastError()));
+            }
+            return Result.success("ip2region 配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/ip2region/upload")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "上传ip2region数据库")
+    @Operation(summary = "上传 ip2region 数据库文件（xdb）")
+    public Result<Void> uploadIp2RegionDb(@RequestParam("file") MultipartFile file) {
+        try {
+            requireSuperAdmin();
+            if (file == null || file.isEmpty()) {
+                return Result.error("上传文件不能为空");
+            }
+            if (!minioProperties.isEnabled()) {
+                return Result.error("MinIO 未启用，无法上传 ip2region 数据库");
+            }
+            String originalFilename = file.getOriginalFilename();
+            if (!StringUtils.hasText(originalFilename) || !originalFilename.toLowerCase().endsWith(".xdb")) {
+                return Result.error("仅支持 .xdb 文件");
+            }
+            String objectKey = "ip2region/ip2region.xdb";
+            minioObjectService.uploadBinaryDefaultBucket(objectKey, file, "application/octet-stream");
+            systemConfigService.setConfigValue(Ip2RegionService.CONFIG_IP2REGION_OBJECT_KEY, objectKey, "ip2region 数据库对象键", false);
+            ip2RegionService.reloadSearcher();
+            return Result.success("ip2region 文件上传成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("上传 ip2region 数据库失败: {}", e.getMessage(), e);
+            return Result.error("上传 ip2region 数据库失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/settings/invite")
+    @Operation(summary = "获取邀请有奖配置")
+    public Result<Map<String, Object>> getInviteSettings() {
+        try {
+            Map<String, Object> settings = new java.util.HashMap<>();
+            settings.put("enabled", Boolean.parseBoolean(systemConfigService.getConfigValue("invite.enabled", "true")));
+            settings.put("maxCount", Integer.parseInt(systemConfigService.getConfigValue("invite.max-count", "20")));
+            settings.put("rewardAmount", Long.parseLong(systemConfigService.getConfigValue("invite.reward-amount", "300")));
+            return Result.success(settings);
+        } catch (Exception e) {
+            return Result.error("获取邀请配置失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/invite")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新邀请有奖配置")
+    @Operation(summary = "更新邀请有奖配置")
+    public Result<Void> updateInviteSettings(@RequestBody Map<String, Object> request) {
+        try {
+            requireSuperAdmin();
+            if (request.containsKey("enabled")) {
+                systemConfigService.setConfigValue("invite.enabled", String.valueOf(request.get("enabled")), "邀请功能开关", false);
+            }
+            if (request.containsKey("maxCount")) {
+                systemConfigService.setConfigValue("invite.max-count", String.valueOf(request.get("maxCount")), "最大邀请人数", false);
+            }
+            if (request.containsKey("rewardAmount")) {
+                systemConfigService.setConfigValue("invite.reward-amount", String.valueOf(request.get("rewardAmount")), "邀请奖励金额(分)", false);
+            }
+            return Result.success("邀请配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            return Result.error("更新邀请配置失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 初始化系统配置（无需权限，但只能在默认配置时使用）
      */

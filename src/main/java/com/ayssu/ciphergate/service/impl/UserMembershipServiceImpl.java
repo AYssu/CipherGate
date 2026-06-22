@@ -107,6 +107,22 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Override
     @Transactional
+    public void regenerateInviteCode(Long userId) {
+        UserMembership membership = getByUserId(userId);
+        if (membership == null) {
+            log.warn("用户[{}]会员不存在，无法重新生成邀请码", userId);
+            return;
+        }
+        if (membership.getInviteCode() != null && !membership.getInviteCode().isEmpty()) {
+            return;
+        }
+        membership.setInviteCode(generateInviteCode());
+        updateById(membership);
+        log.info("用户[{}]邀请码已重新生成: {}", userId, membership.getInviteCode());
+    }
+
+    @Override
+    @Transactional
     public void upgradeLevel(Long userId, Long toLevelId, Long operatorId, String remark) {
         UserMembership membership = getByUserId(userId);
         if (membership == null) {

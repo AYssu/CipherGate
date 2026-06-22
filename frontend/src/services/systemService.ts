@@ -72,6 +72,10 @@ export interface SystemSettings {
   geoIpCityUploaded: boolean;
   geoIpReady: boolean;
   geoIpLastError?: string;
+  ip2RegionEnabled: boolean;
+  ip2RegionUploaded: boolean;
+  ip2RegionReady: boolean;
+  ip2RegionLastError?: string;
 }
 
 export const systemApi = {
@@ -163,5 +167,25 @@ export const systemApi = {
     return request.post(`/config/settings/geoip/upload/${dbType}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+  },
+
+  updateIp2RegionSettings: (data: { enabled: boolean }) => {
+    return request.post('/config/settings/ip2region', data);
+  },
+
+  uploadIp2RegionDb: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request.post('/config/settings/ip2region/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  getInviteConfig: () => {
+    return request.get('/config/settings/invite');
+  },
+
+  updateInviteConfig: (data: { enabled: boolean; maxCount: number; rewardAmount: number }) => {
+    return request.post('/config/settings/invite', data);
   },
 };

@@ -8,13 +8,12 @@ let isRedirectingToLogin = false;
 const request = axios.create({
   baseURL: '/api',
   timeout: 10000,
-  withCredentials: true, // 支持跨域携带 cookie
+  withCredentials: true,
 });
 
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    // 可以在这里添加 token 等认证信息
     return config;
   },
   (error) => {

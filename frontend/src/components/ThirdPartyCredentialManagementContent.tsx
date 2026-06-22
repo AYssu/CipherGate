@@ -286,7 +286,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
               size="small"
               icon={<ReloadOutlined />}
               onClick={() => fetchData()}
-              style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+             
             >
               刷新
             </Button>
@@ -295,7 +295,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
               size="small"
               icon={<PlusOutlined />}
               onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1 }); setModalVisible(true); }}
-              style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+             
             >
               新增
             </Button>

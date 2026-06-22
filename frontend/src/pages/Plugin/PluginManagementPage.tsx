@@ -229,7 +229,6 @@ const PluginManagementPage = () => {
                 size={isMobile ? 'small' : 'middle'}
                 icon={<ReloadOutlined />}
                 onClick={loadPlugins}
-                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
               >
                 刷新
               </Button>
@@ -238,7 +237,6 @@ const PluginManagementPage = () => {
                 size={isMobile ? 'small' : 'middle'}
                 icon={<UploadOutlined />}
                 onClick={() => setUploadOpen(true)}
-                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
               >
                 上传插件
               </Button>

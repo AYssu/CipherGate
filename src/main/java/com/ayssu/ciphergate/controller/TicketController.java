@@ -57,10 +57,17 @@ public class TicketController {
 
     @GetMapping("/{ticketNo}")
     @Operation(summary = "工单详情")
-    public Result<Map<String, Object>> getTicketDetail(@PathVariable String ticketNo) {
+    public Result<Map<String, Object>> getTicketDetail(@PathVariable String ticketNo, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "未登录");
+        }
         Ticket ticket = ticketService.getTicketByNo(ticketNo);
         if (ticket == null) {
             return Result.error("工单不存在");
+        }
+        if (!ticket.getUserId().equals(user.getId())) {
+            return Result.error(403, "无权查看此工单");
         }
         List<TicketMessage> messages = ticketService.getMessages(ticket.getId());
         return Result.success(Map.of("ticket", ticket, "messages", messages));
@@ -80,6 +87,9 @@ public class TicketController {
         if (ticket == null) {
             return Result.error("工单不存在");
         }
+        if (!ticket.getUserId().equals(user.getId())) {
+            return Result.error(403, "无权操作此工单");
+        }
         String content = body.get("content");
         String imageUrls = body.get("imageUrls");
         TicketMessage message = ticketService.sendMessage(ticket.getId(), user.getId(), "USER", content, imageUrls);
@@ -97,6 +107,9 @@ public class TicketController {
         if (ticket == null) {
             return Result.error("工单不存在");
         }
+        if (!ticket.getUserId().equals(user.getId())) {
+            return Result.error(403, "无权操作此工单");
+        }
         ticketService.closeTicket(ticket.getId(), user.getId());
         return Result.success("工单已关闭");
     }
@@ -111,6 +124,9 @@ public class TicketController {
         Ticket ticket = ticketService.getTicketByNo(ticketNo);
         if (ticket == null) {
             return Result.error("工单不存在");
+        }
+        if (!ticket.getUserId().equals(user.getId())) {
+            return Result.error(403, "无权操作此工单");
         }
         try {
             ticketService.urgeTicket(ticket.getId(), user.getId());

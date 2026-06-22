@@ -732,13 +732,13 @@ const AppVariableManagementContent: React.FC = () => {
                 }}
                 trigger={['click']}
               >
-                <Button size="small" icon={<MoreOutlined />} style={{ fontSize: 12, padding: '0 6px', height: 24 }}>更多</Button>
+                <Button size="small" icon={<MoreOutlined />}>更多</Button>
               </Dropdown>
               <Button
                 size="small"
                 icon={<ReloadOutlined />}
                 onClick={() => fetchVariables(pagination.current, pagination.pageSize)}
-                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+               
               >
                 刷新
               </Button>
@@ -747,7 +747,7 @@ const AppVariableManagementContent: React.FC = () => {
                 size="small"
                 icon={<PlusOutlined />}
                 onClick={() => handleOpenEdit()}
-                style={{ fontSize: 12, padding: '0 6px', height: 24 }}
+               
               >
                 新建
               </Button>

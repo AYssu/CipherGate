@@ -295,7 +295,7 @@ const PermissionManagementContent: React.FC = () => {
               <Button
                 danger
                 size={isMobile ? 'small' : 'middle'}
-                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+               
               >
                 批量删除 ({selectedRowKeys.length})
               </Button>
@@ -306,7 +306,7 @@ const PermissionManagementContent: React.FC = () => {
             onClick={fetchPermissions}
             loading={loading}
             size={isMobile ? 'small' : 'middle'}
-            style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+           
           >
             刷新
           </Button>
@@ -315,7 +315,7 @@ const PermissionManagementContent: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={handleAdd}
             size={isMobile ? 'small' : 'middle'}
-            style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+           
           >
             新增权限
           </Button>

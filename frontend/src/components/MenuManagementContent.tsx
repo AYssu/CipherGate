@@ -339,7 +339,7 @@ const MenuManagementContent: React.FC = () => {
               <Button
                 danger
                 size={isMobile ? 'small' : 'middle'}
-                style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+               
               >
                 批量删除 ({selectedRowKeys.length})
               </Button>
@@ -350,7 +350,7 @@ const MenuManagementContent: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={handleAdd}
             size={isMobile ? 'small' : 'middle'}
-            style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+           
           >
             新增菜单
           </Button>

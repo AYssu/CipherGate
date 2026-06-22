@@ -1392,7 +1392,7 @@ const AppUserManagementContent: React.FC = () => {
               size={isMobile ? 'small' : 'middle'}
               icon={<ReloadOutlined />}
               onClick={() => fetchUsers(pagination.current, pagination.pageSize, filters)}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               刷新
             </Button>
@@ -1401,7 +1401,7 @@ const AppUserManagementContent: React.FC = () => {
               size={isMobile ? 'small' : 'middle'}
               icon={<PlusOutlined />}
               onClick={() => handleOpenModal()}
-              style={isMobile ? { fontSize: 12, padding: '0 6px', height: 24 } : undefined}
+             
             >
               创建
             </Button>

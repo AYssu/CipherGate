@@ -136,6 +136,12 @@ CREATE TABLE IF NOT EXISTS system_config (
 INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES
 ('SYSTEM_INITIALIZED', 'false', '系统初始化标记，用于判断是否已完成首次初始化');
 
+-- 邀请有奖默认配置
+INSERT IGNORE INTO system_config (config_key, config_value, description) VALUES
+('invite.enabled', 'true', '邀请功能开关'),
+('invite.max-count', '20', '最大邀请人数'),
+('invite.reward-amount', '300', '邀请奖励金额(分)');
+
 -- 检查是否是首次初始化，如果是则分配默认权限
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p 

@@ -90,10 +90,17 @@ public class PaymentController {
 
     @GetMapping("/orders/{orderNo}")
     @Operation(summary = "订单详情")
-    public Result<PaymentOrder> getOrderDetail(@PathVariable String orderNo) {
+    public Result<PaymentOrder> getOrderDetail(@PathVariable String orderNo, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "未登录");
+        }
         PaymentOrder order = paymentOrderService.getByOrderNo(orderNo);
         if (order == null) {
             return Result.error("订单不存在");
+        }
+        if (!order.getUserId().equals(user.getId())) {
+            return Result.error(403, "无权查看此订单");
         }
         return Result.success(order);
     }

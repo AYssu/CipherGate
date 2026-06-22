@@ -44,7 +44,6 @@ public class SecurityConfig {
                                 "/api/payment/return",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
-                        // Swagger(OpenAPI) 文档只允许超级管理员访问
                         .requestMatchers("/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-resources/**").hasAuthority("ROLE_SUPER_ADMIN")

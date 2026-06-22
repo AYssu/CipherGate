@@ -31,6 +31,22 @@ public class InviteController {
         return Result.success(inviteService.getInviteCode(user.getId()));
     }
 
+    @PostMapping("/bind")
+    @Operation(summary = "绑定邀请码", description = "绑定他人的邀请码，绑定后不可更改")
+    public Result<String> bindInviteCode(@RequestBody Map<String, String> body, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "未登录");
+        }
+        String inviteCode = body.get("inviteCode");
+        try {
+            String inviterCode = inviteService.bindInviteCode(user.getId(), inviteCode);
+            return Result.success("绑定成功", inviterCode);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
     @GetMapping("/records")
     @Operation(summary = "邀请记录列表")
     public Result<?> getInviteRecords(

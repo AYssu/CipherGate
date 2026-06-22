@@ -27,6 +27,7 @@ public class GeoIpService {
     private final SystemConfigService systemConfigService;
     private final MinioObjectService minioObjectService;
     private final MinioProperties minioProperties;
+    private final Ip2RegionService ip2RegionService;
 
     private volatile DatabaseReader countryReader;
     private volatile DatabaseReader cityReader;
@@ -38,6 +39,8 @@ public class GeoIpService {
     private volatile boolean ready;
     @Getter
     private volatile String lastError;
+    @Getter
+    private volatile String provider; // "maxmind" or "ip2region"
 
     @PostConstruct
     public void init() {
@@ -52,6 +55,17 @@ public class GeoIpService {
         closeReaders();
         ready = false;
         lastError = null;
+        provider = null;
+        
+        // 先尝试 ip2region
+        if (ip2RegionService.isEnabled() && ip2RegionService.isReady()) {
+            ready = true;
+            provider = "ip2region";
+            log.info("GeoIP using ip2region provider");
+            return;
+        }
+        
+        // 回退到 MaxMind
         countryDbPath = systemConfigService.getConfigValue(CONFIG_GEOIP_COUNTRY_OBJECT_KEY, "");
         cityDbPath = systemConfigService.getConfigValue(CONFIG_GEOIP_CITY_OBJECT_KEY, "");
         if (!isEnabled()) {
@@ -70,6 +84,7 @@ public class GeoIpService {
             countryReader = new DatabaseReader.Builder(countryIn).build();
             cityReader = new DatabaseReader.Builder(cityIn).build();
             ready = true;
+            provider = "maxmind";
             log.info("GeoIP readers loaded from MinIO: bucket={}, countryKey={}, cityKey={}",
                     minioProperties.getBucket(), countryDbPath, cityDbPath);
         } catch (Exception e) {
@@ -82,6 +97,23 @@ public class GeoIpService {
         if (!ready || !StringUtils.hasText(ip)) {
             return Optional.empty();
         }
+        
+        // 优先使用 ip2region
+        if ("ip2region".equals(provider)) {
+            Ip2RegionService.Ip2RegionResult result = ip2RegionService.resolve(ip);
+            if (result != null) {
+                return Optional.of(new GeoIpResult(
+                    result.ip(),
+                    null, // ip2region 不提供国家代码
+                    result.country(),
+                    result.province(),
+                    result.city()
+                ));
+            }
+            return Optional.empty();
+        }
+        
+        // 回退到 MaxMind
         try {
             InetAddress addr = InetAddress.getByName(ip);
             if (addr.isAnyLocalAddress() || addr.isLoopbackAddress() || addr.isSiteLocalAddress()) {

@@ -200,7 +200,7 @@ const AdminTicketPage: React.FC = () => {
           }
           open={detailVisible}
           onCancel={() => setDetailVisible(false)}
-          width={isMobile ? '95%' : 700}
+          width={isMobile ? '100%' : 700}
           className={isMobile ? 'mobile-modal' : undefined}
           footer={
             selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
