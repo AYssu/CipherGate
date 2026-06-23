@@ -21,14 +21,23 @@ const MembershipInfoPage: React.FC = () => {
   const [level, setLevel] = React.useState<any>(null);
   const [allLevels, setAllLevels] = React.useState<any[]>([]);
   const [showLevelCompare, setShowLevelCompare] = React.useState(false);
+  const [inviteEnabled, setInviteEnabled] = React.useState(true);
+  const [inviteConfig, setInviteConfig] = React.useState({ rewardAmount: 300, maxInviteCount: 20 });
 
   React.useEffect(() => {
     Promise.all([
       fetch('/api/user/membership/info', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/membership/levels', { credentials: 'include' }).then(r => r.json())
-    ]).then(([memRes, lvlRes]) => {
+      fetch('/api/membership/levels/public', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/user/invite/stats', { credentials: 'include' }).then(r => r.json()).catch(() => ({ data: {} }))
+    ]).then(([memRes, lvlRes, inviteRes]) => {
       const mem = memRes.data;
       setMembership(mem);
+      const inviteData = inviteRes?.data || {};
+      setInviteEnabled(inviteData.enabled !== false);
+      setInviteConfig({
+        rewardAmount: inviteData.rewardAmount || 300,
+        maxInviteCount: inviteData.maxInviteCount || 20
+      });
       if (lvlRes.data) {
         setAllLevels(lvlRes.data.sort((a: any, b: any) => a.level - b.level));
         if (mem) {
@@ -116,17 +125,19 @@ const MembershipInfoPage: React.FC = () => {
 
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card bordered={false} size="small">
-            <Statistic title="已邀请人数" value={membership.inviteCount || 0} valueStyle={{ fontSize: 20 }} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
+        {inviteEnabled && (
+          <Col xs={12} sm={6}>
+            <Card bordered={false} size="small">
+              <Statistic title="已邀请人数" value={membership.inviteCount || 0} valueStyle={{ fontSize: 20 }} />
+            </Card>
+          </Col>
+        )}
+        <Col xs={12} sm={inviteEnabled ? 6 : 8}>
           <Card bordered={false} size="small">
             <Statistic title="累计签到" value={membership.totalCheckinDays || 0} suffix="天" valueStyle={{ fontSize: 20 }} />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={inviteEnabled ? 6 : 8}>
           <Card bordered={false} size="small">
             <Statistic
               title="连续签到"
@@ -137,7 +148,7 @@ const MembershipInfoPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={inviteEnabled ? 6 : 8}>
           <Card bordered={false} size="small" hoverable onClick={() => setShowLevelCompare(true)} style={{ cursor: 'pointer' }}>
             <Statistic title="会员等级" value={`Lv.${level.level}`} valueStyle={{ fontSize: 20, color: '#722ed1' }} prefix={<CrownOutlined />} />
           </Card>
@@ -261,7 +272,7 @@ const MembershipInfoPage: React.FC = () => {
                         {l.price > 0 ? (
                           <>
                             <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
-                              ¥{Math.max(0, l.price - 60)}
+                              ¥{Math.max(0, l.price - (inviteConfig.rewardAmount / 100 * inviteConfig.maxInviteCount))}
                             </Text>
                             <Text type="secondary" style={{ textDecoration: 'line-through', marginLeft: 4, fontSize: 12 }}>
                               ¥{l.price}
@@ -313,7 +324,7 @@ const MembershipInfoPage: React.FC = () => {
           <div style={{ marginTop: 16, padding: '12px 16px', background: '#fffbe6', borderRadius: 8, border: '1px solid #ffe58f' }}>
             <Text style={{ color: '#ad6800' }}>
               <FireOutlined style={{ marginRight: 8 }} />
-              邀请好友注册即可获得 ¥3/人余额奖励，邀请满20人可获 ¥60，足够购买任意等级会员
+              邀请好友注册即可获得 ¥{(inviteConfig.rewardAmount / 100).toFixed(2)}/人余额奖励，邀请满{inviteConfig.maxInviteCount}人可获 ¥{(inviteConfig.rewardAmount / 100 * inviteConfig.maxInviteCount).toFixed(2)}
             </Text>
           </div>
         )}

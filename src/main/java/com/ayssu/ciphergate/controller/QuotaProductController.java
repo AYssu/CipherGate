@@ -28,6 +28,15 @@ public class QuotaProductController {
         return Result.success(quotaProductService.getActiveProducts());
     }
 
+    /**
+     * 获取额度商品列表（登录用户可用，用于购买）
+     */
+    @GetMapping("/public")
+    @Operation(summary = "获取额度商品列表（登录用户可用）")
+    public Result<List<QuotaProduct>> getProductsPublic() {
+        return Result.success(quotaProductService.getActiveProducts());
+    }
+
     @GetMapping("/{id}")
     @RequirePermission("QUOTA_PRODUCT_LIST")
     @Operation(summary = "获取额度商品详情")

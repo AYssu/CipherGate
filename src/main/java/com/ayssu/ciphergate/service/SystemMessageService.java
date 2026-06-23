@@ -149,8 +149,13 @@ public class SystemMessageService {
                         UserMessageEntity::getIsRead
                 ));
         
-        // 转换为DTO并设置已读状态
+        // 转换为DTO并设置已读状态，按创建时间倒序排列（新消息在前）
         return messages.stream()
+                .sorted((a, b) -> {
+                    if (a.getCreatedTime() == null) return 1;
+                    if (b.getCreatedTime() == null) return -1;
+                    return b.getCreatedTime().compareTo(a.getCreatedTime());
+                })
                 .map(message -> {
                     UserMessageDTO dto = new UserMessageDTO();
                     BeanUtils.copyProperties(message, dto);

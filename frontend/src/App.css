@@ -1507,3 +1507,79 @@ html {
     opacity: 0.96;
   }
 }
+
+/* 修复暗色模式下表单元素背景问题 */
+@media (prefers-color-scheme: dark) {
+  /* 数字输入框 */
+  .ant-input-number,
+  .ant-input-number-input {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  .ant-input-number-input {
+    color: #000 !important;
+  }
+
+  /* 复选框 */
+  .ant-checkbox-wrapper .ant-checkbox-inner {
+    background-color: #fff !important;
+    border-color: #d9d9d9 !important;
+  }
+
+  .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #1890ff !important;
+    border-color: #1890ff !important;
+  }
+
+  /* 选择框 */
+  .ant-select-selector {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  .ant-select-selection-item {
+    color: #000 !important;
+  }
+
+  /* 输入框 */
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-picker {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  /* 文本域 */
+  .ant-input textarea,
+  textarea.ant-input {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  /* 开关 */
+  .ant-switch {
+    background-color: #d9d9d9 !important;
+  }
+
+  .ant-switch-checked {
+    background-color: #1890ff !important;
+  }
+
+  /* 原生表单元素 */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="number"],
+  select,
+  textarea {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  /* 数字输入框上下调整按钮 */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1 !important;
+    background-color: #f0f0f0 !important;
+  }
+}

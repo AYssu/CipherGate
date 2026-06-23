@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.ActivityLog;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.InviteService;
@@ -33,6 +34,7 @@ public class InviteController {
 
     @PostMapping("/bind")
     @Operation(summary = "绑定邀请码", description = "绑定他人的邀请码，绑定后不可更改")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "INVITE", description = "绑定邀请码")
     public Result<String> bindInviteCode(@RequestBody Map<String, String> body, HttpSession session) {
         User user = (User) session.getAttribute("user");
         if (user == null) {

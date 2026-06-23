@@ -70,4 +70,9 @@ public interface UserService extends IService<User> {
      * 根据登录名查找用户
      */
     User findByLogin(String login);
+
+    /**
+     * 获取指定角色的所有用户
+     */
+    List<User> getUsersByRole(String roleCode);
 }

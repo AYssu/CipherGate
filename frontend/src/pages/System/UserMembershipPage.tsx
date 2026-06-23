@@ -29,10 +29,15 @@ const UserMembershipPage: React.FC = () => {
   const [editType, setEditType] = React.useState<string>('');
   const [selectedRowKeys, setSelectedRowKeys] = React.useState<number[]>([]);
   const [form] = Form.useForm();
+  const [inviteEnabled, setInviteEnabled] = React.useState(true);
 
   React.useEffect(() => {
     fetchUsers();
     fetchLevels();
+    fetch('/api/config/public/invite-status', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => setInviteEnabled(res?.data?.enabled !== false))
+      .catch(() => {});
   }, []);
 
   const fetchUsers = () => {
@@ -130,7 +135,7 @@ const UserMembershipPage: React.FC = () => {
     { title: '卡密', key: 'license', render: (_: any, r: any) => <span>{r.licenseUsed || 0} / {r.licenseTotal}</span> },
     { title: '终端用户', key: 'userReg', render: (_: any, r: any) => <span>{r.userRegisterUsed || 0} / {r.userRegisterTotal}</span> },
     { title: '流量', key: 'traffic', render: (_: any, r: any) => <span>{formatBytes(r.trafficUsed)} / {formatBytes(r.trafficTotal)}</span> },
-    { title: '邀请人数', dataIndex: 'inviteCount', key: 'inviteCount', render: (v: number) => v || 0 },
+    ...(inviteEnabled ? [{ title: '邀请人数', dataIndex: 'inviteCount', key: 'inviteCount', render: (v: number) => v || 0 }] : []),
     { title: '签到天数', dataIndex: 'totalCheckinDays', key: 'totalCheckinDays', render: (v: number) => v || 0 },
     { title: '到期时间', dataIndex: 'memberExpiresAt', key: 'memberExpiresAt', render: (v: string) => v || '永久' },
     {
@@ -276,9 +281,9 @@ const UserMembershipPage: React.FC = () => {
                   <Descriptions.Item label="用户ID">{editingUser.userId}</Descriptions.Item>
                   <Descriptions.Item label="会员等级"><Tag color="blue">{editingUser.levelName}</Tag></Descriptions.Item>
                   <Descriptions.Item label="余额">{formatMoney(editingUser.balance)}</Descriptions.Item>
-                  <Descriptions.Item label="邀请码">{editingUser.inviteCode || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="邀请人数">{editingUser.inviteCount || 0}</Descriptions.Item>
-                  <Descriptions.Item label="邀请人">{editingUser.invitedBy || '-'}</Descriptions.Item>
+                  {inviteEnabled && <Descriptions.Item label="邀请码">{editingUser.inviteCode || '-'}</Descriptions.Item>}
+                  {inviteEnabled && <Descriptions.Item label="邀请人数">{editingUser.inviteCount || 0}</Descriptions.Item>}
+                  {inviteEnabled && <Descriptions.Item label="邀请人">{editingUser.invitedBy || '-'}</Descriptions.Item>}
                   <Descriptions.Item label="到期时间">{editingUser.memberExpiresAt || '永久'}</Descriptions.Item>
                   <Descriptions.Item label="创建时间">{editingUser.createdAt}</Descriptions.Item>
                 </Descriptions>

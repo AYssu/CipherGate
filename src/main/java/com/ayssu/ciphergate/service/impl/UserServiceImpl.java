@@ -266,6 +266,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         return user;
     }
+
+    @Override
+    public List<User> getUsersByRole(String roleCode) {
+        return userMapper.selectUsersByRoleCode(roleCode);
+    }
     
     private String getStringAttribute(OAuth2User oauth2User, String attributeName) {
         Object value = oauth2User.getAttribute(attributeName);

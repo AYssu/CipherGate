@@ -25,6 +25,7 @@ import {
   CheckCircleOutlined,
   UserOutlined,
   MoreOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import { userApi } from '../services/userService';
 import { roleApi } from '../services/roleService';
@@ -41,6 +42,9 @@ const UserManagementContent: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const [keyword, setKeyword] = useState('');
   const [statusFilter] = useState<number | 'all'>('all');
@@ -181,6 +185,7 @@ const UserManagementContent: React.FC = () => {
               menu={{
                 items: [
                   { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditUser(record) },
+                  { key: 'password', label: '重置密码', icon: <KeyOutlined />, onClick: () => handleResetPassword(record) },
                   { type: 'divider' },
                   { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, disabled: record.roles?.some(role => role.roleCode === 'SUPER_ADMIN'), onClick: () => handleDeleteUser(record) },
                 ],
@@ -201,6 +206,16 @@ const UserManagementContent: React.FC = () => {
                 size="small"
               >
                 编辑
+              </Button>
+            </Tooltip>
+            <Tooltip title="重置密码">
+              <Button
+                type="link"
+                icon={<KeyOutlined />}
+                onClick={() => handleResetPassword(record)}
+                size="small"
+              >
+                密码
               </Button>
             </Tooltip>
             <Popconfirm
@@ -263,6 +278,34 @@ const UserManagementContent: React.FC = () => {
     setModalVisible(false);
     setEditingUser(null);
     form.resetFields();
+  };
+
+  const handleResetPassword = (user: User) => {
+    setEditingUser(user);
+    passwordForm.resetFields();
+    setPasswordModalVisible(true);
+  };
+
+  const handlePasswordModalOk = async () => {
+    try {
+      const values = await passwordForm.validateFields();
+      setResettingPassword(true);
+      const result = await userApi.resetPassword(editingUser!.id, values.password);
+      if ((result as any).success) {
+        message.success('密码重置成功');
+        setPasswordModalVisible(false);
+        setEditingUser(null);
+        passwordForm.resetFields();
+      } else {
+        message.error((result as any).message || '密码重置失败');
+      }
+    } catch (error: any) {
+      if (!error?.errorFields) {
+        console.error('重置密码失败:', error);
+      }
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   return (
@@ -359,6 +402,7 @@ const UserManagementContent: React.FC = () => {
                     menu={{
                       items: [
                         { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditUser(user) },
+                        { key: 'password', label: '重置密码', icon: <KeyOutlined />, onClick: () => handleResetPassword(user) },
                         { type: 'divider' },
                         { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, disabled: user.roles?.some(role => role.roleCode === 'SUPER_ADMIN'), onClick: () => handleDeleteUser(user) },
                       ],
@@ -428,6 +472,36 @@ const UserManagementContent: React.FC = () => {
                 </Select.Option>
               ))}
             </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 重置密码模态框 */}
+      <Modal
+        title={`重置密码 - ${editingUser?.name || editingUser?.login || ''}`}
+        open={passwordModalVisible}
+        onOk={handlePasswordModalOk}
+        onCancel={() => {
+          setPasswordModalVisible(false);
+          setEditingUser(null);
+          passwordForm.resetFields();
+        }}
+        width={isMobile ? '100%' : 400}
+        className={isMobile ? 'mobile-modal' : undefined}
+        okText="确定重置"
+        cancelText="取消"
+        confirmLoading={resettingPassword}
+      >
+        <Form form={passwordForm} layout="vertical">
+          <Form.Item
+            label="新密码"
+            name="password"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, message: '密码长度不能少于6位' }
+            ]}
+          >
+            <Input.Password placeholder="请输入新密码（至少6位）" />
           </Form.Item>
         </Form>
       </Modal>

@@ -96,13 +96,20 @@ public class AdminTicketController {
     @Operation(summary = "管理员更新工单状态")
     public Result<String> updateStatus(
             @PathVariable String ticketNo,
-            @RequestBody Map<String, Integer> body) {
+            @RequestBody Map<String, Object> body) {
         Ticket ticket = ticketService.getTicketByNo(ticketNo);
         if (ticket == null) {
             return Result.error("工单不存在");
         }
-        Integer status = body.get("status");
-        ticketService.updateStatus(ticket.getId(), status);
+        Integer status = (Integer) body.get("status");
+        Boolean sendEmail = body.get("sendEmail") != null ? (Boolean) body.get("sendEmail") : false;
+        String remark = (String) body.get("remark");
+
+        if (sendEmail != null && sendEmail) {
+            ticketService.updateStatusWithNotify(ticket.getId(), status, true, remark);
+        } else {
+            ticketService.updateStatus(ticket.getId(), status);
+        }
         return Result.success("状态更新成功");
     }
 }

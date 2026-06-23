@@ -21,10 +21,22 @@ public class MembershipLevelController {
 
     private final MembershipLevelService membershipLevelService;
 
+    /**
+     * 获取会员等级列表（管理员，需要权限）
+     */
     @GetMapping
     @RequirePermission("MEMBERSHIP_LEVEL_LIST")
     @Operation(summary = "获取会员等级列表")
     public Result<List<MembershipLevel>> getLevels() {
+        return Result.success(membershipLevelService.getAllLevels());
+    }
+
+    /**
+     * 获取会员等级列表（登录用户可用，用于等级对比）
+     */
+    @GetMapping("/public")
+    @Operation(summary = "获取会员等级列表（登录用户可用）")
+    public Result<List<MembershipLevel>> getLevelsPublic() {
         return Result.success(membershipLevelService.getAllLevels());
     }
 

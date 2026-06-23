@@ -7,6 +7,7 @@ import {
   Dropdown,
   Form,
   Input,
+  InputNumber,
   message,
   Modal,
   Row,
@@ -984,7 +985,7 @@ const AppVariableManagementContent: React.FC = () => {
             </Col>
             <Col span={8}>
               <Form.Item label="排序" name="sortOrder">
-                <Input type="number" placeholder="0" />
+                <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={8}>

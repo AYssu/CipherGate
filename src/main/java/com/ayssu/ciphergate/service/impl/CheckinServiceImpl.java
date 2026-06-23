@@ -50,36 +50,55 @@ public class CheckinServiceImpl extends ServiceImpl<CheckinRecordMapper, Checkin
             }
         }
 
-        int licenseReward = calculateLicenseReward(consecutiveDays);
-        int userRegisterReward = calculateUserRegisterReward(consecutiveDays);
-        long trafficReward = calculateTrafficReward(consecutiveDays);
+        // 随机选择一种奖励类型
+        String rewardType = pickRandomRewardType();
+        Map<String, Object> reward = calculateReward(rewardType, consecutiveDays);
 
         CheckinRecord record = new CheckinRecord();
         record.setUserId(userId);
         record.setCheckinDate(today);
-        record.setLicenseReward(licenseReward);
-        record.setUserRegisterReward(userRegisterReward);
-        record.setTrafficReward(trafficReward);
         record.setConsecutiveDays(consecutiveDays);
+
+        // 根据奖励类型设置记录和额度
+        switch (rewardType) {
+            case "LICENSE":
+                int licenseAmount = (int) reward.get("amount");
+                record.setLicenseReward(licenseAmount);
+                record.setUserRegisterReward(0);
+                record.setTrafficReward(0L);
+                membership.setExtraLicenseQuota((membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0) + licenseAmount);
+                break;
+            case "USER_REGISTER":
+                int userAmount = (int) reward.get("amount");
+                record.setLicenseReward(0);
+                record.setUserRegisterReward(userAmount);
+                record.setTrafficReward(0L);
+                membership.setExtraUserRegisterQuota((membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0) + userAmount);
+                break;
+            case "TRAFFIC":
+                long trafficBytes = (long) reward.get("amount");
+                record.setLicenseReward(0);
+                record.setUserRegisterReward(0);
+                record.setTrafficReward(trafficBytes);
+                membership.setExtraTrafficQuota((membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0) + trafficBytes);
+                break;
+        }
+
         save(record);
 
         membership.setLastCheckinDate(today);
         membership.setConsecutiveCheckinDays(consecutiveDays);
         membership.setTotalCheckinDays(membership.getTotalCheckinDays() + 1);
-        membership.setExtraLicenseQuota((membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0) + licenseReward);
-        membership.setExtraUserRegisterQuota((membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0) + userRegisterReward);
-        membership.setExtraTrafficQuota((membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0) + trafficReward);
         userMembershipService.updateById(membership);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("licenseReward", licenseReward);
-        result.put("userRegisterReward", userRegisterReward);
-        result.put("trafficReward", trafficReward);
+        result.put("rewardType", rewardType);
+        result.put("reward", reward);
         result.put("consecutiveDays", consecutiveDays);
         result.put("totalDays", membership.getTotalCheckinDays());
 
-        log.info("用户[{}]签到成功：连续{}天，奖励：卡密{}张，用户注册{}个，流量{}B",
-                userId, consecutiveDays, licenseReward, userRegisterReward, trafficReward);
+        log.info("用户[{}]签到成功：连续{}天，奖励类型：{}，奖励：{}",
+                userId, consecutiveDays, rewardType, reward);
 
         return result;
     }
@@ -101,21 +120,53 @@ public class CheckinServiceImpl extends ServiceImpl<CheckinRecordMapper, Checkin
                 .one();
     }
 
-    private int calculateLicenseReward(int consecutiveDays) {
-        int base = ThreadLocalRandom.current().nextInt(5, 21);
-        double multiplier = 1.0 + (consecutiveDays - 1) * 0.05;
-        return (int) (base * multiplier);
+    private String pickRandomRewardType() {
+        int rand = ThreadLocalRandom.current().nextInt(3);
+        switch (rand) {
+            case 0: return "LICENSE";
+            case 1: return "USER_REGISTER";
+            default: return "TRAFFIC";
+        }
     }
 
-    private int calculateUserRegisterReward(int consecutiveDays) {
-        int base = ThreadLocalRandom.current().nextInt(2, 11);
-        double multiplier = 1.0 + (consecutiveDays - 1) * 0.05;
-        return (int) (base * multiplier);
-    }
+    private Map<String, Object> calculateReward(String rewardType, int consecutiveDays) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", rewardType);
 
-    private long calculateTrafficReward(int consecutiveDays) {
-        long baseMB = ThreadLocalRandom.current().nextLong(10, 51);
-        double multiplier = 1.0 + (consecutiveDays - 1) * 0.05;
-        return (long) (baseMB * multiplier * 1024 * 1024);
+        switch (rewardType) {
+            case "LICENSE":
+                // 卡密额度: 基础 3-15, 最高 55
+                int licenseBase = ThreadLocalRandom.current().nextInt(3, 16);
+                double licenseMultiplier = 1.0 + (consecutiveDays - 1) * 0.15;
+                int licenseAmount = Math.min(55, (int) (licenseBase * licenseMultiplier));
+                result.put("amount", licenseAmount);
+                result.put("unit", "张");
+                result.put("name", "卡密额度");
+                break;
+
+            case "USER_REGISTER":
+                // 用户额度: 基础 1-3, 最高 10
+                int userBase = ThreadLocalRandom.current().nextInt(1, 4);
+                double userMultiplier = 1.0 + (consecutiveDays - 1) * 0.15;
+                int userAmount = Math.min(10, (int) (userBase * userMultiplier));
+                result.put("amount", userAmount);
+                result.put("unit", "个");
+                result.put("name", "用户额度");
+                break;
+
+            case "TRAFFIC":
+                // 流量: 基础 5-15 MB, 最高 100 MB
+                long trafficBaseMB = ThreadLocalRandom.current().nextLong(5, 16);
+                double trafficMultiplier = 1.0 + (consecutiveDays - 1) * 0.15;
+                long trafficMB = Math.min(100, (long) (trafficBaseMB * trafficMultiplier));
+                long trafficBytes = trafficMB * 1024 * 1024;
+                result.put("amount", trafficBytes);
+                result.put("amountMB", trafficMB);
+                result.put("unit", "MB");
+                result.put("name", "流量额度");
+                break;
+        }
+
+        return result;
     }
 }

@@ -28,4 +28,6 @@ public interface TicketService extends IService<Ticket> {
     void assignTicket(Long ticketId, Long adminId);
 
     void updateStatus(Long ticketId, Integer status);
+
+    void updateStatusWithNotify(Long ticketId, Integer status, boolean sendEmail, String remark);
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Popconfirm, Badge, Grid, Dropdown } from 'antd';
+import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Badge, Grid, Dropdown, Checkbox } from 'antd';
 import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined, MoreOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
@@ -23,6 +23,10 @@ const AdminTicketPage: React.FC = () => {
   const [newMessage, setNewMessage] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('all');
   const [counts, setCounts] = React.useState<Record<number, number>>({});
+  const [resolveModalVisible, setResolveModalVisible] = React.useState(false);
+  const [resolveStatus, setResolveStatus] = React.useState<number>(3);
+  const [resolveEmail, setResolveEmail] = React.useState(false);
+  const [resolveRemark, setResolveRemark] = React.useState('');
 
   React.useEffect(() => { fetchTickets(); }, []);
 
@@ -60,11 +64,11 @@ const AdminTicketPage: React.FC = () => {
     fetchTickets();
   };
 
-  const handleStatusChange = async (ticketNo: string, status: number) => {
+  const handleStatusChange = async (ticketNo: string, status: number, sendEmail: boolean = false, remark: string = '') => {
     await fetch(`/api/admin/tickets/${ticketNo}/status`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, sendEmail, remark })
     });
     message.success('状态已更新');
     fetchTickets();
@@ -81,16 +85,18 @@ const AdminTicketPage: React.FC = () => {
     viewDetail(selectedTicket);
   };
 
-  const handleResolve = async () => {
-    if (!selectedTicket) return;
-    await handleStatusChange(selectedTicket.ticketNo, 3);
-    setDetailVisible(false);
-    fetchTickets();
+  const showResolveModal = (status: number) => {
+    setResolveStatus(status);
+    setResolveEmail(false);
+    setResolveRemark('');
+    setResolveModalVisible(true);
   };
 
-  const handleClose = async () => {
+  const handleResolveConfirm = async () => {
     if (!selectedTicket) return;
-    await handleStatusChange(selectedTicket.ticketNo, 4);
+    await handleStatusChange(selectedTicket.ticketNo, resolveStatus, resolveEmail, resolveRemark);
+    message.success(resolveStatus === 3 ? '工单已解决' : '工单已关闭');
+    setResolveModalVisible(false);
     setDetailVisible(false);
     fetchTickets();
   };
@@ -158,9 +164,7 @@ const AdminTicketPage: React.FC = () => {
               </Button>
             )}
             {record.status === 1 && (
-              <Popconfirm title="确认标记为已解决？" onConfirm={() => handleStatusChange(record.ticketNo, 3)}>
-                <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<CheckCircleOutlined />}>解决</Button>
-              </Popconfirm>
+              <Button type="link" size="small" style={{ color: '#52c41a' }} icon={<CheckCircleOutlined />} onClick={() => { setSelectedTicket(record); showResolveModal(3); }}>解决</Button>
             )}
           </Space>
         );
@@ -223,16 +227,12 @@ const AdminTicketPage: React.FC = () => {
                   )}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <Popconfirm title="确认标记为已解决？" onConfirm={handleResolve}>
-                    <Button type="primary" ghost size={isMobile ? 'small' : 'middle'} style={{ color: '#52c41a', borderColor: '#52c41a' }}>
-                      <CheckCircleOutlined /> 标记已解决
-                    </Button>
-                  </Popconfirm>
-                  <Popconfirm title="确认关闭此工单？" onConfirm={handleClose}>
-                    <Button danger size={isMobile ? 'small' : 'middle'}>
-                      <CloseCircleOutlined /> 关闭工单
-                    </Button>
-                  </Popconfirm>
+                  <Button type="primary" ghost size={isMobile ? 'small' : 'middle'} style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => showResolveModal(3)}>
+                    <CheckCircleOutlined /> 标记已解决
+                  </Button>
+                  <Button danger size={isMobile ? 'small' : 'middle'} onClick={() => showResolveModal(4)}>
+                    <CloseCircleOutlined /> 关闭工单
+                  </Button>
                 </div>
               </div>
             ) : null
@@ -281,6 +281,40 @@ const AdminTicketPage: React.FC = () => {
           )}
         </Modal>
       </Card>
+
+      {/* 解决/关闭工单确认弹窗 */}
+      <Modal
+        title={resolveStatus === 3 ? '标记工单已解决' : '关闭工单'}
+        open={resolveModalVisible}
+        onOk={handleResolveConfirm}
+        onCancel={() => setResolveModalVisible(false)}
+        width={isMobile ? '100%' : 480}
+        className={isMobile ? 'mobile-modal' : undefined}
+        okText={resolveStatus === 3 ? '确认解决' : '确认关闭'}
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text>工单号：{selectedTicket?.ticketNo}</Text>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Text>标题：{selectedTicket?.title}</Text>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>处理备注</Text>
+          <TextArea
+            value={resolveRemark}
+            onChange={e => setResolveRemark(e.target.value)}
+            rows={3}
+            placeholder="输入处理备注（可选）"
+            style={{ marginTop: 8 }}
+          />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Checkbox checked={resolveEmail} onChange={e => setResolveEmail(e.target.checked)}>
+            同时发送邮件通知用户
+          </Checkbox>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -188,4 +188,8 @@ export const systemApi = {
   updateInviteConfig: (data: { enabled: boolean; maxCount: number; rewardAmount: number }) => {
     return request.post('/config/settings/invite', data);
   },
+
+  getInviteStatus: () => {
+    return request.get('/config/public/invite-status');
+  },
 };

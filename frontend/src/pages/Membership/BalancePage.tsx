@@ -38,7 +38,7 @@ const BalancePage: React.FC = () => {
   };
 
   const fetchProducts = () => {
-    fetch('/api/quota-products', { credentials: 'include' })
+    fetch('/api/quota-products/public', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setProducts(data.data || []); });
   };

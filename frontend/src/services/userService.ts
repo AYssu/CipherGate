@@ -56,6 +56,10 @@ export const userApi = {
   updateUserStatus: (id: number, status: number) => 
     request.put(`/users/${id}/status`, null, { params: { status } }),
 
+  // 重置用户密码
+  resetPassword: (id: number, password: string) => 
+    request.put(`/users/${id}/password`, { password }),
+
   // 获取当前用户信息
   getCurrentUserInfo: () => request.get<{ data: User }>('/user/info'),
 

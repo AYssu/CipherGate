@@ -92,7 +92,18 @@ const InvitePage: React.FC = () => {
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Card title="邀请有奖" extra={<Text type="secondary">每邀请1位新用户，获得 ¥3.00 余额奖励</Text>}>
+        {stats.enabled === false ? (
+          <Card>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Text type="secondary" style={{ fontSize: 16 }}>邀请有奖功能暂未开启</Text>
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary">请联系管理员开启邀请功能</Text>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <>
+            <Card title="邀请有奖" extra={<Text type="secondary">每邀请1位新用户，获得 ¥{(stats.rewardAmount / 100 || 3).toFixed(2)} 余额奖励</Text>}>
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fafafa', borderRadius: 6 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>
               使用方式：将下方邀请链接分享给好友，好友注册后即视为成功邀请。
@@ -173,6 +184,8 @@ const InvitePage: React.FC = () => {
             locale={{ emptyText: '暂无邀请记录' }}
           />
         </Card>
+          </>
+        )}
       </Space>
     </div>
   );

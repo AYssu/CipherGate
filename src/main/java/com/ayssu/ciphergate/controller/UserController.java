@@ -6,10 +6,12 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.User;
 import com.ayssu.ciphergate.service.UserService;
 import com.ayssu.ciphergate.service.RoleService;
+import com.ayssu.ciphergate.util.AuthUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +29,7 @@ public class UserController {
     
     private final UserService userService;
     private final RoleService roleService;
+    private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     
     /**
      * 获取用户列表
@@ -166,6 +169,50 @@ public class UserController {
         } catch (Exception e) {
             log.error("更新用户状态失败", e);
             return Result.error("更新用户状态失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 重置用户密码（超级管理员）
+     */
+    @PutMapping("/{id}/password")
+    @RequirePermission("USER_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "USER_MANAGEMENT", description = "重置用户密码")
+    @Operation(summary = "重置用户密码")
+    public Result<String> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        try {
+            User currentUser = AuthUtils.getCurrentUser();
+            if (currentUser == null) {
+                return Result.error(401, "未登录");
+            }
+
+            // 检查是否是超级管理员
+            if (!userService.hasRole(currentUser.getId(), "SUPER_ADMIN")) {
+                return Result.error("仅超级管理员可重置密码");
+            }
+
+            User user = userService.getById(id);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            String newPassword = request.get("password");
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                return Result.error("密码不能为空");
+            }
+            if (newPassword.length() < 6) {
+                return Result.error("密码长度不能少于6位");
+            }
+
+            user.setPassword(ENCODER.encode(newPassword));
+            user.setUpdatedAt(java.time.LocalDateTime.now());
+            userService.updateById(user);
+
+            log.info("超级管理员 {} 重置了用户 {} 的密码", currentUser.getLogin(), user.getLogin());
+            return Result.success("密码重置成功");
+        } catch (Exception e) {
+            log.error("重置用户密码失败", e);
+            return Result.error("重置密码失败: " + e.getMessage());
         }
     }
 }

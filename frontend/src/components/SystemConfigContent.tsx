@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid } from 'antd';
+import { Button, Card, Col, Form, Input, InputNumber, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { SystemSettings } from '../services/systemService';
@@ -561,12 +561,12 @@ const SystemConfigContent: React.FC = () => {
                   </Col>
                   <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="maxCount" label="最大邀请人数" rules={[{ required: true, message: '请输入最大邀请人数' }]}>
-                      <Input type="number" min={1} placeholder="20" />
+                      <InputNumber min={1} placeholder="20" style={{ width: '100%' }} />
                     </Form.Item>
                   </Col>
                   <Col span={isMobile ? 24 : 8}>
                     <Form.Item name="rewardAmount" label="每人奖励金额（元）" rules={[{ required: true, message: '请输入奖励金额' }]}>
-                      <Input type="number" min={0} step={0.1} placeholder="3" />
+                      <InputNumber min={0} step={0.1} placeholder="3" style={{ width: '100%' }} />
                     </Form.Item>
                   </Col>
                 </Row>

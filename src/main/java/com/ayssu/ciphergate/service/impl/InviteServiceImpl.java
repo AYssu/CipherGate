@@ -199,11 +199,15 @@ public class InviteServiceImpl extends ServiceImpl<InviteRecordMapper, InviteRec
     public Map<String, Object> getInviteStats(Long userId) {
         UserMembership membership = userMembershipService.getByUserId(userId);
         Map<String, Object> stats = new HashMap<>();
+        boolean enabled = isInviteEnabled();
         int maxInviteCount = getMaxInviteCount();
-        if (membership == null) {
+        long rewardAmount = getRewardAmount();
+        stats.put("enabled", enabled);
+        stats.put("rewardAmount", rewardAmount);
+        stats.put("maxInviteCount", maxInviteCount);
+        if (!enabled || membership == null) {
             stats.put("inviteCode", "");
             stats.put("inviteCount", 0);
-            stats.put("maxInviteCount", maxInviteCount);
             stats.put("totalReward", 0);
             stats.put("invitedBy", null);
             return stats;
@@ -218,7 +222,6 @@ public class InviteServiceImpl extends ServiceImpl<InviteRecordMapper, InviteRec
 
         stats.put("inviteCode", membership.getInviteCode());
         stats.put("inviteCount", membership.getInviteCount());
-        stats.put("maxInviteCount", maxInviteCount);
         stats.put("totalReward", totalReward);
         stats.put("invitedBy", membership.getInvitedBy());
         return stats;

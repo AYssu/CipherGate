@@ -196,6 +196,13 @@ public class ConfigController {
         ));
     }
 
+    @GetMapping("/public/invite-status")
+    @Operation(summary = "获取邀请功能开启状态（登录用户可用）")
+    public Result<Map<String, Object>> getInviteStatus() {
+        boolean enabled = Boolean.parseBoolean(systemConfigService.getConfigValue("invite.enabled", "true"));
+        return Result.success(Map.of("enabled", enabled));
+    }
+
     /**
      * 登录页 GitHub OAuth：返回授权跳转地址与已配置的前端地址（无需登录）
      */
