@@ -68,6 +68,8 @@ PORTS=(
   "$(random_port 20000 49999)"
   "$(random_port 20000 49999)"
   "$(random_port 20000 49999)"
+  "$(random_port 20000 49999)"
+  "$(random_port 20000 49999)"
 )
 
 ENV_FILE="$BUNDLE_DIR/.env"
@@ -77,6 +79,8 @@ sed -i "s/^MINIO_API_PORT=.*/MINIO_API_PORT=${PORTS[2]}/"   "$ENV_FILE"
 sed -i "s/^MINIO_CONSOLE_PORT=.*/MINIO_CONSOLE_PORT=${PORTS[3]}/" "$ENV_FILE"
 sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=${PORTS[4]}/"     "$ENV_FILE"
 sed -i "s/^FRONTEND_PORT=.*/FRONTEND_PORT=${PORTS[5]}/"   "$ENV_FILE"
+sed -i "s/^RABBITMQ_PORT=.*/RABBITMQ_PORT=${PORTS[6]}/"   "$ENV_FILE"
+sed -i "s/^RABBITMQ_MGMT_PORT=.*/RABBITMQ_MGMT_PORT=${PORTS[7]}/" "$ENV_FILE"
 
 info "  MYSQL_PORT=${PORTS[0]}"
 info "  REDIS_PORT_HOST=${PORTS[1]}"
@@ -84,6 +88,8 @@ info "  MINIO_API_PORT=${PORTS[2]}"
 info "  MINIO_CONSOLE_PORT=${PORTS[3]}"
 info "  BACKEND_PORT=${PORTS[4]}"
 info "  FRONTEND_PORT=${PORTS[5]}"
+info "  RABBITMQ_PORT=${PORTS[6]}"
+info "  RABBITMQ_MGMT_PORT=${PORTS[7]}"
 
 # ---------- 4. Create zip ----------
 info "[4/5] Create zip package..."

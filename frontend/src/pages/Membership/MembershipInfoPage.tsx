@@ -8,7 +8,6 @@ import {
   CloudOutlined,
   FireOutlined,
   ArrowUpOutlined,
-  CheckOutlined,
 } from '@ant-design/icons';
 
 const { Text } = Typography;

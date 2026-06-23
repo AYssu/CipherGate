@@ -42,3 +42,6 @@ out/
 /ciphergate-deploy.zip
 /test-results/.last-run.json
 /SeaAlpha/
+.mimocode/
+docs/
+session-ses_115e.md

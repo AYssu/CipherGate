@@ -15,7 +15,7 @@ const CheckinPage: React.FC = () => {
   const isMobile = !screens.md;
 
   const [status, setStatus] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [_loading, setLoading] = React.useState(true);
   const [checkinLoading, setCheckinLoading] = React.useState(false);
   const [rewardResult, setRewardResult] = React.useState<any>(null);
 

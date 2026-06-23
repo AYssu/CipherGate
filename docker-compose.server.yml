@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.0
@@ -14,10 +12,10 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
-      - --sort_buffer_size=4M       
+      - --sort_buffer_size=4M
       - --tmp_table_size=128M
-      - --max_heap_table_size=128M    
-      - --key_buffer_size=64M              
+      - --max_heap_table_size=128M
+      - --key_buffer_size=64M
       - --innodb_buffer_pool_size=512M
       - --read_buffer_size=1M
       - --read_rnd_buffer_size=768K
@@ -50,6 +48,25 @@ services:
       interval: 10s
       timeout: 3s
       retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: ciphergate-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   minio:
     image: minio/minio:latest
@@ -85,6 +102,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       minio:
         condition: service_healthy
     environment:
@@ -94,6 +113,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-rabbitmq}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq}
       MINIO_ENABLED: "true"
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -124,5 +147,5 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  rabbitmq_data:
   minio_data:
-

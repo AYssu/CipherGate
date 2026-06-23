@@ -72,7 +72,9 @@ powershell -NoProfile -Command ^
   "  'MINIO_API_PORT'=[string](New-Port 20000 49999);" ^
   "  'MINIO_CONSOLE_PORT'=[string](New-Port 20000 49999);" ^
   "  'BACKEND_PORT'=[string](New-Port 20000 49999);" ^
-  "  'FRONTEND_PORT'=[string](New-Port 20000 49999)" ^
+  "  'FRONTEND_PORT'=[string](New-Port 20000 49999);" ^
+  "  'RABBITMQ_PORT'=[string](New-Port 20000 49999);" ^
+  "  'RABBITMQ_MGMT_PORT'=[string](New-Port 20000 49999)" ^
   "};" ^
   "$out = foreach($line in $lines){" ^
   "  if($line -match '^\s*([A-Z0-9_]+)\s*='){" ^

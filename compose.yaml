@@ -5,27 +5,16 @@ services:
     command: ["--skip-name-resolve"]
     environment:
       - 'MYSQL_DATABASE=ciphergate'
-      - 'MYSQL_PASSWORD=Jx4zx_aYui23'
+      - 'MYSQL_PASSWORD=Qy5S3SBfnRwdKxRD'
       - 'MYSQL_ROOT_PASSWORD=super_axUobn34U'
-      - 'MYSQL_USER=kersin'
+      - 'MYSQL_USER=ciphergate'
     ports:
       - '13306:3306'
-
-  minio:
-    image: 'minio/minio:latest'
-    container_name: local-minio
-    environment:
-      - 'MINIO_ROOT_USER=ciphergate_minio'
-      - 'MINIO_ROOT_PASSWORD=ciphergate_minio123'
-    command: server /data --console-address ":9001"
-    ports:
-      - '19000:9000'
-      - '19001:9001'
 
   redis:
     image: 'redis:7-alpine'
     container_name: local-redis
-    command: [ "redis-server", "--appendonly", "yes" ]
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "redis_MTXHTx" ]
     ports:
       - '16379:6379'
 
@@ -33,8 +22,19 @@ services:
     image: 'rabbitmq:3-management'
     container_name: local-rabbitmq
     environment:
-      - 'RABBITMQ_DEFAULT_USER=ciphergate'
-      - 'RABBITMQ_DEFAULT_PASS=ciphergate_rabbit123'
+      - 'RABBITMQ_DEFAULT_USER=rabbitmq'
+      - 'RABBITMQ_DEFAULT_PASS=rabbitmq'
     ports:
       - '5672:5672'
       - '15672:15672'
+
+  minio:
+    image: 'minio/minio:latest'
+    container_name: local-minio
+    environment:
+      - 'MINIO_ROOT_USER=minio_RcWTQn'
+      - 'MINIO_ROOT_PASSWORD=minio_WfY3PE'
+    command: server /data --console-address ":9001"
+    ports:
+      - '19000:9000'
+      - '19001:9001'

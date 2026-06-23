@@ -4,17 +4,28 @@ spring:
   devtools:
     restart:
       enabled: false
+  docker:
+    compose:
+      enabled: false  # 临时关闭 Spring Docker Compose 自动启动
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:16379}
+      port: ${REDIS_PORT:6379}
       database: ${REDIS_DB:0}
       timeout: ${REDIS_TIMEOUT:3s}
+      password: redis_MTXHTx
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:rabbitmq}
+    password: ${RABBITMQ_PASSWORD:rabbitmq}
+    virtual-host: /
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-    username: ${SPRING_DATASOURCE_USERNAME:kersin}
-    password: ${SPRING_DATASOURCE_PASSWORD:Jx4zx_aYui23}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:ciphergate}
+    password: ${SPRING_DATASOURCE_PASSWORD:Qy5S3SBfnRwdKxRD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   servlet:
@@ -59,7 +70,7 @@ app:
     temp-dir: ${PLUGIN_TEMP_DIR:${java.io.tmpdir}/ciphergate-plugins}
   minio:
     enabled: ${MINIO_ENABLED:true}
-    endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-    access-key: ${MINIO_ACCESS_KEY:ciphergate_minio}
-    secret-key: ${MINIO_SECRET_KEY:ciphergate_minio123}
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minio_RcWTQn}
+    secret-key: ${MINIO_SECRET_KEY:minio_WfY3PE}
     bucket: ${MINIO_BUCKET:ciphergate-plugins}
