@@ -3,6 +3,8 @@ package com.ayssu.ciphergate.scheduler;
 import com.ayssu.ciphergate.service.PaymentOrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,9 +16,9 @@ public class PaymentScheduler {
     private final PaymentOrderService paymentOrderService;
 
     /**
-     * 启动时立即扫描一次，清理历史遗留的过期订单
+     * 应用完全就绪后（init.sql 已执行）扫描一次，清理历史遗留的过期订单
      */
-    @jakarta.annotation.PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         log.info("启动时扫描过期订单...");
         paymentOrderService.cancelExpiredOrders();

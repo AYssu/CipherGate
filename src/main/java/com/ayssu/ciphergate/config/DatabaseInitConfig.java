@@ -41,7 +41,8 @@ public class DatabaseInitConfig implements CommandLineRunner {
                     "alter_add_password.sql",
                     "alter_spring_session_principal.sql",
                     "alter_membership_system.sql",
-                    "alter_membership_extra_quota.sql"
+                    "alter_membership_extra_quota.sql",
+                    "migrate_menus.sql"
             );
             for (String file : upgradeSqlFiles) {
                 try {
