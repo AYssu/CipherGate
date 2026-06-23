@@ -4,9 +4,6 @@ spring:
   devtools:
     restart:
       enabled: false
-  docker:
-    compose:
-      enabled: false  # 临时关闭 Spring Docker Compose 自动启动
   data:
     redis:
       host: ${REDIS_HOST:localhost}
