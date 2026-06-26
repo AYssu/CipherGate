@@ -330,6 +330,7 @@ const MainLayout: React.FC = () => {
       app_user_management: '/applications/users',
       app_variable_management: '/applications/variables',
       plugin_list_page: '/plugins/list',
+      doc_category_page: '/docs/categories',
     };
     const globalMatchedPath = globalRouteMap[childKey];
     if (globalMatchedPath) {

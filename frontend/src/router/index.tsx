@@ -31,6 +31,8 @@ import UserMembershipPage from '../pages/System/UserMembershipPage';
 import QuotaProductPage from '../pages/System/QuotaProductPage';
 import AdminOrderPage from '../pages/System/AdminOrderPage';
 import AdminTicketPage from '../pages/System/AdminTicketPage';
+import DocManagementPage from '../pages/Doc/DocManagementPage';
+import DocViewPage from '../pages/Doc/DocViewPage';
 import PortalLoginPage from '../portal/pages/PortalLoginPage';
 import PortalAppSelectPage from '../portal/pages/PortalAppSelectPage';
 import PortalLayout from '../portal/layouts/PortalLayout';
@@ -126,6 +128,13 @@ export const router = createBrowserRouter([
         path: '/plugins',
         children: [
           { path: 'list', element: <PluginManagementPage /> },
+        ],
+      },
+      {
+        path: '/docs',
+        children: [
+          { path: 'categories', element: <DocManagementPage /> },
+          { path: 'view/:id', element: <DocViewPage /> },
         ],
       },
     ],

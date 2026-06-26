@@ -3,6 +3,7 @@ import request from '../utils/request';
 export interface DocCategory {
   id: number;
   name: string;
+  description?: string;
   sortOrder: number;
   status: number;
   createdAt?: string;
@@ -14,7 +15,8 @@ export interface DocMenuItem {
   title: string;
   categoryId: number;
   categoryName?: string;
-  sortOrder: number;
+  authorName?: string;
+  sortOrder?: number;
 }
 
 export interface DocMenuCategory {
@@ -29,7 +31,11 @@ export interface DocDetail {
   categoryId: number;
   categoryName?: string;
   content: string;
-  sortOrder: number;
+  authorName?: string;
+  authorGithub?: string;
+  authorQq?: string;
+  authorBilibili?: string;
+  viewCount?: number;
   status: number;
   attachments?: DocAttachment[];
   createdAt?: string;
@@ -52,7 +58,12 @@ export interface DocItem {
   title: string;
   categoryId: number;
   content: string;
-  sortOrder: number;
+  authorName?: string;
+  authorGithub?: string;
+  authorQq?: string;
+  authorBilibili?: string;
+  viewCount?: number;
+  sortOrder?: number;
   status: number;
 }
 
