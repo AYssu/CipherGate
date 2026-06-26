@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
 
 @SpringBootApplication
-@MapperScan({"com.ayssu.ciphergate.mapper", "com.ayssu.ciphergate.portal.mapper"})
+@MapperScan({"com.ayssu.ciphergate.mapper", "com.ayssu.ciphergate.portal.mapper", "com.ayssu.ciphergate.doc.mapper"})
 @EnableConfigurationProperties(ThirdPartyPublicProperties.class)
 @EnableScheduling
 @Slf4j
