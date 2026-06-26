@@ -30,6 +30,15 @@ import UserMembershipPage from '../pages/System/UserMembershipPage';
 import QuotaProductPage from '../pages/System/QuotaProductPage';
 import AdminOrderPage from '../pages/System/AdminOrderPage';
 import AdminTicketPage from '../pages/System/AdminTicketPage';
+import PortalLoginPage from '../portal/pages/PortalLoginPage';
+import PortalAppSelectPage from '../portal/pages/PortalAppSelectPage';
+import PortalLayout from '../portal/layouts/PortalLayout';
+import PortalDashboardPage from '../portal/pages/PortalDashboardPage';
+import PortalMembershipPage from '../portal/pages/PortalMembershipPage';
+import PortalRechargePage from '../portal/pages/PortalRechargePage';
+import PortalOrderHistoryPage from '../portal/pages/PortalOrderHistoryPage';
+import PortalSettingsPage from '../portal/pages/PortalSettingsPage';
+import PortalPasswordRecoveryPage from '../portal/pages/PortalPasswordRecoveryPage';
 
 export const router = createBrowserRouter([
   {
@@ -117,6 +126,29 @@ export const router = createBrowserRouter([
           { path: 'list', element: <PluginManagementPage /> },
         ],
       },
+    ],
+  },
+  {
+    path: '/portal/login',
+    element: <PortalLoginPage />,
+  },
+  {
+    path: '/portal/recovery',
+    element: <PortalPasswordRecoveryPage />,
+  },
+  {
+    path: '/portal/select-app',
+    element: <PortalAppSelectPage />,
+  },
+  {
+    path: '/portal',
+    element: <PortalLayout />,
+    children: [
+      { path: 'dashboard', element: <PortalDashboardPage /> },
+      { path: 'membership', element: <PortalMembershipPage /> },
+      { path: 'recharge', element: <PortalRechargePage /> },
+      { path: 'orders', element: <PortalOrderHistoryPage /> },
+      { path: 'settings', element: <PortalSettingsPage /> },
     ],
   },
   {

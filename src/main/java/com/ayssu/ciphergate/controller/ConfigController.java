@@ -649,6 +649,9 @@ public class ConfigController {
             data.put("epayNotifyUrl", systemConfigService.getConfigValue("payment.epay.notify.url", ""));
             data.put("epayReturnUrl", systemConfigService.getConfigValue("payment.epay.return.url", ""));
             data.put("successRedirectUrl", systemConfigService.getConfigValue("payment.success.redirect.url", "/user/balance"));
+            data.put("portalNotifyUrl", systemConfigService.getConfigValue("payment.portal.notify.url", ""));
+            data.put("portalReturnUrl", systemConfigService.getConfigValue("payment.portal.return.url", ""));
+            data.put("portalSuccessUrl", systemConfigService.getConfigValue("payment.portal.success.url", ""));
             return Result.success(data);
         } catch (Exception e) {
             log.error("获取支付配置失败: {}", e.getMessage());
@@ -680,6 +683,15 @@ public class ConfigController {
             }
             if (body.containsKey("successRedirectUrl")) {
                 systemConfigService.setConfigValue("payment.success.redirect.url", toSafeValue(body.get("successRedirectUrl")), "支付成功跳转地址", false);
+            }
+            if (body.containsKey("portalNotifyUrl")) {
+                systemConfigService.setConfigValue("payment.portal.notify.url", toSafeValue(body.get("portalNotifyUrl")), "门户支付异步回调地址", false);
+            }
+            if (body.containsKey("portalReturnUrl")) {
+                systemConfigService.setConfigValue("payment.portal.return.url", toSafeValue(body.get("portalReturnUrl")), "门户支付同步跳转地址", false);
+            }
+            if (body.containsKey("portalSuccessUrl")) {
+                systemConfigService.setConfigValue("payment.portal.success.url", toSafeValue(body.get("portalSuccessUrl")), "门户支付成功跳转地址", false);
             }
             systemConfigService.refreshCache();
             return Result.success("支付配置更新成功", null);

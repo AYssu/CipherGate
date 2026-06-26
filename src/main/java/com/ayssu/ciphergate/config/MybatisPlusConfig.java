@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Lazy;
 import jakarta.annotation.PostConstruct;
 
 @Configuration
-@MapperScan("com.ayssu.ciphergate.mapper")
+@MapperScan({"com.ayssu.ciphergate.mapper", "com.ayssu.ciphergate.portal.mapper"})
 @RequiredArgsConstructor
 public class MybatisPlusConfig {
 

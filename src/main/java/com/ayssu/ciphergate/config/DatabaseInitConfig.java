@@ -42,7 +42,8 @@ public class DatabaseInitConfig implements CommandLineRunner {
                     "alter_spring_session_principal.sql",
                     "alter_membership_system.sql",
                     "alter_membership_extra_quota.sql",
-                    "migrate_menus.sql"
+                    "migrate_menus.sql",
+                    "alter_portal.sql"
             );
             for (String file : upgradeSqlFiles) {
                 try {
@@ -146,6 +147,10 @@ public class DatabaseInitConfig implements CommandLineRunner {
             initPaymentConfig("payment.epay.notify.url", "", "易支付异步回调地址", false);
             initPaymentConfig("payment.epay.return.url", "", "易支付同步跳转地址", false);
             initPaymentConfig("payment.success.redirect.url", "https://demo.ayssu.com/user/balance", "支付成功跳转地址", false);
+            // 门户支付回调和跳转地址（固定路径，终端用户购买使用）
+            initPaymentConfig("payment.portal.notify.url", "", "门户支付异步回调地址", false);
+            initPaymentConfig("payment.portal.return.url", "", "门户支付同步跳转地址", false);
+            initPaymentConfig("payment.portal.success.url", "", "门户支付成功跳转地址", false);
             
         } catch (Exception e) {
             log.error("初始化默认配置失败: {}", e.getMessage());

@@ -171,6 +171,13 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
         if (value instanceof LocalDateTime ldt) {
             return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         }
+        if (value instanceof String s) {
+            try {
+                LocalDateTime ldt = LocalDateTime.parse(s, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            } catch (Exception ignored) {
+            }
+        }
         if (value instanceof Map<?, ?> m) {
             Map<String, Object> nested = new LinkedHashMap<>();
             for (Map.Entry<?, ?> me : m.entrySet()) {

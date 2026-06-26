@@ -43,6 +43,8 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/payment/notify",
                                 "/api/payment/return",
+                                "/api/portal/payment/notify",
+                                "/api/portal/payment/return",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
                         .requestMatchers("/v3/api-docs/**",

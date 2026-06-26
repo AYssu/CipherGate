@@ -137,7 +137,17 @@ public class Application implements Serializable {
      * 解绑冷却时间（小时）：0 表示不限制；仅影响三方换绑接口。
      */
     private Integer unbindCooldownHours;
-    
+
+    /**
+     * 终端用户门户支付功能是否开启
+     */
+    private Boolean portalPaymentEnabled;
+
+    /**
+     * 支付成功后跳转地址
+     */
+    private String portalReturnUrl;
+
     /**
      * 创建时间
      */

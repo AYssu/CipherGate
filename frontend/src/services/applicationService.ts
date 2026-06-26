@@ -28,6 +28,10 @@ export interface Application {
   unbindTimeDeductValue?: number;
   /** 解绑冷却小时，0=不限 */
   unbindCooldownHours?: number;
+  /** 终端用户门户支付功能是否开启 */
+  portalPaymentEnabled?: boolean;
+  /** 支付成功后跳转地址 */
+  portalReturnUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

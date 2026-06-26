@@ -59,6 +59,9 @@ const SystemConfigContent: React.FC = () => {
           epayNotifyUrl: payData?.epayNotifyUrl || '',
           epayReturnUrl: payData?.epayReturnUrl || '',
           successRedirectUrl: payData?.successRedirectUrl || '/user/balance',
+          portalNotifyUrl: payData?.portalNotifyUrl || '',
+          portalReturnUrl: payData?.portalReturnUrl || '',
+          portalSuccessUrl: payData?.portalSuccessUrl || '',
         });
       } catch {}
       // 加载邀请配置
@@ -144,6 +147,9 @@ const SystemConfigContent: React.FC = () => {
       if (values.epayNotifyUrl) data.epayNotifyUrl = values.epayNotifyUrl;
       if (values.epayReturnUrl) data.epayReturnUrl = values.epayReturnUrl;
       if (values.successRedirectUrl) data.successRedirectUrl = values.successRedirectUrl;
+      if (values.portalNotifyUrl) data.portalNotifyUrl = values.portalNotifyUrl;
+      if (values.portalReturnUrl) data.portalReturnUrl = values.portalReturnUrl;
+      if (values.portalSuccessUrl) data.portalSuccessUrl = values.portalSuccessUrl;
       await systemApi.updatePaymentConfig(data);
       message.success('支付配置已保存');
       paymentForm.setFieldValue('epayKey', '');
@@ -410,6 +416,31 @@ const SystemConfigContent: React.FC = () => {
                   <Col span={isMobile ? 24 : 12}>
                     <Form.Item name="successRedirectUrl" label="支付成功跳转地址" tooltip="支付成功后前端跳转的页面地址">
                       <Input placeholder="/user/balance" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, marginTop: 8, marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: 14 }}>终端用户门户支付配置</Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>以下配置供终端用户（应用用户）购买会员使用，应用创建者只需配置支付域名、商户ID和密钥</Text>
+                  </div>
+                </div>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="portalNotifyUrl" label="门户异步回调地址" rules={[{ required: true, message: '请输入回调地址' }]} tooltip="支付网关服务器主动调用，用于验签和更新订单状态">
+                      <Input placeholder="http://你的域名:8080/api/portal/payment/notify" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="portalReturnUrl" label="门户同步跳转地址" tooltip="支付完成后浏览器跳转，后端验签处理订单后跳转到成功页面">
+                      <Input placeholder="http://你的域名:8080/api/portal/payment/return" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 12}>
+                    <Form.Item name="portalSuccessUrl" label="门户支付成功跳转地址" tooltip="同步回调处理完成后跳转的前端页面地址（不含支付参数的干净URL）">
+                      <Input placeholder="http://你的域名:5173/portal/orders" />
                     </Form.Item>
                   </Col>
                 </Row>

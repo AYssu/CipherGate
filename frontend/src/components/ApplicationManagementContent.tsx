@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Card,
   Typography,
@@ -70,6 +71,8 @@ import {
   type AppAgentDTO,
   type AgentBindUserDTO,
 } from '../services/appAgentService';
+import { applicationEpayConfigApi } from '../services/applicationEpayConfigService';
+import { pricingPlanApi } from '../services/pricingPlanService';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -77,6 +80,8 @@ const { TextArea } = Input;
 const ApplicationManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
+  const { userInfo } = useOutletContext<{ userInfo: any }>();
+  const isSuperAdmin = userInfo?.roles?.some((r: any) => r.roleCode === 'SUPER_ADMIN');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -104,6 +109,17 @@ const ApplicationManagementContent: React.FC = () => {
   const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
   const [bindGithubId, setBindGithubId] = useState('');
   const [bindLookupLoading, setBindLookupLoading] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentApp, setPaymentApp] = useState<Application | null>(null);
+  const [paymentConfig, setPaymentConfig] = useState<any>(null);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [pricingModalVisible, setPricingModalVisible] = useState(false);
+  const [pricingApp, setPricingApp] = useState<Application | null>(null);
+  const [pricingList, setPricingList] = useState<any[]>([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingForm] = Form.useForm();
+  const [editingPricing, setEditingPricing] = useState<any>(null);
+  const [showPricingForm, setShowPricingForm] = useState(false);
 
   const getEncryptionJsonError = (raw: string): string | null => {
     const trimmed = (raw || '').trim();
@@ -150,6 +166,18 @@ const ApplicationManagementContent: React.FC = () => {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  const loadPricingPlans = async (appId: number) => {
+    setPricingLoading(true);
+    try {
+      const res: any = await pricingPlanApi.list(appId);
+      setPricingList(res?.data || []);
+    } catch {
+      // handled
+    } finally {
+      setPricingLoading(false);
+    }
+  };
 
   // 打开创建/编辑弹窗
   const handleOpenModal = (app?: Application) => {
@@ -556,6 +584,28 @@ const ApplicationManagementContent: React.FC = () => {
         const base = import.meta.env.BASE_URL || '/';
         const path = `${base.endsWith('/') ? base : `${base}/`}app-user?id=${record.id}`;
         window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
+      },
+    },
+    {
+      key: 'paymentConfig',
+      icon: <SafetyOutlined />,
+      label: '支付配置',
+      onClick: () => {
+        setPaymentApp(record);
+        setPaymentModalVisible(true);
+        applicationEpayConfigApi.getConfig(record.id).then((res: any) => {
+          setPaymentConfig(res?.data || { epayUrl: '', epayPid: '', epayKey: '' });
+        });
+      },
+    },
+    {
+      key: 'pricingPlan',
+      icon: <SafetyOutlined />,
+      label: '价格方案',
+      onClick: () => {
+        setPricingApp(record);
+        setPricingModalVisible(true);
+        loadPricingPlans(record.id);
       },
     },
     {
@@ -1402,6 +1452,214 @@ const ApplicationManagementContent: React.FC = () => {
             </Card>
           </Col>
         </Row>
+      </Modal>
+
+      {/* 价格方案弹窗 */}
+      <Modal
+        title={`价格方案 - ${pricingApp?.appName || ''}`}
+        open={pricingModalVisible}
+        onCancel={() => { setPricingModalVisible(false); setEditingPricing(null); pricingForm.resetFields(); }}
+        footer={null}
+        width={isMobile ? '100%' : 700}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingPricing(null); setShowPricingForm(true); pricingForm.resetFields(); }}>
+            新增方案
+          </Button>
+        </div>
+        <Table
+          dataSource={pricingList}
+          rowKey="id"
+          loading={pricingLoading}
+          pagination={false}
+          size="small"
+          columns={[
+            { title: '方案名称', dataIndex: 'planName', key: 'planName' },
+            { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
+            { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
+            { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+            { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
+            { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
+            {
+              title: '操作', key: 'action',
+              render: (_: any, record: any) => (
+                <Space>
+                  <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
+                  <Button size="small" danger onClick={() => {
+                    Modal.confirm({
+                      title: '确认删除', content: `确定删除方案「${record.planName}」？`,
+                      onOk: async () => {
+                        await pricingPlanApi.delete(pricingApp!.id, record.id);
+                        message.success('删除成功');
+                        loadPricingPlans(pricingApp!.id);
+                      },
+                    });
+                  }}>删除</Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+        {showPricingForm ? (
+          <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
+            <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
+              try {
+                if (editingPricing) {
+                  await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);
+                  message.success('更新成功');
+                } else {
+                  await pricingPlanApi.create(pricingApp!.id, values);
+                  message.success('创建成功');
+                }
+                setEditingPricing(null);
+                setShowPricingForm(false);
+                pricingForm.resetFields();
+                loadPricingPlans(pricingApp!.id);
+              } catch {
+                // handled
+              }
+            }}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="planName" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
+                    <Input placeholder="如：月度会员" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="planType" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
+                    <Select placeholder="选择类型" options={[{ value: 'MEMBER', label: '会员' }, { value: 'TRIAL', label: '试用' }]} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="durationDays" label="时长(天)" rules={[{ required: true, message: '请输入天数' }]}>
+                    <InputNumber min={1} style={{ width: '100%' }} placeholder="30" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="sortOrder" label="排序" initialValue={0}>
+                    <InputNumber min={0} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="enabled" label="状态" initialValue={true}>
+                    <Select options={[{ value: true, label: '启用' }, { value: false, label: '禁用' }]} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>
+                  <Button onClick={() => { setEditingPricing(null); setShowPricingForm(false); pricingForm.resetFields(); }}>取消</Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+        ) : null}
+      </Modal>
+
+      {/* 支付配置弹窗 */}
+      <Modal
+        title={`支付配置 - ${paymentApp?.appName || ''}`}
+        open={paymentModalVisible}
+        onCancel={() => { setPaymentModalVisible(false); setPaymentConfig(null); }}
+        footer={null}
+        width={isMobile ? '100%' : 600}
+      >
+        {paymentConfig && (
+          <div>
+            <div style={{ marginBottom: 16, padding: 12, background: '#fff7e6', borderRadius: 8, border: '1px solid #ffd591' }}>
+              <Text type="warning">
+                配置易支付参数后，超级管理员可以在应用管理中开启终端用户购买功能。
+                回调地址使用系统统一回调，无需手动填写。
+              </Text>
+            </div>
+            <Form layout="vertical">
+              <Form.Item label="易支付域名" required>
+                <Input
+                  value={paymentConfig.epayUrl}
+                  onChange={(e) => setPaymentConfig({ ...paymentConfig, epayUrl: e.target.value })}
+                  placeholder="https://pay.example.com"
+                />
+              </Form.Item>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="商户ID" required>
+                    <Input
+                      value={paymentConfig.epayPid}
+                      onChange={(e) => setPaymentConfig({ ...paymentConfig, epayPid: e.target.value })}
+                      placeholder="商户ID"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="密钥" required>
+                    <Input.Password
+                      value={paymentConfig.epayKey}
+                      onChange={(e) => setPaymentConfig({ ...paymentConfig, epayKey: e.target.value })}
+                      placeholder="商户密钥"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item>
+                <Space>
+                  <Button
+                    type="primary"
+                    loading={paymentSaving}
+                    onClick={async () => {
+                      if (!paymentConfig.epayUrl || !paymentConfig.epayPid || !paymentConfig.epayKey) {
+                        message.error('请填写必填项');
+                        return;
+                      }
+                      setPaymentSaving(true);
+                      try {
+                        await applicationEpayConfigApi.saveConfig(paymentApp!.id, paymentConfig);
+                        message.success('保存成功');
+                        setPaymentModalVisible(false);
+                      } catch {
+                        // handled by interceptor
+                      } finally {
+                        setPaymentSaving(false);
+                      }
+                    }}
+                  >
+                    保存配置
+                  </Button>
+                  {paymentApp && (
+                    isSuperAdmin ? (
+                      <Switch
+                        checkedChildren="开启购买"
+                        unCheckedChildren="关闭购买"
+                        checked={paymentApp.portalPaymentEnabled}
+                        onChange={async (checked) => {
+                          try {
+                            await applicationEpayConfigApi.togglePayment(paymentApp.id, checked);
+                            message.success(checked ? '已开启购买功能' : '已关闭购买功能');
+                            setPaymentApp({ ...paymentApp, portalPaymentEnabled: checked });
+                            fetchApplications();
+                          } catch {
+                            // handled by interceptor
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Tag color={paymentApp.portalPaymentEnabled ? 'success' : 'default'}>
+                        {paymentApp.portalPaymentEnabled ? '购买已开启' : '购买未开启'}
+                      </Tag>
+                    )
+                  )}
+                </Space>
+              </Form.Item>
+            </Form>
+          </div>
+        )}
       </Modal>
     </Card>
   );

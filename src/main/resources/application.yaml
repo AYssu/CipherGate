@@ -29,6 +29,9 @@ spring:
     multipart:
       max-file-size: 512MB
       max-request-size: 512MB
+  docker:
+    compose:
+      enabled: true
 
 mybatis-plus:
   configuration:
@@ -71,3 +74,8 @@ app:
     access-key: ${MINIO_ACCESS_KEY:minio_RcWTQn}
     secret-key: ${MINIO_SECRET_KEY:minio_WfY3PE}
     bucket: ${MINIO_BUCKET:ciphergate-plugins}
+
+portal:
+  jwt:
+    secret: ${PORTAL_JWT_SECRET:CipherGatePortalJwtSecret2026!@#$%^&*()_+AbCdEfGhIjKlMnOpQrStUvWxYz}
+    expiration: ${PORTAL_JWT_EXPIRATION:86400000}

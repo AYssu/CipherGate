@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout, Menu, Button, Card, Row, Col, Typography, Space, Statistic, Divider, Modal, Form, Input, message, Tabs } from 'antd';
 import {
   SecurityScanOutlined,
@@ -14,10 +14,12 @@ import {
   GithubOutlined,
   SettingOutlined,
   UserOutlined,
-  KeyOutlined
+  KeyOutlined,
+  MailOutlined
 } from '@ant-design/icons';
 import { systemApi } from '../services';
 import safeIcon from '../assets/icons/safe.svg';
+import portalRequest from '../portal/services/portalRequest';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Paragraph, Text } = Typography;
@@ -35,6 +37,16 @@ const Home: React.FC = () => {
   const [loginMode, setLoginMode] = useState<'github' | 'password'>('github');
   const [passwordLoginForm] = Form.useForm();
   const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
+
+  // 应用用户登录相关状态
+  const [appUserModalVisible, setAppUserModalVisible] = useState(false);
+  const [appUserLoginForm] = Form.useForm();
+  const [appUserLoading, setAppUserLoading] = useState(false);
+  const [captchaUrl, setCaptchaUrl] = useState('');
+  const [captchaId, setCaptchaId] = useState('');
+  const [tempToken, setTempToken] = useState('');
+  const [appList, setAppList] = useState<any[]>([]);
+  const [selectAppVisible, setSelectAppVisible] = useState(false);
 
   // 检查系统是否已初始化
   useEffect(() => {
@@ -162,6 +174,74 @@ const Home: React.FC = () => {
 
   const handleCancel = () => {
     setLoginModalVisible(false);
+  };
+
+  const loadCaptcha = useCallback(async () => {
+    try {
+      const res: any = await portalRequest.get('/auth/captcha');
+      if (res?.data) {
+        setCaptchaUrl(res.data.image);
+        setCaptchaId(res.data.captchaId);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleAppUserLogin = () => {
+    setAppUserModalVisible(true);
+    loadCaptcha();
+  };
+
+  const handleAppUserLoginSubmit = async () => {
+    try {
+      const values = await appUserLoginForm.validateFields();
+      setAppUserLoading(true);
+      const res: any = await portalRequest.post('/auth/login', {
+        email: values.email,
+        password: values.password,
+        captchaCode: values.captchaCode,
+        captchaId: captchaId,
+      });
+
+      if (res?.data?.needSelectApp) {
+        setTempToken(res.data.token);
+        localStorage.setItem('portal_email', values.email);
+        setAppList(res.data.apps || []);
+        setSelectAppVisible(true);
+        setAppUserModalVisible(false);
+      } else {
+        localStorage.setItem('portal_token', res.data.token);
+        localStorage.setItem('portal_email', values.email);
+        if (res.data.apps?.[0]) {
+          localStorage.setItem('portal_app_id', String(res.data.apps[0].appId));
+        }
+        message.success('登录成功');
+        setAppUserModalVisible(false);
+        appUserLoginForm.resetFields();
+        window.location.href = '/portal/dashboard';
+      }
+    } catch (err: any) {
+      loadCaptcha();
+    } finally {
+      setAppUserLoading(false);
+    }
+  };
+
+  const handleSelectApp = async (appId: number) => {
+    try {
+      localStorage.setItem('portal_token', tempToken);
+      localStorage.setItem('portal_app_id', String(appId));
+      const res: any = await portalRequest.post(`/auth/select-app?appId=${appId}`);
+      if (res?.data?.token) {
+        localStorage.setItem('portal_token', res.data.token);
+      }
+      message.success('登录成功');
+      setSelectAppVisible(false);
+      window.location.href = '/portal/dashboard';
+    } catch {
+      // ignore
+    }
   };
   const features = [
     {
@@ -481,6 +561,24 @@ const Home: React.FC = () => {
                       onClick={showLoginModal}
                     >
                       入驻开发者 <RightOutlined />
+                    </Button>
+                    <Button
+                      size="large"
+                      style={{
+                        height: window.innerWidth < 768 ? 48 : 56,
+                        padding: window.innerWidth < 768 ? '0 24px' : '0 32px',
+                        fontSize: window.innerWidth < 768 ? 16 : 18,
+                        fontWeight: 600,
+                        borderRadius: 8,
+                        background: 'transparent',
+                        borderColor: 'rgba(0, 212, 170, 0.6)',
+                        color: '#00d4aa',
+                        width: window.innerWidth < 768 ? '200px' : 'auto'
+                      }}
+                      icon={<UserOutlined />}
+                      onClick={handleAppUserLogin}
+                    >
+                      应用用户
                     </Button>
                     <Button
                       size="large"
@@ -1105,6 +1203,165 @@ const Home: React.FC = () => {
           <Typography.Paragraph style={{ color: '#999', fontSize: 12, marginTop: 16, marginBottom: 0 }}>
             提示：请确保在 GitHub OAuth App 设置中配置了正确的 Redirect URI
           </Typography.Paragraph>
+        </div>
+      </Modal>
+      {/* 应用用户登录弹窗 */}
+      <Modal
+        title={
+          <div style={{ textAlign: 'center', paddingTop: 8 }}>
+            <UserOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: 12 }} />
+            <div style={{ fontSize: 20, fontWeight: 600 }}>应用用户登录</div>
+          </div>
+        }
+        open={appUserModalVisible}
+        onCancel={() => {
+          setAppUserModalVisible(false);
+          appUserLoginForm.resetFields();
+        }}
+        footer={null}
+        width={420}
+        centered
+        closable
+        maskClosable
+        styles={{
+          content: {
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          },
+          body: {
+            padding: window.innerWidth < 768 ? '24px 20px 20px' : '24px 32px 32px'
+          }
+        }}
+      >
+        <Form
+          form={appUserLoginForm}
+          layout="vertical"
+          onFinish={handleAppUserLoginSubmit}
+          autoComplete="off"
+        >
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '邮箱格式不正确' }
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="邮箱地址"
+              size="large"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="密码"
+              size="large"
+              autoComplete="current-password"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="captchaCode"
+            rules={[{ required: true, message: '请输入验证码' }]}
+          >
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Input
+                prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
+                placeholder="验证码"
+                size="large"
+                style={{ flex: 1 }}
+              />
+              <div
+                onClick={loadCaptcha}
+                style={{
+                  cursor: 'pointer',
+                  height: 40,
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  border: '1px solid #d9d9d9',
+                  flexShrink: 0
+                }}
+              >
+                {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 40, display: 'block' }} />}
+              </div>
+            </div>
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 12 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={appUserLoading}
+              block
+              size="large"
+              style={{ height: 44, fontWeight: 500, borderRadius: 6 }}
+            >
+              登录
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div style={{ textAlign: 'center' }}>
+          <a
+            href="/portal/recovery"
+            style={{ color: '#1890ff', fontSize: 13 }}
+          >
+            忘记密码？
+          </a>
+        </div>
+      </Modal>
+
+      {/* 应用选择弹窗 */}
+      <Modal
+        title={
+          <div style={{ textAlign: 'center', paddingTop: 8 }}>
+            <SafetyCertificateOutlined style={{ fontSize: 32, color: '#1890ff', marginBottom: 12 }} />
+            <div style={{ fontSize: 20, fontWeight: 600 }}>选择应用</div>
+          </div>
+        }
+        open={selectAppVisible}
+        onCancel={() => setSelectAppVisible(false)}
+        footer={null}
+        width={420}
+        centered
+        closable
+        maskClosable
+        styles={{
+          content: {
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          },
+          body: {
+            padding: window.innerWidth < 768 ? '24px 20px 20px' : '24px 32px 32px'
+          }
+        }}
+      >
+        <Typography.Paragraph style={{ textAlign: 'center', color: '#666', marginBottom: 20 }}>
+          您的账号绑定了多个应用，请选择要登录的应用
+        </Typography.Paragraph>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {appList.map((app: any) => (
+            <Button
+              key={app.appId}
+              size="large"
+              icon={<SafetyCertificateOutlined />}
+              onClick={() => handleSelectApp(app.appId)}
+              style={{
+                height: 52,
+                textAlign: 'left',
+                borderRadius: 8,
+                border: '1px solid #d9d9d9',
+                fontSize: 15
+              }}
+            >
+              {app.appName || `应用 #${app.appId}`}
+            </Button>
+          ))}
         </div>
       </Modal>
     </Layout>
