@@ -22,6 +22,9 @@ export type { ActivityLog, PageResult } from './activityService';
 export { dashboardApi } from './dashboardService';
 export type { DashboardTodayStats, DashboardOverview, DashboardOnlineStats, DashboardTrendPoint } from './dashboardService';
 
+// 从 announcementService 导出
+export * from './announcementService';
+
 // 从 appUserService 导出
 export * from './appUserService';
 

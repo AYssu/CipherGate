@@ -12,3 +12,4 @@ export { default as AppUserManagementContent } from './AppUserManagementContent'
 export { default as AppVariableManagementContent } from './AppVariableManagementContent';
 export { default as ThirdPartyCredentialManagementContent } from './ThirdPartyCredentialManagementContent';
 export { default as CallLogManagementContent } from './CallLogManagementContent';
+export { default as AnnouncementManagementContent } from './AnnouncementManagementContent';

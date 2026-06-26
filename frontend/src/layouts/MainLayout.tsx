@@ -23,6 +23,7 @@ import {
 import { userApi } from '../services/userService';
 import { activityApi } from '../services/activityService';
 import { messageApi, type SystemMessage } from '../services/messageService';
+import { announcementApi, type SystemAnnouncement } from '../services/announcementService';
 import type { User, Menu as UserMenu } from '../services/userService';
 
 const { Header, Sider, Content } = Layout;
@@ -43,6 +44,8 @@ const MainLayout: React.FC = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<SystemMessage | null>(null);
   const [messageDetailVisible, setMessageDetailVisible] = useState(false);
+  const [announcementVisible, setAnnouncementVisible] = useState(false);
+  const [currentAnnouncement, setCurrentAnnouncement] = useState<SystemAnnouncement | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -81,6 +84,30 @@ const MainLayout: React.FC = () => {
     const interval = setInterval(fetchUnreadCount, 30000);
     
     return () => clearInterval(interval);
+  }, []);
+
+  // 检查公告弹窗
+  useEffect(() => {
+    const checkAnnouncements = async () => {
+      try {
+        const result = await announcementApi.getActiveAnnouncements();
+        const activeAnnouncements = (result as any).data || [];
+        if (activeAnnouncements.length === 0) return;
+
+        const shownKey = 'shown_announcements';
+        const shownIds: number[] = JSON.parse(localStorage.getItem(shownKey) || '[]');
+        const unshown = activeAnnouncements.find((a: SystemAnnouncement) => !shownIds.includes(a.id));
+
+        if (unshown) {
+          setCurrentAnnouncement(unshown);
+          setAnnouncementVisible(true);
+        }
+      } catch (error) {
+        console.error('获取公告失败:', error);
+      }
+    };
+
+    checkAnnouncements();
   }, []);
 
   const handleLogout = async () => {
@@ -129,6 +156,20 @@ const MainLayout: React.FC = () => {
   const handleCloseMessageDetail = () => {
     setMessageDetailVisible(false);
     setSelectedMessage(null);
+  };
+
+  // 关闭公告弹窗
+  const handleAnnouncementClose = () => {
+    if (currentAnnouncement) {
+      const shownKey = 'shown_announcements';
+      const shownIds: number[] = JSON.parse(localStorage.getItem(shownKey) || '[]');
+      if (!shownIds.includes(currentAnnouncement.id)) {
+        shownIds.push(currentAnnouncement.id);
+        localStorage.setItem(shownKey, JSON.stringify(shownIds));
+      }
+    }
+    setAnnouncementVisible(false);
+    setCurrentAnnouncement(null);
   };
 
   // 标记消息为已读
@@ -846,14 +887,14 @@ const MainLayout: React.FC = () => {
                 </Tag>
               </Space>
             </div>
-            
+
             <div style={{ marginBottom: isMobile ? 12 : 16 }}>
               <Text strong style={{ fontSize: isMobile ? 15 : 16, display: 'block', marginBottom: isMobile ? 6 : 8 }}>
                 {selectedMessage.title}
               </Text>
             </div>
-            
-            <div style={{ 
+
+            <div style={{
               marginBottom: isMobile ? 12 : 16,
               padding: isMobile ? 12 : 16,
               backgroundColor: '#fafafa',
@@ -864,7 +905,7 @@ const MainLayout: React.FC = () => {
                 {selectedMessage.content}
               </Text>
             </div>
-            
+
             <div>
               <Space size={4}>
                 <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
@@ -872,6 +913,42 @@ const MainLayout: React.FC = () => {
                   {new Date(selectedMessage.createdTime).toLocaleString('zh-CN')}
                 </Text>
               </Space>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 公告弹窗 */}
+      <Modal
+        title="系统公告"
+        open={announcementVisible}
+        onCancel={handleAnnouncementClose}
+        footer={[
+          <Button key="close" type="primary" onClick={handleAnnouncementClose} block={isMobile}>
+            我知道了
+          </Button>,
+        ]}
+        width={isMobile ? '92vw' : 600}
+        styles={isMobile ? { content: { padding: '12px' } } : undefined}
+      >
+        {currentAnnouncement && (
+          <div>
+            <Text strong style={{ fontSize: isMobile ? 15 : 16, display: 'block', marginBottom: isMobile ? 8 : 12 }}>
+              {currentAnnouncement.title}
+            </Text>
+            <div style={{
+              padding: isMobile ? 12 : 16,
+              backgroundColor: '#fafafa',
+              borderRadius: 8,
+              lineHeight: 1.8,
+              whiteSpace: 'pre-wrap',
+            }}>
+              {currentAnnouncement.content}
+            </div>
+            <div style={{ marginTop: isMobile ? 8 : 12 }}>
+              <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
+                {new Date(currentAnnouncement.createdAt).toLocaleString('zh-CN')}
+              </Text>
             </div>
           </div>
         )}
