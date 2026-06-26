@@ -28,3 +28,7 @@ export * from './appUserService';
 // 从 pluginService 导出
 export * from './pluginService';
 export * from './appAgentService';
+
+// 从 docService 导出
+export { docApi } from './docService';
+export type { DocCategory, DocMenuItem, DocMenuCategory, DocDetail, DocAttachment, DocItem } from './docService';
