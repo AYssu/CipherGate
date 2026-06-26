@@ -18,6 +18,7 @@ import {
   SafetyCertificateOutlined,
   ArrowLeftOutlined,
   UserOutlined,
+  LoginOutlined,
 } from '@ant-design/icons';
 import {
   sendAppUserRegisterEmailCode,
@@ -439,6 +440,15 @@ const AppUserRegisterPage: React.FC = () => {
                     用户查询
                   </Button>
                 )}
+                <Button
+                  size="large"
+                  block
+                  icon={<LoginOutlined />}
+                  href="/portal/login"
+                  style={{ height: 44, fontWeight: 500 }}
+                >
+                  用户登录
+                </Button>
               </Space>
             </Form.Item>
           </Form>
