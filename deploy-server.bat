@@ -4,11 +4,15 @@ setlocal
 set "BUNDLE_DIR=deploy-bundle"
 set "ZIP_NAME=ciphergate-deploy.zip"
 
-echo [1/5] Build backend JAR...
+echo [1/6] Build backend JAR...
 call gradlew.bat clean bootJar --no-daemon
 if errorlevel 1 goto :fail
 
-echo [2/5] Build frontend dist...
+echo [2/6] Build crypto plugins...
+call gradlew.bat -p plugins\rsa-crypto-plugin clean jar --no-daemon
+if errorlevel 1 goto :fail
+
+echo [3/6] Build frontend dist...
 pushd frontend
 if not exist "node_modules" (
   call npm install --include=dev --no-audit --no-fund
@@ -32,9 +36,10 @@ if errorlevel 1 (
 )
 popd
 
-echo [3/5] Prepare bundle...
+echo [4/6] Prepare bundle...
 if exist "%BUNDLE_DIR%" rmdir /s /q "%BUNDLE_DIR%"
 mkdir "%BUNDLE_DIR%\app"
+mkdir "%BUNDLE_DIR%\plugins"
 mkdir "%BUNDLE_DIR%\frontend"
 
 set "JAR_FILE="
@@ -54,6 +59,12 @@ copy /y "frontend\nginx.conf" "%BUNDLE_DIR%\frontend\nginx.conf" >nul
 if errorlevel 1 goto :fail
 copy /y "docker-compose.server.yml" "%BUNDLE_DIR%\docker-compose.server.yml" >nul
 if errorlevel 1 goto :fail
+
+:: Copy plugin JARs
+for /f "delims=" %%f in ('dir /b /s "plugins\*\build\libs\*.jar" 2^>nul') do (
+  copy /y "%%f" "%BUNDLE_DIR%\plugins\%%~nxf" >nul
+  echo [INFO] Plugin: %%~nxf
+)
 
 if not exist ".env.server" (
   echo [ERROR] Missing .env.server. Copy from .env.server.example and edit it.
@@ -84,12 +95,12 @@ powershell -NoProfile -Command ^
   "Set-Content -LiteralPath $dst -Value $out -Encoding UTF8"
 if errorlevel 1 goto :fail
 
-echo [4/5] Create zip package...
+echo [5/6] Create zip package...
 if exist "%ZIP_NAME%" del /f /q "%ZIP_NAME%"
 powershell -NoProfile -Command "Compress-Archive -Path '%BUNDLE_DIR%\*' -DestinationPath '%ZIP_NAME%' -Force"
 if errorlevel 1 goto :fail
 
-echo [5/5] Done.
+echo [6/6] Done.
 echo Bundle folder: %BUNDLE_DIR%
 echo Zip package : %ZIP_NAME%
 echo Upload one of them to server, then run:

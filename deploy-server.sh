@@ -8,11 +8,15 @@ info()  { echo -e "\033[1;32m[INFO]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # ---------- 1. Build backend JAR ----------
-info "[1/5] Build backend JAR..."
+info "[1/6] Build backend JAR..."
 ./gradlew clean bootJar --no-daemon
 
-# ---------- 2. Build frontend dist ----------
-info "[2/5] Build frontend dist..."
+# ---------- 2. Build crypto plugins ----------
+info "[2/6] Build crypto plugins..."
+./gradlew -p plugins/rsa-crypto-plugin clean jar --no-daemon
+
+# ---------- 3. Build frontend dist ----------
+info "[3/6] Build frontend dist..."
 pushd frontend > /dev/null
 if [ ! -d "node_modules" ]; then
   npm install --include=dev --no-audit --no-fund
@@ -24,10 +28,10 @@ fi
 npm run build
 popd > /dev/null
 
-# ---------- 3. Prepare bundle ----------
-info "[3/5] Prepare bundle..."
+# ---------- 4. Prepare bundle ----------
+info "[4/6] Prepare bundle..."
 rm -rf "$BUNDLE_DIR"
-mkdir -p "$BUNDLE_DIR/app" "$BUNDLE_DIR/frontend"
+mkdir -p "$BUNDLE_DIR/app" "$BUNDLE_DIR/plugins" "$BUNDLE_DIR/frontend"
 
 # 找到最新的非 plain jar
 JAR_FILE=$(ls -t build/libs/*.jar 2>/dev/null | grep -v '\-plain\.jar$' | head -1)
@@ -40,6 +44,13 @@ cp "$JAR_FILE" "$BUNDLE_DIR/app/app.jar"
 cp -r frontend/dist "$BUNDLE_DIR/frontend/dist"
 cp frontend/nginx.conf "$BUNDLE_DIR/frontend/nginx.conf"
 cp docker-compose.server.yml "$BUNDLE_DIR/docker-compose.server.yml"
+
+# Copy plugin JARs
+for jar in plugins/*/build/libs/*.jar; do
+  [ -f "$jar" ] || continue
+  cp "$jar" "$BUNDLE_DIR/plugins/$(basename "$jar")"
+  info "Plugin: $(basename "$jar")"
+done
 
 # 检查 .env.server
 if [ ! -f ".env.server" ]; then
@@ -91,13 +102,13 @@ info "  FRONTEND_PORT=${PORTS[5]}"
 info "  RABBITMQ_PORT=${PORTS[6]}"
 info "  RABBITMQ_MGMT_PORT=${PORTS[7]}"
 
-# ---------- 4. Create zip ----------
-info "[4/5] Create zip package..."
+# ---------- 5. Create zip ----------
+info "[5/6] Create zip package..."
 rm -f "$ZIP_NAME"
 (cd "$BUNDLE_DIR" && zip -r -q "../$ZIP_NAME" .)
 
-# ---------- 5. Done ----------
-info "[5/5] Done."
+# ---------- 6. Done ----------
+info "[6/6] Done."
 echo ""
 echo "  Bundle folder : $BUNDLE_DIR"
 echo "  Zip package   : $ZIP_NAME"
