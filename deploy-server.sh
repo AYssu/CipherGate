@@ -46,11 +46,18 @@ cp frontend/nginx.conf "$BUNDLE_DIR/frontend/nginx.conf"
 cp docker-compose.server.yml "$BUNDLE_DIR/docker-compose.server.yml"
 
 # Copy plugin JARs
+PLUGIN_COUNT=0
 for jar in plugins/*/build/libs/*.jar; do
   [ -f "$jar" ] || continue
   cp "$jar" "$BUNDLE_DIR/plugins/$(basename "$jar")"
   info "Plugin: $(basename "$jar")"
+  PLUGIN_COUNT=$((PLUGIN_COUNT + 1))
 done
+if [ "$PLUGIN_COUNT" -eq 0 ]; then
+  echo -e "\033[1;33m[WARN]\033[0m No plugin JARs found in plugins/*/build/libs/"
+else
+  info "$PLUGIN_COUNT plugin(s) bundled."
+fi
 
 # 检查 .env.server
 if [ ! -f ".env.server" ]; then

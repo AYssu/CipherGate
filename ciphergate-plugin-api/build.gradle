@@ -17,3 +17,7 @@ repositories {
 dependencies {
     api 'org.pf4j:pf4j:3.14.1'
 }
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

@@ -60,11 +60,12 @@ if errorlevel 1 goto :fail
 copy /y "docker-compose.server.yml" "%BUNDLE_DIR%\docker-compose.server.yml" >nul
 if errorlevel 1 goto :fail
 
-:: Copy plugin JARs
-for /f "delims=" %%f in ('dir /b /s "plugins\*\build\libs\*.jar" 2^>nul') do (
-  copy /y "%%f" "%BUNDLE_DIR%\plugins\%%~nxf" >nul
-  echo [INFO] Plugin: %%~nxf
-)
+:: Copy plugin JARs (use powershell for reliability on Windows CI)
+powershell -NoProfile -Command ^
+  "$src = 'plugins';" ^
+  "$dst = '%BUNDLE_DIR%\plugins';" ^
+  "$jars = Get-ChildItem -Path $src -Recurse -Filter '*.jar' | Where-Object { $_.FullName -match '\\build\\libs\\' };" ^
+  "if ($jars.Count -eq 0) { Write-Host '[WARN] No plugin JARs found' } else { foreach ($j in $jars) { Copy-Item $j.FullName -Destination $dst -Force; Write-Host ('[INFO] Plugin: ' + $j.Name) }; Write-Host ('[INFO] ' + $jars.Count + ' plugin(s) bundled.') }"
 
 if not exist ".env.server" (
   echo [ERROR] Missing .env.server. Copy from .env.server.example and edit it.
