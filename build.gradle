@@ -66,6 +66,7 @@ dependencies {
     implementation "com.alibaba.fastjson2:fastjson2:2.0.61"
 
     implementation 'org.pf4j:pf4j:3.14.1'
+    implementation project(':ciphergate-plugin-api')
     implementation 'io.minio:minio:8.6.0'
 
     // JWT for portal authentication

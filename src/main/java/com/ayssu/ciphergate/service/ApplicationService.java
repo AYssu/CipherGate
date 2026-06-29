@@ -6,6 +6,7 @@ import com.ayssu.ciphergate.entity.Application;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -61,6 +62,10 @@ public interface ApplicationService {
     Map<String, Object> getEncryptionConfig(Long id, Long userId);
 
     void updateEncryptionConfig(Long id, Map<String, Object> encryptionConfig, Long userId);
+
+    Map<String, Object> getEncryptionTemplate(String pluginId);
+
+    List<Map<String, Object>> listEncryptionPlugins();
 
     /**
      * 上传应用更新包到 MinIO，并写入 {@code update_file_storage_key}（覆盖旧对象）。

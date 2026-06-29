@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "serverPublicKey": {
+      "type": "string",
+      "description": "服务端 RSA 公钥（PKCS#8，客户端用此密钥加密请求）"
+    },
+    "serverPrivateKey": {
+      "type": "string",
+      "description": "服务端 RSA 私钥（PKCS#8，服务端用此密钥解密请求）"
+    },
+    "clientPublicKey": {
+      "type": "string",
+      "description": "客户端 RSA 公钥（PKCS#8，服务端用此密钥加密响应）"
+    },
+    "clientPrivateKey": {
+      "type": "string",
+      "description": "客户端 RSA 私钥（PKCS#8，客户端用此密钥解密响应，服务端仅做模板展示）"
+    }
+  }
+}

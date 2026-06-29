@@ -99,6 +99,11 @@ export const updateApplication = (id: number, data: ApplicationDTO) => {
   return request.put(`/applications/${id}`, data);
 };
 
+/** 仅更新应用部分字段 */
+export const patchApplication = (id: number, data: Partial<ApplicationDTO>) => {
+  return request.put(`/applications/${id}`, data);
+};
+
 /**
  * 删除应用
  */
@@ -151,6 +156,14 @@ export const getEncryptionConfig = (id: number) => {
 
 export const updateEncryptionConfig = (id: number, encryptionConfig: Record<string, any>) => {
   return request.put(`/applications/${id}/encryption-config`, encryptionConfig);
+};
+
+export const getEncryptionTemplate = (pluginId?: string) => {
+  return request.get('/applications/encryption-template', { params: { pluginId } });
+};
+
+export const listEncryptionPlugins = () => {
+  return request.get('/applications/encryption-plugins');
 };
 
 /** 上传应用更新包到 MinIO（multipart，字段名 file） */

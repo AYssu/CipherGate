@@ -27,7 +27,6 @@ import java.util.Map;
  * 密钥来源顺序：应用 {@code encryptionConfig.aesKey}（或 {@code secretKey}）→ {@code pluginConfig.aesKey} →
  * classpath {@code aes-default.defaults.json}。
  */
-@Component
 public class AesDefaultCryptoPlugin implements CryptoPluginEncryptor {
 
     private static final String PLUGIN_ID = "aes-default";

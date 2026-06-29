@@ -1,1 +1,3 @@
 rootProject.name = 'CipherGate'
+
+include 'ciphergate-plugin-api'

@@ -89,5 +89,7 @@ CREATE TABLE IF NOT EXISTS portal_verify_code (
 
 -- 6. application 表新增字段
 ALTER TABLE application
-    ADD COLUMN portal_payment_enabled BOOLEAN DEFAULT FALSE AFTER unbind_cooldown_hours,
+    ADD COLUMN portal_payment_enabled BOOLEAN DEFAULT FALSE AFTER unbind_cooldown_hours;
+
+ALTER TABLE application
     ADD COLUMN portal_return_url VARCHAR(500) AFTER portal_payment_enabled;

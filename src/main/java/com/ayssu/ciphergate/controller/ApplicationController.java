@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
@@ -249,6 +250,18 @@ public class ApplicationController {
             log.error("更新加密配置失败", e);
             return Result.error("更新加密配置失败: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/encryption-plugins")
+    @Operation(summary = "列出所有可用加密插件", description = "返回本地默认 + PF4J 插件列表，含各自的配置模板")
+    public Result<List<Map<String, Object>>> listEncryptionPlugins() {
+        return Result.success(applicationService.listEncryptionPlugins());
+    }
+
+    @GetMapping("/encryption-template")
+    @Operation(summary = "获取加密配置模板", description = "返回指定插件或当前默认插件的配置 key 结构")
+    public Result<Map<String, Object>> getEncryptionTemplate(@RequestParam(required = false) String pluginId) {
+        return Result.success(applicationService.getEncryptionTemplate(pluginId));
     }
 
     @PostMapping(value = "/{id}/update-package", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)

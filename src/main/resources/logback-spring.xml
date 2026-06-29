@@ -5,13 +5,8 @@
     <property name="log.path" value="logs"/>
     <property name="charset" value="UTF-8"/>
 
-    <springProperty scope="context" name="springProfile" source="spring.profiles.active" defaultValue="dev"/>
-
     <!-- 控制台 -->
     <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>DEBUG</level>
-        </filter>
         <encoder>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
         </encoder>
@@ -77,29 +72,12 @@
         </filter>
     </appender>
 
-    <!-- dev: 控制台 + 文件 -->
-    <springProfile name="dev">
-        <root level="info">
-            <appender-ref ref="console"/>
-            <appender-ref ref="info_file"/>
-            <appender-ref ref="warn_file"/>
-            <appender-ref ref="error_file"/>
-        </root>
-    </springProfile>
-
-    <!-- prod: 只文件 -->
-    <springProfile name="prod">
-        <root level="info">
-            <appender-ref ref="info_file"/>
-            <appender-ref ref="warn_file"/>
-            <appender-ref ref="error_file"/>
-        </root>
-    </springProfile>
-
-    <logger name="com.ayssu.ciphergate" level="debug" additivity="false">
+    <!-- 根日志：控制台 + 文件 -->
+    <root level="info">
+        <appender-ref ref="console"/>
         <appender-ref ref="info_file"/>
         <appender-ref ref="warn_file"/>
         <appender-ref ref="error_file"/>
-    </logger>
+    </root>
 
 </configuration>

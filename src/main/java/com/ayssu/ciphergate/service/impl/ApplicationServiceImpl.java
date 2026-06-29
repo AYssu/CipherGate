@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -631,6 +632,85 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         // 简单实现，实际可以使用 Jackson 或其他工具
         return new HashMap<>();
+    }
+
+    @Override
+    public Map<String, Object> getEncryptionTemplate(String pluginId) {
+        if (!StringUtils.hasText(pluginId)) {
+            pluginId = DEFAULT_LOCAL_PLUGIN_ID;
+        }
+        Map<String, Object> template = resolveDefaultEncryptionConfig(pluginId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("pluginId", pluginId);
+        result.put("keys", new ArrayList<>(template.keySet()));
+        result.put("template", template);
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> listEncryptionPlugins() {
+        List<Map<String, Object>> list = new ArrayList<>();
+
+        // 1. 本地默认插件 aes-default
+        Map<String, Object> localTemplate = readClasspathDefaults(DEFAULT_LOCAL_PLUGIN_DEFAULTS_RESOURCE);
+        Map<String, Object> local = new LinkedHashMap<>();
+        local.put("pluginId", DEFAULT_LOCAL_PLUGIN_ID);
+        local.put("pluginName", "AES 默认加密");
+        local.put("keys", new ArrayList<>(localTemplate.keySet()));
+        local.put("template", localTemplate);
+        local.put("isLocal", true);
+        list.add(local);
+
+        // 2. 从数据库查已启用的加密插件（绕过 PF4J classloader 问题）
+        LambdaQueryWrapper<PluginModule> qw = new LambdaQueryWrapper<>();
+        qw.eq(PluginModule::getStatus, 1)
+                .orderByDesc(PluginModule::getUpdatedAt);
+        List<PluginModule> enabledPlugins = pluginModuleMapper.selectList(qw);
+        for (PluginModule row : enabledPlugins) {
+            String pid = row.getPluginId();
+            // 跳过本地默认（避免重复）
+            if (DEFAULT_LOCAL_PLUGIN_ID.equals(pid)) {
+                continue;
+            }
+            // 只取有 configDefaults 的插件（加密插件才有配置模板）
+            if (!StringUtils.hasText(row.getConfigDefaults())) {
+                continue;
+            }
+            Map<String, Object> tpl = new LinkedHashMap<>();
+            try {
+                tpl = JSON.readValue(row.getConfigDefaults(), MAP_TYPE);
+            } catch (Exception ignored) {
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("pluginId", pid);
+            item.put("pluginName", StringUtils.hasText(row.getPluginName()) ? row.getPluginName() : pid);
+            item.put("keys", new ArrayList<>(tpl.keySet()));
+            item.put("template", tpl);
+            item.put("isLocal", false);
+            list.add(item);
+        }
+
+        return list;
+    }
+
+    /**
+     * 从 PluginModule 表取插件显示名称，取不到则返回 pluginId
+     */
+    private String resolvePluginDisplayName(String pluginId) {
+        LambdaQueryWrapper<PluginModule> qw = new LambdaQueryWrapper<>();
+        qw.eq(PluginModule::getPluginId, pluginId)
+                .eq(PluginModule::getStatus, 1)
+                .orderByDesc(PluginModule::getUpdatedAt)
+                .last("limit 1");
+        PluginModule row = pluginModuleMapper.selectOne(qw);
+        if (row == null) {
+            LambdaQueryWrapper<PluginModule> fallback = new LambdaQueryWrapper<>();
+            fallback.eq(PluginModule::getPluginId, pluginId)
+                    .orderByDesc(PluginModule::getUpdatedAt)
+                    .last("limit 1");
+            row = pluginModuleMapper.selectOne(fallback);
+        }
+        return (row != null && StringUtils.hasText(row.getPluginName())) ? row.getPluginName() : pluginId;
     }
 
     private Map<String, Object> resolveDefaultEncryptionConfig(String pluginId) {

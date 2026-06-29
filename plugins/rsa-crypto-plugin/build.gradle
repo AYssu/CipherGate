@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.ciphergate.plugin'
+version = '1.0.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'org.pf4j:pf4j:3.14.1'
+    // 依赖公共 API 模块（不打包进 JAR，运行时由宿主 classloader 提供）
+    compileOnly 'com.ciphergate:ciphergate-plugin-api:1.0.0'
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    manifest {
+        attributes 'Plugin-Class': 'com.ciphergate.plugin.rsa.RsaPlugin'
+    }
+    from('src/main/resources') {
+        include 'plugin.properties'
+        include 'plugin-config.*'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

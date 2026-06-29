@@ -22,6 +22,7 @@ import {
   Switch,
   Grid,
   Pagination,
+  Alert,
   type MenuProps,
 } from 'antd';
 import {
@@ -45,6 +46,8 @@ import {
   UploadOutlined,
   SlidersOutlined,
   TeamOutlined,
+  SyncOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
@@ -57,6 +60,8 @@ import {
   updateApplicationStatus,
   getEncryptionConfig,
   updateEncryptionConfig,
+  listEncryptionPlugins,
+  patchApplication,
   uploadApplicationUpdatePackage,
   type Application,
   type ApplicationDTO,
@@ -98,6 +103,15 @@ const ApplicationManagementContent: React.FC = () => {
   const [encryptionConfigJson, setEncryptionConfigJson] = useState('{}');
   const [encryptionLoading, setEncryptionLoading] = useState(false);
   const [encryptionSaving, setEncryptionSaving] = useState(false);
+  const [encryptionTemplateKeys, setEncryptionTemplateKeys] = useState<string[]>([]);
+  const [templateMismatch, setTemplateMismatch] = useState(false);
+  const [encryptionPlugins, setEncryptionPlugins] = useState<Array<{
+    pluginId: string;
+    pluginName: string;
+    keys: string[];
+    template: Record<string, any>;
+  }>>([]);
+  const [selectedPluginId, setSelectedPluginId] = useState<string>('');
   const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
   const [agentModalVisible, setAgentModalVisible] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
@@ -323,12 +337,43 @@ const ApplicationManagementContent: React.FC = () => {
     setEncryptionModalVisible(true);
     setEncryptionLoading(true);
     setEncryptionConfigJson('{}');
+    setTemplateMismatch(false);
+    setEncryptionTemplateKeys([]);
     try {
-      const res: any = await getEncryptionConfig(record.id);
-      if (res.code === 200 && res.data && typeof res.data === 'object') {
-        setEncryptionConfigJson(JSON.stringify(res.data, null, 2));
+      const [configRes, pluginsRes]: any[] = await Promise.all([
+        getEncryptionConfig(record.id),
+        listEncryptionPlugins(),
+      ]);
+
+      // 加载应用加密配置
+      let configObj: Record<string, any> = {};
+      if (configRes.code === 200 && configRes.data && typeof configRes.data === 'object') {
+        configObj = configRes.data;
+        setEncryptionConfigJson(JSON.stringify(configRes.data, null, 2));
       } else {
         setEncryptionConfigJson('{}');
+      }
+
+      // 加载插件列表
+      const plugins: Array<{ pluginId: string; pluginName: string; keys: string[]; template: Record<string, any> }> =
+        pluginsRes.code === 200 && Array.isArray(pluginsRes.data) ? pluginsRes.data : [];
+      setEncryptionPlugins(plugins);
+
+      // 当前应用的加密插件
+      const currentPluginId = record.encryptionPlugin || 'aes-default';
+      setSelectedPluginId(currentPluginId);
+
+      // 找到当前插件的模板并检测
+      const currentPlugin = plugins.find(p => p.pluginId === currentPluginId) || plugins[0];
+      if (currentPlugin) {
+        setEncryptionTemplateKeys(currentPlugin.keys);
+        if (currentPlugin.keys.length > 0 && Object.keys(configObj).length > 0) {
+          const configKeys = Object.keys(configObj).sort();
+          const sortedTplKeys = [...currentPlugin.keys].sort();
+          const mismatch = configKeys.length !== sortedTplKeys.length ||
+            configKeys.some((k, i) => k !== sortedTplKeys[i]);
+          setTemplateMismatch(mismatch);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -353,16 +398,39 @@ const ApplicationManagementContent: React.FC = () => {
       message.error('加密配置须为 JSON 对象，例如 {}');
       return;
     }
+
+    // 保存前二次检测模板匹配
+    if (templateMismatch) {
+      Modal.confirm({
+        title: '模板不匹配',
+        content: '当前加密配置与系统模板不一致，保存后可能导致三方接口加解密失败。确定继续保存？',
+        okText: '继续保存',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: () => doSaveEncryptionConfig(parsed),
+      });
+      return;
+    }
+
+    await doSaveEncryptionConfig(parsed);
+  };
+
+  const doSaveEncryptionConfig = async (parsed: Record<string, unknown>) => {
+    if (!encryptionApp) return;
     setEncryptionSaving(true);
     try {
-      const res: any = await updateEncryptionConfig(encryptionApp.id, parsed as Record<string, any>);
-      if (res.code === 200) {
+      // 同时保存加密插件标识和加密配置
+      const configRes: any = await updateEncryptionConfig(encryptionApp.id, parsed as Record<string, any>);
+      if (selectedPluginId && selectedPluginId !== encryptionApp.encryptionPlugin) {
+        await patchApplication(encryptionApp.id, { encryptionPlugin: selectedPluginId });
+      }
+      if (configRes.code === 200) {
         message.success('加密配置已保存');
         setEncryptionModalVisible(false);
         setEncryptionApp(null);
         fetchApplications(pagination.current, pagination.pageSize);
       } else {
-        message.error(res.message || '保存失败');
+        message.error(configRes.message || '保存失败');
       }
     } catch (e) {
       console.error(e);
@@ -370,6 +438,80 @@ const ApplicationManagementContent: React.FC = () => {
     } finally {
       setEncryptionSaving(false);
     }
+  };
+
+  // 切换加密插件
+  const handlePluginChange = (pluginId: string) => {
+    setSelectedPluginId(pluginId);
+    const plugin = encryptionPlugins.find(p => p.pluginId === pluginId);
+    if (plugin) {
+      setEncryptionTemplateKeys(plugin.keys);
+      // 用当前编辑器内容重新检测
+      checkTemplateMismatch(plugin.keys);
+    }
+  };
+
+  // 检测当前编辑器内容是否匹配模板
+  const checkTemplateMismatch = (tplKeys: string[]) => {
+    if (!tplKeys || tplKeys.length === 0) {
+      setTemplateMismatch(false);
+      return;
+    }
+    try {
+      const raw = (encryptionConfigJson || '').trim();
+      const configObj = raw === '' ? {} : JSON.parse(raw);
+      if (configObj && typeof configObj === 'object' && !Array.isArray(configObj)) {
+        const configKeys = Object.keys(configObj).sort();
+        const sortedTplKeys = [...tplKeys].sort();
+        const mismatch = configKeys.length !== sortedTplKeys.length ||
+          configKeys.some((k, i) => k !== sortedTplKeys[i]);
+        setTemplateMismatch(mismatch);
+      }
+    } catch {
+      // JSON 解析失败，不影响模板检测
+    }
+  };
+
+  // 模板检测按钮
+  const handleTemplateCheck = () => {
+    const plugin = encryptionPlugins.find(p => p.pluginId === selectedPluginId);
+    if (!plugin) {
+      message.warning('未找到当前加密插件');
+      return;
+    }
+    setEncryptionTemplateKeys(plugin.keys);
+    checkTemplateMismatch(plugin.keys);
+
+    let configObj: Record<string, any> = {};
+    try {
+      const raw = (encryptionConfigJson || '').trim();
+      configObj = raw === '' ? {} : JSON.parse(raw);
+    } catch {
+      configObj = {};
+    }
+    const configKeys = Object.keys(configObj).sort();
+    const sortedTplKeys = [...plugin.keys].sort();
+    const mismatch = configKeys.length !== sortedTplKeys.length ||
+      configKeys.some((k, i) => k !== sortedTplKeys[i]);
+    if (!mismatch) {
+      message.success('加密配置与当前插件模板匹配');
+    }
+  };
+
+  // 应用新模板
+  const handleApplyTemplate = () => {
+    const plugin = encryptionPlugins.find(p => p.pluginId === selectedPluginId);
+    if (!plugin || plugin.keys.length === 0) {
+      message.warning('当前插件模板为空');
+      return;
+    }
+    const newConfig: Record<string, string> = {};
+    for (const key of plugin.keys) {
+      newConfig[key] = '';
+    }
+    setEncryptionConfigJson(JSON.stringify(newConfig, null, 2));
+    setTemplateMismatch(false);
+    message.success('已应用新模板，请填写配置值');
   };
 
   // 切换密钥显示
@@ -1278,13 +1420,22 @@ const ApplicationManagementContent: React.FC = () => {
       <Modal
         title={
           encryptionApp ? (
-            <Space>
-              <SlidersOutlined />
-              <span>加密配置</span>
-              <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
-                {encryptionApp.appName} (ID: {encryptionApp.id})
-              </Text>
-            </Space>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Space>
+                <SlidersOutlined />
+                <span>加密配置</span>
+                <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
+                  {encryptionApp.appName} (ID: {encryptionApp.id})
+                </Text>
+              </Space>
+              <Button
+                size="small"
+                icon={<SyncOutlined />}
+                onClick={handleTemplateCheck}
+              >
+                模板检测
+              </Button>
+            </div>
           ) : (
             '加密配置'
           )
@@ -1293,6 +1444,7 @@ const ApplicationManagementContent: React.FC = () => {
         onCancel={() => {
           setEncryptionModalVisible(false);
           setEncryptionApp(null);
+          setTemplateMismatch(false);
         }}
         width={isMobile ? '100%' : 720}
         okText="保存"
@@ -1303,22 +1455,32 @@ const ApplicationManagementContent: React.FC = () => {
         destroyOnHidden
         className={isMobile ? 'mobile-modal' : undefined}
       >
+        {/* 加密方式选择 */}
+        {encryptionPlugins.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Text style={{ marginRight: 8 }}>加密方式：</Text>
+            <Select
+              value={selectedPluginId}
+              onChange={handlePluginChange}
+              style={{ width: 280 }}
+              options={encryptionPlugins.map(p => ({
+                label: p.pluginName || p.pluginId,
+                value: p.pluginId,
+              }))}
+            />
+          </div>
+        )}
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
-          （JSON 对象）。默认三方卡密接口插件为 AES（
-          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>aes-default</Tag>
-          ），请至少配置{' '}
-          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>aesKey</Tag>
-          （或 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>secretKey</Tag>
-          ）作为 AES 密钥（UTF-8 长度须为 16 / 24 / 32 字节）。报文体{' '}
-          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>data</Tag>
-          为 Hutool AES 的十六进制密文，明文为按 key 排序的 canonical 字符串（与 EncryptionModule / aes-data-v1 一致）。解密时还会合并插件管理中的
-          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>pluginConfig</Tag>
-          一并传入插件。密钥类参数建议只放在此处，勿写入全局插件配置。
+          （JSON 对象）。当前加密插件为{' '}
+          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>
+            {encryptionPlugins.find(p => p.pluginId === selectedPluginId)?.pluginName || selectedPluginId || 'aes-default'}
+          </Tag>
+          ，请按模板配置对应参数。点击右上角「模板检测」可校验配置是否与插件模板一致。
         </Text>
         <div
           style={{
-            border: `1px solid ${encryptionJsonError ? '#ff4d4f' : '#d9d9d9'}`,
+            border: `1px solid ${encryptionJsonError || templateMismatch ? '#ff4d4f' : '#d9d9d9'}`,
             borderRadius: 8,
             overflow: 'hidden',
           }}
@@ -1333,16 +1495,35 @@ const ApplicationManagementContent: React.FC = () => {
               highlightActiveLine: true,
               foldGutter: true,
             }}
-            onChange={(value: string) => setEncryptionConfigJson(value)}
+            onChange={(value: string) => {
+              setEncryptionConfigJson(value);
+              checkTemplateMismatch(encryptionTemplateKeys);
+            }}
           />
         </div>
         {encryptionJsonError ? (
           <Text type="danger" style={{ display: 'block', marginTop: 8 }}>
             {encryptionJsonError}
           </Text>
+        ) : templateMismatch ? (
+          <Alert
+            type="error"
+            showIcon
+            icon={<WarningOutlined />}
+            style={{ marginTop: 8 }}
+            message="加密配置与当前插件模板不匹配"
+            description={
+              <Space>
+                <span>配置的 key 与插件模板不一致，点击右侧使用新模板。</span>
+                <Button size="small" type="primary" onClick={handleApplyTemplate}>
+                  使用新模板
+                </Button>
+              </Space>
+            }
+          />
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-            JSON 校验通过
+            JSON 校验通过{encryptionTemplateKeys && encryptionTemplateKeys.length > 0 ? '，模板匹配' : ''}
           </Text>
         )}
       </Modal>
