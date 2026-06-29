@@ -126,6 +126,7 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./app/app.jar:/app/app.jar:ro
+      - ./logs:/app/logs
 
   frontend:
     image: nginx:alpine

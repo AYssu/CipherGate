@@ -1583,3 +1583,311 @@ html {
     background-color: #f0f0f0 !important;
   }
 }
+
+/* MDEditor 亮色主题完整覆盖 */
+div[data-color-mode="light"] .w-md-editor {
+  --color-border-default: #d9d9d9;
+  --color-canvas-default: #ffffff;
+  --color-canvas-subtle: #f6f8fa;
+  --color-fg-default: #333333;
+  --color-fg-muted: #666666;
+  --color-fg-subtle: #999999;
+  --color-neutral-muted: rgba(175, 184, 193, 0.2);
+  background-color: #ffffff !important;
+  color: #333333 !important;
+  border-color: #d9d9d9 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar {
+  background-color: #fafafa !important;
+  border-bottom: 1px solid #d9d9d9 !important;
+  color: #555 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar * {
+  color: inherit !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button {
+  color: #555 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button span,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button strong,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button em,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button div {
+  color: #555 !important;
+  fill: #555 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover span,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover strong {
+  color: #1677ff !important;
+  background-color: #f0f5ff !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg,
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg path {
+  fill: #555 !important;
+  color: #555 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button[disabled] {
+  opacity: 0.5 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-content {
+  background-color: #ffffff !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-text-input,
+div[data-color-mode="light"] .w-md-editor textarea,
+div[data-color-mode="light"] .w-md-editor textarea:focus,
+div[data-color-mode="light"] .w-md-editor textarea::placeholder {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+  background-color: #fff !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .cm-editor {
+  background-color: #ffffff !important;
+  caret-color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .cm-editor .cm-content,
+div[data-color-mode="light"] .w-md-editor .cm-editor .cm-line,
+div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
+  background-color: rgba(175, 184, 193, 0.1) !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .cm-editor .cm-selectionBackground {
+  background-color: #b4d5fe !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown-container {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h1,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h2,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h3,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h4,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h5,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown h6 {
+  color: #1a1a1a !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown p,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown span,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown li,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown td,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown th {
+  color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown a {
+  color: #1677ff !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown code {
+  background-color: rgba(175, 184, 193, 0.2) !important;
+  color: #333 !important;
+  border: 1px solid #e8e8e8 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown pre {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown pre code {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown blockquote {
+  border-left: 3px solid #d9d9d9 !important;
+  color: #666 !important;
+  background-color: #f9f9f9 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown hr {
+  background-color: #e8e8e8 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown table {
+  border-color: #d9d9d9 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
+  background-color: #f6f8fa !important;
+  color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown table td,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
+  border-color: #d9d9d9 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown img {
+  max-width: 100% !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown ul,
+div[data-color-mode="light"] .w-md-editor .wmde-markdown ol {
+  color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown strong {
+  color: #1a1a1a !important;
+}
+
+div[data-color-mode="light"] .w-md-editor .wmde-markdown em {
+  color: #333 !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-fullscreen {
+  background-color: #ffffff !important;
+}
+
+div[data-color-mode="light"] .w-md-editor-preview {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+/* 文档查看页的 Markdown 渲染 */
+.doc-content .wmde-markdown,
+.doc-content .wmde-markdown-container {
+  background-color: transparent !important;
+  color: #333333 !important;
+}
+
+.doc-content .wmde-markdown h1,
+.doc-content .wmde-markdown h2,
+.doc-content .wmde-markdown h3,
+.doc-content .wmde-markdown h4,
+.doc-content .wmde-markdown h5,
+.doc-content .wmde-markdown h6 {
+  color: #1a1a1a !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+}
+
+.doc-content .wmde-markdown p,
+.doc-content .wmde-markdown span,
+.doc-content .wmde-markdown li,
+.doc-content .wmde-markdown td,
+.doc-content .wmde-markdown th {
+  color: #333 !important;
+}
+
+.doc-content .wmde-markdown a {
+  color: #1677ff !important;
+}
+
+.doc-content .wmde-markdown pre {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+.doc-content .wmde-markdown code {
+  background-color: rgba(175, 184, 193, 0.2) !important;
+  color: #333 !important;
+}
+
+.doc-content .wmde-markdown pre code {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.doc-content .wmde-markdown blockquote {
+  border-left: 3px solid #d9d9d9 !important;
+  color: #666 !important;
+  background-color: #f9f9f9 !important;
+}
+
+.doc-content .wmde-markdown table th {
+  background-color: #f6f8fa !important;
+  color: #333 !important;
+}
+
+.doc-content .wmde-markdown table td,
+.doc-content .wmde-markdown table th {
+  border-color: #d9d9d9 !important;
+}
+
+.doc-content .wmde-markdown strong {
+  color: #1a1a1a !important;
+}
+
+.doc-content .wmde-markdown hr {
+  background-color: #e8e8e8 !important;
+}
+
+/* 移动端表格优化 */
+@media (max-width: 768px) {
+  .doc-content {
+    overflow: hidden;
+  }
+
+  .doc-content > div {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .doc-content .wmde-markdown table {
+    min-width: 500px;
+    margin: 12px 0;
+  }
+
+  .doc-content .wmde-markdown table td,
+  .doc-content .wmde-markdown table th {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .doc-content .wmde-markdown pre {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+    font-size: 13px;
+    min-width: 300px;
+  }
+
+  .doc-content .wmde-markdown img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .doc-content .wmde-markdown h1 {
+    font-size: 22px;
+  }
+
+  .doc-content .wmde-markdown h2 {
+    font-size: 18px;
+  }
+
+  .doc-content .wmde-markdown h3 {
+    font-size: 16px;
+  }
+
+  .doc-content .wmde-markdown p,
+  .doc-content .wmde-markdown li {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .doc-content .wmde-markdown code {
+    font-size: 12px;
+    word-break: break-all;
+  }
+}

@@ -1060,7 +1060,7 @@ const Home: React.FC = () => {
                       <Input
                         prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
                         placeholder="GitHub 账号名"
-                        size="large"
+                        size={window.innerWidth < 768 ? 'middle' : 'large'}
                         autoComplete="username"
                       />
                     </Form.Item>
@@ -1072,7 +1072,7 @@ const Home: React.FC = () => {
                       <Input.Password
                         prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
                         placeholder="密码"
-                        size="large"
+                        size={window.innerWidth < 768 ? 'middle' : 'large'}
                         autoComplete="current-password"
                       />
                     </Form.Item>
@@ -1082,9 +1082,9 @@ const Home: React.FC = () => {
                         htmlType="submit"
                         loading={passwordLoginLoading}
                         block
-                        size="large"
+                        size={window.innerWidth < 768 ? 'middle' : 'large'}
                         style={{
-                          height: window.innerWidth < 768 ? 40 : 44,
+                          height: window.innerWidth < 768 ? 36 : 44,
                           fontWeight: 500,
                           borderRadius: 6
                         }}

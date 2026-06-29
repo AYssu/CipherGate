@@ -675,29 +675,47 @@ const ApplicationManagementContent: React.FC = () => {
     const used = app.trafficUsed || 0;
     const limit = app.trafficLimit || 0;
 
+    const category = app.category || '';
+    let categoryIcon = <CloudOutlined style={{ fontSize: 20, color: '#13c2c2' }} />;
+    if (category.includes('工具')) categoryIcon = <ApiOutlined style={{ fontSize: 20, color: '#1890ff' }} />;
+    else if (category.includes('游戏')) categoryIcon = <RocketOutlined style={{ fontSize: 20, color: '#52c41a' }} />;
+    else if (category.includes('办公')) categoryIcon = <DatabaseOutlined style={{ fontSize: 20, color: '#722ed1' }} />;
+    else if (category.includes('安全')) categoryIcon = <SafetyOutlined style={{ fontSize: 20, color: '#fa8c16' }} />;
+
     return (
       <Card
         key={app.id}
         size="small"
         style={{ marginBottom: 12 }}
-        extra={
-          <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
-        }
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            background: '#f5f5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            {app.iconUrl && app.iconUrl !== '/default-app-icon.png' ? (
+              <img src={app.iconUrl} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+            ) : categoryIcon}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Text strong style={{ fontSize: 15 }}>{app.appName}</Text>
-            <div style={{ marginTop: 4, display: 'flex', gap: 6 }}>
-              <Tag color={statusInfo.color} style={{ margin: 0 }}>{statusInfo.text}</Tag>
-              <Tag color={modelInfo.color} style={{ margin: 0 }}>{modelInfo.text}</Tag>
-              {app.category && <Tag style={{ margin: 0 }}>{app.category}</Tag>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text strong style={{ fontSize: 15, flexShrink: 0 }}>{app.appName}</Text>
+              <Tag color={statusInfo.color} style={{ margin: 0, flexShrink: 0 }}>{statusInfo.text}</Tag>
+              <Tag color={modelInfo.color} style={{ margin: 0, flexShrink: 0 }}>{modelInfo.text}</Tag>
             </div>
           </div>
+          <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
+            <Button type="text" size="small" icon={<MoreOutlined />} style={{ flexShrink: 0 }} />
+          </Dropdown>
         </div>
 
-        <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span>AppKey</span>
             <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'monospace', fontSize: 12 }}>

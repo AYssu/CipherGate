@@ -24,6 +24,7 @@ import { userApi } from '../services/userService';
 import { activityApi } from '../services/activityService';
 import { messageApi, type SystemMessage } from '../services/messageService';
 import { announcementApi, type SystemAnnouncement } from '../services/announcementService';
+import { docApi } from '../services/docService';
 import type { User, Menu as UserMenu } from '../services/userService';
 
 const { Header, Sider, Content } = Layout;
@@ -46,6 +47,7 @@ const MainLayout: React.FC = () => {
   const [messageDetailVisible, setMessageDetailVisible] = useState(false);
   const [announcementVisible, setAnnouncementVisible] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] = useState<SystemAnnouncement | null>(null);
+  const [docMenuData, setDocMenuData] = useState<any[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -108,6 +110,18 @@ const MainLayout: React.FC = () => {
     };
 
     checkAnnouncements();
+
+    // 获取文档菜单数据
+    const fetchDocMenu = async () => {
+      try {
+        const result = await docApi.getDocMenu();
+        const data = (result as any).data || [];
+        setDocMenuData(data);
+      } catch (error) {
+        // 文档菜单获取失败静默处理
+      }
+    };
+    fetchDocMenu();
   }, []);
 
   const handleLogout = async () => {
@@ -330,7 +344,8 @@ const MainLayout: React.FC = () => {
       app_user_management: '/applications/users',
       app_variable_management: '/applications/variables',
       plugin_list_page: '/plugins/list',
-      doc_category_page: '/docs/categories',
+      doc_management_admin: '/docs/categories',
+      announcement_management: '/system/announcements',
     };
     const globalMatchedPath = globalRouteMap[childKey];
     if (globalMatchedPath) {
@@ -357,6 +372,8 @@ const MainLayout: React.FC = () => {
         system_setting: '/system/config',
         system_settings: '/system/config',
         config: '/system/config',
+        announcement_management: '/system/announcements',
+        announcements: '/system/announcements',
       };
       const matchedPath = systemRouteMap[childKey];
       if (matchedPath) return matchedPath;
@@ -418,6 +435,24 @@ const MainLayout: React.FC = () => {
     return menus.map(menu => {
       const menuKey = menu.menuCode.toLowerCase();
       
+      // 对接文档：用API返回的动态数据构建子菜单
+      if (menuKey === 'doc_management' && docMenuData.length > 0) {
+        return {
+          key: menuKey,
+          icon: getMenuIcon(menu.icon),
+          label: menu.menuName,
+          children: docMenuData.map((cat: any) => ({
+            key: `doc-cat-${cat.id}`,
+            label: cat.name,
+            children: (cat.items || []).map((item: any) => ({
+              key: `doc-item-${item.id}`,
+              label: item.title,
+              onClick: () => navigate(`/docs/view/${item.id}`),
+            })),
+          })),
+        };
+      }
+
       if (menu.children && menu.children.length > 0) {
         return {
           key: menuKey,
@@ -496,6 +531,24 @@ const MainLayout: React.FC = () => {
     if (routePath === '/profile') {
       return { selectedMenu: 'profile', pageTitle: '个人信息', parentMenuKey: '' };
     }
+
+    if (routePath.startsWith('/docs/view/')) {
+      const docId = routePath.split('/docs/view/')[1];
+      return {
+        selectedMenu: `doc-item-${docId}`,
+        pageTitle: '对接文档',
+        parentMenuKey: 'doc_management',
+      };
+    }
+
+    if (routePath === '/docs/categories') {
+      return {
+        selectedMenu: 'doc_management',
+        pageTitle: '对接文档',
+        parentMenuKey: '',
+      };
+    }
+
     return defaultMeta;
   }, [routePath, userInfo?.menus]);
 

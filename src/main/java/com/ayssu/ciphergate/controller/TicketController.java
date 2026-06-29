@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Ticket;
 import com.ayssu.ciphergate.entity.TicketMessage;
@@ -26,6 +27,7 @@ public class TicketController {
     private final TicketService ticketService;
 
     @PostMapping
+    @RequirePermission("TICKET_CREATE")
     @Operation(summary = "创建工单")
     public Result<Ticket> createTicket(
             @RequestBody Map<String, Object> body,
@@ -43,6 +45,7 @@ public class TicketController {
     }
 
     @GetMapping
+    @RequirePermission("TICKET_LIST")
     @Operation(summary = "我的工单列表")
     public Result<Page<Ticket>> getMyTickets(
             @RequestParam(defaultValue = "1") int page,
@@ -56,6 +59,7 @@ public class TicketController {
     }
 
     @GetMapping("/{ticketNo}")
+    @RequirePermission("TICKET_DETAIL")
     @Operation(summary = "工单详情")
     public Result<Map<String, Object>> getTicketDetail(@PathVariable String ticketNo, HttpSession session) {
         User user = (User) session.getAttribute("user");
@@ -74,6 +78,7 @@ public class TicketController {
     }
 
     @PostMapping("/{ticketNo}/messages")
+    @RequirePermission("TICKET_MESSAGE")
     @Operation(summary = "发送消息")
     public Result<TicketMessage> sendMessage(
             @PathVariable String ticketNo,
@@ -97,6 +102,7 @@ public class TicketController {
     }
 
     @PostMapping("/{ticketNo}/close")
+    @RequirePermission("TICKET_CLOSE")
     @Operation(summary = "关闭工单")
     public Result<String> closeTicket(@PathVariable String ticketNo, HttpSession session) {
         User user = (User) session.getAttribute("user");
@@ -115,6 +121,7 @@ public class TicketController {
     }
 
     @PostMapping("/{ticketNo}/urge")
+    @RequirePermission("TICKET_URGE")
     @Operation(summary = "催办工单")
     public Result<String> urgeTicket(@PathVariable String ticketNo, HttpSession session) {
         User user = (User) session.getAttribute("user");

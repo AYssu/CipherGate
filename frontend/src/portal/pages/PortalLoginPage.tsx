@@ -73,27 +73,27 @@ const PortalLoginPage: React.FC = () => {
 
           <Form form={form} layout="vertical" onFinish={handleLogin} autoComplete="off">
             <Form.Item name="email" rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '邮箱格式不正确' }]}>
-              <Input prefix={<MailOutlined />} placeholder="邮箱地址" size="large" />
+              <Input prefix={<MailOutlined />} placeholder="邮箱地址" size={window.innerWidth < 768 ? 'middle' : 'large'} />
             </Form.Item>
 
             <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" autoComplete="current-password" />
+              <Input.Password prefix={<LockOutlined />} placeholder="密码" size={window.innerWidth < 768 ? 'middle' : 'large'} autoComplete="current-password" />
             </Form.Item>
 
             <Form.Item name="captchaCode" rules={[{ required: true, message: '请输入验证码' }]}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Input prefix={<KeyOutlined />} placeholder="验证码" size="large" style={{ flex: 1 }} />
+                <Input prefix={<KeyOutlined />} placeholder="验证码" size={window.innerWidth < 768 ? 'middle' : 'large'} style={{ flex: 1 }} />
                 <div
                   onClick={loadCaptcha}
-                  style={{ cursor: 'pointer', height: 40, borderRadius: 6, overflow: 'hidden', border: '1px solid #d9d9d9', flexShrink: 0 }}
+                  style={{ cursor: 'pointer', height: window.innerWidth < 768 ? 32 : 40, borderRadius: 6, overflow: 'hidden', border: '1px solid #d9d9d9', flexShrink: 0 }}
                 >
-                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 40, display: 'block' }} />}
+                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: window.innerWidth < 768 ? 32 : 40, display: 'block' }} />}
                 </div>
               </div>
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 12 }}>
-              <Button type="primary" htmlType="submit" loading={loading} block size="large" style={{ height: 44, fontWeight: 500 }}>
+              <Button type="primary" htmlType="submit" loading={loading} block size={window.innerWidth < 768 ? 'middle' : 'large'} style={{ height: window.innerWidth < 768 ? 36 : 44, fontWeight: 500 }}>
                 登录
               </Button>
             </Form.Item>
@@ -105,10 +105,10 @@ const PortalLoginPage: React.FC = () => {
 
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             <Link to="/portal/recovery">
-              <Button block size="large">找回密码</Button>
+              <Button block size={window.innerWidth < 768 ? 'middle' : 'large'}>找回密码</Button>
             </Link>
             <Link to="/">
-              <Button block size="large" type="link">返回首页</Button>
+              <Button block size={window.innerWidth < 768 ? 'middle' : 'large'} type="link">返回首页</Button>
             </Link>
           </Space>
         </Card>

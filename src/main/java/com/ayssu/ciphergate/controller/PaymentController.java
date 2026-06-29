@@ -105,9 +105,9 @@ public class PaymentController {
         return Result.success(order);
     }
 
-    @PostMapping("/notify")
+    @RequestMapping(value = "/notify", method = {RequestMethod.GET, RequestMethod.POST})
     @Operation(summary = "易支付异步回调")
-    public String paymentNotify(HttpServletRequest request) {
+    public Result<String> paymentNotify(HttpServletRequest request) {
         Map<String, String> params = new HashMap<>();
         request.getParameterMap().forEach((key, values) -> {
             if (values.length > 0) params.put(key, values[0]);
@@ -115,13 +115,18 @@ public class PaymentController {
 
         log.info("易支付回调: {}", params);
 
-        if (!epayService.verifyNotifySign(params)) {
-            log.warn("回调签名验证失败");
-            return "sign error";
-        }
+        try {
+            if (!epayService.verifyNotifySign(params)) {
+                log.warn("回调签名验证失败");
+                return Result.error("签名验证失败");
+            }
 
-        epayService.handleNotify(params);
-        return "success";
+            epayService.handleNotify(params);
+            return Result.success("success");
+        } catch (Exception e) {
+            log.error("易支付回调处理异常", e);
+            return Result.error("处理失败");
+        }
     }
 
     @GetMapping("/return")

@@ -3,6 +3,7 @@ import { ConfigProvider, Empty } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
+import '@uiw/react-md-editor/markdown-editor.css';
 import './App.css';
 
 const antdZhCN = {

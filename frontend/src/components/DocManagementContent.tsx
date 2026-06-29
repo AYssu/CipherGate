@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Switch,
+  Upload,
   message,
   Popconfirm,
   Tag,
@@ -16,6 +17,10 @@ import {
   Col,
   Grid,
   Dropdown,
+  Empty,
+  Tooltip,
+  List,
+  Progress,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,12 +30,36 @@ import {
   EyeOutlined,
   MoreOutlined,
   FileTextOutlined,
+  PaperClipOutlined,
+  InboxOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
+import MDEditor from '@uiw/react-md-editor';
 import { useNavigate } from 'react-router-dom';
 import { docApi } from '../services/docService';
-import type { DocCategory, DocItem } from '../services/docService';
+import { chunkedUploadService } from '../services/chunkedUploadService';
+import type { DocCategory, DocItem, DocAttachment } from '../services/docService';
 
 const { TextArea } = Input;
+
+// MDEditor wrapper
+const MdEditorWrapper: React.FC<{
+  value?: string;
+  onChange?: (value: string) => void;
+  height?: number;
+}> = ({ value, onChange, height = 400 }) => {
+  return (
+      <div data-color-mode="light">
+        <MDEditor
+            value={value || ''}
+            onChange={(val) => onChange?.(val || '')}
+            height={height}
+            preview="live"
+            data-color-mode="light"
+        />
+      </div>
+  );
+};
 
 const DocManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -50,6 +79,12 @@ const DocManagementContent: React.FC = () => {
   const [itemModalVisible, setItemModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<DocItem | null>(null);
   const [itemForm] = Form.useForm();
+
+  const [attachmentModalVisible, setAttachmentModalVisible] = useState(false);
+  const [attachmentDocId, setAttachmentDocId] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<DocAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     setCategoriesLoading(true);
@@ -181,154 +216,103 @@ const DocManagementContent: React.FC = () => {
     }
   };
 
+  const handleManageAttachments = async (docId: number) => {
+    setAttachmentDocId(docId);
+    setAttachmentModalVisible(true);
+    setAttachmentsLoading(true);
+    try {
+      const result = await docApi.getDocDetail(docId);
+      const data = (result as any).data;
+      setAttachments(data?.attachments || []);
+    } catch (error) {
+      console.error('获取附件失败:', error);
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  const handleUploadAttachment = async (file: File) => {
+    if (!attachmentDocId) return;
+    setUploading(true);
+    try {
+      const objectKey = `doc-attachments/${attachmentDocId}/${Date.now()}_${file.name}`;
+      await chunkedUploadService.uploadFile({ file, objectKey });
+      await docApi.addAttachment(attachmentDocId, file.name, objectKey, file.size, file.type);
+      message.success('上传成功');
+      const result = await docApi.getDocDetail(attachmentDocId);
+      const data = (result as any).data;
+      setAttachments(data?.attachments || []);
+    } catch (error) {
+      message.error('上传失败');
+      console.error('上传附件失败:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (id: number) => {
+    try {
+      await docApi.deleteAttachment(id);
+      message.success('删除成功');
+      if (attachmentDocId) {
+        const result = await docApi.getDocDetail(attachmentDocId);
+        const data = (result as any).data;
+        setAttachments(data?.attachments || []);
+      }
+    } catch (error) {
+      console.error('删除附件失败:', error);
+    }
+  };
+
   const getStatusTag = (status: number) => {
     return status === 1
       ? <Tag color="success">启用</Tag>
       : <Tag color="error">禁用</Tag>;
   };
 
-  const categoryColumns = [
-    {
-      title: '分类名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: DocCategory) => (
-        <a onClick={() => handleCategorySelect(record)}>{text}</a>
-      ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text: string) => text || '-',
-    },
-    {
-      title: '排序',
-      dataIndex: 'sortOrder',
-      key: 'sortOrder',
-      width: 80,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status: number) => getStatusTag(status),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: isMobile ? 80 : 150,
-      render: (_: any, record: DocCategory) => {
-        if (isMobile) {
-          return (
-            <Dropdown
-              menu={{
-                items: [
-                  { key: 'view', label: '查看文档', icon: <EyeOutlined />, onClick: () => handleCategorySelect(record) },
-                  { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditCategory(record) },
-                  { type: 'divider' },
-                  { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteCategory(record.id) },
-                ],
-              }}
-              trigger={['click']}
-            >
-              <Button type="text" size="small" icon={<MoreOutlined />} />
-            </Dropdown>
-          );
-        }
-        return (
-          <Space size="small">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleCategorySelect(record)}>
-              查看
-            </Button>
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditCategory(record)}>
-              编辑
-            </Button>
-            <Popconfirm title="确定要删除这个分类吗？" onConfirm={() => handleDeleteCategory(record.id)} okText="确定" cancelText="取消">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        );
-      },
-    },
-  ];
-
-  const itemColumns = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-    },
-    {
-      title: '作者',
-      dataIndex: 'authorName',
-      key: 'authorName',
-      render: (text: string) => text || '-',
-    },
-    {
-      title: '浏览',
-      dataIndex: 'viewCount',
-      key: 'viewCount',
-      width: 80,
-      render: (count: number) => count || 0,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status: number) => getStatusTag(status),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: isMobile ? 80 : 150,
-      render: (_: any, record: DocItem) => {
-        if (isMobile) {
-          return (
-            <Dropdown
-              menu={{
-                items: [
-                  { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/docs/view/${record.id}`) },
-                  { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditItem(record) },
-                  { type: 'divider' },
-                  { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteItem(record.id) },
-                ],
-              }}
-              trigger={['click']}
-            >
-              <Button type="text" size="small" icon={<MoreOutlined />} />
-            </Dropdown>
-          );
-        }
-        return (
-          <Space size="small">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/docs/view/${record.id}`)}>
-              查看
-            </Button>
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditItem(record)}>
-              编辑
-            </Button>
-            <Popconfirm title="确定要删除这个文档吗？" onConfirm={() => handleDeleteItem(record.id)} okText="确定" cancelText="取消">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        );
-      },
-    },
-  ];
-
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 
+  // 移动端分类操作菜单
+  const getCategoryActions = (record: DocCategory) => (
+    <Dropdown
+      menu={{
+        items: [
+          { key: 'view', label: '查看文档', icon: <EyeOutlined />, onClick: () => handleCategorySelect(record) },
+          { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditCategory(record) },
+          { type: 'divider' },
+          { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteCategory(record.id) },
+        ],
+      }}
+      trigger={['click']}
+    >
+      <Button type="text" size="small" icon={<MoreOutlined />} />
+    </Dropdown>
+  );
+
+  // 移动端文档操作菜单
+  const getItemActions = (record: DocItem) => (
+    <Dropdown
+      menu={{
+        items: [
+          { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/docs/view/${record.id}`) },
+          { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditItem(record) },
+          { key: 'attach', label: '附件', icon: <PaperClipOutlined />, onClick: () => handleManageAttachments(record.id) },
+          { type: 'divider' },
+          { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteItem(record.id) },
+        ],
+      }}
+      trigger={['click']}
+    >
+      <Button type="text" size="small" icon={<MoreOutlined />} />
+    </Dropdown>
+  );
+
+  const selectedCategoryName = selectedCategory?.name || '请选择分类';
+
   return (
-    <Row gutter={isMobile ? 0 : 16} style={{ height: '100%' }}>
-      <Col xs={24} sm={24} md={8} lg={7} style={{ marginBottom: isMobile ? 16 : 0 }}>
+    <Row gutter={isMobile ? 0 : 20} style={{ height: '100%' }}>
+      {/* 左侧分类面板 */}
+      <Col xs={24} sm={24} md={7} lg={6}>
         <Card
           title={
             <Space>
@@ -337,54 +321,146 @@ const DocManagementContent: React.FC = () => {
             </Space>
           }
           extra={
-            <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddCategory}>
-              新增
-            </Button>
+            <Tooltip title="新增分类">
+              <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddCategory} />
+            </Tooltip>
           }
-          bodyStyle={{ padding: isMobile ? 12 : 16 }}
+          styles={{ body: { padding: 0 } }}
         >
-          <Table
-            columns={categoryColumns}
-            dataSource={categories}
-            loading={categoriesLoading}
-            rowKey="id"
-            pagination={false}
-            size="small"
-            onRow={(record) => ({
-              onClick: () => handleCategorySelect(record),
-              style: {
-                cursor: 'pointer',
-                backgroundColor: selectedCategoryId === record.id ? '#e6f4ff' : undefined,
-              },
-            })}
-          />
+          {categoriesLoading ? (
+            <div style={{ padding: 24, textAlign: 'center' }}>加载中...</div>
+          ) : categories.length === 0 ? (
+            <Empty description="暂无分类" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />
+          ) : (
+            <div style={{ maxHeight: isMobile ? 300 : 'calc(100vh - 200px)', overflowY: 'auto' }}>
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  onClick={() => handleCategorySelect(cat)}
+                  style={{
+                    padding: '12px 16px',
+                    cursor: 'pointer',
+                    borderLeft: selectedCategoryId === cat.id ? '3px solid #1677ff' : '3px solid transparent',
+                    backgroundColor: selectedCategoryId === cat.id ? '#e6f4ff' : 'transparent',
+                    transition: 'all 0.2s',
+                    borderBottom: '1px solid #f0f0f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: selectedCategoryId === cat.id ? 600 : 400, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {cat.name}
+                      </div>
+                      {cat.description && (
+                        <div style={{ fontSize: 12, color: '#999', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {cat.description}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginLeft: 8, flexShrink: 0 }}>
+                      {isMobile ? (
+                        getCategoryActions(cat)
+                      ) : (
+                        <Space size={0}>
+                          <Tooltip title="编辑">
+                            <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleEditCategory(cat); }} />
+                          </Tooltip>
+                          <Popconfirm title="确定要删除这个分类吗？" onConfirm={() => handleDeleteCategory(cat.id)} okText="确定" cancelText="取消">
+                            <Tooltip title="删除">
+                              <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+                            </Tooltip>
+                          </Popconfirm>
+                        </Space>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </Col>
 
-      <Col xs={24} sm={24} md={16} lg={17}>
+      {/* 右侧文档列表 */}
+      <Col xs={24} sm={24} md={17} lg={18}>
         <Card
           title={
             <Space>
               <FileTextOutlined />
-              <span>{selectedCategory ? `${selectedCategory.name} - 文档列表` : '请选择分类'}</span>
+              <span>{selectedCategoryName} - 文档列表</span>
             </Space>
           }
           extra={
             selectedCategoryId !== null ? (
-              <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddItem}>
-                新增文档
-              </Button>
+              <Tooltip title="新增文档">
+                <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddItem}>
+                  {isMobile ? undefined : '新增文档'}
+                </Button>
+              </Tooltip>
             ) : null
           }
-          bodyStyle={{ padding: isMobile ? 12 : 16 }}
         >
           {selectedCategoryId === null ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-              请在左侧选择一个分类查看文档
-            </div>
+            <Empty description="请在左侧选择一个分类查看文档" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '60px 0' }} />
           ) : (
             <Table
-              columns={itemColumns}
+              columns={[
+                {
+                  title: '标题',
+                  dataIndex: 'title',
+                  key: 'title',
+                  ellipsis: true,
+                },
+                ...(!isMobile ? [{
+                  title: '作者',
+                  dataIndex: 'authorName',
+                  key: 'authorName',
+                  width: 100,
+                  render: (text: string) => text || '-',
+                }] : []),
+                ...(!isMobile ? [{
+                  title: '浏览',
+                  dataIndex: 'viewCount',
+                  key: 'viewCount',
+                  width: 60,
+                  render: (count: number) => count || 0,
+                }] : []),
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 70,
+                  render: (status: number) => getStatusTag(status),
+                },
+                {
+                  title: '操作',
+                  key: 'action',
+                  width: 90,
+                  render: (_: any, record: DocItem) => {
+                    if (isMobile) {
+                      return getItemActions(record);
+                    }
+                    return (
+                      <Dropdown
+                        menu={{
+                          items: [
+                            { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/docs/view/${record.id}`) },
+                            { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditItem(record) },
+                            { key: 'attach', label: '附件', icon: <PaperClipOutlined />, onClick: () => handleManageAttachments(record.id) },
+                            { type: 'divider' },
+                            { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteItem(record.id) },
+                          ],
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button type="link" size="small" icon={<MoreOutlined />}>
+                          操作
+                        </Button>
+                      </Dropdown>
+                    );
+                  },
+                },
+              ]}
               dataSource={items}
               loading={itemsLoading}
               rowKey="id"
@@ -395,12 +471,13 @@ const DocManagementContent: React.FC = () => {
                 showTotal: isMobile ? undefined : (total) => `共 ${total} 条记录`,
               }}
               size={isMobile ? 'small' : 'middle'}
+              scroll={isMobile ? { x: 300 } : undefined}
             />
           )}
         </Card>
       </Col>
 
-      {/* Category Modal */}
+      {/* 分类 Modal */}
       <Modal
         title={editingCategory ? '编辑分类' : '新增分类'}
         open={categoryModalVisible}
@@ -435,7 +512,7 @@ const DocManagementContent: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Item Modal */}
+      {/* 文档 Modal */}
       <Modal
         title={editingItem ? '编辑文档' : '新增文档'}
         open={itemModalVisible}
@@ -448,7 +525,7 @@ const DocManagementContent: React.FC = () => {
             <Input placeholder="请输入文档标题" />
           </Form.Item>
           <Form.Item label="内容 (Markdown)" name="content" rules={[{ required: true, message: '请输入文档内容' }]}>
-            <TextArea rows={10} placeholder="请输入文档内容，支持 Markdown 格式" />
+            <MdEditorWrapper height={isMobile ? 300 : 400} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={isMobile ? 24 : 12}>
@@ -475,6 +552,89 @@ const DocManagementContent: React.FC = () => {
             </Col>
           </Row>
         </Form>
+      </Modal>
+
+      {/* 附件管理 Modal */}
+      <Modal
+        title="文档附件管理"
+        open={attachmentModalVisible}
+        onCancel={() => setAttachmentModalVisible(false)}
+        footer={null}
+        width={isMobile ? '100%' : 600}
+      >
+        <Upload.Dragger
+          multiple={false}
+          showUploadList={false}
+          disabled={uploading}
+          beforeUpload={(file) => {
+            handleUploadAttachment(file as unknown as File);
+            return false;
+          }}
+          style={{ marginBottom: 16 }}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+          <p className="ant-upload-hint">支持任意格式文件</p>
+        </Upload.Dragger>
+        {uploading && <Progress percent={100} status="active" style={{ marginBottom: 16 }} />}
+        <List
+          loading={attachmentsLoading}
+          dataSource={attachments}
+          locale={{ emptyText: '暂无附件' }}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Tooltip title="下载" key="download">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<DownloadOutlined />}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/doc/attachments/${item.id}/file`, {
+                          credentials: 'include',
+                        });
+                        if (!response.ok) {
+                          if (response.status === 404) {
+                            const error = await response.json();
+                            message.error(error.message || '附件文件不存在');
+                          } else if (response.status === 429) {
+                            message.warning('下载过于频繁，请1分钟后再试');
+                          } else {
+                            message.error('下载失败');
+                          }
+                          return;
+                        }
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = item.fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                      } catch (err) {
+                        message.error('下载失败');
+                      }
+                    }}
+                  />
+                </Tooltip>,
+                <Popconfirm title="确定删除此附件？" onConfirm={() => handleDeleteAttachment(item.id)} key="delete">
+                  <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>,
+              ]}
+            >
+              <List.Item.Meta
+                avatar={<PaperClipOutlined style={{ fontSize: 20, color: '#1677ff' }} />}
+                title={item.fileName}
+                description={item.fileSize ? `${(item.fileSize / 1024).toFixed(1)} KB` : ''}
+              />
+            </List.Item>
+          )}
+        />
       </Modal>
     </Row>
   );

@@ -20,7 +20,7 @@ spring:
     virtual-host: /
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:ciphergate}
     password: ${SPRING_DATASOURCE_PASSWORD:Qy5S3SBfnRwdKxRD}
     driver-class-name: com.mysql.cj.jdbc.Driver

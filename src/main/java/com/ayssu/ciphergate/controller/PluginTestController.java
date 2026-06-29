@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.controller;
 
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.service.TextProviderRuntimeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,7 @@ public class PluginTestController {
      * 指定 pluginId 后可命中插件实现。
      */
     @GetMapping("/text")
+    @RequirePermission("PLUGIN_LIST")
     @Operation(summary = "获取插件文本输出", description = "不传 pluginId 时使用自动覆盖策略，传 pluginId 时调用指定插件实现")
     public Result<Map<String, String>> getText(@RequestParam(required = false) String pluginId) {
         try {

@@ -114,18 +114,39 @@ public class ChunkedUploadService {
         }
 
         try {
+            String bucket = minioProperties.getBucket();
+            
+            // Merge chunks into final object
+            java.io.ByteArrayOutputStream mergedStream = new java.io.ByteArrayOutputStream();
+            for (int i = 1; i <= session.totalChunks; i++) {
+                String chunkKey = session.objectKey + ".chunk." + i;
+                try (java.io.InputStream chunkStream = minioObjectService.download(bucket, chunkKey)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = chunkStream.read(buffer)) != -1) {
+                        mergedStream.write(buffer, 0, bytesRead);
+                    }
+                }
+            }
+            
+            byte[] mergedBytes = mergedStream.toByteArray();
+            java.io.ByteArrayInputStream finalStream = new java.io.ByteArrayInputStream(mergedBytes);
+            
+            // Upload merged file
+            minioObjectService.uploadFromStream(session.objectKey, finalStream, mergedBytes.length, "application/octet-stream");
+            
             // Clean up chunks
             for (int i = 1; i <= session.totalChunks; i++) {
                 String chunkKey = session.objectKey + ".chunk." + i;
                 try {
-                    minioObjectService.deleteObject(minioProperties.getBucket(), chunkKey);
+                    minioObjectService.deleteObject(bucket, chunkKey);
                 } catch (Exception e) {
                     log.warn("Failed to delete chunk {}: {}", chunkKey, e.getMessage());
                 }
             }
             
             sessions.remove(request.uploadId());
-            log.info("Completed chunked upload: uploadId={}, objectKey={}", request.uploadId(), session.objectKey);
+            log.info("Completed chunked upload: uploadId={}, objectKey={}, size={}", request.uploadId(), session.objectKey, mergedBytes.length);
         } catch (Exception e) {
             throw new RuntimeException("合并分片失败: " + e.getMessage(), e);
         }

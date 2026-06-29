@@ -59,18 +59,25 @@ public class PortalPaymentController {
         return Result.success(orders);
     }
 
-    @PostMapping("/notify")
+    @RequestMapping(value = "/notify", method = {RequestMethod.GET, RequestMethod.POST})
     @Operation(summary = "支付异步回调")
-    public String notify(@RequestParam Map<String, String> params) {
+    public Result<String> notify(HttpServletRequest request) {
+        Map<String, String> params = new HashMap<>();
+        request.getParameterMap().forEach((key, values) -> {
+            if (values.length > 0) params.put(key, values[0]);
+        });
         try {
             String orderNo = params.get("out_trade_no");
             String tradeNo = params.get("trade_no");
             String status = params.get("trade_status");
-            paymentService.handlePaymentNotify(orderNo, tradeNo, status, params);
-            return "success";
+            if (orderNo == null || tradeNo == null) {
+                return Result.error("参数错误");
+            }
+            return paymentService.handlePaymentNotify(orderNo, tradeNo, status, params)
+                    ? Result.success("success") : Result.error("处理失败");
         } catch (Exception e) {
             log.error("门户支付回调处理失败", e);
-            return "fail";
+            return Result.error("处理失败");
         }
     }
 

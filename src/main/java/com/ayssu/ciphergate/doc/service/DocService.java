@@ -233,6 +233,10 @@ public class DocService {
         attachmentMapper.deleteById(id);
     }
 
+    public DocAttachment getAttachmentById(Long id) {
+        return attachmentMapper.selectById(id);
+    }
+
     @Transactional
     public void incrementDownloadCount(Long attachmentId) {
         DocAttachment attachment = attachmentMapper.selectById(attachmentId);

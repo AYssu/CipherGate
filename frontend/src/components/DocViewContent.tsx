@@ -18,13 +18,14 @@ import {
   DownloadOutlined,
   EyeOutlined,
   GithubOutlined,
-  QqOutlined,
-  PlayCircleOutlined,
   CalendarOutlined,
   PaperClipOutlined,
 } from '@ant-design/icons';
+import MDEditor from '@uiw/react-md-editor';
 import { docApi } from '../services/docService';
 import type { DocDetail, DocAttachment } from '../services/docService';
+import QQIcon from './icons/QQIcon';
+import BilibiliIcon from './icons/BilibiliIcon';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -59,8 +60,29 @@ const DocViewContent: React.FC<DocViewContentProps> = ({ docId }) => {
 
   const handleDownload = async (attachment: DocAttachment) => {
     try {
-      await docApi.recordDownload(attachment.id);
-      window.open(attachment.fileUrl, '_blank');
+      const response = await fetch(`/api/doc/attachments/${attachment.id}/file`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          const error = await response.json();
+          message.error(error.message || '附件文件不存在');
+        } else if (response.status === 429) {
+          message.warning('下载过于频繁，请1分钟后再试');
+        } else {
+          message.error('下载失败');
+        }
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('下载失败:', error);
       message.error('下载失败');
@@ -125,54 +147,44 @@ const DocViewContent: React.FC<DocViewContentProps> = ({ docId }) => {
 
           <Divider style={{ margin: '16px 0' }} />
 
-          <div
-            className="doc-content"
-            style={{
-              lineHeight: 1.8,
-              fontSize: 15,
-              color: '#333',
-            }}
-          >
-            <pre style={{
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontFamily: 'inherit',
-              margin: 0,
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-            }}>
-              {doc.content}
-            </pre>
+          <div className="doc-content" data-color-mode="light" style={{ overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <MDEditor.Markdown source={doc.content || ''} />
+            </div>
           </div>
 
           {(doc.authorGithub || doc.authorQq || doc.authorBilibili) && (
             <>
               <Divider style={{ margin: '24px 0 16px' }} />
-              <Space wrap size={16}>
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: isMobile ? '8px 16px' : '16px',
+                alignItems: 'center'
+              }}>
                 {doc.authorGithub && (
-                  <Space size={4}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <GithubOutlined style={{ fontSize: 16 }} />
                     <a href={`https://github.com/${doc.authorGithub}`} target="_blank" rel="noopener noreferrer">
                       {doc.authorGithub}
                     </a>
-                  </Space>
+                  </div>
                 )}
                 {doc.authorQq && (
-                  <Space size={4}>
-                    <QqOutlined style={{ fontSize: 16 }} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <QQIcon style={{ fontSize: 16 }} />
                     <Text>{doc.authorQq}</Text>
-                  </Space>
+                  </div>
                 )}
                 {doc.authorBilibili && (
-                  <Space size={4}>
-                    <PlayCircleOutlined style={{ fontSize: 16 }} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <BilibiliIcon style={{ fontSize: 16 }} />
                     <a href={`https://space.bilibili.com/${doc.authorBilibili}`} target="_blank" rel="noopener noreferrer">
                       {doc.authorBilibili}
                     </a>
-                  </Space>
+                  </div>
                 )}
-              </Space>
+              </div>
             </>
           )}
         </Card>

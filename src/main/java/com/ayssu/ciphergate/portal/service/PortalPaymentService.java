@@ -98,7 +98,7 @@ public class PortalPaymentService {
     }
 
     @Transactional
-    public void handlePaymentNotify(String orderNo, String tradeNo, String status, Map<String, String> allParams) {
+    public boolean handlePaymentNotify(String orderNo, String tradeNo, String status, Map<String, String> allParams) {
         PortalPaymentOrder order = orderMapper.selectOne(
             new LambdaQueryWrapper<PortalPaymentOrder>()
                 .eq(PortalPaymentOrder::getOrderNo, orderNo)
@@ -106,7 +106,7 @@ public class PortalPaymentService {
 
         if (order == null || order.getStatus() != 0) {
             log.warn("门户支付回调: 订单不存在或已处理, orderNo={}", orderNo);
-            return;
+            return false;
         }
 
         // 获取该应用的支付配置并验签
@@ -117,12 +117,12 @@ public class PortalPaymentService {
         );
         if (config == null) {
             log.warn("门户支付回调: 应用支付配置不存在, appId={}", order.getAppId());
-            return;
+            return false;
         }
 
         if (!verifyReturnSign(orderNo, allParams)) {
             log.warn("门户支付回调: 签名验证失败, orderNo={}", orderNo);
-            return;
+            return false;
         }
 
         if ("TRADE_SUCCESS".equals(status) || "TRADE_FINISHED".equals(status)) {
@@ -136,6 +136,8 @@ public class PortalPaymentService {
 
             log.info("门户支付订单完成: orderNo={}, tradeNo={}", orderNo, tradeNo);
         }
+
+        return true;
     }
 
     /**

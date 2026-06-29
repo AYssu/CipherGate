@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.portal.controller;
 
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
@@ -25,6 +26,7 @@ public class PortalEpayConfigController {
     private final ApplicationMapper applicationMapper;
 
     @GetMapping("/{appId}")
+    @RequirePermission("APP_DETAIL")
     @Operation(summary = "获取应用易支付配置")
     public Result<ApplicationEpayConfig> getConfig(@PathVariable Long appId) {
         ApplicationEpayConfig config = epayConfigMapper.selectOne(
@@ -35,6 +37,7 @@ public class PortalEpayConfigController {
     }
 
     @PostMapping("/{appId}")
+    @RequirePermission("APP_UPDATE")
     @Operation(summary = "保存应用易支付配置")
     public Result<Void> saveConfig(@PathVariable Long appId, @RequestBody Map<String, String> body) {
         ApplicationEpayConfig config = epayConfigMapper.selectOne(
@@ -65,6 +68,7 @@ public class PortalEpayConfigController {
     }
 
     @PostMapping("/{appId}/toggle-payment")
+    @RequirePermission("CONFIG_UPDATE")
     @Operation(summary = "超级管理员开启/关闭应用购买功能")
     public Result<Void> togglePayment(@PathVariable Long appId, @RequestBody Map<String, Boolean> body) {
         Boolean enabled = body.get("enabled");

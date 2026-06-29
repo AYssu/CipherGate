@@ -27,4 +27,9 @@ public interface MinioObjectService {
      * 默认桶内对象大小；不存在或未启用 MinIO 时返回 {@code -1}。
      */
     long contentLengthDefaultBucket(@Nullable String objectKey);
+
+    /**
+     * 从输入流上传到默认桶
+     */
+    void uploadFromStream(String objectKey, InputStream stream, long size, String contentType);
 }

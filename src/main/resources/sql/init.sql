@@ -117,6 +117,9 @@ INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type,
 ('创建系统消息', 'MESSAGE_CREATE', 'API', '/api/messages', 'POST', '创建系统消息'),
 ('删除系统消息', 'MESSAGE_DELETE', 'API', '/api/messages/*', 'DELETE', '删除系统消息'),
 
+-- 文件上传权限
+('文件上传', 'FILE_UPLOAD', 'API', '/api/upload', 'POST', '文件分片上传'),
+
 -- 个人信息权限
 ('查看个人信息', 'PROFILE_VIEW', 'API', '/api/user/info,/api/user/profile', 'GET', '查看个人信息'),
 ('更新个人信息', 'PROFILE_UPDATE', 'API', '/api/user/profile', 'PUT', '更新个人信息');
@@ -162,10 +165,16 @@ AND p.permission_code NOT IN (
 AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
 
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p 
-WHERE r.role_code = 'USER' 
-AND p.permission_code IN ('PROFILE_VIEW', 'PROFILE_UPDATE')
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN ('PROFILE_VIEW', 'PROFILE_UPDATE', 'FILE_UPLOAD')
 AND EXISTS (SELECT 1 FROM system_config WHERE config_key = 'SYSTEM_INITIALIZED' AND config_value = 'false');
+
+-- 确保 FILE_UPLOAD 权限已分配（兼容已初始化的系统）
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.role_code IN ('SUPER_ADMIN', 'USER')
+AND p.permission_code = 'FILE_UPLOAD';
 
 -- 菜单表
 CREATE TABLE IF NOT EXISTS menus (
@@ -1512,3 +1521,172 @@ FROM roles r, menus m
 WHERE r.role_code = 'SUPER_ADMIN'
 AND m.menu_code IN ('MEMBERSHIP_MANAGEMENT', 'OPERATION_MANAGEMENT', 'MEMBERSHIP_LEVEL_MANAGEMENT', 'USER_MEMBERSHIP_MANAGEMENT', 'QUOTA_PRODUCT_MANAGEMENT', 'ORDER_MANAGEMENT', 'TICKET_MANAGEMENT')
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- ========================================
+-- 文档管理模块表
+-- ========================================
+
+-- 文档分类表
+CREATE TABLE IF NOT EXISTS doc_category (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',
+    name VARCHAR(100) NOT NULL COMMENT '分类名称',
+    description VARCHAR(500) COMMENT '分类描述',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    status TINYINT DEFAULT 1 COMMENT '状态：1-启用，0-禁用',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_sort_order (sort_order),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文档分类表';
+
+-- 文档表
+CREATE TABLE IF NOT EXISTS doc_item (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '文档ID',
+    category_id BIGINT NOT NULL COMMENT '所属分类ID',
+    title VARCHAR(200) NOT NULL COMMENT '文档标题',
+    content MEDIUMTEXT COMMENT '文档内容(Markdown)',
+    author_name VARCHAR(100) COMMENT '作者名称',
+    author_avatar VARCHAR(255) COMMENT '作者头像URL',
+    author_id BIGINT COMMENT '作者用户ID',
+    author_github VARCHAR(255) COMMENT '作者GitHub地址',
+    author_qq VARCHAR(50) COMMENT '作者QQ',
+    author_bilibili VARCHAR(255) COMMENT '作者B站主页',
+    status TINYINT DEFAULT 1 COMMENT '状态：1-正常，0-草稿，-1-已删除',
+    view_count BIGINT DEFAULT 0 COMMENT '浏览次数',
+    created_by BIGINT COMMENT '创建者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_category_id (category_id),
+    INDEX idx_status (status),
+    INDEX idx_author_id (author_id),
+    INDEX idx_created_by (created_by),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文档表';
+
+-- 文档附件表
+CREATE TABLE IF NOT EXISTS doc_attachment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '附件ID',
+    doc_id BIGINT NOT NULL COMMENT '所属文档ID',
+    file_name VARCHAR(255) NOT NULL COMMENT '文件名称',
+    file_url VARCHAR(500) NOT NULL COMMENT '文件URL',
+    file_size BIGINT DEFAULT 0 COMMENT '文件大小(字节)',
+    file_type VARCHAR(100) COMMENT '文件类型(MIME)',
+    download_count INT DEFAULT 0 COMMENT '下载次数',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_doc_id (doc_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文档附件表';
+
+-- 文档管理权限
+INSERT IGNORE INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('文档分类列表', 'DOC_CATEGORY_LIST', 'API', '/api/doc-categories', 'GET', '查看文档分类列表', 1),
+('文档分类详情', 'DOC_CATEGORY_DETAIL', 'API', '/api/doc-categories/*', 'GET', '查看文档分类详情', 1),
+('创建文档分类', 'DOC_CATEGORY_CREATE', 'API', '/api/doc-categories', 'POST', '创建文档分类', 1),
+('更新文档分类', 'DOC_CATEGORY_UPDATE', 'API', '/api/doc-categories/*', 'PUT', '更新文档分类', 1),
+('删除文档分类', 'DOC_CATEGORY_DELETE', 'API', '/api/doc-categories/*', 'DELETE', '删除文档分类', 1),
+('文档列表', 'DOC_ITEM_LIST', 'API', '/api/doc-items', 'GET', '查看文档列表', 1),
+('文档详情', 'DOC_ITEM_DETAIL', 'API', '/api/doc-items/*', 'GET', '查看文档详情', 1),
+('创建文档', 'DOC_ITEM_CREATE', 'API', '/api/doc-items', 'POST', '创建文档', 1),
+('更新文档', 'DOC_ITEM_UPDATE', 'API', '/api/doc-items/*', 'PUT', '更新文档', 1),
+('删除文档', 'DOC_ITEM_DELETE', 'API', '/api/doc-items/*', 'DELETE', '删除文档', 1);
+
+-- 超级管理员分配文档管理权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN (
+    'DOC_CATEGORY_LIST', 'DOC_CATEGORY_DETAIL', 'DOC_CATEGORY_CREATE', 'DOC_CATEGORY_UPDATE', 'DOC_CATEGORY_DELETE',
+    'DOC_ITEM_LIST', 'DOC_ITEM_DETAIL', 'DOC_ITEM_CREATE', 'DOC_ITEM_UPDATE', 'DOC_ITEM_DELETE'
+)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 普通用户分配文档查看权限
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN (
+    'DOC_CATEGORY_LIST', 'DOC_CATEGORY_DETAIL',
+    'DOC_ITEM_LIST', 'DOC_ITEM_DETAIL'
+)
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+
+-- 对接文档（顶级菜单，子菜单由API动态构建）
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('对接文档', 'DOC_MANAGEMENT', 0, 1, '/docs', NULL, 'book', 8, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name='对接文档', sort_order=VALUES(sort_order);
+
+-- 所有角色分配对接文档菜单
+INSERT IGNORE INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'USER')
+AND m.menu_code = 'DOC_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
+SET @sys_mgmt_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT') AS tmp);
+INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('文档管理', 'DOC_MANAGEMENT_ADMIN', @sys_mgmt_id, 2, '/docs/categories', 'DocManagement', 'book', 8, 1, 1, NOW(), NOW());
+
+INSERT IGNORE INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+AND m.menu_code = 'DOC_MANAGEMENT_ADMIN';
+
+-- ========================================
+-- 系统公告模块表
+-- ========================================
+
+-- 系统公告表
+CREATE TABLE IF NOT EXISTS system_announcement (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '公告ID',
+    title VARCHAR(200) NOT NULL COMMENT '公告标题',
+    content MEDIUMTEXT COMMENT '公告内容',
+    status TINYINT DEFAULT 1 COMMENT '状态：1-启用，0-禁用',
+    created_by BIGINT COMMENT '创建者ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status),
+    INDEX idx_created_by (created_by),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统公告表';
+
+-- 公告管理权限
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status) VALUES
+('公告列表', 'ANNOUNCEMENT_LIST', 'API', '/api/announcements', 'GET', '查看公告列表', 1),
+('公告详情', 'ANNOUNCEMENT_DETAIL', 'API', '/api/announcements/*', 'GET', '查看公告详情', 1),
+('创建公告', 'ANNOUNCEMENT_CREATE', 'API', '/api/announcements', 'POST', '创建公告', 1),
+('更新公告', 'ANNOUNCEMENT_UPDATE', 'API', '/api/announcements/*', 'PUT', '更新公告', 1),
+('删除公告', 'ANNOUNCEMENT_DELETE', 'API', '/api/announcements/*', 'DELETE', '删除公告', 1),
+('公告查看', 'ANNOUNCEMENT_VIEW', 'API', '/api/announcements/latest', 'GET', '查看最新公告', 1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name);
+
+-- 超级管理员分配公告管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'SUPER_ADMIN'
+AND p.permission_code IN ('ANNOUNCEMENT_LIST', 'ANNOUNCEMENT_DETAIL', 'ANNOUNCEMENT_CREATE', 'ANNOUNCEMENT_UPDATE', 'ANNOUNCEMENT_DELETE', 'ANNOUNCEMENT_VIEW')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 普通用户分配公告查看权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.role_code = 'USER'
+AND p.permission_code IN ('ANNOUNCEMENT_VIEW')
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 插入公告管理菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at) VALUES
+('公告管理', 'ANNOUNCEMENT_MANAGEMENT', (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT' LIMIT 1) AS tmp), 2, '/system/announcements', 'SystemManagement', 'notification', 7, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), sort_order=VALUES(sort_order);
+
+-- 超级管理员分配公告管理菜单
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id
+FROM roles r, menus m
+WHERE r.role_code = 'SUPER_ADMIN'
+AND m.menu_code = 'ANNOUNCEMENT_MANAGEMENT'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);

@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.portal.controller;
 
+import com.ayssu.ciphergate.annotation.RequirePermission;
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.portal.entity.PortalPaymentOrder;
 import com.ayssu.ciphergate.portal.mapper.PortalPaymentOrderMapper;
@@ -20,6 +21,7 @@ public class PortalAdminOrderController {
     private final PortalPaymentOrderMapper orderMapper;
 
     @GetMapping("/orders")
+    @RequirePermission("PAYMENT_ORDER_ADMIN_LIST")
     @Operation(summary = "所有终端用户订单")
     public Result<List<PortalPaymentOrder>> getAllOrders(
             @RequestParam(defaultValue = "1") int page,

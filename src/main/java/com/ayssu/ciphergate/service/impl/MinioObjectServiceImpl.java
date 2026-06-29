@@ -157,6 +157,24 @@ public class MinioObjectServiceImpl implements MinioObjectService {
         }
     }
 
+    @Override
+    public void uploadFromStream(String objectKey, InputStream stream, long size, String contentType) {
+        if (minioClient == null) {
+            throw new RuntimeException("MinIO 未启用，无法上传文件");
+        }
+        try {
+            ensureBucket();
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(minioProperties.getBucket())
+                    .object(objectKey)
+                    .stream(stream, size, -1)
+                    .contentType(contentType)
+                    .build());
+        } catch (Exception e) {
+            throw new RuntimeException("从流上传到 MinIO 失败", e);
+        }
+    }
+
     private void ensureBucket() throws Exception {
         boolean exists = minioClient.bucketExists(BucketExistsArgs.builder()
                 .bucket(minioProperties.getBucket())
