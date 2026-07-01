@@ -2,7 +2,10 @@ package com.ayssu.ciphergate.thirdparty.ws;
 
 import com.ayssu.ciphergate.entity.LicenseKey;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
-import com.ayssu.ciphergate.thirdparty.service.ThirdPartyHeartbeatService;
+import com.ayssu.ciphergate.thirdparty.ws.crypto.WsCrypto;
+import com.ayssu.ciphergate.thirdparty.ws.model.WsCipher;
+import com.ayssu.ciphergate.thirdparty.ws.model.WsEnvelope;
+import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -15,10 +18,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.security.KeyPair;
+import java.security.PublicKey;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 卡密 WebSocket 处理器。
@@ -26,14 +31,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * 流程：
  * 1) 客户端通过 HTTP 登录获得心跳 token
  * 2) 连接 ws:///api/v1/card/ws?token=xxx
- * 3) 服务端验证 token，注册会话
- * 4) 服务端定时发送 HEARTBEAT，客户端回复 PONG
- * 5) 断开连接 → 标记卡密离线
+ * 3) 服务端验证 token，注册会话，发送 CONNECTED
+ * 4) 客户端发送 HELLO（携带 clientPubKey），服务端回复 HELLO_ACK（携带 serverPubKey）
+ * 5) 服务端定时发送加密 HEARTBEAT（含变量），客户端回复加密 PONG
+ * 6) 断开连接 → 标记卡密离线
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CardWsHandler extends TextWebSocketHandler {
+
+    private static final long MAX_SKEW_MS = 15_000L;
+    private static final byte[] HKDF_INFO = WsCrypto.utf8("cg-card-ws-v1");
 
     private static final String HB_CARD_PREFIX = "cg:hb:card:";
     private static final String HB_TOKEN_PREFIX = "cg:hb:token:";
@@ -41,11 +50,19 @@ public class CardWsHandler extends TextWebSocketHandler {
     private static final String ATTR_APP_ID = "cg.card.ws.appId";
     private static final String ATTR_CONN_ID = "cg.card.ws.connId";
     private static final String ATTR_TOKEN = "cg.card.ws.token";
+    private static final String ATTR_SESSION_KEY = "cg.card.ws.sessionKey";
+    private static final String ATTR_SERVER_KP = "cg.card.ws.serverKp";
+    private static final String ATTR_CLIENT_PUB = "cg.card.ws.clientPub";
+    private static final String ATTR_SERVER_NONCE = "cg.card.ws.serverNonce";
+    private static final String ATTR_HELLO_DONE = "cg.card.ws.helloDone";
+    private static final String ATTR_LAST_SEQ = "cg.card.ws.lastSeq";
+    private static final String ATTR_VAR_PACKET_SEQ = "cg.card.ws.varPacketSeq";
 
     private final StringRedisTemplate redisTemplate;
     private final LicenseKeyMapper licenseKeyMapper;
     private final CardWsSessionRegistry sessionRegistry;
     private final ObjectMapper objectMapper;
+    private final WsNonceService wsNonceService;
 
     /**
      * 连接建立：从 query param 取 token 验证
@@ -86,6 +103,9 @@ public class CardWsHandler extends TextWebSocketHandler {
         session.getAttributes().put(ATTR_APP_ID, appId);
         session.getAttributes().put(ATTR_CONN_ID, connId);
         session.getAttributes().put(ATTR_TOKEN, token);
+        session.getAttributes().put(ATTR_HELLO_DONE, false);
+        session.getAttributes().put(ATTR_LAST_SEQ, 0L);
+        session.getAttributes().put(ATTR_VAR_PACKET_SEQ, 0L);
 
         sessionRegistry.add(connId, session);
 
@@ -124,18 +144,129 @@ public class CardWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * 处理客户端消息：PONG
+     * 处理客户端消息：HELLO / PONG
      */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = message.getPayload();
-        // 客户端回复 PONG，更新 Redis 心跳时间
-        if (payload.contains("\"PONG\"") || payload.contains("\"pong\"")) {
-            Object cardIdObj = session.getAttributes().get(ATTR_CARD_ID);
-            if (cardIdObj instanceof Long cardId) {
-                updateRedisHeartbeat(cardId);
+        WsEnvelope env;
+        try {
+            env = objectMapper.readValue(message.getPayload(), WsEnvelope.class);
+        } catch (Exception e) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "BAD_JSON");
+            return;
+        }
+
+        String type = env.getType();
+        if (!StringUtils.hasText(type)) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "MISSING_TYPE");
+            return;
+        }
+
+        switch (type) {
+            case "HELLO" -> handleHello(session, env);
+            case "PONG" -> handlePong(session, env);
+            default -> close(session, CloseStatus.NOT_ACCEPTABLE, "UNSUPPORTED");
+        }
+    }
+
+    /**
+     * 处理 HELLO：客户端发送 x25519 公钥，服务端完成密钥协商
+     */
+    private void handleHello(WebSocketSession session, WsEnvelope env) throws Exception {
+        if (Boolean.TRUE.equals(session.getAttributes().get(ATTR_HELLO_DONE))) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "ALREADY_HELLO");
+            return;
+        }
+
+        long now = Instant.now().toEpochMilli();
+        Long ts = env.getTs();
+        if (ts == null || Math.abs(now - ts) > MAX_SKEW_MS) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "EXPIRED");
+            return;
+        }
+        if (!wsNonceService.markIfNew("card:hello", env.getNonce())) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "REPLAY");
+            return;
+        }
+        if (!StringUtils.hasText(env.getClientPubKey())) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "MISSING_PUBKEY");
+            return;
+        }
+
+        byte[] clientPubBytes;
+        try {
+            clientPubBytes = WsCrypto.b64d(env.getClientPubKey());
+        } catch (Exception e) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "BAD_PUBKEY");
+            return;
+        }
+        PublicKey clientPub = WsCrypto.decodeX25519PublicKey(clientPubBytes);
+        KeyPair serverKp = WsCrypto.generateX25519KeyPair();
+
+        byte[] shared = WsCrypto.ecdhX25519(serverKp, clientPub);
+        byte[] serverNonce = randomNonceB64();
+        byte[] salt = WsCrypto.hmacSha256(WsCrypto.utf8(env.getNonce()), serverNonce);
+        byte[] sessionKey = WsCrypto.hkdfSha256(shared, salt, HKDF_INFO, 32);
+
+        session.getAttributes().put(ATTR_SESSION_KEY, sessionKey);
+        session.getAttributes().put(ATTR_SERVER_KP, serverKp);
+        session.getAttributes().put(ATTR_CLIENT_PUB, env.getClientPubKey());
+        session.getAttributes().put(ATTR_SERVER_NONCE, WsCrypto.b64(serverNonce));
+        session.getAttributes().put(ATTR_HELLO_DONE, true);
+
+        WsEnvelope ack = new WsEnvelope();
+        ack.setType("HELLO_ACK");
+        ack.setConnId((String) session.getAttributes().get(ATTR_CONN_ID));
+        ack.setTs(now);
+        ack.setServerPubKey(WsCrypto.b64(serverKp.getPublic().getEncoded()));
+        ack.setServerNonce((String) session.getAttributes().get(ATTR_SERVER_NONCE));
+        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(ack)));
+
+        log.debug("卡密 WS HELLO 完成: connId={}", session.getAttributes().get(ATTR_CONN_ID));
+    }
+
+    /**
+     * 处理加密 PONG：客户端用 sessionKey 加密回复，更新 Redis 心跳时间
+     */
+    private void handlePong(WebSocketSession session, WsEnvelope env) throws Exception {
+        Object cardIdObj = session.getAttributes().get(ATTR_CARD_ID);
+        if (!(cardIdObj instanceof Long cardId)) {
+            return;
+        }
+
+        byte[] sessionKey = (byte[]) session.getAttributes().get(ATTR_SESSION_KEY);
+        if (sessionKey == null) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "NO_SESSION_KEY");
+            return;
+        }
+
+        // 校验 seq 单调递增
+        long lastSeq = session.getAttributes().get(ATTR_LAST_SEQ) instanceof Long l ? l : 0L;
+        long seq = env.getSeq() == null ? 0L : env.getSeq();
+        if (seq <= lastSeq) {
+            close(session, CloseStatus.NOT_ACCEPTABLE, "BAD_SEQ");
+            return;
+        }
+        session.getAttributes().put(ATTR_LAST_SEQ, seq);
+
+        // 解密 PONG payload（可选：客户端可携带自定义数据）
+        if (env.getCipher() != null && StringUtils.hasText(env.getCipher().getData())) {
+            try {
+                WsCipher c = env.getCipher();
+                byte[] iv = WsCrypto.b64d(c.getIv());
+                byte[] ct = WsCrypto.b64d(c.getData());
+                byte[] tag = StringUtils.hasText(c.getTag()) ? WsCrypto.b64d(c.getTag()) : new byte[0];
+                String connId = (String) session.getAttributes().get(ATTR_CONN_ID);
+                byte[] aad = WsCrypto.utf8(connId + "|" + seq + "|" + env.getTs());
+                WsCrypto.aesGcmDecrypt(sessionKey, iv, ct, tag, aad);
+                // 解密成功即验证通过
+            } catch (Exception e) {
+                close(session, CloseStatus.NOT_ACCEPTABLE, "DECRYPT_FAIL");
+                return;
             }
         }
+
+        updateRedisHeartbeat(cardId);
     }
 
     /**
@@ -233,6 +364,12 @@ public class CardWsHandler extends TextWebSocketHandler {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private byte[] randomNonceB64() {
+        byte[] b = new byte[16];
+        new java.security.SecureRandom().nextBytes(b);
+        return b;
     }
 
     private void close(WebSocketSession session, CloseStatus status, String reason) {

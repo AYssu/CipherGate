@@ -192,4 +192,23 @@ export const systemApi = {
   getInviteStatus: () => {
     return request.get('/config/public/invite-status');
   },
+
+  getOAuth2ProxySettings: () => {
+    return request.get('/config/settings/oauth2-proxy');
+  },
+
+  updateOAuth2ProxySettings: (data: {
+    enabled: boolean;
+    host?: string;
+    port?: string;
+    username?: string;
+    password?: string;
+    type?: string;
+  }) => {
+    return request.post('/config/settings/oauth2-proxy', data);
+  },
+
+  testOAuth2Proxy: () => {
+    return request.post('/config/settings/oauth2-proxy/test', undefined, { timeout: 30000 });
+  },
 };

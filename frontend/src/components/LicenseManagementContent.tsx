@@ -25,6 +25,7 @@ import {
   Checkbox,
   Pagination,
   Grid,
+  Upload,
 } from 'antd';
 import {
   PlusOutlined,
@@ -35,10 +36,13 @@ import {
   PoweroffOutlined,
   CheckCircleOutlined,
   ExportOutlined,
+  ImportOutlined,
+  DownloadOutlined,
   KeyOutlined,
   ClockCircleOutlined,
   DisconnectOutlined,
   FilterOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -59,10 +63,13 @@ import {
   unbindLicenseDevice,
   unbindLicenseIp,
   exportLicenses,
+  downloadImportTemplate,
+  importLicenses,
   type LicenseKey,
   type LicenseKeyDTO,
   type LicenseBatchCreateDTO,
   type LicenseBatchOperateResult,
+  type LicenseImportResult,
 } from '../services/licenseService';
 import { getApplicationList, type Application } from '../services/applicationService';
 
@@ -86,6 +93,9 @@ const LicenseManagementContent: React.FC = () => {
   const [batchUseLimitVisible, setBatchUseLimitVisible] = useState(false);
   const [batchUnbindLimitVisible, setBatchUnbindLimitVisible] = useState(false);
   const [batchUseTimeVisible, setBatchUseTimeVisible] = useState(false);
+  const [importVisible, setImportVisible] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<LicenseImportResult | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedBatchAction, setSelectedBatchAction] = useState<string>();
   const [editingLicense, setEditingLicense] = useState<LicenseKey | null>(null);
@@ -902,6 +912,48 @@ const LicenseManagementContent: React.FC = () => {
     }
   };
 
+  // 下载导入模板
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await downloadImportTemplate();
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `卡密导入模板_${Date.now()}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      message.success('模板下载成功');
+    } catch (error) {
+      message.error('模板下载失败');
+    }
+  };
+
+  // 导入卡密
+  const handleImport = async (file: File) => {
+    if (!filters.appId) {
+      message.warning('请先选择一个应用');
+      return false;
+    }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await importLicenses(file, filters.appId);
+      setImportResult(res.data);
+      if (res.data.failCount === 0) {
+        message.success(`导入成功: ${res.data.successCount} 条`);
+      } else {
+        message.warning(`导入完成: 成功 ${res.data.successCount} 条，失败 ${res.data.failCount} 条`);
+      }
+      fetchLicenses(pagination.current, pagination.pageSize, filters);
+    } catch (error: any) {
+      message.error(error?.message || '导入失败');
+    } finally {
+      setImporting(false);
+    }
+    return false;
+  };
+
   // 获取卡密类型标签
   const getKeyTypeLabel = (type: string) => {
     const option = keyTypeOptions.find(opt => opt.value === type);
@@ -1460,6 +1512,7 @@ const LicenseManagementContent: React.FC = () => {
           ) : (
             <Space>
               <Button icon={<ExportOutlined />} onClick={handleExport}>导出</Button>
+              <Button icon={<ImportOutlined />} onClick={() => { setImportVisible(true); setImportResult(null); }}>导入</Button>
               <Button icon={<ReloadOutlined />} onClick={() => fetchLicenses(pagination.current, pagination.pageSize, filters)}>刷新</Button>
               <Button icon={<KeyOutlined />} onClick={handleOpenBatchModal}>批量生成</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>创建卡密</Button>
@@ -2394,6 +2447,68 @@ const LicenseManagementContent: React.FC = () => {
             </Col>
           </Row>
         </Form>
+      </Modal>
+
+      {/* 导入卡密弹窗 */}
+      <Modal
+        title="导入卡密"
+        open={importVisible}
+        onCancel={() => { setImportVisible(false); setImportResult(null); }}
+        footer={null}
+        width={isMobile ? '100%' : 600}
+        className={isMobile ? 'mobile-modal' : undefined}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text type="secondary">
+              导入将使用当前筛选的应用（{filters.appId ? applications.find(a => a.id === filters.appId)?.appName || 'ID: ' + filters.appId : '请先选择应用'}）。
+              请先下载模板，填写后上传 .xlsx 文件。
+            </Text>
+            <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>下载导入模板</Button>
+          </Space>
+        </div>
+
+        <Upload.Dragger
+          accept=".xlsx"
+          showUploadList={false}
+          beforeUpload={(file) => { handleImport(file); return false; }}
+          disabled={importing}
+        >
+          <p className="ant-upload-drag-icon">
+            <UploadOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽 .xlsx 文件到此处导入</p>
+          <p className="ant-upload-hint">卡密码必须在当前应用下唯一，重复的行将跳过</p>
+        </Upload.Dragger>
+
+        {importResult && (
+          <div style={{ marginTop: 16 }}>
+            <Card size="small" title="导入结果">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Row gutter={16}>
+                  <Col span={8}><Text>总行数：</Text><Text strong>{importResult.totalRows}</Text></Col>
+                  <Col span={8}><Text>成功：</Text><Text strong type="success">{importResult.successCount}</Text></Col>
+                  <Col span={8}><Text>失败：</Text><Text strong type={importResult.failCount > 0 ? 'danger' : undefined}>{importResult.failCount}</Text></Col>
+                </Row>
+                {importResult.failItems.length > 0 && (
+                  <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                    <Table
+                      size="small"
+                      dataSource={importResult.failItems}
+                      rowKey="rowNumber"
+                      pagination={false}
+                      columns={[
+                        { title: '行号', dataIndex: 'rowNumber', width: 60 },
+                        { title: '卡密码', dataIndex: 'keyCode', width: 180 },
+                        { title: '失败原因', dataIndex: 'reason' },
+                      ]}
+                    />
+                  </div>
+                )}
+              </Space>
+            </Card>
+          </div>
+        )}
       </Modal>
     </Card>
   );

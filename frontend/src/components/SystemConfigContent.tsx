@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, InputNumber, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Form, Input, InputNumber, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid, Tag, Select } from 'antd';
+import { UploadOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { SystemSettings } from '../services/systemService';
 
@@ -21,6 +21,20 @@ const SystemConfigContent: React.FC = () => {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [inviteForm] = Form.useForm();
   const [inviteSaving, setInviteSaving] = useState(false);
+  const [proxyForm] = Form.useForm();
+  const [proxySaving, setProxySaving] = useState(false);
+  const [proxyTesting, setProxyTesting] = useState(false);
+  const [proxyTestResult, setProxyTestResult] = useState<{ success: boolean; githubLatency: number; apiLatency: number } | null>(null);
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['github', 'site', 'email', 'payment', 'proxy', 'invite'];
+    return validTabs.includes(hash) ? hash : 'github';
+  });
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    window.location.hash = key;
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -72,6 +86,19 @@ const SystemConfigContent: React.FC = () => {
           enabled: inviteData?.enabled !== false,
           maxCount: inviteData?.maxCount ?? 20,
           rewardAmount: inviteData?.rewardAmount ? inviteData.rewardAmount / 100 : 3,
+        });
+      } catch {}
+      // 加载代理配置
+      try {
+        const proxyRes = await systemApi.getOAuth2ProxySettings();
+        const proxyData = proxyRes.data;
+        proxyForm.setFieldsValue({
+          enabled: !!proxyData?.enabled,
+          host: proxyData?.host || '',
+          port: proxyData?.port || '1080',
+          username: proxyData?.username || '',
+          password: '',
+          type: proxyData?.type || 'socks5',
         });
       } catch {}
     } catch (error) {
@@ -183,6 +210,58 @@ const SystemConfigContent: React.FC = () => {
     }
   };
 
+  const submitProxy = async () => {
+    try {
+      const values = await proxyForm.validateFields();
+      setProxySaving(true);
+      await systemApi.updateOAuth2ProxySettings({
+        enabled: values.enabled,
+        host: values.host,
+        port: values.port,
+        username: values.username,
+        password: values.password || undefined,
+        type: values.type,
+      });
+      message.success('代理配置已保存');
+      proxyForm.setFieldValue('password', '');
+      setProxyTestResult(null);
+      await loadSettings();
+    } catch (error: any) {
+      if (!error?.errorFields) {
+        message.error(error?.message || '保存代理配置失败');
+      }
+    } finally {
+      setProxySaving(false);
+    }
+  };
+
+  const testProxy = async () => {
+    try {
+      setProxyTesting(true);
+      setProxyTestResult(null);
+      const res = await systemApi.testOAuth2Proxy();
+      const data = (res as any)?.data || (res as any);
+      const githubReachable = data?.githubreachable;
+      const apiReachable = data?.apireachable;
+      const passed = githubReachable || apiReachable;
+      setProxyTestResult({
+        success: passed,
+        githubLatency: data?.githublatencyMs ?? -1,
+        apiLatency: data?.apilatencyMs ?? -1,
+      });
+      if (passed) {
+        message.success('代理连通性测试通过');
+      } else {
+        message.error('代理连通性测试失败，请检查代理配置');
+      }
+    } catch (error: any) {
+      setProxyTestResult({ success: false, githubLatency: -1, apiLatency: -1 });
+      message.error(error?.message || '代理连通性测试失败');
+    } finally {
+      setProxyTesting(false);
+    }
+  };
+
   const toggleGeoIp = async (enabled: boolean) => {
     try {
       setGeoIpSaving(true);
@@ -251,6 +330,8 @@ const SystemConfigContent: React.FC = () => {
       <Tabs
         tabPosition={isMobile ? 'top' : 'top'}
         size={isMobile ? 'small' : 'middle'}
+        activeKey={activeTab}
+        onChange={handleTabChange}
         items={[
           {
             key: 'github',
@@ -577,6 +658,74 @@ const SystemConfigContent: React.FC = () => {
                   {settings?.geoIpLastError ? `（${settings.geoIpLastError}）` : ''}
                 </Text>
               </Space>
+            ),
+          },
+          {
+            key: 'proxy',
+            label: '代理配置',
+            children: (
+              <Form form={proxyForm} layout="vertical">
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="enabled" label="启用代理" valuePropName="checked">
+                      <Switch />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="type" label="代理类型">
+                      <Select options={[{ value: 'socks5', label: 'SOCKS5' }, { value: 'http', label: 'HTTP' }]} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="host" label="代理主机">
+                      <Input placeholder="127.0.0.1" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="port" label="代理端口">
+                      <Input placeholder="1080" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={isMobile ? [0, 0] : 16}>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="username" label="用户名（无认证可留空）">
+                      <Input placeholder="用户名" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={isMobile ? 24 : 8}>
+                    <Form.Item name="password" label="密码（不填则保持不变）">
+                      <Input.Password placeholder="密码" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Space direction={isMobile ? 'vertical' : 'horizontal'} size={8}>
+                  <Button type="primary" loading={proxySaving} onClick={submitProxy}>保存代理配置</Button>
+                  <Button icon={<ApiOutlined />} loading={proxyTesting} onClick={testProxy}>测试连通性</Button>
+                </Space>
+                {proxyTestResult && (
+                  <div style={{ marginTop: 16, padding: '12px 16px', background: proxyTestResult.success ? '#f6ffed' : '#fff2f0', border: `1px solid ${proxyTestResult.success ? '#b7eb8f' : '#ffa39e'}`, borderRadius: 6 }}>
+                    <Space direction="vertical" size={4}>
+                      <Space>
+                        {proxyTestResult.success ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+                        <Text strong style={{ color: proxyTestResult.success ? '#52c41a' : '#ff4d4f' }}>
+                          {proxyTestResult.success ? '代理连通性测试通过' : '代理连通性测试失败'}
+                        </Text>
+                      </Space>
+                      {proxyTestResult.success && (
+                        <Space>
+                          <Text type="secondary">github.com：</Text>
+                          <Tag color="green">{proxyTestResult.githubLatency}ms</Tag>
+                          <Text type="secondary">api.github.com：</Text>
+                          <Tag color="green">{proxyTestResult.apiLatency}ms</Tag>
+                        </Space>
+                      )}
+                    </Space>
+                  </div>
+                )}
+              </Form>
             ),
           },
           {

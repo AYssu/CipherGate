@@ -3,6 +3,7 @@ package com.ayssu.ciphergate.service;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchAddTimeResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
+import com.ayssu.ciphergate.dto.LicenseImportResult;
 import com.ayssu.ciphergate.dto.LicenseBatchDeleteDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchOperateResultDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchSetUnbindLimitDTO;
@@ -76,6 +77,16 @@ public interface LicenseKeyService {
      * 导出卡密为 Excel（.xlsx）
      */
     byte[] exportLicenseKeysExcel(LicenseKeyQueryDTO queryDTO, Long operatorId);
+
+    /**
+     * 生成导入模板 Excel（.xlsx）
+     */
+    byte[] generateImportTemplate();
+
+    /**
+     * 从 Excel 批量导入卡密
+     */
+    LicenseImportResult importLicenseKeys(byte[] excelBytes, Long appId, Long operatorId);
 
     /**
      * 批量延长到期时间：仅已激活（已首次使用）的卡密处理；未激活的返回失败原因「该卡密未激活」。

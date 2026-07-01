@@ -42,7 +42,6 @@ public class ThirdPartyHeartbeatService {
     private static final String HB_TOKEN_PREFIX = "cg:hb:token:"; // token → cardId
     private static final String HB_RL_PREFIX = "cg:hb:rl:";       // cardId → lastMs（限流）
     private static final long MIN_INTERVAL_SECONDS = 30;
-    private static final long SHARE_DETECT_SECONDS = 60;
 
     private final StringRedisTemplate redisTemplate;
     private final LicenseKeyMapper licenseKeyMapper;
@@ -54,12 +53,12 @@ public class ThirdPartyHeartbeatService {
      *
      * @return 心跳 token
      */
-    public String storeToken(Long appId, Long cardId, String cardCode, String deviceId, LocalDateTime expiresAt) {
+    public String storeToken(Long appId, Long cardId, String cardCode, String deviceId, LocalDateTime expiresAt, int heartbeatInterval) {
         // 同一张卡重新登录 → 旧 token 自动失效（覆盖 cardId 映射即可）
         invalidateOldToken(cardId);
 
         String token = generateToken();
-        Duration ttl = calcTtl(expiresAt);
+        Duration ttl = calcHeartbeatTokenTtl(heartbeatInterval);
 
         // 构建 payload
         JSONObject payload = new JSONObject();
@@ -120,19 +119,8 @@ public class ThirdPartyHeartbeatService {
             }
         }
 
-        // 5. 检测疑似多用户（心跳间隔 > 60 秒）
-        boolean potentiallyShared = false;
-        String lastHbStr = payload.getString("lastHeartbeatAt");
-        if (lastHbStr != null) {
-            try {
-                LocalDateTime lastHb = LocalDateTime.parse(lastHbStr);
-                long gapSeconds = ChronoUnit.SECONDS.between(lastHb, LocalDateTime.now());
-                if (gapSeconds > SHARE_DETECT_SECONDS) {
-                    potentiallyShared = true;
-                }
-            } catch (Exception ignored) {
-            }
-        }
+        // 5. 检测疑似多用户
+        LicenseKey cardForCheck = licenseKeyMapper.selectById(cardId);
 
         // 6. 生成新 token，更新 payload
         String newToken = generateToken();
@@ -160,19 +148,18 @@ public class ThirdPartyHeartbeatService {
         Map<String, Object> variables = thirdPartyAppVariableService.getEnabledVariablesMap(appId, variableCtx);
 
         // 11. 构建响应
-        LicenseKey key = licenseKeyMapper.selectById(cardId);
         HeartbeatResponse resp = new HeartbeatResponse();
         resp.setAppId(appId);
         resp.setCardId(cardId);
         resp.setCardCode(payload.getString("cardCode"));
         resp.setNewToken(newToken);
-        resp.setExpiresAt(key != null ? key.getExpiresAt() : null);
-        resp.setAvailable(resolveAvailableSeconds(key != null ? key.getExpiresAt() : null));
+        resp.setExpiresAt(cardForCheck != null ? cardForCheck.getExpiresAt() : null);
+        resp.setAvailable(resolveAvailableSeconds(cardForCheck != null ? cardForCheck.getExpiresAt() : null));
         resp.setVariables(JSON.toJSONString(variables));
-        resp.setOnline(key != null && Boolean.TRUE.equals(key.getIsOnline()));
-        resp.setPotentiallyShared(potentiallyShared);
+        resp.setOnline(cardForCheck != null && Boolean.TRUE.equals(cardForCheck.getIsOnline()));
+        resp.setPotentiallyShared(true);
 
-        log.debug("心跳交换完成: cardId={}, potentiallyShared={}", cardId, potentiallyShared);
+        log.debug("心跳交换完成: cardId={}, potentiallyShared=true", cardId);
         return resp;
     }
 
@@ -195,16 +182,21 @@ public class ThirdPartyHeartbeatService {
         }
     }
 
-    private Duration calcTtl(LocalDateTime expiresAt) {
-        Duration ttl = (expiresAt != null)
-                ? Duration.between(LocalDateTime.now(), expiresAt)
-                : Duration.ofHours(2);
-        return ttl.getSeconds() < 60 ? Duration.ofSeconds(60) : ttl;
+    private static final int TOKEN_TTL_MULTIPLIER = 6; // token TTL = 心跳间隔 × 6
+
+    /**
+     * 心跳 token TTL：心跳间隔 × TOKEN_TTL_MULTIPLIER。
+     * 超过此时间未心跳 → token 过期 → 客户端需重新登录。
+     */
+    private Duration calcHeartbeatTokenTtl(int heartbeatInterval) {
+        long ttlSeconds = (long) heartbeatInterval * TOKEN_TTL_MULTIPLIER;
+        return Duration.ofSeconds(ttlSeconds);
     }
 
     private Duration calcTtlFromCardId(Long cardId) {
         LicenseKey key = licenseKeyMapper.selectById(cardId);
-        return calcTtl(key != null ? key.getExpiresAt() : null);
+        int interval = (key != null && key.getHeartbeatInterval() != null) ? key.getHeartbeatInterval() : 60;
+        return calcHeartbeatTokenTtl(interval);
     }
 
     private String generateToken() {

@@ -308,9 +308,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
      * 统计用户所有应用下的卡密总数（包括已删除的）
      */
     public long countUserLicenses(Long userId) {
-        return licenseKeyMapper.selectCount(
-                new QueryWrapper<com.ayssu.ciphergate.entity.LicenseKey>()
-                        .eq("owner_id", userId));
+        return licenseKeyMapper.countAllByKeyOwner(userId);
     }
 
     /**

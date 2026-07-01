@@ -15,6 +15,7 @@ import com.ayssu.ciphergate.dto.LicenseBatchSetUseTimeDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchStatusDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchUnbindDTO;
 import com.ayssu.ciphergate.dto.LicenseKeyDTO;
+import com.ayssu.ciphergate.dto.LicenseImportResult;
 import com.ayssu.ciphergate.dto.LicenseKeyQueryDTO;
 import com.ayssu.ciphergate.entity.LicenseKey;
 import com.ayssu.ciphergate.entity.User;
@@ -34,6 +35,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -413,6 +416,69 @@ public class LicenseKeyController {
             } catch (Exception ex) {
                 log.error("写入导出错误响应失败", ex);
             }
+        }
+    }
+
+    /**
+     * 下载卡密导入模板
+     */
+    @GetMapping(value = "/import-template", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    @RequirePermission("LICENSE_CREATE")
+    @Operation(summary = "下载卡密导入模板")
+    public void downloadImportTemplate(HttpServletResponse response) {
+        try {
+            byte[] bytes = licenseKeyService.generateImportTemplate();
+            String name = "卡密导入模板_" + LocalDate.now() + ".xlsx";
+            String encoded = URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded);
+            response.setContentLength(bytes.length);
+            response.getOutputStream().write(bytes);
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            log.error("下载导入模板失败", e);
+            try {
+                response.reset();
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.setContentType("application/json;charset=UTF-8");
+                objectMapper.writeValue(response.getOutputStream(),
+                        Result.error("下载模板失败: " + e.getMessage()));
+            } catch (Exception ex) {
+                log.error("写入模板错误响应失败", ex);
+            }
+        }
+    }
+
+    /**
+     * 批量导入卡密
+     */
+    @PostMapping("/import")
+    @RequirePermission("LICENSE_CREATE")
+    @ActivityLog(actionType = "IMPORT", actionTarget = "LICENSE", description = "批量导入卡密")
+    @Operation(summary = "从Excel批量导入卡密")
+    public Result<LicenseImportResult> importLicenseKeys(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam Long appId) {
+        try {
+            User currentUser = getCurrentUser();
+            if (file == null || file.isEmpty()) {
+                return Result.error("请选择文件");
+            }
+            String filename = file.getOriginalFilename();
+            if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
+                return Result.error("仅支持 .xlsx 格式");
+            }
+            byte[] bytes = file.getBytes();
+            LicenseImportResult result = licenseKeyService.importLicenseKeys(bytes, appId, currentUser.getId());
+            String msg = "导入完成: 成功 " + result.getSuccessCount() + " 条";
+            if (result.getFailCount() > 0) {
+                msg += "，失败 " + result.getFailCount() + " 条";
+            }
+            return Result.success(msg, result);
+        } catch (Exception e) {
+            log.error("导入卡密失败", e);
+            return Result.error("导入失败: " + e.getMessage());
         }
     }
 }

@@ -172,7 +172,8 @@ public class ThirdPartyCardService {
 
         // 生成心跳 token
         String heartbeatToken = thirdPartyHeartbeatService.storeToken(
-                appId, key.getId(), key.getKeyCode(), req.getDeviceId(), key.getExpiresAt());
+                appId, key.getId(), key.getKeyCode(), req.getDeviceId(), key.getExpiresAt(),
+                key.getHeartbeatInterval() != null ? key.getHeartbeatInterval() : 60);
         resp.setToken(heartbeatToken);
 
         return resp;

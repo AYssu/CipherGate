@@ -71,10 +71,10 @@ public class PortalPaymentController {
             String tradeNo = params.get("trade_no");
             String status = params.get("trade_status");
             if (orderNo == null || tradeNo == null) {
-                return Result.error("参数错误");
+                return Result.success("success");
             }
-            return paymentService.handlePaymentNotify(orderNo, tradeNo, status, params)
-                    ? Result.success("success") : Result.error("处理失败");
+            boolean result = paymentService.handlePaymentNotify(orderNo, tradeNo, status, params);
+            return result ? Result.success("success") : Result.error("订单不存在");
         } catch (Exception e) {
             log.error("门户支付回调处理失败", e);
             return Result.error("处理失败");

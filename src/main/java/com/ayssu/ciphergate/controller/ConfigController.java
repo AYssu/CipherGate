@@ -26,7 +26,16 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.Authenticator;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -46,6 +55,8 @@ public class ConfigController {
     private final UserService userService;
     private final SecurityUtils securityUtils;
     private final Ip2RegionService ip2RegionService;
+    private final com.ayssu.ciphergate.config.OAuth2ProxyConfig oAuth2ProxyConfig;
+    private final com.ayssu.ciphergate.config.CustomOAuth2UserService customOAuth2UserService;
     
     @Value("${app.security.init-reset-enabled:false}")
     private boolean initResetEnabled;
@@ -632,6 +643,126 @@ public class ConfigController {
 
     private String toSafeValue(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    // ==================== OAuth2 代理配置 ====================
+
+    @GetMapping("/settings/oauth2-proxy")
+    @RequirePermission("CONFIG_LIST")
+    @Operation(summary = "获取OAuth2代理配置")
+    public Result<Map<String, Object>> getOAuth2ProxySettings() {
+        try {
+            requireSuperAdmin();
+            Map<String, Object> data = new HashMap<>();
+            data.put("enabled", Boolean.parseBoolean(systemConfigService.getConfigValue("oauth2.proxy.enabled", "false")));
+            data.put("host", systemConfigService.getConfigValue("oauth2.proxy.host", ""));
+            data.put("port", systemConfigService.getConfigValue("oauth2.proxy.port", "1080"));
+            data.put("username", systemConfigService.getConfigValue("oauth2.proxy.username", ""));
+            data.put("passwordSet", StringUtils.hasText(systemConfigService.getConfigValue("oauth2.proxy.password", "")));
+            data.put("type", systemConfigService.getConfigValue("oauth2.proxy.type", "socks5"));
+            return Result.success(data);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/oauth2-proxy")
+    @RequirePermission("CONFIG_UPDATE")
+    @ActivityLog(actionType = "UPDATE", actionTarget = "SYSTEM_CONFIG", description = "更新OAuth2代理配置")
+    @Operation(summary = "更新OAuth2代理配置")
+    public Result<Void> updateOAuth2ProxySettings(@RequestBody Map<String, Object> request) {
+        try {
+            requireSuperAdmin();
+            Object enabledObj = request.get("enabled");
+            boolean enabled = enabledObj instanceof Boolean b && b;
+            systemConfigService.setConfigValue("oauth2.proxy.enabled", String.valueOf(enabled), "OAuth2代理开关", false);
+            if (request.containsKey("host")) {
+                systemConfigService.setConfigValue("oauth2.proxy.host", toSafeValue((String) request.get("host")), "OAuth2代理主机", false);
+            }
+            if (request.containsKey("port")) {
+                systemConfigService.setConfigValue("oauth2.proxy.port", toSafeValue((String) request.get("port")), "OAuth2代理端口", false);
+            }
+            if (request.containsKey("username")) {
+                systemConfigService.setConfigValue("oauth2.proxy.username", toSafeValue((String) request.get("username")), "OAuth2代理用户名", false);
+            }
+            if (request.get("password") instanceof String pwd && StringUtils.hasText(pwd)) {
+                systemConfigService.setConfigValue("oauth2.proxy.password", pwd.trim(), "OAuth2代理密码", true);
+            }
+            if (request.containsKey("type")) {
+                systemConfigService.setConfigValue("oauth2.proxy.type", toSafeValue((String) request.get("type")), "OAuth2代理类型(socks5/http)", false);
+            }
+            oAuth2ProxyConfig.refreshProxyState();
+            if (enabled) {
+                customOAuth2UserService.configureRestOperations();
+            }
+            return Result.success("OAuth2代理配置更新成功", null);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/settings/oauth2-proxy/test")
+    @RequirePermission("CONFIG_UPDATE")
+    @Operation(summary = "测试OAuth2代理连通性")
+    public Result<Map<String, Object>> testOAuth2Proxy() {
+        try {
+            requireSuperAdmin();
+            String host = systemConfigService.getConfigValue("oauth2.proxy.host", "");
+            String portStr = systemConfigService.getConfigValue("oauth2.proxy.port", "1080");
+            String username = systemConfigService.getConfigValue("oauth2.proxy.username", "");
+            String password = systemConfigService.getConfigValue("oauth2.proxy.password", "");
+            String type = systemConfigService.getConfigValue("oauth2.proxy.type", "socks5");
+
+            if (!StringUtils.hasText(host)) {
+                return Result.error("代理主机未配置");
+            }
+
+            int port;
+            try {
+                port = Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                port = 1080;
+            }
+
+            boolean isHttp = "http".equalsIgnoreCase(type);
+            Map<String, Object> result = new HashMap<>();
+            long githubTime = testConnection("https://github.com", host, port, username, password, isHttp);
+            long apiTime = testConnection("https://api.github.com", host, port, username, password, isHttp);
+
+            result.put("githubreachable", githubTime > 0);
+            result.put("githublatencyMs", githubTime);
+            result.put("apireachable", apiTime > 0);
+            result.put("apilatencyMs", apiTime);
+            result.put("proxyHost", host);
+            result.put("proxyPort", port);
+            result.put("proxyType", isHttp ? "http" : "socks5");
+
+            boolean ok = githubTime > 0 || apiTime > 0;
+            return Result.success(ok ? "代理连通性测试通过" : "代理连通性测试失败", result);
+        } catch (SecurityException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            return Result.error("测试异常: " + e.getMessage());
+        }
+    }
+
+    private long testConnection(String url, String proxyHost, int proxyPort, String username, String password, boolean isHttp) {
+        try {
+            org.springframework.http.client.ClientHttpRequestFactory factory =
+                    com.ayssu.ciphergate.config.OAuth2ProxyConfig.createTestFactory(proxyHost, proxyPort, username, password, isHttp);
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            restTemplate.setRequestFactory(factory);
+
+            long start = System.currentTimeMillis();
+            restTemplate.headForHeaders(url);
+            long elapsed = System.currentTimeMillis() - start;
+
+            log.info("Proxy test {} -> latency={}ms", url, elapsed);
+            return elapsed;
+        } catch (Exception e) {
+            log.warn("Proxy test {} failed: {}", url, e.getMessage());
+            return -1;
+        }
     }
 
     // ==================== 支付配置 ====================

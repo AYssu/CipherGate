@@ -104,9 +104,14 @@ public class PortalPaymentService {
                 .eq(PortalPaymentOrder::getOrderNo, orderNo)
         );
 
-        if (order == null || order.getStatus() != 0) {
-            log.warn("门户支付回调: 订单不存在或已处理, orderNo={}", orderNo);
+        if (order == null) {
+            log.warn("门户支付回调: 订单不存在, orderNo={}", orderNo);
             return false;
+        }
+
+        if (order.getStatus() != 0) {
+            log.info("门户支付回调: 订单已处理, orderNo={}", orderNo);
+            return true;
         }
 
         // 获取该应用的支付配置并验签

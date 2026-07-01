@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,13 +16,21 @@ import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyAuthFilter;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-    
+
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final ThirdPartyAuthFilter thirdPartyAuthFilter;
     private final ActiveUserSessionFilter activeUserSessionFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    private final OAuth2ProxyConfig oAuth2ProxyConfig;
+
+    @PostConstruct
+    public void init() {
+        if (oAuth2ProxyConfig.isProxyEnabled()) {
+            customOAuth2UserService.configureRestOperations();
+        }
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -55,6 +64,8 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService))
+                        .tokenEndpoint(token -> token
+                                .accessTokenResponseClient(oAuth2ProxyConfig.createAccessTokenResponseClient()))
                         .successHandler(oAuth2LoginSuccessHandler)
                         .failureHandler(oAuth2LoginFailureHandler)
                 )

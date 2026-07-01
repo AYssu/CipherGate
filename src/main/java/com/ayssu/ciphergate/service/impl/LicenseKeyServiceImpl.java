@@ -7,6 +7,7 @@ import com.ayssu.ciphergate.dto.LicenseBatchCreateDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchDeleteDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchOperateFailItem;
 import com.ayssu.ciphergate.dto.LicenseBatchOperateResultDTO;
+import com.ayssu.ciphergate.dto.LicenseImportResult;
 import com.ayssu.ciphergate.dto.LicenseBatchSetUnbindLimitDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchSetUseLimitDTO;
 import com.ayssu.ciphergate.dto.LicenseBatchSetUseTimeDTO;
@@ -570,6 +571,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                .eq(LicenseKey::getAppId, appId);
         return licenseKeyMapper.selectCount(wrapper) > 0;
     }
+
+    private boolean isKeyCodeExistsGlobal(String keyCode) {
+        return licenseKeyMapper.countByKeyCodeGlobal(keyCode) > 0;
+    }
     
     @Override
     public byte[] exportLicenseKeysExcel(LicenseKeyQueryDTO queryDTO, Long operatorId) {
@@ -606,6 +611,244 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         } finally {
             writer.close();
         }
+    }
+
+    @Override
+    public byte[] generateImportTemplate() {
+        ExcelWriter writer = ExcelUtil.getWriter(true);
+        try {
+            writer.writeHeadRow(List.of(
+                    "卡密码", "应用", "类型", "状态", "绑定设备", "绑定IP",
+                    "使用次数", "解绑次数", "到期时间", "创建时间"));
+            writer.writeRow(List.of(
+                    "ABCDEF1234567890", "我的应用", "天卡", "", "", "", "", "", "", ""));
+            writer.writeRow(List.of(
+                    "GHIJKL1234567890", "我的应用", "月卡", "", "", "", "", "", "", ""));
+            writer.writeRow(List.of(
+                    "MNOPQR1234567890", "我的应用", "1x年卡", "", "", "", "", "", "", ""));
+            autoSizeExportColumns(writer, 10);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            writer.flush(out, true);
+            return out.toByteArray();
+        } finally {
+            writer.close();
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LicenseImportResult importLicenseKeys(byte[] excelBytes, Long appId, Long operatorId) {
+        Application application = applicationMapper.selectById(appId);
+        if (application == null) {
+            throw new RuntimeException("应用不存在");
+        }
+
+        ensureLicensePermission(appId, operatorId, AgentPermissionCodes.LICENSE_CREATE, "无权限导入此应用的卡密");
+
+        LicenseImportResult result = new LicenseImportResult();
+        List<LicenseImportResult.FailItem> failItems = new ArrayList<>();
+
+        cn.hutool.poi.excel.ExcelReader reader = cn.hutool.poi.excel.ExcelUtil.getReader(
+                new java.io.ByteArrayInputStream(excelBytes));
+        Sheet sheet = reader.getSheet();
+        int lastRow = sheet.getLastRowNum();
+        result.setTotalRows(lastRow);
+
+        List<String> batchKeyCodes = new ArrayList<>();
+        for (int i = 1; i <= lastRow; i++) {
+            int rowNum = i + 1;
+            try {
+                String keyCode = getCellStringValue(sheet, i, 0);
+                if (!StringUtils.hasText(keyCode)) {
+                    failItems.add(new LicenseImportResult.FailItem(rowNum, "", "卡密码为空"));
+                    continue;
+                }
+                keyCode = keyCode.trim().toUpperCase();
+
+                if (isKeyCodeExistsGlobal(keyCode)) {
+                    if (licenseKeyMapper.countByKeyCodeDeleted(keyCode) > 0) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "系统中已存在该卡密码（已删除），无法创建"));
+                    } else {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "卡密码已存在"));
+                    }
+                    continue;
+                }
+                if (batchKeyCodes.contains(keyCode)) {
+                    failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "文件中卡密码重复"));
+                    continue;
+                }
+
+                String typeStr = getCellStringValue(sheet, i, 2);
+                String[] parsed = parseKeyTypeFromLabel(typeStr);
+                if (parsed == null) {
+                    failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "类型格式不正确: " + typeStr));
+                    continue;
+                }
+
+                LicenseKey lk = new LicenseKey();
+                lk.setAppId(appId);
+                lk.setOwnerId(operatorId);
+                lk.setKeyCode(keyCode);
+                lk.setKeyType(parsed[0]);
+                if (parsed[1] != null) lk.setDurationValue(Integer.parseInt(parsed[1]));
+                if (parsed[2] != null) lk.setDurationUnit(parsed[2]);
+                lk.setSource("IMPORT");
+                lk.setStatus(1);
+                lk.setUseCount(0);
+                lk.setUnbindCount(0);
+                lk.setUseLimit(0);
+                lk.setUnbindLimit(0);
+                lk.setDeviceCheckEnabled(true);
+                lk.setIpCheckEnabled(false);
+                lk.setIsOnline(false);
+                lk.setHeartbeatInterval(60);
+
+                String bindDevice = getCellStringValue(sheet, i, 4);
+                if (StringUtils.hasText(bindDevice) && !"-".equals(bindDevice.trim())) {
+                    lk.setBindDeviceId(bindDevice.trim());
+                }
+                String bindIp = getCellStringValue(sheet, i, 5);
+                if (StringUtils.hasText(bindIp) && !"-".equals(bindIp.trim())) {
+                    lk.setBindIp(bindIp.trim());
+                }
+
+                String useLimitStr = getCellStringValue(sheet, i, 6);
+                if (StringUtils.hasText(useLimitStr) && !useLimitStr.contains("不限")) {
+                    String[] parts = useLimitStr.split("/");
+                    if (parts.length == 2) {
+                        try { lk.setUseLimit(Integer.parseInt(parts[1].trim())); } catch (Exception ignored) {}
+                    }
+                }
+
+                String unbindLimitStr = getCellStringValue(sheet, i, 7);
+                if (StringUtils.hasText(unbindLimitStr) && !unbindLimitStr.contains("不限")) {
+                    String[] parts = unbindLimitStr.split("/");
+                    if (parts.length == 2) {
+                        try { lk.setUnbindLimit(Integer.parseInt(parts[1].trim())); } catch (Exception ignored) {}
+                    }
+                }
+
+                String expiresStr = getCellStringValue(sheet, i, 8);
+                if (StringUtils.hasText(expiresStr)) {
+                    try {
+                        lk.setExpiresAt(LocalDateTime.parse(expiresStr.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    } catch (Exception ignored) {}
+                }
+
+                ensurePresetDurationUnitStored(lk);
+                LocalDateTime now = LocalDateTime.now();
+                lk.setCreatedAt(now);
+                lk.setUpdatedAt(now);
+
+                licenseKeyMapper.insert(lk);
+                batchKeyCodes.add(keyCode);
+            } catch (Exception e) {
+                failItems.add(new LicenseImportResult.FailItem(rowNum, "", "处理异常: " + e.getMessage()));
+            }
+        }
+
+        result.setSuccessCount(batchKeyCodes.size());
+        result.setFailCount(failItems.size());
+        result.setFailItems(failItems);
+
+        if (!batchKeyCodes.isEmpty()) {
+            LicenseBatch batch = new LicenseBatch();
+            batch.setAppId(appId);
+            batch.setCreatorId(operatorId);
+            batch.setBatchName("导入_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+            batch.setBatchCode(generateBatchCode());
+            batch.setKeyType("IMPORT");
+            batch.setTotalCount(batchKeyCodes.size());
+            batch.setUsedCount(0);
+            batch.setUseLimit(0);
+            batch.setUnbindLimit(0);
+            batch.setDeviceCheckEnabled(true);
+            batch.setIpCheckEnabled(false);
+            batch.setRemark("Excel导入");
+            batch.setCreatedAt(LocalDateTime.now());
+            licenseBatchMapper.insert(batch);
+
+            for (String kc : batchKeyCodes) {
+                LambdaUpdateWrapper<LicenseKey> uw = new LambdaUpdateWrapper<>();
+                uw.eq(LicenseKey::getKeyCode, kc)
+                        .eq(LicenseKey::getAppId, appId)
+                        .set(LicenseKey::getBatchId, batch.getId());
+                licenseKeyMapper.update(null, uw);
+            }
+        }
+
+        log.info("导入卡密完成: appId={}, 成功={}, 失败={}", appId, result.getSuccessCount(), result.getFailCount());
+        return result;
+    }
+
+    private String getCellStringValue(Sheet sheet, int row, int col) {
+        try {
+            var cell = sheet.getRow(row).getCell(col);
+            if (cell == null) return null;
+            cell.setCellType(org.apache.poi.ss.usermodel.CellType.STRING);
+            return cell.getStringCellValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String[] parseKeyTypeFromLabel(String label) {
+        if (!StringUtils.hasText(label)) return null;
+        String s = label.trim();
+        String upper = s.toUpperCase();
+        return switch (upper) {
+            case "天卡" -> new String[]{"DAY", null, null};
+            case "周卡" -> new String[]{"WEEK", null, null};
+            case "月卡" -> new String[]{"MONTH", null, null};
+            case "季卡" -> new String[]{"QUARTER", null, null};
+            case "半年卡" -> new String[]{"HALF_YEAR", null, null};
+            case "年卡" -> new String[]{"YEAR", null, null};
+            case "永久卡" -> new String[]{"PERMANENT", null, null};
+            case "自定义" -> new String[]{"CUSTOM", null, null};
+            default -> {
+                if (upper.endsWith("天卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"DAY", num, null};
+                } else if (upper.endsWith("周卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"WEEK", num, null};
+                } else if (upper.endsWith("月卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"MONTH", num, null};
+                } else if (upper.endsWith("季卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"QUARTER", num, null};
+                } else if (upper.endsWith("半年卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 3).trim());
+                    yield new String[]{"HALF_YEAR", num, null};
+                } else if (upper.endsWith("年卡")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"YEAR", num, null};
+                } else if (upper.endsWith("小时")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 2).trim());
+                    yield new String[]{"CUSTOM", num, "HOUR"};
+                } else if (upper.endsWith("天")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 1).trim());
+                    yield new String[]{"CUSTOM", num, "DAY"};
+                } else if (upper.endsWith("月")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 1).trim());
+                    yield new String[]{"CUSTOM", num, "MONTH"};
+                } else if (upper.endsWith("年")) {
+                    String num = cleanMultiplier(s.substring(0, s.length() - 1).trim());
+                    yield new String[]{"CUSTOM", num, "YEAR"};
+                }
+                yield null;
+            }
+        };
+    }
+
+    private String cleanMultiplier(String num) {
+        if (num == null) return null;
+        String trimmed = num.trim();
+        if (trimmed.toLowerCase().endsWith("x")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+        }
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private List<LicenseKey> queryLicenseKeysForExport(LicenseKeyQueryDTO queryDTO, Long operatorId) {

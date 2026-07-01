@@ -250,3 +250,33 @@ export const unbindLicenseIp = (id: number) => {
 export const exportLicenses = (params: LicenseKeyQuery) => {
   return request.get<Blob>('/licenses/export', { params, responseType: 'blob' });
 };
+
+/**
+ * 下载导入模板
+ */
+export const downloadImportTemplate = () => {
+  return request.get<Blob>('/licenses/import-template', { responseType: 'blob' });
+};
+
+export interface LicenseImportResult {
+  totalRows: number;
+  successCount: number;
+  failCount: number;
+  failItems: Array<{
+    rowNumber: number;
+    keyCode: string;
+    reason: string;
+  }>;
+}
+
+/**
+ * 批量导入卡密
+ */
+export const importLicenses = (file: File, appId: number) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('appId', String(appId));
+  return request.post<LicenseImportResult>('/licenses/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
