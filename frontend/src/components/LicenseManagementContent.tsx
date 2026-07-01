@@ -1484,6 +1484,7 @@ const LicenseManagementContent: React.FC = () => {
                 menu={{
                   items: [
                     { key: 'batch', icon: <KeyOutlined />, label: '批量生成', onClick: handleOpenBatchModal },
+                    { key: 'import', icon: <ImportOutlined />, label: '导入', onClick: () => { setImportVisible(true); setImportResult(null); } },
                     { key: 'export', icon: <ExportOutlined />, label: '导出', onClick: handleExport },
                   ],
                 }}

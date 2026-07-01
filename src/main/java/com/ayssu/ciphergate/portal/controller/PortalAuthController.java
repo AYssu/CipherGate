@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -76,6 +77,19 @@ public class PortalAuthController {
             portalAuthService.sendRecoveryCode(email, resolveClientIp(request));
             return Result.success("验证码已发送", null);
         } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/recovery/apps")
+    @Operation(summary = "根据邮箱查询关联的应用列表（密码找回用）")
+    public Result<List<Map<String, Object>>> getRecoveryApps(@RequestParam String email) {
+        try {
+            if (email == null || email.isBlank()) {
+                return Result.badRequest("邮箱不能为空");
+            }
+            return Result.success(portalAuthService.getAppsByEmail(email));
+        } catch (IllegalArgumentException e) {
             return Result.badRequest(e.getMessage());
         }
     }

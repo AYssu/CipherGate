@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyAuthFilter;
 
@@ -24,6 +25,8 @@ public class SecurityConfig {
     private final ActiveUserSessionFilter activeUserSessionFilter;
     private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
     private final OAuth2ProxyConfig oAuth2ProxyConfig;
+    private final com.ayssu.ciphergate.service.SystemConfigService systemConfigService;
+    private final ObjectMapper objectMapper;
 
     @PostConstruct
     public void init() {
@@ -54,6 +57,8 @@ public class SecurityConfig {
                                 "/api/payment/return",
                                 "/api/portal/payment/notify",
                                 "/api/portal/payment/return",
+                                "/api/oauth2/authorization/**",
+                                "/api/login/oauth2/code/**",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
                         .requestMatchers("/v3/api-docs/**",
@@ -61,14 +66,16 @@ public class SecurityConfig {
                                 "/swagger-resources/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
-                        .tokenEndpoint(token -> token
-                                .accessTokenResponseClient(oAuth2ProxyConfig.createAccessTokenResponseClient()))
-                        .successHandler(oAuth2LoginSuccessHandler)
-                        .failureHandler(oAuth2LoginFailureHandler)
-                )
+                .oauth2Login(oauth2 -> {
+                    oauth2.userInfoEndpoint(userInfo -> userInfo
+                            .userService(customOAuth2UserService));
+                    if (oAuth2ProxyConfig.isProxyEnabled()) {
+                        oauth2.tokenEndpoint(token -> token
+                                .accessTokenResponseClient(buildTokenResponseClient()));
+                    }
+                    oauth2.successHandler(oAuth2LoginSuccessHandler)
+                            .failureHandler(oAuth2LoginFailureHandler);
+                })
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/")
@@ -88,5 +95,20 @@ public class SecurityConfig {
         http.addFilterAfter(activeUserSessionFilter, ThirdPartyAuthFilter.class);
 
         return http.build();
+    }
+
+    private org.springframework.security.oauth2.client.endpoint.RestClientAuthorizationCodeTokenResponseClient buildTokenResponseClient() {
+        var client = new org.springframework.security.oauth2.client.endpoint.RestClientAuthorizationCodeTokenResponseClient();
+        var routingFactory = oAuth2ProxyConfig.createRoutingRequestFactory();
+        var restClient = org.springframework.web.client.RestClient.builder()
+                .requestFactory(routingFactory)
+                .configureMessageConverters(converters -> {
+                    converters.addCustomConverter(new org.springframework.http.converter.FormHttpMessageConverter());
+                    converters.addCustomConverter(new org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter());
+                })
+                .defaultStatusHandler(new org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler())
+                .build();
+        client.setRestClient(restClient);
+        return client;
     }
 }

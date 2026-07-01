@@ -157,9 +157,9 @@ public class ThirdPartyHeartbeatService {
         resp.setAvailable(resolveAvailableSeconds(cardForCheck != null ? cardForCheck.getExpiresAt() : null));
         resp.setVariables(JSON.toJSONString(variables));
         resp.setOnline(cardForCheck != null && Boolean.TRUE.equals(cardForCheck.getIsOnline()));
-        resp.setPotentiallyShared(true);
+        resp.setPotentiallyShared(false);
 
-        log.debug("心跳交换完成: cardId={}, potentiallyShared=true", cardId);
+        log.debug("心跳交换完成: cardId={}, potentiallyShared=false", cardId);
         return resp;
     }
 

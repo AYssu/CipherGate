@@ -749,7 +749,7 @@ public class ConfigController {
     private long testConnection(String url, String proxyHost, int proxyPort, String username, String password, boolean isHttp) {
         try {
             org.springframework.http.client.ClientHttpRequestFactory factory =
-                    com.ayssu.ciphergate.config.OAuth2ProxyConfig.createTestFactory(proxyHost, proxyPort, username, password, isHttp);
+                    oAuth2ProxyConfig.createRoutingRequestFactory();
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             restTemplate.setRequestFactory(factory);
 

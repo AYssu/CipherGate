@@ -13,6 +13,7 @@ import com.ayssu.ciphergate.portal.mapper.PortalLoginLogMapper;
 import com.ayssu.ciphergate.portal.mapper.PortalVerifyCodeMapper;
 import com.ayssu.ciphergate.portal.util.PortalJwtUtil;
 import com.ayssu.ciphergate.service.GeoIpService;
+import com.ayssu.ciphergate.service.mail.SystemSmtpMailService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class PortalAuthService {
     private final PortalJwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
     private final GeoIpService geoIpService;
+    private final SystemSmtpMailService mailService;
 
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
     private static final String CAPTCHA_PREFIX = "portal:captcha:";
@@ -179,6 +181,27 @@ public class PortalAuthService {
         return token;
     }
 
+    public List<Map<String, Object>> getAppsByEmail(String email) {
+        List<AppUser> appUsers = appUserMapper.selectList(
+            new LambdaQueryWrapper<AppUser>()
+                .eq(AppUser::getEmail, email)
+                .eq(AppUser::getDeleted, 0)
+        );
+
+        if (appUsers.isEmpty()) {
+            throw new IllegalArgumentException("该邮箱未注册");
+        }
+
+        populateAppNames(appUsers);
+
+        return appUsers.stream().map(u -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("appId", u.getAppId());
+            item.put("appName", u.getAppName());
+            return item;
+        }).collect(Collectors.toList());
+    }
+
     public void sendRecoveryCode(String email, String clientIp) {
         List<AppUser> appUsers = appUserMapper.selectList(
             new LambdaQueryWrapper<AppUser>()
@@ -209,6 +232,15 @@ public class PortalAuthService {
         redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
 
         log.info("密码重置验证码: email={}, code={}", email, code);
+
+        if (mailService.isMailEnabledAndConfigured()) {
+            try {
+                mailService.sendPlainText(email, "密码重置验证码",
+                        "您的验证码是: " + code + "\n有效期 5 分钟，请勿泄露给他人。");
+            } catch (Exception e) {
+                log.warn("密码重置验证码邮件发送失败: email={}, err={}", email, e.getMessage());
+            }
+        }
     }
 
     public void resetPassword(PortalPasswordRecoveryRequest request) {
@@ -271,6 +303,15 @@ public class PortalAuthService {
         redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
 
         log.info("邮箱验证码: email={}, code={}", email, code);
+
+        if (mailService.isMailEnabledAndConfigured()) {
+            try {
+                mailService.sendPlainText(email, "邮箱验证码",
+                        "您的验证码是: " + code + "\n有效期 5 分钟，请勿泄露给他人。");
+            } catch (Exception e) {
+                log.warn("邮箱验证码邮件发送失败: email={}, err={}", email, e.getMessage());
+            }
+        }
     }
 
     private void populateAppNames(List<AppUser> appUsers) {

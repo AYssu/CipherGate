@@ -12,7 +12,7 @@ const PortalPasswordRecoveryPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [apps] = useState<any[]>([]);
+  const [apps, setApps] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const handleSendCode = async () => {
@@ -21,6 +21,8 @@ const PortalPasswordRecoveryPage: React.FC = () => {
       setEmail(emailVal.email);
       setLoading(true);
       await portalAuthApi.sendRecoveryCode(emailVal.email);
+      const appsRes = await portalAuthApi.getRecoveryApps(emailVal.email);
+      setApps(appsRes.data || []);
       message.success('验证码已发送');
       setCurrentStep(1);
     } catch {

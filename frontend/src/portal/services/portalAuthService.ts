@@ -13,6 +13,11 @@ export const portalAuthApi = {
   sendRecoveryCode: (email: string) => {
     return portalRequest.post('/auth/recovery/send-code', { email });
   },
+
+  getRecoveryApps: (email: string) => {
+    return portalRequest.get('/auth/recovery/apps', { params: { email } });
+  },
+
   resetPassword: (data: { email: string; verifyCode: string; appId: number; newPassword: string }) => {
     return portalRequest.post('/auth/recovery/reset-password', data);
   },
