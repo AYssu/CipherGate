@@ -39,6 +39,7 @@ import { useNavigate } from 'react-router-dom';
 import { docApi } from '../services/docService';
 import { chunkedUploadService } from '../services/chunkedUploadService';
 import type { DocCategory, DocItem, DocAttachment } from '../services/docService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { TextArea } = Input;
 
@@ -321,8 +322,10 @@ const DocManagementContent: React.FC = () => {
             </Space>
           }
           extra={
-            <Tooltip title="新增分类">
-              <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddCategory} />
+            <Tooltip title={isMobile ? undefined : "新增分类"}>
+              <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddCategory}>
+                {isMobile ? '新增' : '新增分类'}
+              </Button>
             </Tooltip>
           }
           styles={{ body: { padding: 0 } }}
@@ -392,9 +395,9 @@ const DocManagementContent: React.FC = () => {
           }
           extra={
             selectedCategoryId !== null ? (
-              <Tooltip title="新增文档">
+              <Tooltip title={isMobile ? undefined : "新增文档"}>
                 <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'small' : 'middle'} onClick={handleAddItem}>
-                  {isMobile ? undefined : '新增文档'}
+                  {isMobile ? '新增' : '新增文档'}
                 </Button>
               </Tooltip>
             ) : null
@@ -478,81 +481,157 @@ const DocManagementContent: React.FC = () => {
       </Col>
 
       {/* 分类 Modal */}
-      <Modal
-        title={editingCategory ? '编辑分类' : '新增分类'}
-        open={categoryModalVisible}
-        onOk={handleCategorySubmit}
-        onCancel={() => setCategoryModalVisible(false)}
-        width={isMobile ? '100%' : 500}
-      >
-        <Form form={categoryForm} layout="vertical">
-          <Form.Item label="分类名称" name="name" rules={[{ required: true, message: '请输入分类名称' }]}>
-            <Input placeholder="请输入分类名称" />
-          </Form.Item>
-          <Form.Item label="描述" name="description">
-            <TextArea rows={3} placeholder="请输入分类描述" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="排序" name="sortOrder">
-                <InputNumber min={0} placeholder="排序值" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="状态" name="status" valuePropName="value">
-                <Switch
-                  checkedChildren="启用"
-                  unCheckedChildren="禁用"
-                  checked={categoryForm.getFieldValue('status') === 1}
-                  onChange={(checked) => categoryForm.setFieldsValue({ status: checked ? 1 : 0 })}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={categoryModalVisible}
+          onClose={() => setCategoryModalVisible(false)}
+          title={editingCategory ? '编辑分类' : '新增分类'}
+          footer={
+            <>
+              <Button onClick={() => setCategoryModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleCategorySubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
+        >
+          <Form form={categoryForm} layout="vertical">
+            <Form.Item label="分类名称" name="name" rules={[{ required: true, message: '请输入分类名称' }]}>
+              <Input placeholder="请输入分类名称" />
+            </Form.Item>
+            <Form.Item label="描述" name="description">
+              <TextArea rows={3} placeholder="请输入分类描述" />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="排序" name="sortOrder">
+                  <InputNumber min={0} placeholder="排序值" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="状态" name="status" valuePropName="value">
+                  <Switch
+                    checkedChildren="启用"
+                    unCheckedChildren="禁用"
+                    checked={categoryForm.getFieldValue('status') === 1}
+                    onChange={(checked) => categoryForm.setFieldsValue({ status: checked ? 1 : 0 })}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingCategory ? '编辑分类' : '新增分类'}
+          open={categoryModalVisible}
+          onOk={handleCategorySubmit}
+          onCancel={() => setCategoryModalVisible(false)}
+          width={500}
+        >
+          <Form form={categoryForm} layout="vertical">
+            <Form.Item label="分类名称" name="name" rules={[{ required: true, message: '请输入分类名称' }]}>
+              <Input placeholder="请输入分类名称" />
+            </Form.Item>
+            <Form.Item label="描述" name="description">
+              <TextArea rows={3} placeholder="请输入分类描述" />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="排序" name="sortOrder">
+                  <InputNumber min={0} placeholder="排序值" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="状态" name="status" valuePropName="value">
+                  <Switch
+                    checkedChildren="启用"
+                    unCheckedChildren="禁用"
+                    checked={categoryForm.getFieldValue('status') === 1}
+                    onChange={(checked) => categoryForm.setFieldsValue({ status: checked ? 1 : 0 })}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
 
-      {/* 文档 Modal */}
-      <Modal
-        title={editingItem ? '编辑文档' : '新增文档'}
-        open={itemModalVisible}
-        onOk={handleItemSubmit}
-        onCancel={() => setItemModalVisible(false)}
-        width={isMobile ? '100%' : 700}
-      >
-        <Form form={itemForm} layout="vertical">
-          <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入文档标题' }]}>
-            <Input placeholder="请输入文档标题" />
-          </Form.Item>
-          <Form.Item label="内容 (Markdown)" name="content" rules={[{ required: true, message: '请输入文档内容' }]}>
-            <MdEditorWrapper height={isMobile ? 300 : 400} />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item label="作者名称" name="authorName">
-                <Input placeholder="请输入作者名称" />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item label="GitHub" name="authorGithub">
-                <Input placeholder="GitHub 用户名" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item label="QQ" name="authorQq">
-                <Input placeholder="QQ 号码" />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item label="Bilibili" name="authorBilibili">
-                <Input placeholder="Bilibili 用户名" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+      {/* 文档 Modal / BottomSheet */}
+      {isMobile ? (
+        <M5BottomSheet
+          open={itemModalVisible}
+          onClose={() => setItemModalVisible(false)}
+          title={editingItem ? '编辑文档' : '新增文档'}
+          maxHeight="95vh"
+          footer={
+            <>
+              <Button onClick={() => setItemModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleItemSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
+        >
+          <Form form={itemForm} layout="vertical">
+            <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入文档标题' }]}>
+              <Input placeholder="请输入文档标题" />
+            </Form.Item>
+            <Form.Item label="内容 (Markdown)" name="content" rules={[{ required: true, message: '请输入文档内容' }]}>
+              <MdEditorWrapper height={300} />
+            </Form.Item>
+            <Form.Item label="作者名称" name="authorName">
+              <Input placeholder="请输入作者名称" />
+            </Form.Item>
+            <Form.Item label="GitHub" name="authorGithub">
+              <Input placeholder="GitHub 用户名" />
+            </Form.Item>
+            <Form.Item label="QQ" name="authorQq">
+              <Input placeholder="QQ 号码" />
+            </Form.Item>
+            <Form.Item label="Bilibili" name="authorBilibili">
+              <Input placeholder="Bilibili 用户名" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingItem ? '编辑文档' : '新增文档'}
+          open={itemModalVisible}
+          onOk={handleItemSubmit}
+          onCancel={() => setItemModalVisible(false)}
+          width={700}
+        >
+          <Form form={itemForm} layout="vertical">
+            <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入文档标题' }]}>
+              <Input placeholder="请输入文档标题" />
+            </Form.Item>
+            <Form.Item label="内容 (Markdown)" name="content" rules={[{ required: true, message: '请输入文档内容' }]}>
+              <MdEditorWrapper height={400} />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="作者名称" name="authorName">
+                  <Input placeholder="请输入作者名称" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="GitHub" name="authorGithub">
+                  <Input placeholder="GitHub 用户名" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="QQ" name="authorQq">
+                  <Input placeholder="QQ 号码" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Bilibili" name="authorBilibili">
+                  <Input placeholder="Bilibili 用户名" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
 
       {/* 附件管理 Modal */}
       <Modal

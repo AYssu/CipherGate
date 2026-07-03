@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Badge, Grid, Dropdown, Checkbox } from 'antd';
 import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined, MoreOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -195,126 +196,244 @@ const AdminTicketPage: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 300 : undefined }} size={isMobile ? 'small' : 'middle'} />
 
-        <Modal
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>工单 {selectedTicket?.ticketNo}</span>
-              {selectedTicket && <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>}
-            </div>
-          }
-          open={detailVisible}
-          onCancel={() => setDetailVisible(false)}
-          width={isMobile ? '100%' : 700}
-          className={isMobile ? 'mobile-modal' : undefined}
-          footer={
-            selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {selectedTicket.status === 0 && (
-                    <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={handleAcceptAndReply}>
-                      接单并回复
+        {isMobile ? (
+          <M5BottomSheet
+            open={detailVisible}
+            onClose={() => setDetailVisible(false)}
+            title={`工单 ${selectedTicket?.ticketNo}`}
+            footer={
+              selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {selectedTicket.status === 0 && (
+                      <Button type="primary" size="small" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={handleAcceptAndReply}>
+                        接单并回复
+                      </Button>
+                    )}
+                    {selectedTicket.status === 1 && (
+                      <Button size="small" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { sendReply(); }}>
+                        发送回复
+                      </Button>
+                    )}
+                    {selectedTicket.status === 2 && (
+                      <Button type="primary" size="small" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={sendReply}>
+                        发送回复
+                      </Button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button type="primary" ghost size="small" style={{ flex: 1, height: 44, borderRadius: 10, color: '#52c41a', borderColor: '#52c41a' }} onClick={() => showResolveModal(3)}>
+                      <CheckCircleOutlined /> 标记已解决
                     </Button>
-                  )}
-                  {selectedTicket.status === 1 && (
-                    <Button size={isMobile ? 'small' : 'middle'} onClick={() => { sendReply(); }}>
-                      发送回复
+                    <Button danger size="small" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => showResolveModal(4)}>
+                      <CloseCircleOutlined /> 关闭工单
                     </Button>
-                  )}
-                  {selectedTicket.status === 2 && (
-                    <Button type="primary" size={isMobile ? 'small' : 'middle'} onClick={sendReply}>
-                      发送回复
-                    </Button>
-                  )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <Button type="primary" ghost size={isMobile ? 'small' : 'middle'} style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => showResolveModal(3)}>
-                    <CheckCircleOutlined /> 标记已解决
-                  </Button>
-                  <Button danger size={isMobile ? 'small' : 'middle'} onClick={() => showResolveModal(4)}>
-                    <CloseCircleOutlined /> 关闭工单
-                  </Button>
-                </div>
+              ) : <Button onClick={() => setDetailVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>关闭</Button>
+            }
+          >
+            {selectedTicket && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
+                <Space size={8} wrap>
+                  <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>
+                  <Text type="secondary">分类: <Text strong>{selectedTicket.category}</Text></Text>
+                  <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket.priority]?.text}</Tag></Text>
+                </Space>
               </div>
-            ) : null
-          }
-        >
-          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
-            <Space size={16}>
-              <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
-              <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
-            </Space>
-          </div>
-          <List
-            dataSource={messages}
-            style={{ maxHeight: 400, overflow: 'auto' }}
-            renderItem={(msg: any) => (
-              <List.Item style={{ padding: '8px 0' }}>
-                <List.Item.Meta
-                  avatar={
-                    <Avatar
-                      icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
-                      style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
-                    />
-                  }
-                  title={
-                    <span>
-                      <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '用户'}</Text>
-                      <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
-                    </span>
-                  }
-                  description={
-                    <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
-                  }
-                />
-              </List.Item>
             )}
-          />
-          {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
-            <div style={{ marginTop: 12 }}>
-              <TextArea
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                rows={3}
-                placeholder={selectedTicket.status === 0 ? '接单并输入回复内容...' : '输入回复内容...'}
-              />
+            <List
+              dataSource={messages}
+              style={{ maxHeight: 400, overflow: 'auto' }}
+              renderItem={(msg: any) => (
+                <List.Item style={{ padding: '8px 0' }}>
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar
+                        icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
+                        style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
+                      />
+                    }
+                    title={
+                      <span>
+                        <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '用户'}</Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
+                      </span>
+                    }
+                    description={
+                      <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+            {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
+              <div style={{ marginTop: 12 }}>
+                <TextArea
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  rows={3}
+                  placeholder={selectedTicket.status === 0 ? '接单并输入回复内容...' : '输入回复内容...'}
+                />
+              </div>
+            )}
+          </M5BottomSheet>
+        ) : (
+          <Modal
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>工单 {selectedTicket?.ticketNo}</span>
+                {selectedTicket && <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>}
+              </div>
+            }
+            open={detailVisible}
+            onCancel={() => setDetailVisible(false)}
+            width={700}
+            footer={
+              selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {selectedTicket.status === 0 && (
+                      <Button type="primary" onClick={handleAcceptAndReply}>
+                        接单并回复
+                      </Button>
+                    )}
+                    {selectedTicket.status === 1 && (
+                      <Button onClick={() => { sendReply(); }}>
+                        发送回复
+                      </Button>
+                    )}
+                    {selectedTicket.status === 2 && (
+                      <Button type="primary" onClick={sendReply}>
+                        发送回复
+                      </Button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <Button type="primary" ghost style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => showResolveModal(3)}>
+                      <CheckCircleOutlined /> 标记已解决
+                    </Button>
+                    <Button danger onClick={() => showResolveModal(4)}>
+                      <CloseCircleOutlined /> 关闭工单
+                    </Button>
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
+              <Space size={16}>
+                <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
+                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
+              </Space>
             </div>
-          )}
-        </Modal>
+            <List
+              dataSource={messages}
+              style={{ maxHeight: 400, overflow: 'auto' }}
+              renderItem={(msg: any) => (
+                <List.Item style={{ padding: '8px 0' }}>
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar
+                        icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
+                        style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
+                      />
+                    }
+                    title={
+                      <span>
+                        <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '用户'}</Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
+                      </span>
+                    }
+                    description={
+                      <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+            {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
+              <div style={{ marginTop: 12 }}>
+                <TextArea
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  rows={3}
+                  placeholder={selectedTicket.status === 0 ? '接单并输入回复内容...' : '输入回复内容...'}
+                />
+              </div>
+            )}
+          </Modal>
+        )}
       </Card>
 
       {/* 解决/关闭工单确认弹窗 */}
-      <Modal
-        title={resolveStatus === 3 ? '标记工单已解决' : '关闭工单'}
-        open={resolveModalVisible}
-        onOk={handleResolveConfirm}
-        onCancel={() => setResolveModalVisible(false)}
-        width={isMobile ? '100%' : 480}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText={resolveStatus === 3 ? '确认解决' : '确认关闭'}
-        cancelText="取消"
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Text>工单号：{selectedTicket?.ticketNo}</Text>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Text>标题：{selectedTicket?.title}</Text>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Text strong>处理备注</Text>
-          <TextArea
-            value={resolveRemark}
-            onChange={e => setResolveRemark(e.target.value)}
-            rows={3}
-            placeholder="输入处理备注（可选）"
-            style={{ marginTop: 8 }}
-          />
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Checkbox checked={resolveEmail} onChange={e => setResolveEmail(e.target.checked)}>
-            同时发送邮件通知用户
-          </Checkbox>
-        </div>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={resolveModalVisible}
+          onClose={() => setResolveModalVisible(false)}
+          title={resolveStatus === 3 ? '标记工单已解决' : '关闭工单'}
+          footer={
+            <>
+              <Button onClick={() => setResolveModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleResolveConfirm} style={{ flex: 1, height: 44, borderRadius: 10 }}>{resolveStatus === 3 ? '确认解决' : '确认关闭'}</Button>
+            </>
+          }
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text>工单号：{selectedTicket?.ticketNo}</Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Text>标题：{selectedTicket?.title}</Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Text strong>处理备注</Text>
+            <TextArea
+              value={resolveRemark}
+              onChange={e => setResolveRemark(e.target.value)}
+              rows={3}
+              placeholder="输入处理备注（可选）"
+              style={{ marginTop: 8 }}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Checkbox checked={resolveEmail} onChange={e => setResolveEmail(e.target.checked)}>
+              同时发送邮件通知用户
+            </Checkbox>
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={resolveStatus === 3 ? '标记工单已解决' : '关闭工单'}
+          open={resolveModalVisible}
+          onOk={handleResolveConfirm}
+          onCancel={() => setResolveModalVisible(false)}
+          width={480}
+          okText={resolveStatus === 3 ? '确认解决' : '确认关闭'}
+          cancelText="取消"
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text>工单号：{selectedTicket?.ticketNo}</Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Text>标题：{selectedTicket?.title}</Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Text strong>处理备注</Text>
+            <TextArea
+              value={resolveRemark}
+              onChange={e => setResolveRemark(e.target.value)}
+              rows={3}
+              placeholder="输入处理备注（可选）"
+              style={{ marginTop: 8 }}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Checkbox checked={resolveEmail} onChange={e => setResolveEmail(e.target.checked)}>
+              同时发送邮件通知用户
+            </Checkbox>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

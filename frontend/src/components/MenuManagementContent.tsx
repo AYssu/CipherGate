@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import { MenuService } from '../services';
 import type { Menu } from '../services/menuService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -375,158 +376,315 @@ const MenuManagementContent: React.FC = () => {
         size={isMobile ? 'small' : 'middle'}
       />
 
-      <Modal
-        title={editingMenu ? '编辑菜单' : '新增菜单'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            parentId: 0,
-            menuType: 1,
-            visible: true,
-            status: true,
-            sortOrder: 0
-          }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => setModalVisible(false)}
+          title={editingMenu ? '编辑菜单' : '新增菜单'}
+          footer={
+            <>
+              <Button onClick={() => setModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
         >
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="菜单名称"
-                name="menuName"
-                rules={[{ required: true, message: '请输入菜单名称' }]}
-              >
-                <Input placeholder="请输入菜单名称" />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="菜单编码"
-                name="menuCode"
-                rules={[{ required: true, message: '请输入菜单编码' }]}
-              >
-                <Input placeholder="请输入菜单编码" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="父菜单"
-                name="parentId"
-              >
-                <Select placeholder="请选择父菜单">
-                  <Option value={0}>根菜单</Option>
-                  {parentOptions.map(menu => (
-                    <Option key={menu.id} value={menu.id}>
-                      {menu.menuName}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="菜单类型"
-                name="menuType"
-                rules={[{ required: true, message: '请选择菜单类型' }]}
-              >
-                <Select placeholder="请选择菜单类型">
-                  {menuTypeOptions.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="路由路径"
-                name="path"
-              >
-                <Input placeholder="请输入路由路径" />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="组件路径"
-                name="component"
-              >
-                <Input placeholder="请输入组件路径" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="菜单图标"
-                name="icon"
-              >
-                <Select
-                  placeholder="请选择菜单图标"
-                  allowClear
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              parentId: 0,
+              menuType: 1,
+              visible: true,
+              status: true,
+              sortOrder: 0
+            }}
+          >
+            <Row gutter={0}>
+              <Col span={24}>
+                <Form.Item
+                  label="菜单名称"
+                  name="menuName"
+                  rules={[{ required: true, message: '请输入菜单名称' }]}
                 >
-                  {iconOptions.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="排序"
-                name="sortOrder"
-              >
-                <InputNumber
-                  min={0}
-                  placeholder="请输入排序值"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+                  <Input placeholder="请输入菜单名称" />
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item
+                  label="菜单编码"
+                  name="menuCode"
+                  rules={[{ required: true, message: '请输入菜单编码' }]}
+                >
+                  <Input placeholder="请输入菜单编码" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="是否可见"
-                name="visible"
-                valuePropName="checked"
-              >
-                <Switch
-                  checkedChildren="显示"
-                  unCheckedChildren="隐藏"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="菜单状态"
-                name="status"
-                valuePropName="checked"
-              >
-                <Switch
-                  checkedChildren="启用"
-                  unCheckedChildren="禁用"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+            <Row gutter={0}>
+              <Col span={24}>
+                <Form.Item
+                  label="父菜单"
+                  name="parentId"
+                >
+                  <Select placeholder="请选择父菜单">
+                    <Option value={0}>根菜单</Option>
+                    {parentOptions.map(menu => (
+                      <Option key={menu.id} value={menu.id}>
+                        {menu.menuName}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item
+                  label="菜单类型"
+                  name="menuType"
+                  rules={[{ required: true, message: '请选择菜单类型' }]}
+                >
+                  <Select placeholder="请选择菜单类型">
+                    {menuTypeOptions.map(option => (
+                      <Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={0}>
+              <Col span={24}>
+                <Form.Item
+                  label="路由路径"
+                  name="path"
+                >
+                  <Input placeholder="请输入路由路径" />
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item
+                  label="组件路径"
+                  name="component"
+                >
+                  <Input placeholder="请输入组件路径" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={0}>
+              <Col span={24}>
+                <Form.Item
+                  label="菜单图标"
+                  name="icon"
+                >
+                  <Select
+                    placeholder="请选择菜单图标"
+                    allowClear
+                  >
+                    {iconOptions.map(option => (
+                      <Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item
+                  label="排序"
+                  name="sortOrder"
+                >
+                  <InputNumber
+                    min={0}
+                    placeholder="请输入排序值"
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={0}>
+              <Col span={24}>
+                <Form.Item
+                  label="是否可见"
+                  name="visible"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="显示"
+                    unCheckedChildren="隐藏"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item
+                  label="菜单状态"
+                  name="status"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="启用"
+                    unCheckedChildren="禁用"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingMenu ? '编辑菜单' : '新增菜单'}
+          open={modalVisible}
+          onOk={handleSubmit}
+          onCancel={() => setModalVisible(false)}
+          width={600}
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              parentId: 0,
+              menuType: 1,
+              visible: true,
+              status: true,
+              sortOrder: 0
+            }}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="菜单名称"
+                  name="menuName"
+                  rules={[{ required: true, message: '请输入菜单名称' }]}
+                >
+                  <Input placeholder="请输入菜单名称" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="菜单编码"
+                  name="menuCode"
+                  rules={[{ required: true, message: '请输入菜单编码' }]}
+                >
+                  <Input placeholder="请输入菜单编码" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="父菜单"
+                  name="parentId"
+                >
+                  <Select placeholder="请选择父菜单">
+                    <Option value={0}>根菜单</Option>
+                    {parentOptions.map(menu => (
+                      <Option key={menu.id} value={menu.id}>
+                        {menu.menuName}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="菜单类型"
+                  name="menuType"
+                  rules={[{ required: true, message: '请选择菜单类型' }]}
+                >
+                  <Select placeholder="请选择菜单类型">
+                    {menuTypeOptions.map(option => (
+                      <Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="路由路径"
+                  name="path"
+                >
+                  <Input placeholder="请输入路由路径" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="组件路径"
+                  name="component"
+                >
+                  <Input placeholder="请输入组件路径" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="菜单图标"
+                  name="icon"
+                >
+                  <Select
+                    placeholder="请选择菜单图标"
+                    allowClear
+                  >
+                    {iconOptions.map(option => (
+                      <Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="排序"
+                  name="sortOrder"
+                >
+                  <InputNumber
+                    min={0}
+                    placeholder="请输入排序值"
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="是否可见"
+                  name="visible"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="显示"
+                    unCheckedChildren="隐藏"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="菜单状态"
+                  name="status"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="启用"
+                    unCheckedChildren="禁用"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
     </Card>
   );
 };

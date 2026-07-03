@@ -3,6 +3,7 @@ import { Badge, Button, Card, Col, Form, Input, Popover, Row, Select, Space, Tab
 import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getThirdPartyRechargeLogList, type ThirdPartyRechargeLog } from '../services/callLogService';
 import { getApplicationList, type Application } from '../services/applicationService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { Text, Title } = Typography;
 
@@ -153,7 +154,7 @@ const CallLogManagementContent: React.FC = () => {
           onClick={() => fetchData()}
           size={isMobile ? 'small' : 'middle'}
         >
-          {!isMobile && '刷新'}
+          刷新
         </Button>
       </div>
 
@@ -173,68 +174,41 @@ const CallLogManagementContent: React.FC = () => {
             <Button type="primary" onClick={() => applyEmailSearch()} style={{ flexShrink: 0 }}>
               搜索
             </Button>
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              open={filterPopoverOpen}
-              onOpenChange={(open) => {
-                setFilterPopoverOpen(open);
-                if (open) {
-                  syncListFilterFormFromFilters();
-                }
-              }}
-              content={
-                <div style={{ width: 320, maxWidth: '90vw' }}>
-                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                    <Row gutter={12}>
-                      <Col span={12}>
-                        <Form.Item label="应用" name="appId">
-                          <Select
-                            allowClear
-                            placeholder="选择应用"
-                            options={apps.map((app) => ({
-                              label: app.appName,
-                              value: app.id,
-                            }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="状态" name="status">
-                          <Select
-                            allowClear
-                            placeholder="状态"
-                            options={[
-                              { label: '成功', value: 1 },
-                              { label: '失败', value: 2 },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={24}>
-                        <Form.Item label="订单号" name="outTradeNo">
-                          <Input allowClear placeholder="输入订单号" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                      <Col>
-                        <Button onClick={handleAdvancedFilterReset}>重置</Button>
-                      </Col>
-                      <Col>
-                        <Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>
-                          查询
-                        </Button>
-                      </Col>
-                    </Row>
-                  </Form>
-                </div>
-              }
-            >
-              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
-              </Badge>
-            </Popover>
+            <M5BottomSheet open={filterPopoverOpen} onClose={() => setFilterPopoverOpen(false)} title="筛选条件" footer={<><Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10 }}>重置</Button><Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10 }}>查询</Button></>}>
+              <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item label="应用" name="appId">
+                      <Select
+                        allowClear
+                        placeholder="选择应用"
+                        options={apps.map((app) => ({
+                          label: app.appName,
+                          value: app.id,
+                        }))}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="状态" name="status">
+                      <Select
+                        allowClear
+                        placeholder="状态"
+                        options={[
+                          { label: '成功', value: 1 },
+                          { label: '失败', value: 2 },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="订单号" name="outTradeNo">
+                      <Input allowClear placeholder="输入订单号" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+            </M5BottomSheet>
           </>
         ) : (
           <Space size={12}>
@@ -319,7 +293,7 @@ const CallLogManagementContent: React.FC = () => {
 
       {/* 用户列表 */}
       {isMobile ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="mgmt-mobile-list">
           {loading && (
             <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>
           )}
@@ -329,23 +303,19 @@ const CallLogManagementContent: React.FC = () => {
           {list.map((item) => (
             <div
               key={item.id}
-              style={{
-                background: '#fafafa',
-                borderRadius: 8,
-                padding: '10px 12px',
-                border: '1px solid #f0f0f0',
-              }}
+              className="mgmt-mobile-card"
+              style={{ borderLeft: `3px solid ${item.status === 1 ? '#52c41a' : '#ff4d4f'}` }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div className="mgmt-mobile-card-header">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Tag color={item.status === 1 ? 'success' : 'error'} style={{ margin: 0 }}>
+                    <Tag color={item.status === 1 ? 'success' : 'error'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>
                       {item.status === 1 ? '成功' : '失败'}
                     </Tag>
-                    <Tag color={item.signValid === 1 ? 'blue' : 'default'} style={{ margin: 0 }}>
+                    <Tag color={item.signValid === 1 ? 'blue' : 'default'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>
                       签名{item.signValid === 1 ? '通过' : '未通过'}
                     </Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
                       {formatDateTime(item.createdAt)}
                     </Text>
                   </div>
@@ -360,7 +330,7 @@ const CallLogManagementContent: React.FC = () => {
                   +{item.days}天
                 </Text>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, fontSize: 12, color: '#666' }}>
+              <div className="mgmt-mobile-card-meta">
                 <Text type="secondary">ID: {item.id}</Text>
                 <Text type="secondary">|</Text>
                 <Text type="secondary">IP: {item.requestIp || '-'}</Text>

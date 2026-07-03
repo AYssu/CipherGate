@@ -20,11 +20,13 @@ import {
   MenuUnfoldOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
+import iconSvg from '../assets/icons/icon.svg';
 import { userApi } from '../services/userService';
 import { activityApi } from '../services/activityService';
 import { messageApi, type SystemMessage } from '../services/messageService';
 import { announcementApi, type SystemAnnouncement } from '../services/announcementService';
 import { docApi } from '../services/docService';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import type { User, Menu as UserMenu } from '../services/userService';
 
 const { Header, Sider, Content } = Layout;
@@ -605,11 +607,15 @@ const MainLayout: React.FC = () => {
         textAlign: 'center',
         transition: 'all 0.2s'
       }}>
-        <SafetyOutlined style={{
-          fontSize: 32,
-          color: '#1890ff',
-          marginBottom: collapsed && !isMobile ? 0 : 8
-        }} />
+        <img
+          src={iconSvg}
+          alt="CipherGate"
+          style={{
+            width: 32,
+            height: 32,
+            marginBottom: collapsed && !isMobile ? 0 : 8
+          }}
+        />
         {(!collapsed || isMobile) && (
           <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
             CipherGate
@@ -722,20 +728,22 @@ const MainLayout: React.FC = () => {
             transform: 'translateY(-50%)'
           }}>
             <Space size={isMobile ? 8 : 12} align="center">
-              <Badge
-                count={unreadCount}
-                size="small"
-                dot={showBadge && unreadCount === 0}
-                offset={[-2, 2]}
-              >
-                <BellOutlined style={{
-                  fontSize: 16,
-                  cursor: 'pointer',
-                  color: showBadge ? '#ff4d4f' : undefined
-                }}
-                onClick={handleOpenNotification}
-                />
-              </Badge>
+              <ThemeSwitcher />
+
+              <div className="notification-trigger" onClick={handleOpenNotification}>
+                <Badge
+                  count={unreadCount}
+                  size="small"
+                  dot={showBadge && unreadCount === 0}
+                  offset={isMobile ? [-2, 2] : [-4, 4]}
+                >
+                  <BellOutlined style={{
+                    fontSize: isMobile ? 16 : 20,
+                    color: showBadge ? '#ff4d4f' : undefined
+                  }}
+                  />
+                </Badge>
+              </div>
 
               <Dropdown
                 menu={{ items: userMenuItems }}
@@ -775,9 +783,9 @@ const MainLayout: React.FC = () => {
         width={isMobile ? undefined : 380}
         height={isMobile ? '70vh' : undefined}
         styles={{
-          body: { padding: 0 },
+          body: { padding: 0, overflow: 'hidden', overflowY: 'auto' as any },
           header: isMobile ? { borderBottom: '1px solid #f0f0f0' } : undefined,
-          content: isMobile ? { borderRadius: '16px 16px 0 0' } : undefined,
+          content: isMobile ? { borderRadius: '16px 16px 0 0', overflow: 'hidden' } : undefined,
         }}
       >
         {isMobile && (
@@ -824,12 +832,7 @@ const MainLayout: React.FC = () => {
                     position: 'relative'
                   }}
                   onClick={() => handleOpenMessageDetail(message)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isUnread ? '#e6f4ff' : '#fafafa';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isUnread ? '#f0f7ff' : '#fff';
-                  }}
+                  className={isUnread ? 'msg-item-unread' : 'msg-item-read'}
                 >
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     {/* 未读标记 */}
@@ -883,16 +886,18 @@ const MainLayout: React.FC = () => {
                       </div>
                       
                       {/* 消息内容预览 */}
-                      <Text 
-                        style={{ 
-                          fontSize: 13, 
-                          display: 'block', 
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
                           marginBottom: 6,
                           color: '#666',
                           lineHeight: '1.5',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          wordBreak: 'break-all'
                         }}
                       >
                         {message.content}

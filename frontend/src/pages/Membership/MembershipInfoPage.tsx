@@ -210,6 +210,7 @@ const MembershipInfoPage: React.FC = () => {
         footer={null}
         width={isMobile ? '100%' : 800}
         styles={{ body: { padding: isMobile ? 12 : 24 } }}
+        className={isMobile ? 'mobile-modal' : undefined}
       >
         <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f6f0ff', borderRadius: 8, border: '1px solid #d3adf7' }}>
           <Text style={{ color: '#531dab' }}>

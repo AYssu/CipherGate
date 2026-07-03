@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, message, Typography, List, Avatar, Space, Tabs, Badge, Empty, Grid, Dropdown } from 'antd';
 import { UserOutlined, RobotOutlined, PlusOutlined, MoreOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -150,102 +151,204 @@ const UserTicketPage: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         <Table columns={columns} dataSource={getFilteredTickets()} rowKey="id" loading={loading} pagination={{ pageSize: 15, simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
 
-        <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
-          <Form form={form} layout="vertical">
-            <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入工单标题' }]}>
-              <Input placeholder="简要描述您的问题" />
-            </Form.Item>
-            <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
-              <Select placeholder="选择问题分类" options={[
-                { value: 'TECHNICAL', label: '技术问题' },
-                { value: 'BILLING', label: '账单问题' },
-                { value: 'FEATURE', label: '功能建议' },
-                { value: 'OTHER', label: '其他' }
-              ]} />
-            </Form.Item>
-            <Form.Item name="priority" label="优先级" initialValue={1}>
-              <Select options={[
-                { value: 1, label: '普通' },
-                { value: 2, label: '重要' },
-                { value: 3, label: '紧急' }
-              ]} />
-            </Form.Item>
-            <Form.Item name="content" label="问题描述" rules={[{ required: true, message: '请描述您的问题' }]}>
-              <TextArea rows={4} placeholder="请详细描述您遇到的问题..." />
-            </Form.Item>
-          </Form>
-        </Modal>
+        {isMobile ? (
+          <M5BottomSheet
+            open={createVisible}
+            onClose={() => setCreateVisible(false)}
+            title="创建工单"
+            footer={
+              <>
+                <Button onClick={() => setCreateVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+                <Button type="primary" onClick={handleCreate} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+              </>
+            }
+          >
+            <Form form={form} layout="vertical">
+              <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入工单标题' }]}>
+                <Input placeholder="简要描述您的问题" />
+              </Form.Item>
+              <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+                <Select placeholder="选择问题分类" options={[
+                  { value: 'TECHNICAL', label: '技术问题' },
+                  { value: 'BILLING', label: '账单问题' },
+                  { value: 'FEATURE', label: '功能建议' },
+                  { value: 'OTHER', label: '其他' }
+                ]} />
+              </Form.Item>
+              <Form.Item name="priority" label="优先级" initialValue={1}>
+                <Select options={[
+                  { value: 1, label: '普通' },
+                  { value: 2, label: '重要' },
+                  { value: 3, label: '紧急' }
+                ]} />
+              </Form.Item>
+              <Form.Item name="content" label="问题描述" rules={[{ required: true, message: '请描述您的问题' }]}>
+                <TextArea rows={4} placeholder="请详细描述您遇到的问题..." />
+              </Form.Item>
+            </Form>
+          </M5BottomSheet>
+        ) : (
+          <Modal title="创建工单" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} width={520}>
+            <Form form={form} layout="vertical">
+              <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入工单标题' }]}>
+                <Input placeholder="简要描述您的问题" />
+              </Form.Item>
+              <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+                <Select placeholder="选择问题分类" options={[
+                  { value: 'TECHNICAL', label: '技术问题' },
+                  { value: 'BILLING', label: '账单问题' },
+                  { value: 'FEATURE', label: '功能建议' },
+                  { value: 'OTHER', label: '其他' }
+                ]} />
+              </Form.Item>
+              <Form.Item name="priority" label="优先级" initialValue={1}>
+                <Select options={[
+                  { value: 1, label: '普通' },
+                  { value: 2, label: '重要' },
+                  { value: 3, label: '紧急' }
+                ]} />
+              </Form.Item>
+              <Form.Item name="content" label="问题描述" rules={[{ required: true, message: '请描述您的问题' }]}>
+                <TextArea rows={4} placeholder="请详细描述您遇到的问题..." />
+              </Form.Item>
+            </Form>
+          </Modal>
+        )}
 
-        <Modal
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>工单 {selectedTicket?.ticketNo}</span>
-              {selectedTicket && <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>}
-            </div>
-          }
-          open={detailVisible}
-          onCancel={() => setDetailVisible(false)}
-          width={isMobile ? '100%' : 700}
-          className={isMobile ? 'mobile-modal' : undefined}
-          footer={
-            selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <Button onClick={handleClose}>关闭工单</Button>
+        {isMobile ? (
+          <M5BottomSheet
+            open={detailVisible}
+            onClose={() => setDetailVisible(false)}
+            title={`工单 ${selectedTicket?.ticketNo}`}
+            footer={
+              selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
+                <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                  <Button onClick={handleClose} style={{ flex: 1, height: 44, borderRadius: 10 }}>关闭工单</Button>
+                  <Button type="primary" onClick={sendMessage} disabled={!newMessage.trim()} style={{ flex: 1, height: 44, borderRadius: 10 }}>发送回复</Button>
                 </div>
-                <div>
-                  <Button type="primary" onClick={sendMessage} disabled={!newMessage.trim()}>发送回复</Button>
-                </div>
+              ) : <Button onClick={() => setDetailVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>关闭</Button>
+            }
+          >
+            {selectedTicket && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
+                <Space size={8} wrap>
+                  <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>
+                  <Text type="secondary">分类: <Text strong>{selectedTicket.category}</Text></Text>
+                  <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket.priority]?.text}</Tag></Text>
+                </Space>
               </div>
-            ) : null
-          }
-        >
-          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
-            <Space size={16}>
-              <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
-              <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
-            </Space>
-          </div>
-          {messages.length === 0 ? (
-            <Empty description="暂无消息" />
-          ) : (
-            <List
-              dataSource={messages}
-              style={{ maxHeight: 400, overflow: 'auto' }}
-              renderItem={(msg: any) => (
-                <List.Item style={{ padding: '8px 0' }}>
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
-                        style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
-                      />
-                    }
-                    title={
-                      <span>
-                        <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '我'}</Text>
-                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
-                      </span>
-                    }
-                    description={
-                      <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-          {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
-            <div style={{ marginTop: 12 }}>
-              <TextArea
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                rows={3}
-                placeholder={selectedTicket.status === 2 ? '管理员需要您补充信息，请输入...' : '输入回复内容...'}
+            )}
+            {messages.length === 0 ? (
+              <Empty description="暂无消息" />
+            ) : (
+              <List
+                dataSource={messages}
+                style={{ maxHeight: 400, overflow: 'auto' }}
+                renderItem={(msg: any) => (
+                  <List.Item style={{ padding: '8px 0' }}>
+                    <List.Item.Meta
+                      avatar={
+                        <Avatar
+                          icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
+                          style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
+                        />
+                      }
+                      title={
+                        <span>
+                          <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '我'}</Text>
+                          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
+                        </span>
+                      }
+                      description={
+                        <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
+                      }
+                    />
+                  </List.Item>
+                )}
               />
+            )}
+            {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
+              <div style={{ marginTop: 12 }}>
+                <TextArea
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  rows={3}
+                  placeholder={selectedTicket.status === 2 ? '管理员需要您补充信息，请输入...' : '输入回复内容...'}
+                />
+              </div>
+            )}
+          </M5BottomSheet>
+        ) : (
+          <Modal
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>工单 {selectedTicket?.ticketNo}</span>
+                {selectedTicket && <Tag color={statusMap[selectedTicket.status]?.color}>{statusMap[selectedTicket.status]?.text}</Tag>}
+              </div>
+            }
+            open={detailVisible}
+            onCancel={() => setDetailVisible(false)}
+            width={700}
+            footer={
+              selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <Button onClick={handleClose}>关闭工单</Button>
+                  </div>
+                  <div>
+                    <Button type="primary" onClick={sendMessage} disabled={!newMessage.trim()}>发送回复</Button>
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
+              <Space size={16}>
+                <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
+                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
+              </Space>
             </div>
-          )}
-        </Modal>
+            {messages.length === 0 ? (
+              <Empty description="暂无消息" />
+            ) : (
+              <List
+                dataSource={messages}
+                style={{ maxHeight: 400, overflow: 'auto' }}
+                renderItem={(msg: any) => (
+                  <List.Item style={{ padding: '8px 0' }}>
+                    <List.Item.Meta
+                      avatar={
+                        <Avatar
+                          icon={msg.senderType === 'ADMIN' ? <RobotOutlined /> : <UserOutlined />}
+                          style={{ backgroundColor: msg.senderType === 'ADMIN' ? '#1890ff' : '#87d068' }}
+                        />
+                      }
+                      title={
+                        <span>
+                          <Text strong>{msg.senderType === 'ADMIN' ? '管理员' : '我'}</Text>
+                          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{msg.createdAt}</Text>
+                        </span>
+                      }
+                      description={
+                        <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{msg.content}</div>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+            {selectedTicket && selectedTicket.status !== 3 && selectedTicket.status !== 4 && (
+              <div style={{ marginTop: 12 }}>
+                <TextArea
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  rows={3}
+                  placeholder={selectedTicket.status === 2 ? '管理员需要您补充信息，请输入...' : '输入回复内容...'}
+                />
+              </div>
+            )}
+          </Modal>
+        )}
       </Card>
     </div>
   );

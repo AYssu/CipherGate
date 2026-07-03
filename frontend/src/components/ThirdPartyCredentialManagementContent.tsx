@@ -35,6 +35,7 @@ import {
   type ThirdPartyCredentialDTO,
 } from '../services/thirdPartyCredentialService';
 import { getApplicationList, type Application } from '../services/applicationService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { Text, Title } = Typography;
 
@@ -255,7 +256,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   const toggleShowSecret = (id: number) => {
     const secret = rotatedSecretMap[id];
     if (!secret) {
-      message.info('密钥默认不可见，请先点击“重置密钥”后查看');
+      message.info('密钥默认不可见，请先点击"重置密钥"后查看');
       return;
     }
     setShowSecret((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -322,38 +323,22 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
               style={{ flex: 1, minWidth: 0 }}
             />
             <Button type="primary" onClick={() => applyNameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              open={filterPopoverOpen}
-              onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
-              content={
-                <div style={{ width: 320, maxWidth: '90vw' }}>
-                  <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                    <Row gutter={12}>
-                      <Col span={12}>
-                        <Form.Item label="应用" name="appId">
-                          <Select allowClear placeholder="选择应用" options={apps.map((app) => ({ label: app.appName, value: app.id }))} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="状态" name="status">
-                          <Select allowClear placeholder="状态" options={[{ label: '启用', value: 1 }, { label: '禁用', value: 0 }]} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                      <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
-                      <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
-                    </Row>
-                  </Form>
-                </div>
-              }
-            >
-              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
-              </Badge>
-            </Popover>
+            <M5BottomSheet open={filterPopoverOpen} onClose={() => setFilterPopoverOpen(false)} title="筛选条件" footer={<><Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10 }}>重置</Button><Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10 }}>查询</Button></>}>
+              <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item label="应用" name="appId">
+                      <Select allowClear placeholder="选择应用" options={apps.map((app) => ({ label: app.appName, value: app.id }))} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="状态" name="status">
+                      <Select allowClear placeholder="状态" options={[{ label: '启用', value: 1 }, { label: '禁用', value: 0 }]} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+            </M5BottomSheet>
           </>
         ) : (
           <Space size={12}>
@@ -399,30 +384,30 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
 
       {/* 列表 */}
       {isMobile ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="mgmt-mobile-list">
           {loading && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>}
           {!loading && list.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无数据</div>}
           {list.map((r) => (
-            <div key={r.id} style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #f0f0f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+            <div key={r.id} className="mgmt-mobile-card" style={{ borderLeft: `3px solid ${r.status === 1 ? '#52c41a' : '#d9d9d9'}` }}>
+              <div className="mgmt-mobile-card-header">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text strong style={{ fontSize: 14 }}>{r.name || '-'}</Text>
-                    <Tag color={r.status === 1 ? 'success' : 'default'} style={{ margin: 0 }}>{r.status === 1 ? '启用' : '禁用'}</Tag>
+                    <Tag color={r.status === 1 ? 'success' : 'default'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>{r.status === 1 ? '启用' : '禁用'}</Tag>
                   </div>
                   {r.apiKey && (
                     <Text type="secondary" style={{ fontSize: 11, fontFamily: 'Consolas, Monaco, monospace', display: 'block', marginTop: 2 }} ellipsis={{ tooltip: r.apiKey }}>
                       Key: {r.apiKey.substring(0, 16)}...
                     </Text>
                   )}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, fontSize: 12, color: '#666' }}>
+                  <div className="mgmt-mobile-card-meta" style={{ marginTop: 4 }}>
                     <Text type="secondary">日限: {r.dailyLimit ?? '-'}</Text>
                     <Text type="secondary">|</Text>
                     <Text type="secondary">已用: {r.usedCallCount || 0}次 / {r.usedDaysCount || 0}天</Text>
                   </div>
                 </div>
                 <Dropdown menu={{ items: getCredentialMenuItems(r) }} trigger={['click']}>
-                  <Button type="text" size="small" icon={<MoreOutlined />} />
+                  <Button type="text" size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
                 </Dropdown>
               </div>
             </div>
@@ -502,60 +487,116 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         </div>
       )}
 
-      <Modal
-        title={editingCredential ? '编辑三方凭证' : '新增三方凭证'}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          setEditingCredential(null);
-        }}
-        onOk={onCreate}
-        width={isMobile ? '100%' : 720}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ status: 1 }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => { setModalVisible(false); setEditingCredential(null); }}
+          title={editingCredential ? '编辑三方凭证' : '新增三方凭证'}
+          footer={
+            <>
+              <Button onClick={() => { setModalVisible(false); setEditingCredential(null); }} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={onCreate} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
         >
-          <Form.Item name="appId" label="绑定应用" rules={[{ required: true, message: '请选择应用' }]}>
-            <Select
-              options={apps.map((a) => ({ label: `${a.appName} (#${a.id})`, value: a.id }))}
-              placeholder="请选择应用"
-              disabled={!!editingCredential}
-            />
-          </Form.Item>
-          <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
-            <Input maxLength={120} />
-          </Form.Item>
-          <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
-            <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
-          </Form.Item>
-          <Space style={{ width: '100%' }} align="start">
-            <Form.Item name="dailyLimit" label="每日调用上限">
-              <InputNumber min={1} style={{ width: 180 }} />
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ status: 1 }}
+          >
+            <Form.Item name="appId" label="绑定应用" rules={[{ required: true, message: '请选择应用' }]}>
+              <Select
+                options={apps.map((a) => ({ label: `${a.appName} (#${a.id})`, value: a.id }))}
+                placeholder="请选择应用"
+                disabled={!!editingCredential}
+              />
             </Form.Item>
-            <Form.Item name="totalCallLimit" label="总调用上限">
-              <InputNumber min={1} style={{ width: 180 }} />
+            <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
+              <Input maxLength={120} />
             </Form.Item>
-            <Form.Item name="totalDaysLimit" label="总消费天数上限">
-              <InputNumber min={1} style={{ width: 180 }} />
+            <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
+              <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
             </Form.Item>
-          </Space>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { label: '启用', value: 1 },
-                { label: '禁用', value: 0 },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={3} maxLength={500} />
-          </Form.Item>
-          <Text type="secondary">创建后会生成 API Key。API Secret 默认不展示，请通过“重置密钥”查看并复制。</Text>
-        </Form>
-      </Modal>
+            <Space style={{ width: '100%' }} align="start">
+              <Form.Item name="dailyLimit" label="每日调用上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+              <Form.Item name="totalCallLimit" label="总调用上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+              <Form.Item name="totalDaysLimit" label="总消费天数上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+            </Space>
+            <Form.Item name="status" label="状态">
+              <Select
+                options={[
+                  { label: '启用', value: 1 },
+                  { label: '禁用', value: 0 },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="remark" label="备注">
+              <Input.TextArea rows={3} maxLength={500} />
+            </Form.Item>
+            <Text type="secondary">创建后会生成 API Key。API Secret 默认不展示，请通过"重置密钥"查看并复制。</Text>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingCredential ? '编辑三方凭证' : '新增三方凭证'}
+          open={modalVisible}
+          onCancel={() => {
+            setModalVisible(false);
+            setEditingCredential(null);
+          }}
+          onOk={onCreate}
+          width={720}
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ status: 1 }}
+          >
+            <Form.Item name="appId" label="绑定应用" rules={[{ required: true, message: '请选择应用' }]}>
+              <Select
+                options={apps.map((a) => ({ label: `${a.appName} (#${a.id})`, value: a.id }))}
+                placeholder="请选择应用"
+                disabled={!!editingCredential}
+              />
+            </Form.Item>
+            <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
+              <Input maxLength={120} />
+            </Form.Item>
+            <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
+              <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
+            </Form.Item>
+            <Space style={{ width: '100%' }} align="start">
+              <Form.Item name="dailyLimit" label="每日调用上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+              <Form.Item name="totalCallLimit" label="总调用上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+              <Form.Item name="totalDaysLimit" label="总消费天数上限">
+                <InputNumber min={1} style={{ width: 180 }} />
+              </Form.Item>
+            </Space>
+            <Form.Item name="status" label="状态">
+              <Select
+                options={[
+                  { label: '启用', value: 1 },
+                  { label: '禁用', value: 0 },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="remark" label="备注">
+              <Input.TextArea rows={3} maxLength={500} />
+            </Form.Item>
+            <Text type="secondary">创建后会生成 API Key。API Secret 默认不展示，请通过"重置密钥"查看并复制。</Text>
+          </Form>
+        </Modal>
+      )}
       <Modal
         title="已重置密钥（仅本次可见）"
         open={secretVisible}
@@ -565,8 +606,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             我已保存
           </Button>,
         ]}
-        width={isMobile ? '100%' : 640}
-        className={isMobile ? 'mobile-modal' : undefined}
+        width={640}
       >
         <Alert
           type="warning"

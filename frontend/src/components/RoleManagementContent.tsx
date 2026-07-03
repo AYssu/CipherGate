@@ -16,6 +16,7 @@ import {
   Grid,
   Dropdown,
 } from 'antd';
+import M5BottomSheet from './M5BottomSheet';
 import {
   PlusOutlined,
   EditOutlined,
@@ -399,231 +400,256 @@ const RoleManagementContent: React.FC = () => {
       </Card>
 
       {/* 编辑/创建角色模态框 */}
-      <Modal
-        title={editingRole ? '编辑角色' : '创建角色'}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="确定"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="角色名称"
-            name="roleName"
-            rules={[{ required: true, message: '请输入角色名称' }]}
-          >
-            <Input placeholder="请输入角色名称" />
-          </Form.Item>
-          
-          <Form.Item
-            label="角色编码"
-            name="roleCode"
-            rules={[{ required: true, message: '请输入角色编码' }]}
-          >
-            <Input 
-              placeholder="请输入角色编码" 
-              disabled={editingRole?.roleCode === 'SUPER_ADMIN'}
-            />
-          </Form.Item>
-          
-          <Form.Item
-            label="角色描述"
-            name="description"
-          >
-            <Input.TextArea 
-              placeholder="请输入角色描述" 
-              rows={3}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={handleModalCancel}
+          title={editingRole ? '编辑角色' : '创建角色'}
+          footer={<>
+            <Button onClick={handleModalCancel} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleModalOk} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+          </>}
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item label="角色名称" name="roleName" rules={[{ required: true, message: '请输入角色名称' }]}>
+              <Input placeholder="请输入角色名称" />
+            </Form.Item>
+            <Form.Item label="角色编码" name="roleCode" rules={[{ required: true, message: '请输入角色编码' }]}>
+              <Input placeholder="请输入角色编码" disabled={editingRole?.roleCode === 'SUPER_ADMIN'} />
+            </Form.Item>
+            <Form.Item label="角色描述" name="description">
+              <Input.TextArea placeholder="请输入角色描述" rows={3} />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingRole ? '编辑角色' : '创建角色'}
+          open={modalVisible}
+          onOk={handleModalOk}
+          onCancel={handleModalCancel}
+          width={600}
+          okText="确定"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item label="角色名称" name="roleName" rules={[{ required: true, message: '请输入角色名称' }]}>
+              <Input placeholder="请输入角色名称" />
+            </Form.Item>
+            <Form.Item label="角色编码" name="roleCode" rules={[{ required: true, message: '请输入角色编码' }]}>
+              <Input placeholder="请输入角色编码" disabled={editingRole?.roleCode === 'SUPER_ADMIN'} />
+            </Form.Item>
+            <Form.Item label="角色描述" name="description">
+              <Input.TextArea placeholder="请输入角色描述" rows={3} />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       {/* 菜单权限管理模态框 */}
-      <Modal
-        title={`管理角色菜单权限 - ${currentRole?.roleName}`}
-        open={menuModalVisible}
-        onOk={handleSaveMenuPermissions}
-        onCancel={handleMenuModalCancel}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="保存"
-        cancelText="取消"
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">
-            请选择该角色可以访问的菜单项，已选择 {roleMenuIds.length} 个菜单
-          </Text>
-        </div>
-        
-        <Tree
-          checkable
-          checkedKeys={roleMenuIds}
-          onCheck={(checkedKeys) => {
-            setRoleMenuIds(checkedKeys as number[]);
-          }}
-          treeData={convertMenusToTreeData(allMenus)}
-          height={400}
-          defaultExpandAll
-        />
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={menuModalVisible}
+          onClose={handleMenuModalCancel}
+          title={`管理角色菜单权限 - ${currentRole?.roleName}`}
+          footer={<>
+            <Button onClick={handleMenuModalCancel} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleSaveMenuPermissions} style={{ flex: 1, height: 44, borderRadius: 10 }}>保存</Button>
+          </>}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              请选择该角色可以访问的菜单项，已选择 {roleMenuIds.length} 个菜单
+            </Text>
+          </div>
+          <Tree
+            checkable
+            checkedKeys={roleMenuIds}
+            onCheck={(checkedKeys) => {
+              setRoleMenuIds(checkedKeys as number[]);
+            }}
+            treeData={convertMenusToTreeData(allMenus)}
+            defaultExpandAll
+          />
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`管理角色菜单权限 - ${currentRole?.roleName}`}
+          open={menuModalVisible}
+          onOk={handleSaveMenuPermissions}
+          onCancel={handleMenuModalCancel}
+          width={600}
+          okText="保存"
+          cancelText="取消"
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              请选择该角色可以访问的菜单项，已选择 {roleMenuIds.length} 个菜单
+            </Text>
+          </div>
+          <Tree
+            checkable
+            checkedKeys={roleMenuIds}
+            onCheck={(checkedKeys) => {
+              setRoleMenuIds(checkedKeys as number[]);
+            }}
+            treeData={convertMenusToTreeData(allMenus)}
+            height={400}
+            defaultExpandAll
+          />
+        </Modal>
+      )}
 
       {/* 权限管理模态框 */}
-      <Modal
-        title={`管理角色API权限 - ${currentRole?.roleName}`}
-        open={permissionModalVisible}
-        onOk={handleSaveApiPermissions}
-        onCancel={handlePermissionModalCancel}
-        width={isMobile ? '100%' : 800}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="保存"
-        cancelText="取消"
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">
-            请选择该角色可以使用的API权限，已选择 {rolePermissionIds.length} 个权限
-          </Text>
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <Space wrap>
-            <Button 
-              size="small"
-              onClick={() => setRolePermissionIds(allPermissions.map(p => p.id))}
-            >
-              全选
-            </Button>
-            <Button 
-              size="small"
-              onClick={() => setRolePermissionIds([])}
-            >
-              清空
-            </Button>
-          </Space>
-        </div>
-
-        <div 
-          className="hide-scrollbar"
-          style={{ 
-            maxHeight: 400, 
-            overflowY: 'auto', 
-            paddingRight: 8
-          }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={permissionModalVisible}
+          onClose={handlePermissionModalCancel}
+          title={`管理角色API权限 - ${currentRole?.roleName}`}
+          footer={<>
+            <Button onClick={handlePermissionModalCancel} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleSaveApiPermissions} style={{ flex: 1, height: 44, borderRadius: 10 }}>保存</Button>
+          </>}
         >
-          {(() => {
-            // 按资源类型分组权限
-            const groupedPermissions = allPermissions.reduce((groups, permission) => {
-              const category = permission.permissionCode.split('_')[0];
-              if (!groups[category]) {
-                groups[category] = [];
-              }
-              groups[category].push(permission);
-              return groups;
-            }, {} as Record<string, Permission[]>);
-
-            const categoryNames: Record<string, string> = {
-              'USER': '用户管理',
-              'ROLE': '角色管理', 
-              'MENU': '菜单管理',
-              'PERMISSION': '权限管理',
-              'CONFIG': '系统配置',
-              'PROFILE': '个人信息'
-            };
-
-            return Object.entries(groupedPermissions).map(([category, permissions]) => (
-              <div key={category} style={{ marginBottom: 20 }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  marginBottom: 12,
-                  paddingBottom: 8,
-                  borderBottom: '1px solid #f0f0f0'
-                }}>
-                  <Text strong style={{ marginRight: 8, fontSize: '13px' }}>
-                    {categoryNames[category] || category}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: '11px' }}>
-                    ({permissions.length} 个权限)
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Checkbox
-                      indeterminate={
-                        permissions.some(p => rolePermissionIds.includes(p.id)) && 
-                        !permissions.every(p => rolePermissionIds.includes(p.id))
-                      }
-                      checked={permissions.every(p => rolePermissionIds.includes(p.id))}
-                      onChange={(e) => {
-                        const categoryPermissionIds = permissions.map(p => p.id);
-                        if (e.target.checked) {
-                          setRolePermissionIds([
-                            ...rolePermissionIds.filter(id => !categoryPermissionIds.includes(id)),
-                            ...categoryPermissionIds
-                          ]);
-                        } else {
-                          setRolePermissionIds(
-                            rolePermissionIds.filter(id => !categoryPermissionIds.includes(id))
-                          );
-                        }
-                      }}
-                    >
-                      <span style={{ fontSize: '13px' }}>全选</span>
-                    </Checkbox>
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              请选择该角色可以使用的API权限，已选择 {rolePermissionIds.length} 个权限
+            </Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap>
+              <Button size="small" onClick={() => setRolePermissionIds(allPermissions.map(p => p.id))}>全选</Button>
+              <Button size="small" onClick={() => setRolePermissionIds([])}>清空</Button>
+            </Space>
+          </div>
+          <div className="hide-scrollbar" style={{ maxHeight: 400, overflowY: 'auto', paddingRight: 8 }}>
+            {(() => {
+              const groupedPermissions = allPermissions.reduce((groups, permission) => {
+                const category = permission.permissionCode.split('_')[0];
+                if (!groups[category]) groups[category] = [];
+                groups[category].push(permission);
+                return groups;
+              }, {} as Record<string, Permission[]>);
+              const categoryNames: Record<string, string> = { 'USER': '用户管理', 'ROLE': '角色管理', 'MENU': '菜单管理', 'PERMISSION': '权限管理', 'CONFIG': '系统配置', 'PROFILE': '个人信息' };
+              return Object.entries(groupedPermissions).map(([category, permissions]) => (
+                <div key={category} style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #f0f0f0' }}>
+                    <Text strong style={{ marginRight: 8, fontSize: '13px' }}>{categoryNames[category] || category}</Text>
+                    <Text type="secondary" style={{ fontSize: '11px' }}>({permissions.length} 个权限)</Text>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <Checkbox
+                        indeterminate={permissions.some(p => rolePermissionIds.includes(p.id)) && !permissions.every(p => rolePermissionIds.includes(p.id))}
+                        checked={permissions.every(p => rolePermissionIds.includes(p.id))}
+                        onChange={(e) => {
+                          const ids = permissions.map(p => p.id);
+                          if (e.target.checked) setRolePermissionIds([...rolePermissionIds.filter(id => !ids.includes(id)), ...ids]);
+                          else setRolePermissionIds(rolePermissionIds.filter(id => !ids.includes(id)));
+                        }}
+                      ><span style={{ fontSize: '13px' }}>全选</span></Checkbox>
+                    </div>
+                  </div>
+                  <div style={{ paddingLeft: 16 }}>
+                    {permissions.map(permission => (
+                      <div key={permission.id} style={{ marginBottom: 8 }}>
+                        <Checkbox
+                          checked={rolePermissionIds.includes(permission.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setRolePermissionIds([...rolePermissionIds, permission.id]);
+                            else setRolePermissionIds(rolePermissionIds.filter(id => id !== permission.id));
+                          }}
+                        >
+                          <div>
+                            <Text strong style={{ fontSize: '13px' }}>{permission.permissionName}</Text>
+                            <div style={{ marginTop: 2 }}>
+                              <Tag color="blue" style={{ marginRight: 4, fontSize: '9px', padding: '0 3px' }}>{permission.permissionCode}</Tag>
+                              {permission.httpMethod && <Tag color="green" style={{ fontSize: '9px', padding: '0 3px' }}>{permission.httpMethod}</Tag>}
+                            </div>
+                            <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 2 }}>{permission.description}</Text>
+                          </div>
+                        </Checkbox>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                
-                <div style={{ paddingLeft: 16 }}>
-                  {permissions.map(permission => (
-                    <div key={permission.id} style={{ marginBottom: 8 }}>
+              ));
+            })()}
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`管理角色API权限 - ${currentRole?.roleName}`}
+          open={permissionModalVisible}
+          onOk={handleSaveApiPermissions}
+          onCancel={handlePermissionModalCancel}
+          width={800}
+          okText="保存"
+          cancelText="取消"
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              请选择该角色可以使用的API权限，已选择 {rolePermissionIds.length} 个权限
+            </Text>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Space wrap>
+              <Button size="small" onClick={() => setRolePermissionIds(allPermissions.map(p => p.id))}>全选</Button>
+              <Button size="small" onClick={() => setRolePermissionIds([])}>清空</Button>
+            </Space>
+          </div>
+          <div className="hide-scrollbar" style={{ maxHeight: 400, overflowY: 'auto', paddingRight: 8 }}>
+            {(() => {
+              const groupedPermissions = allPermissions.reduce((groups, permission) => {
+                const category = permission.permissionCode.split('_')[0];
+                if (!groups[category]) groups[category] = [];
+                groups[category].push(permission);
+                return groups;
+              }, {} as Record<string, Permission[]>);
+              const categoryNames: Record<string, string> = { 'USER': '用户管理', 'ROLE': '角色管理', 'MENU': '菜单管理', 'PERMISSION': '权限管理', 'CONFIG': '系统配置', 'PROFILE': '个人信息' };
+              return Object.entries(groupedPermissions).map(([category, permissions]) => (
+                <div key={category} style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #f0f0f0' }}>
+                    <Text strong style={{ marginRight: 8, fontSize: '13px' }}>{categoryNames[category] || category}</Text>
+                    <Text type="secondary" style={{ fontSize: '11px' }}>({permissions.length} 个权限)</Text>
+                    <div style={{ marginLeft: 'auto' }}>
                       <Checkbox
-                        checked={rolePermissionIds.includes(permission.id)}
+                        indeterminate={permissions.some(p => rolePermissionIds.includes(p.id)) && !permissions.every(p => rolePermissionIds.includes(p.id))}
+                        checked={permissions.every(p => rolePermissionIds.includes(p.id))}
                         onChange={(e) => {
-                          if (e.target.checked) {
-                            setRolePermissionIds([...rolePermissionIds, permission.id]);
-                          } else {
-                            setRolePermissionIds(rolePermissionIds.filter(id => id !== permission.id));
-                          }
+                          const ids = permissions.map(p => p.id);
+                          if (e.target.checked) setRolePermissionIds([...rolePermissionIds.filter(id => !ids.includes(id)), ...ids]);
+                          else setRolePermissionIds(rolePermissionIds.filter(id => !ids.includes(id)));
                         }}
-                      >
-                        <div>
-                          <Text strong style={{ fontSize: '13px' }}>
-                            {permission.permissionName}
-                          </Text>
-                          <div style={{ marginTop: 2 }}>
-                            <Tag color="blue" style={{ 
-                              marginRight: 4, 
-                              fontSize: '9px',
-                              padding: '0 3px'
-                            }}>
-                              {permission.permissionCode}
-                            </Tag>
-                            {permission.httpMethod && (
-                              <Tag color="green" style={{ 
-                                fontSize: '9px',
-                                padding: '0 3px'
-                              }}>
-                                {permission.httpMethod}
-                              </Tag>
-                            )}
-                          </div>
-                          <Text type="secondary" style={{ 
-                            fontSize: '11px', 
-                            display: 'block', 
-                            marginTop: 2 
-                          }}>
-                            {permission.description}
-                          </Text>
-                        </div>
-                      </Checkbox>
+                      ><span style={{ fontSize: '13px' }}>全选</span></Checkbox>
                     </div>
-                  ))}
+                  </div>
+                  <div style={{ paddingLeft: 16 }}>
+                    {permissions.map(permission => (
+                      <div key={permission.id} style={{ marginBottom: 8 }}>
+                        <Checkbox
+                          checked={rolePermissionIds.includes(permission.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setRolePermissionIds([...rolePermissionIds, permission.id]);
+                            else setRolePermissionIds(rolePermissionIds.filter(id => id !== permission.id));
+                          }}
+                        >
+                          <div>
+                            <Text strong style={{ fontSize: '13px' }}>{permission.permissionName}</Text>
+                            <div style={{ marginTop: 2 }}>
+                              <Tag color="blue" style={{ marginRight: 4, fontSize: '9px', padding: '0 3px' }}>{permission.permissionCode}</Tag>
+                              {permission.httpMethod && <Tag color="green" style={{ fontSize: '9px', padding: '0 3px' }}>{permission.httpMethod}</Tag>}
+                            </div>
+                            <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 2 }}>{permission.description}</Text>
+                          </div>
+                        </Checkbox>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ));
-          })()}
-        </div>
-      </Modal>
+              ));
+            })()}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Grid } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Title } = Typography;
 
@@ -58,25 +59,44 @@ const QuotaProductPage: React.FC = () => {
           scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }}
           pagination={false}
         />
-        <Modal
-          title={editing ? '编辑商品' : '新增商品'}
-          open={editVisible}
-          onOk={handleSave}
-          onCancel={() => setEditVisible(false)}
-          width={isMobile ? '100%' : 520}
-          className={isMobile ? 'mobile-modal' : undefined}
-        >
-          <Form form={form} layout="vertical">
-            <Form.Item name="productCode" label="商品编码" rules={[{ required: true }]}><Input /></Form.Item>
-            <Form.Item name="productName" label="商品名称" rules={[{ required: true }]}><Input /></Form.Item>
-            <Form.Item name="productType" label="商品类型" rules={[{ required: true }]}>
-              <Select options={[{ value: 'APP_QUOTA', label: '应用额度' }, { value: 'LICENSE_QUOTA', label: '卡密额度' }, { value: 'USER_REGISTER_QUOTA', label: '用户注册额度' }, { value: 'TRAFFIC_QUOTA', label: '流量额度' }, { value: 'MEMBERSHIP', label: '会员升级' }]} />
-            </Form.Item>
-            <Form.Item name="quotaValue" label="额度值" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
-          </Form>
-        </Modal>
+        {isMobile ? (
+          <M5BottomSheet
+            open={editVisible}
+            onClose={() => setEditVisible(false)}
+            title={editing ? '编辑商品' : '新增商品'}
+            footer={<><Button onClick={() => setEditVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button><Button type="primary" onClick={handleSave} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button></>}
+          >
+            <Form form={form} layout="vertical">
+              <Form.Item name="productCode" label="商品编码" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="productName" label="商品名称" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="productType" label="商品类型" rules={[{ required: true }]}>
+                <Select options={[{ value: 'APP_QUOTA', label: '应用额度' }, { value: 'LICENSE_QUOTA', label: '卡密额度' }, { value: 'USER_REGISTER_QUOTA', label: '用户注册额度' }, { value: 'TRAFFIC_QUOTA', label: '流量额度' }, { value: 'MEMBERSHIP', label: '会员升级' }]} />
+              </Form.Item>
+              <Form.Item name="quotaValue" label="额度值" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
+            </Form>
+          </M5BottomSheet>
+        ) : (
+          <Modal
+            title={editing ? '编辑商品' : '新增商品'}
+            open={editVisible}
+            onOk={handleSave}
+            onCancel={() => setEditVisible(false)}
+            width={520}
+          >
+            <Form form={form} layout="vertical">
+              <Form.Item name="productCode" label="商品编码" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="productName" label="商品名称" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="productType" label="商品类型" rules={[{ required: true }]}>
+                <Select options={[{ value: 'APP_QUOTA', label: '应用额度' }, { value: 'LICENSE_QUOTA', label: '卡密额度' }, { value: 'USER_REGISTER_QUOTA', label: '用户注册额度' }, { value: 'TRAFFIC_QUOTA', label: '流量额度' }, { value: 'MEMBERSHIP', label: '会员升级' }]} />
+              </Form.Item>
+              <Form.Item name="quotaValue" label="额度值" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
+            </Form>
+          </Modal>
+        )}
       </Card>
     </div>
   );

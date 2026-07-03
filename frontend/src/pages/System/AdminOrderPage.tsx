@@ -32,14 +32,13 @@ const AdminOrderPage: React.FC = () => {
   };
 
   const columns = [
-    { title: '订单号', dataIndex: 'orderNo', key: 'no' },
-    { title: '用户ID', dataIndex: 'userId', key: 'userId' },
+    ...(!isMobile ? [{ title: '订单号', dataIndex: 'orderNo', key: 'no' }] : []),
     { title: '商品', dataIndex: 'productName', key: 'product' },
     { title: '金额', dataIndex: 'totalAmount', key: 'amount', render: (v: number) => `¥${(v / 100).toFixed(2)}` },
     { title: '状态', dataIndex: 'status', key: 'status', render: (v: number) => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
-    { title: '时间', dataIndex: 'createdAt', key: 'time' },
+    ...(!isMobile ? [{ title: '时间', dataIndex: 'createdAt', key: 'time' }] : []),
     {
-      title: '操作', key: 'action', width: isMobile ? 80 : undefined,
+      title: '操作', key: 'action', width: isMobile ? 60 : undefined,
       render: (_: any, record: any) => {
         if (record.status !== 0) return null;
         if (isMobile) {
@@ -62,7 +61,7 @@ const AdminOrderPage: React.FC = () => {
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 12 : 16 }}>
           <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>订单管理</Title>
-          <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders} loading={loading}>{!isMobile && '刷新'}</Button>
         </div>
         <Table columns={columns} dataSource={orders} rowKey="id" loading={loading} pagination={{ simple: isMobile, showTotal: isMobile ? undefined : (total) => `共 ${total} 条` }} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
       </Card>

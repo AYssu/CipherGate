@@ -25,6 +25,7 @@ import {
   Grid,
   type MenuProps,
 } from 'antd';
+import M5BottomSheet from './M5BottomSheet';
 import {
   DownOutlined,
   RightOutlined,
@@ -782,38 +783,22 @@ const AppVariableManagementContent: React.FC = () => {
                 style={{ flex: 1, minWidth: 0 }}
               />
               <Button type="primary" onClick={() => applyVariableNameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                open={filterPopoverOpen}
-                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromListFilters(); }}
-                content={
-                  <div style={{ width: 320, maxWidth: '90vw' }}>
-                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                      <Row gutter={12}>
-                        <Col span={24}>
-                          <Form.Item label="应用" name="appId">
-                            <Select allowClear showSearch optionFilterProp="label" placeholder="选择应用" options={appOptions} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={24}>
-                          <Form.Item label="类型" name="variableType">
-                            <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
-                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
-                      </Row>
-                    </Form>
-                  </div>
-                }
-              >
-                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
-                </Badge>
-              </Popover>
+              <M5BottomSheet open={filterPopoverOpen} onClose={() => setFilterPopoverOpen(false)} title="筛选条件" footer={<><Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10 }}>重置</Button><Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10 }}>查询</Button></>}>
+                <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                  <Row gutter={12}>
+                    <Col span={24}>
+                      <Form.Item label="应用" name="appId">
+                        <Select allowClear showSearch optionFilterProp="label" placeholder="选择应用" options={appOptions} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={24}>
+                      <Form.Item label="类型" name="variableType">
+                        <Select allowClear placeholder="变量类型" options={VARIABLE_TYPE_OPTIONS} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Form>
+              </M5BottomSheet>
             </>
           ) : (
             <Space size={12}>
@@ -859,30 +844,30 @@ const AppVariableManagementContent: React.FC = () => {
 
         {/* 列表 */}
         {isMobile ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="mgmt-mobile-list">
             {loading && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>}
             {!loading && variables.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>暂无数据</div>}
             {variables.map((record) => (
-              <div key={record.id} style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #f0f0f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div key={record.id} className="mgmt-mobile-card">
+                <div className="mgmt-mobile-card-header">
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <Text strong style={{ fontSize: 14 }} ellipsis={{ tooltip: record.variableName }}>{record.variableName}</Text>
                       {getTypeTag(record.variableType)}
-                      <Tag color={record.enabled ? 'success' : 'default'} style={{ margin: 0 }}>{record.enabled ? '启用' : '停用'}</Tag>
+                      <Tag color={record.enabled ? 'success' : 'default'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>{record.enabled ? '启用' : '停用'}</Tag>
                     </div>
                     <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{record.appName || `AppID:${record.appId}`}</Text>
                     <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>{formatTime(record.updatedAt)}</Text>
                   </div>
                   <Space size={0}>
-                    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)}>编辑</Button>
+                    <Button type="link" size="small" icon={<EditOutlined />} style={{ fontSize: 12 }}>编辑</Button>
                     <Dropdown menu={{ items: [
                       { key: 'copy', icon: <CopyOutlined />, label: '复制', onClick: () => handleCopyVariable(record) },
                       { key: 'history', icon: <HistoryOutlined />, label: '历史记录', onClick: () => openHistory(record) },
                       { type: 'divider' },
                       { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true, onClick: () => { Modal.confirm({ title: '删除变量', content: `确定要删除变量 "${record.variableName}" 吗？`, okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => handleDelete(record.id) }); } },
                     ] }} trigger={['click']}>
-                      <Button type="text" size="small" icon={<MoreOutlined />} />
+                      <Button type="text" size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
                     </Dropdown>
                   </Space>
                 </div>
@@ -915,219 +900,434 @@ const AppVariableManagementContent: React.FC = () => {
         )}
       </Space>
 
-      <Modal
-        title={editingVariable ? '编辑变量' : '新建变量'}
-        open={editModalVisible}
-        onOk={handleSubmitEdit}
-        onCancel={() => setEditModalVisible(false)}
-        okText="确定"
-        cancelText="取消"
-        width={isMobile ? '100%' : 780}
-        className={isMobile ? 'mobile-modal' : undefined}
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: 8 } }}
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          colon={false}
-          initialValues={{
-            enabled: true,
-            required: false,
-            sortOrder: 0,
-            variableType: 'STRING',
-          }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={editModalVisible}
+          onClose={() => setEditModalVisible(false)}
+          title={editingVariable ? '编辑变量' : '新建变量'}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setEditModalVisible(false)}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={handleSubmitEdit}>确定</Button>
+            </>
+          }
         >
-          <Divider orientation="left" style={{ marginTop: 0 }}>基本信息</Divider>
-          <Row gutter={16}>
-            <Col span={24}>
-              <Form.Item
-                label="应用"
-                name="appId"
-                rules={[{ required: true, message: '请选择应用' }]}
-                tooltip="建议先在筛选中选好应用，再创建变量"
-              >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  placeholder="选择应用"
-                  options={appOptions}
-                  disabled={!!editingVariable}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="变量名"
-                name="variableName"
-                rules={[
-                  { required: true, message: '请输入变量名' },
-                ]}
-              >
-                <Input placeholder="如：API_URL" disabled={!!editingVariable} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="显示名" name="displayName" rules={[{ required: true, message: '请输入显示名' }]}>
-                <Input placeholder="用于界面展示" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider orientation="left">配置</Divider>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="类型" name="variableType" rules={[{ required: true, message: '请选择类型' }]}>
-                <Select options={VARIABLE_TYPE_OPTIONS} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="排序" name="sortOrder">
-                <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="启用" name="enabled">
-                <Select
-                  options={[
-                    { value: true, label: '启用' },
-                    { value: false, label: '停用' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="变量值" name="variableValue">
-            <TextArea
-              placeholder="STRING/NUMBER/BOOLEAN/JSON/ARRAY"
-              autoSize={{ minRows: 3, maxRows: 10 }}
-              style={{ fontFamily: 'Consolas, Monaco, monospace', backgroundColor: '#fafafa' }}
-            />
-          </Form.Item>
-          <div
-            style={{
-              marginTop: -6,
-              marginBottom: 12,
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              background: '#fafbfc',
-              padding: 12,
+          <Form
+            form={editForm}
+            layout="vertical"
+            colon={false}
+            initialValues={{
+              enabled: true,
+              required: false,
+              sortOrder: 0,
+              variableType: 'STRING',
             }}
           >
-            <Row justify="space-between" align="middle" style={{ marginBottom: 10 }}>
-              <Button
-                type="text"
-                size="small"
-                icon={templatePanelOpen ? <DownOutlined /> : <RightOutlined />}
-                onClick={() => setTemplatePanelOpen((v) => !v)}
-                style={{ paddingInline: 0, fontWeight: 600 }}
-              >
-                快捷插入
-              </Button>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {templatePanelOpen ? '点击项可追加到变量值' : '点击左侧展开'}
-              </Text>
-            </Row>
-            {templatePanelOpen ? (
-              <>
-                <Segmented
-                  size="small"
-                  block
-                  value={templateGroupTitle}
-                  options={VARIABLE_TEMPLATE_GROUPS.map((group) => ({ label: group.title, value: group.title }))}
-                  onChange={(value) => setTemplateGroupTitle(String(value))}
-                />
-                <div
-                  style={{
-                    marginTop: 10,
-                    maxHeight: 130,
-                    overflowY: 'auto',
-                    paddingRight: 4,
-                  }}
+            <Divider orientation="left" style={{ marginTop: 0 }}>基本信息</Divider>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="应用"
+                  name="appId"
+                  rules={[{ required: true, message: '请选择应用' }]}
+                  tooltip="建议先在筛选中选好应用，再创建变量"
                 >
-                  <Space size={[8, 8]} wrap>
-                    {activeTemplateGroup.items.map((item) => (
-                      <Tooltip key={item.token} title={`${item.description} | ${item.token}`}>
-                        <Tag
-                          color="blue"
-                          style={{
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            borderRadius: 4,
-                            paddingInline: 8,
-                          }}
-                          onClick={() => insertTemplateToVariableValue(item.token)}
-                        >
-                          {item.label}
-                        </Tag>
-                      </Tooltip>
-                    ))}
-                  </Space>
-                </div>
-              </>
-            ) : null}
-          </div>
-          <div
-            style={{
-              marginTop: -6,
-              marginBottom: 12,
-              border: '1px dashed #d0d7de',
-              borderRadius: 8,
-              padding: 10,
-              background: '#fff',
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="选择应用"
+                    options={appOptions}
+                    disabled={!!editingVariable}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="变量名"
+                  name="variableName"
+                  rules={[
+                    { required: true, message: '请输入变量名' },
+                  ]}
+                >
+                  <Input placeholder="如：API_URL" disabled={!!editingVariable} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="显示名" name="displayName" rules={[{ required: true, message: '请输入显示名' }]}>
+                  <Input placeholder="用于界面展示" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">配置</Divider>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item label="类型" name="variableType" rules={[{ required: true, message: '请选择类型' }]}>
+                  <Select options={VARIABLE_TYPE_OPTIONS} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="排序" name="sortOrder">
+                  <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="启用" name="enabled">
+                  <Select
+                    options={[
+                      { value: true, label: '启用' },
+                      { value: false, label: '停用' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="变量值" name="variableValue">
+              <TextArea
+                placeholder="STRING/NUMBER/BOOLEAN/JSON/ARRAY"
+                autoSize={{ minRows: 3, maxRows: 10 }}
+                style={{ fontFamily: 'Consolas, Monaco, monospace', backgroundColor: '#fafafa' }}
+              />
+            </Form.Item>
+            <div
+              style={{
+                marginTop: -6,
+                marginBottom: 12,
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                background: '#fafbfc',
+                padding: 12,
+              }}
+            >
+              <Row justify="space-between" align="middle" style={{ marginBottom: 10 }}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={templatePanelOpen ? <DownOutlined /> : <RightOutlined />}
+                  onClick={() => setTemplatePanelOpen((v) => !v)}
+                  style={{ paddingInline: 0, fontWeight: 600 }}
+                >
+                  快捷插入
+                </Button>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {templatePanelOpen ? '点击项可追加到变量值' : '点击左侧展开'}
+                </Text>
+              </Row>
+              {templatePanelOpen ? (
+                <>
+                  <Segmented
+                    size="small"
+                    block
+                    value={templateGroupTitle}
+                    options={VARIABLE_TEMPLATE_GROUPS.map((group) => ({ label: group.title, value: group.title }))}
+                    onChange={(value) => setTemplateGroupTitle(String(value))}
+                  />
+                  <div
+                    style={{
+                      marginTop: 10,
+                      maxHeight: 130,
+                      overflowY: 'auto',
+                      paddingRight: 4,
+                    }}
+                  >
+                    <Space size={[8, 8]} wrap>
+                      {activeTemplateGroup.items.map((item) => (
+                        <Tooltip key={item.token} title={`${item.description} | ${item.token}`}>
+                          <Tag
+                            color="blue"
+                            style={{
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              borderRadius: 4,
+                              paddingInline: 8,
+                            }}
+                            onClick={() => insertTemplateToVariableValue(item.token)}
+                          >
+                            {item.label}
+                          </Tag>
+                        </Tooltip>
+                      ))}
+                    </Space>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div
+              style={{
+                marginTop: -6,
+                marginBottom: 12,
+                border: '1px dashed #d0d7de',
+                borderRadius: 8,
+                padding: 10,
+                background: '#fff',
+              }}
+            >
+              <Row justify="space-between" align="middle" style={{ marginBottom: 6 }}>
+                <Text strong style={{ fontSize: 13 }}>
+                  变量值渲染预览
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  原始值仍为 `${'{...}'}` 模板
+                </Text>
+              </Row>
+              <div style={{ minHeight: 26, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {variableValuePreviewParts.length === 0 ? (
+                  <Text type="secondary">暂无内容</Text>
+                ) : (
+                  variableValuePreviewParts.map((part, idx) =>
+                    part.type === 'token' ? (
+                      <Tag key={`${part.value}-${idx}`} color="geekblue" style={{ marginInlineEnd: 4 }}>
+                        {part.value}
+                      </Tag>
+                    ) : (
+                      <span key={`${part.value}-${idx}`}>{part.value}</span>
+                    )
+                  )
+                )}
+              </div>
+            </div>
+
+            <Divider orientation="left">附加信息</Divider>
+            <Form.Item label="描述" name="description">
+              <TextArea placeholder="可选" autoSize={{ minRows: 2, maxRows: 6 }} />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="标签" name="tags" tooltip="后端按字符串 like 查询">
+                  <Input placeholder="如：core,release（可选）" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="版本号" name="version">
+                  <Input placeholder="如：v1.0.0（可选）" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="变更原因" name="changeReason" tooltip="用于历史记录备注（建议填写）">
+              <Input placeholder="如：上线配置/修复问题/调参等" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingVariable ? '编辑变量' : '新建变量'}
+          open={editModalVisible}
+          onOk={handleSubmitEdit}
+          onCancel={() => setEditModalVisible(false)}
+          okText="确定"
+          cancelText="取消"
+          width={780}
+          styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: 8 } }}
+        >
+          <Form
+            form={editForm}
+            layout="vertical"
+            colon={false}
+            initialValues={{
+              enabled: true,
+              required: false,
+              sortOrder: 0,
+              variableType: 'STRING',
             }}
           >
-            <Row justify="space-between" align="middle" style={{ marginBottom: 6 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                变量值渲染预览
-              </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                原始值仍为 `${'{...}'}` 模板
-              </Text>
+            <Divider orientation="left" style={{ marginTop: 0 }}>基本信息</Divider>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="应用"
+                  name="appId"
+                  rules={[{ required: true, message: '请选择应用' }]}
+                  tooltip="建议先在筛选中选好应用，再创建变量"
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="选择应用"
+                    options={appOptions}
+                    disabled={!!editingVariable}
+                  />
+                </Form.Item>
+              </Col>
             </Row>
-            <div style={{ minHeight: 26, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {variableValuePreviewParts.length === 0 ? (
-                <Text type="secondary">暂无内容</Text>
-              ) : (
-                variableValuePreviewParts.map((part, idx) =>
-                  part.type === 'token' ? (
-                    <Tag key={`${part.value}-${idx}`} color="geekblue" style={{ marginInlineEnd: 4 }}>
-                      {part.value}
-                    </Tag>
-                  ) : (
-                    <span key={`${part.value}-${idx}`}>{part.value}</span>
-                  )
-                )
-              )}
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="变量名"
+                  name="variableName"
+                  rules={[
+                    { required: true, message: '请输入变量名' },
+                  ]}
+                >
+                  <Input placeholder="如：API_URL" disabled={!!editingVariable} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="显示名" name="displayName" rules={[{ required: true, message: '请输入显示名' }]}>
+                  <Input placeholder="用于界面展示" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">配置</Divider>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item label="类型" name="variableType" rules={[{ required: true, message: '请选择类型' }]}>
+                  <Select options={VARIABLE_TYPE_OPTIONS} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="排序" name="sortOrder">
+                  <InputNumber min={0} placeholder="0" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item label="启用" name="enabled">
+                  <Select
+                    options={[
+                      { value: true, label: '启用' },
+                      { value: false, label: '停用' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="变量值" name="variableValue">
+              <TextArea
+                placeholder="STRING/NUMBER/BOOLEAN/JSON/ARRAY"
+                autoSize={{ minRows: 3, maxRows: 10 }}
+                style={{ fontFamily: 'Consolas, Monaco, monospace', backgroundColor: '#fafafa' }}
+              />
+            </Form.Item>
+            <div
+              style={{
+                marginTop: -6,
+                marginBottom: 12,
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                background: '#fafbfc',
+                padding: 12,
+              }}
+            >
+              <Row justify="space-between" align="middle" style={{ marginBottom: 10 }}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={templatePanelOpen ? <DownOutlined /> : <RightOutlined />}
+                  onClick={() => setTemplatePanelOpen((v) => !v)}
+                  style={{ paddingInline: 0, fontWeight: 600 }}
+                >
+                  快捷插入
+                </Button>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {templatePanelOpen ? '点击项可追加到变量值' : '点击左侧展开'}
+                </Text>
+              </Row>
+              {templatePanelOpen ? (
+                <>
+                  <Segmented
+                    size="small"
+                    block
+                    value={templateGroupTitle}
+                    options={VARIABLE_TEMPLATE_GROUPS.map((group) => ({ label: group.title, value: group.title }))}
+                    onChange={(value) => setTemplateGroupTitle(String(value))}
+                  />
+                  <div
+                    style={{
+                      marginTop: 10,
+                      maxHeight: 130,
+                      overflowY: 'auto',
+                      paddingRight: 4,
+                    }}
+                  >
+                    <Space size={[8, 8]} wrap>
+                      {activeTemplateGroup.items.map((item) => (
+                        <Tooltip key={item.token} title={`${item.description} | ${item.token}`}>
+                          <Tag
+                            color="blue"
+                            style={{
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              borderRadius: 4,
+                              paddingInline: 8,
+                            }}
+                            onClick={() => insertTemplateToVariableValue(item.token)}
+                          >
+                            {item.label}
+                          </Tag>
+                        </Tooltip>
+                      ))}
+                    </Space>
+                  </div>
+                </>
+              ) : null}
             </div>
-          </div>
+            <div
+              style={{
+                marginTop: -6,
+                marginBottom: 12,
+                border: '1px dashed #d0d7de',
+                borderRadius: 8,
+                padding: 10,
+                background: '#fff',
+              }}
+            >
+              <Row justify="space-between" align="middle" style={{ marginBottom: 6 }}>
+                <Text strong style={{ fontSize: 13 }}>
+                  变量值渲染预览
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  原始值仍为 `${'{...}'}` 模板
+                </Text>
+              </Row>
+              <div style={{ minHeight: 26, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {variableValuePreviewParts.length === 0 ? (
+                  <Text type="secondary">暂无内容</Text>
+                ) : (
+                  variableValuePreviewParts.map((part, idx) =>
+                    part.type === 'token' ? (
+                      <Tag key={`${part.value}-${idx}`} color="geekblue" style={{ marginInlineEnd: 4 }}>
+                        {part.value}
+                      </Tag>
+                    ) : (
+                      <span key={`${part.value}-${idx}`}>{part.value}</span>
+                    )
+                  )
+                )}
+              </div>
+            </div>
 
-          <Divider orientation="left">附加信息</Divider>
-          <Form.Item label="描述" name="description">
-            <TextArea placeholder="可选" autoSize={{ minRows: 2, maxRows: 6 }} />
-          </Form.Item>
+            <Divider orientation="left">附加信息</Divider>
+            <Form.Item label="描述" name="description">
+              <TextArea placeholder="可选" autoSize={{ minRows: 2, maxRows: 6 }} />
+            </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="标签" name="tags" tooltip="后端按字符串 like 查询">
-                <Input placeholder="如：core,release（可选）" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="版本号" name="version">
-                <Input placeholder="如：v1.0.0（可选）" />
-              </Form.Item>
-            </Col>
-          </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="标签" name="tags" tooltip="后端按字符串 like 查询">
+                  <Input placeholder="如：core,release（可选）" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="版本号" name="version">
+                  <Input placeholder="如：v1.0.0（可选）" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Form.Item label="变更原因" name="changeReason" tooltip="用于历史记录备注（建议填写）">
-            <Input placeholder="如：上线配置/修复问题/调参等" />
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Form.Item label="变更原因" name="changeReason" tooltip="用于历史记录备注（建议填写）">
+              <Input placeholder="如：上线配置/修复问题/调参等" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       <Drawer
         title={
@@ -1143,7 +1343,7 @@ const AppVariableManagementContent: React.FC = () => {
         }
         open={historyVisible}
         onClose={() => setHistoryVisible(false)}
-        width={720}
+        width={isMobile ? '100%' : 720}
       >
         <Table
           columns={historyColumns as any}
@@ -1162,97 +1362,191 @@ const AppVariableManagementContent: React.FC = () => {
         />
       </Drawer>
 
-      <Modal
-        title="导入变量配置（JSON）"
-        open={importVisible}
-        onOk={handleImport}
-        onCancel={() => setImportVisible(false)}
-        okText="导入"
-        cancelText="取消"
-        width={isMobile ? '100%' : 800}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary">
-          导入会按变量名执行 upsert：已存在则更新，不存在则自动新增。
-        </Text>
-        <div style={{ height: 12 }} />
-        <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
-          <CodeMirror
-            value={importText}
-            height="320px"
-            extensions={[json()]}
-            theme="light"
-            style={{
-              fontSize: 14,
-              fontFamily: 'Consolas, Monaco, monospace',
-              fontWeight: 500,
-            }}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-              foldGutter: true,
-            }}
-            onChange={(value: string) => setImportText(value)}
-          />
-        </div>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={importVisible}
+          onClose={() => setImportVisible(false)}
+          title="导入变量配置（JSON）"
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setImportVisible(false)}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={handleImport}>导入</Button>
+            </>
+          }
+        >
+          <Text type="secondary">
+            导入会按变量名执行 upsert：已存在则更新，不存在则自动新增。
+          </Text>
+          <div style={{ height: 12 }} />
+          <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+            <CodeMirror
+              value={importText}
+              height="320px"
+              extensions={[json()]}
+              theme="light"
+              style={{
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, monospace',
+                fontWeight: 500,
+              }}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+              onChange={(value: string) => setImportText(value)}
+            />
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="导入变量配置（JSON）"
+          open={importVisible}
+          onOk={handleImport}
+          onCancel={() => setImportVisible(false)}
+          okText="导入"
+          cancelText="取消"
+          width={800}
+        >
+          <Text type="secondary">
+            导入会按变量名执行 upsert：已存在则更新，不存在则自动新增。
+          </Text>
+          <div style={{ height: 12 }} />
+          <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+            <CodeMirror
+              value={importText}
+              height="320px"
+              extensions={[json()]}
+              theme="light"
+              style={{
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, monospace',
+                fontWeight: 500,
+              }}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+              onChange={(value: string) => setImportText(value)}
+            />
+          </div>
+        </Modal>
+      )}
 
-      <Modal
-        title={previewAppId ? `变量预览（AppID: ${previewAppId}）` : '变量预览'}
-        open={previewVisible}
-        onOk={() => {
-          navigator.clipboard.writeText(previewText || '').then(() => message.success('已复制到剪贴板'));
-        }}
-        onCancel={() => setPreviewVisible(false)}
-        okText="复制"
-        cancelText="关闭"
-        width={isMobile ? '100%' : 860}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary">以下为当前应用变量转换后的 JSON 预览。</Text>
-        <div style={{ height: 12 }} />
-        <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
-          <CodeMirror
-            value={previewText || (previewLoading ? '// 加载中...' : '{}')}
-            height="360px"
-            extensions={[json()]}
-            theme="light"
-            editable={false}
-            style={{
-              fontSize: 14,
-              fontFamily: 'Consolas, Monaco, monospace',
-              fontWeight: 500,
-            }}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-              foldGutter: true,
-            }}
-          />
-        </div>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={previewVisible}
+          onClose={() => setPreviewVisible(false)}
+          title={previewAppId ? `变量预览（AppID: ${previewAppId}）` : '变量预览'}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setPreviewVisible(false)}>关闭</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { navigator.clipboard.writeText(previewText || '').then(() => message.success('已复制到剪贴板')); }}>复制</Button>
+            </>
+          }
+        >
+          <Text type="secondary">以下为当前应用变量转换后的 JSON 预览。</Text>
+          <div style={{ height: 12 }} />
+          <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+            <CodeMirror
+              value={previewText || (previewLoading ? '// 加载中...' : '{}')}
+              height="360px"
+              extensions={[json()]}
+              theme="light"
+              editable={false}
+              style={{
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, monospace',
+                fontWeight: 500,
+              }}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+            />
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={previewAppId ? `变量预览（AppID: ${previewAppId}）` : '变量预览'}
+          open={previewVisible}
+          onOk={() => {
+            navigator.clipboard.writeText(previewText || '').then(() => message.success('已复制到剪贴板'));
+          }}
+          onCancel={() => setPreviewVisible(false)}
+          okText="复制"
+          cancelText="关闭"
+          width={860}
+        >
+          <Text type="secondary">以下为当前应用变量转换后的 JSON 预览。</Text>
+          <div style={{ height: 12 }} />
+          <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
+            <CodeMirror
+              value={previewText || (previewLoading ? '// 加载中...' : '{}')}
+              height="360px"
+              extensions={[json()]}
+              theme="light"
+              editable={false}
+              style={{
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, monospace',
+                fontWeight: 500,
+              }}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+            />
+          </div>
+        </Modal>
+      )}
 
-      <Modal
-        title="导出变量配置（JSON）"
-        open={exportVisible}
-        onOk={() => {
-          navigator.clipboard.writeText(exportText || '').then(() => message.success('已复制到剪贴板'));
-        }}
-        onCancel={() => setExportVisible(false)}
-        okText="复制"
-        cancelText="关闭"
-        width={isMobile ? '100%' : 800}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary">你可以复制后保存到本地，或作为导入模板。</Text>
-        <div style={{ height: 12 }} />
-        <TextArea
-          value={exportText}
-          readOnly
-          autoSize={{ minRows: 12, maxRows: 18 }}
-          style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-        />
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={exportVisible}
+          onClose={() => setExportVisible(false)}
+          title="导出变量配置（JSON）"
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setExportVisible(false)}>关闭</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { navigator.clipboard.writeText(exportText || '').then(() => message.success('已复制到剪贴板')); }}>复制</Button>
+            </>
+          }
+        >
+          <Text type="secondary">你可以复制后保存到本地，或作为导入模板。</Text>
+          <div style={{ height: 12 }} />
+          <TextArea
+            value={exportText}
+            readOnly
+            autoSize={{ minRows: 12, maxRows: 18 }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace' }}
+          />
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="导出变量配置（JSON）"
+          open={exportVisible}
+          onOk={() => {
+            navigator.clipboard.writeText(exportText || '').then(() => message.success('已复制到剪贴板'));
+          }}
+          onCancel={() => setExportVisible(false)}
+          okText="复制"
+          cancelText="关闭"
+          width={800}
+        >
+          <Text type="secondary">你可以复制后保存到本地，或作为导入模板。</Text>
+          <div style={{ height: 12 }} />
+          <TextArea
+            value={exportText}
+            readOnly
+            autoSize={{ minRows: 12, maxRows: 18 }}
+            style={{ fontFamily: 'Consolas, Monaco, monospace' }}
+          />
+        </Modal>
+      )}
     </Card>
   );
 };

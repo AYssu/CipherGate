@@ -26,6 +26,7 @@ import {
   SoundOutlined,
 } from '@ant-design/icons';
 import { announcementApi, type SystemAnnouncement } from '../services/announcementService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -232,28 +233,21 @@ const AnnouncementManagementContent: React.FC = () => {
               公告管理
             </Text>
           </div>
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchAnnouncements}
-              loading={loading}
-              size={isMobile ? 'small' : 'middle'}
-            >
-              {!isMobile && '刷新'}
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreate}
-              size={isMobile ? 'small' : 'middle'}
-            >
-              新增
-            </Button>
-          </Space>
+          {isMobile ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Button size="small" icon={<ReloadOutlined />} onClick={fetchAnnouncements} loading={loading}>刷新</Button>
+              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleCreate}>新增</Button>
+            </div>
+          ) : (
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={fetchAnnouncements} loading={loading}>刷新</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新增</Button>
+            </Space>
+          )}
         </div>
 
         {isMobile ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="mgmt-mobile-list">
             {loading && (
               <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>加载中...</div>
             )}
@@ -263,14 +257,9 @@ const AnnouncementManagementContent: React.FC = () => {
             {announcements.map((record) => (
               <div
                 key={record.id}
-                style={{
-                  background: '#fafafa',
-                  borderRadius: 8,
-                  padding: '10px 12px',
-                  border: '1px solid #f0f0f0',
-                }}
+                className="mgmt-mobile-card"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                <div className="mgmt-mobile-card-header">
                   <Text strong style={{ fontSize: 14, flex: 1 }}>{record.title}</Text>
                   {getStatusTag(record.status)}
                 </div>
@@ -292,7 +281,7 @@ const AnnouncementManagementContent: React.FC = () => {
                     }}
                     trigger={['click']}
                   >
-                    <Button type="text" size="small" icon={<MoreOutlined />} />
+                    <Button type="text" size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
                   </Dropdown>
                 </div>
               </div>
@@ -316,46 +305,89 @@ const AnnouncementManagementContent: React.FC = () => {
         )}
       </Card>
 
-      <Modal
-        title={editingAnnouncement ? '编辑公告' : '新增公告'}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={isMobile ? '95vw' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="确定"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="公告标题"
-            name="title"
-            rules={[{ required: true, message: '请输入公告标题' }]}
-          >
-            <Input placeholder="请输入公告标题" />
-          </Form.Item>
-          <Form.Item
-            label="公告内容"
-            name="content"
-            rules={[{ required: true, message: '请输入公告内容' }]}
-          >
-            <TextArea
-              rows={6}
-              placeholder="请输入公告内容（支持 Markdown 格式）"
-            />
-          </Form.Item>
-          <Form.Item
-            label="状态"
-            name="status"
-            rules={[{ required: true, message: '请选择状态' }]}
-          >
-            <Select>
-              <Select.Option value={1}>启用</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={handleModalCancel}
+          title={editingAnnouncement ? '编辑公告' : '新增公告'}
+          footer={
+            <>
+              <Button onClick={handleModalCancel} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleModalOk} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item
+              label="公告标题"
+              name="title"
+              rules={[{ required: true, message: '请输入公告标题' }]}
+            >
+              <Input placeholder="请输入公告标题" />
+            </Form.Item>
+            <Form.Item
+              label="公告内容"
+              name="content"
+              rules={[{ required: true, message: '请输入公告内容' }]}
+            >
+              <TextArea
+                rows={6}
+                placeholder="请输入公告内容（支持 Markdown 格式）"
+              />
+            </Form.Item>
+            <Form.Item
+              label="状态"
+              name="status"
+              rules={[{ required: true, message: '请选择状态' }]}
+            >
+              <Select>
+                <Select.Option value={1}>启用</Select.Option>
+                <Select.Option value={0}>禁用</Select.Option>
+              </Select>
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingAnnouncement ? '编辑公告' : '新增公告'}
+          open={modalVisible}
+          onOk={handleModalOk}
+          onCancel={handleModalCancel}
+          width={600}
+          okText="确定"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item
+              label="公告标题"
+              name="title"
+              rules={[{ required: true, message: '请输入公告标题' }]}
+            >
+              <Input placeholder="请输入公告标题" />
+            </Form.Item>
+            <Form.Item
+              label="公告内容"
+              name="content"
+              rules={[{ required: true, message: '请输入公告内容' }]}
+            >
+              <TextArea
+                rows={6}
+                placeholder="请输入公告内容（支持 Markdown 格式）"
+              />
+            </Form.Item>
+            <Form.Item
+              label="状态"
+              name="status"
+              rules={[{ required: true, message: '请选择状态' }]}
+            >
+              <Select>
+                <Select.Option value={1}>启用</Select.Option>
+                <Select.Option value={0}>禁用</Select.Option>
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       <Modal
         title="公告详情"
@@ -372,7 +404,7 @@ const AnnouncementManagementContent: React.FC = () => {
             关闭
           </Button>,
         ]}
-        width={isMobile ? '95vw' : 600}
+        width={600}
       >
         {previewAnnouncement && (
           <div>

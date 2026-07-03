@@ -372,34 +372,37 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   return (
     <div style={{ padding: 0 }}>
       {/* 简洁的欢迎区域 */}
-      <Card style={{ marginBottom: isMobile ? 16 : 24 }} className="dashboard-welcome-card">
-        <Row align="middle" gutter={isMobile ? [16, 12] : [24, 0]}>
-          <Col xs={24} sm="auto" style={{ textAlign: isMobile ? 'center' : undefined }}>
+      <Card style={{ marginBottom: isMobile ? 12 : 24 }} className="dashboard-welcome-card">
+        <Row align="middle" gutter={isMobile ? [12, 0] : [24, 0]}>
+          <Col xs={6} sm="auto" style={{ textAlign: isMobile ? 'center' : undefined }}>
             <Avatar
               src={userInfo?.avatarUrl}
-              size={isMobile ? 56 : 72}
+              size={isMobile ? 44 : 72}
               icon={<UserOutlined />}
             />
           </Col>
-          <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'center' : undefined }}>
-            <Title level={isMobile ? 4 : 3} style={{ margin: '0 0 8px 0', color: '#1a1a2e' }}>
+          <Col xs={18} sm={12}>
+            <Title level={isMobile ? 5 : 3} style={{ margin: '0 0 4px 0', color: '#1a1a2e', fontSize: isMobile ? 15 : undefined }}>
               {getGreeting()}, {userInfo?.name || userInfo?.login}
             </Title>
-            <Space size={isMobile ? 8 : 16} direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
-              <Text type="secondary" style={{ fontSize: isMobile ? 13 : 14 }}>
+            <Space size={isMobile ? 6 : 16} direction="horizontal" style={{ flexWrap: 'wrap' }}>
+              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
                 <GithubOutlined /> @{userInfo?.login}
               </Text>
-              <Text type="secondary" style={{ fontSize: isMobile ? 13 : 14 }}>
-                <ClockCircleOutlined /> {currentTime.toLocaleString()}
-              </Text>
+              {!isMobile && (
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  <ClockCircleOutlined /> {currentTime.toLocaleString()}
+                </Text>
+              )}
             </Space>
-            <div style={{ marginTop: 8 }}>
-              <Space wrap size={4}>
+            <div style={{ marginTop: 4 }}>
+              <Space wrap size={2}>
                 {userInfo?.roles?.map(role => (
                   <Tag
                     key={role.id}
                     color={role.roleCode === 'SUPER_ADMIN' ? 'red' :
                            role.roleCode === 'ADMIN' ? 'blue' : 'green'}
+                    style={isMobile ? { fontSize: 10, padding: '0 4px', lineHeight: '18px', margin: 0 } : undefined}
                   >
                     {role.roleName}
                   </Tag>
@@ -420,147 +423,127 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Row>
       </Card>
 
-      {/* 今日业务统计（自然日按服务器时区；卡密/终端登录自 access_event 表，需已执行建表脚本） */}
-      <Text type="secondary" style={{ display: 'block', marginBottom: isMobile ? 8 : 12, fontSize: isMobile ? 12 : 13 }}>
-        卡密与终端用户指标仅统计您作为创建者的应用；「今日后台登录」仅管理员可见且为全平台 GitHub 登录次数。
-      </Text>
-      <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }} wrap>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingTodayStats}>
+      {/* 今日业务统计 */}
+      {!isMobile && (
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+          卡密与终端用户指标仅统计您作为创建者的应用；「今日后台登录」仅管理员可见且为全平台 GitHub 登录次数。
+        </Text>
+      )}
+      <Row gutter={[isMobile ? 6 : 16, isMobile ? 6 : 16]} style={{ marginBottom: isMobile ? 12 : 24 }} wrap>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingTodayStats} className={isMobile ? 'dashboard-stat-tile' : ''}>
             <Statistic
-              title="今日卡密首次激活"
+              title="卡密激活"
               value={todayStats?.cardFirstActivatedToday ?? 0}
               formatter={statFormatter}
               valueStyle={{ color: '#1890ff' }}
               prefix={<KeyOutlined />}
               suffix="张"
             />
-            {!isMobile && (
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                今日首次绑定/激活的卡密
-              </Text>
-            )}
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingTodayStats}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingTodayStats} className={isMobile ? 'dashboard-stat-tile' : ''}>
             <Statistic
-              title="今日卡密登录次数"
+              title="卡密登录"
               value={todayStats?.cardLoginToday ?? 0}
               formatter={statFormatter}
               valueStyle={{ color: '#13c2c2' }}
               prefix={<LoginOutlined />}
               suffix="次"
             />
-            {!isMobile && (
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                每次卡密验证成功计一次
-              </Text>
-            )}
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingTodayStats}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingTodayStats} className={isMobile ? 'dashboard-stat-tile' : ''}>
             <Statistic
-              title="今日终端用户注册"
+              title="终端注册"
               value={todayStats?.appUserRegisteredToday ?? 0}
               formatter={statFormatter}
               valueStyle={{ color: '#722ed1' }}
               prefix={<UserAddOutlined />}
               suffix="人"
             />
-            {!isMobile && (
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                含自助注册与后台创建
-              </Text>
-            )}
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingTodayStats}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingTodayStats} className={isMobile ? 'dashboard-stat-tile' : ''}>
             <Statistic
-              title="今日终端用户登录"
+              title="终端登录"
               value={todayStats?.appUserWsLoginToday ?? 0}
               formatter={statFormatter}
               valueStyle={{ color: '#fa8c16' }}
               prefix={<ApiOutlined />}
               suffix="次"
             />
-            {!isMobile && (
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                终端 WS 账号登录成功
-              </Text>
-            )}
           </Card>
         </Col>
         {typeof todayStats?.platformLoginToday === 'number' && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card loading={loadingTodayStats}>
+          <Col xs={12} sm={12} lg={6}>
+            <Card loading={loadingTodayStats} className={isMobile ? 'dashboard-stat-tile' : ''}>
               <Statistic
-                title="今日后台登录"
+                title="后台登录"
                 value={todayStats.platformLoginToday}
                 formatter={statFormatter}
                 valueStyle={{ color: '#52c41a' }}
                 prefix={<GithubOutlined />}
                 suffix="次"
               />
-              {!isMobile && (
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                  全平台 GitHub 登录
-                </Text>
-              )}
             </Card>
           </Col>
         )}
       </Row>
 
-      <Text type="secondary" style={{ display: 'block', marginBottom: isMobile ? 8 : 12, fontSize: isMobile ? 12 : 13 }}>
-        总览与在线指标按当前登录用户拥有的应用统计，在线口径：卡密 5 分钟内有使用记录，用户为 WS 在线会话。
-      </Text>
-      <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} style={{ marginBottom: isMobile ? 16 : 24 }} wrap>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
-            <Statistic title="应用总数" value={overview?.appCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#1890ff' }} suffix="个" />
+      {!isMobile && (
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+          总览与在线指标按当前登录用户拥有的应用统计，在线口径：卡密 5 分钟内有使用记录，用户为 WS 在线会话。
+        </Text>
+      )}
+      <Row gutter={[isMobile ? 6 : 16, isMobile ? 6 : 16]} style={{ marginBottom: isMobile ? 12 : 24 }} wrap>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
+            <Statistic title="应用" value={overview?.appCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#1890ff' }} suffix="个" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
-            <Statistic title="终端用户总数" value={overview?.appUserTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#722ed1' }} suffix="人" />
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
+            <Statistic title="终端用户" value={overview?.appUserTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#722ed1' }} suffix="人" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
-            <Statistic title="卡密总数" value={overview?.licenseTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#13c2c2' }} suffix="张" />
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
+            <Statistic title="卡密" value={overview?.licenseTotal ?? 0} formatter={statFormatter} valueStyle={{ color: '#13c2c2' }} suffix="张" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
             <Statistic title="在线卡密" value={onlineStats?.cardOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#52c41a' }} suffix="张" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
             <Statistic title="在线用户" value={onlineStats?.appUserOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#fa8c16' }} suffix="人" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
-            <Statistic title="近7天卡密登录" value={overview?.cardLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#1677ff' }} suffix="次" />
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
+            <Statistic title="7日卡密" value={overview?.cardLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#1677ff' }} suffix="次" />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loadingOverview}>
-            <Statistic title="近7天终端登录" value={overview?.appUserWsLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#eb2f96' }} suffix="次" />
+        <Col xs={12} sm={12} lg={6}>
+          <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
+            <Statistic title="7日终端" value={overview?.appUserWsLogin7d ?? 0} formatter={statFormatter} valueStyle={{ color: '#eb2f96' }} suffix="次" />
           </Card>
         </Col>
       </Row>
 
       <Card
-        style={{ marginBottom: isMobile ? 16 : 24 }}
-        title={<Space><LineChartOutlined style={{ color: '#1890ff' }} /><span>近7天趋势</span></Space>}
+        style={{ marginBottom: isMobile ? 12 : 24 }}
+        title={<Space><LineChartOutlined style={{ color: '#1890ff' }} /><span style={{ fontSize: isMobile ? 14 : 16 }}>近7天趋势</span></Space>}
         loading={loadingOverview}
+        className={isMobile ? 'dashboard-chart-card' : ''}
       >
-        <ReactECharts option={trendOption} style={{ height: isMobile ? 220 : 340, width: '100%' }} notMerge />
+        <ReactECharts option={trendOption} style={{ height: isMobile ? 200 : 340, width: '100%' }} notMerge />
       </Card>
 
       <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>

@@ -49,6 +49,7 @@ import {
   SyncOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
+import M5BottomSheet from './M5BottomSheet';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import {
@@ -800,12 +801,12 @@ const ApplicationManagementContent: React.FC = () => {
   ];
 
   const renderMobileCard = (app: Application) => {
-    const statusMap: Record<number, { text: string; color: string }> = {
-      1: { text: '正常', color: 'success' },
-      2: { text: '维护', color: 'warning' },
-      3: { text: '停用', color: 'error' },
+    const statusMap: Record<number, { text: string; color: string; border: string }> = {
+      1: { text: '正常', color: 'success', border: '#52c41a' },
+      2: { text: '维护', color: 'warning', border: '#fa8c16' },
+      3: { text: '停用', color: 'error', border: '#ff4d4f' },
     };
-    const statusInfo = statusMap[app.status] || { text: '未知', color: 'default' };
+    const statusInfo = statusMap[app.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
 
     const modelMap: Record<number, { text: string; color: string }> = {
       1: { text: '付费', color: 'blue' },
@@ -816,61 +817,79 @@ const ApplicationManagementContent: React.FC = () => {
 
     const used = app.trafficUsed || 0;
     const limit = app.trafficLimit || 0;
+    const trafficPercent = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+    const trafficColor = limit > 0 ? (trafficPercent > 80 ? '#ff4d4f' : trafficPercent > 50 ? '#fa8c16' : '#52c41a') : '#1890ff';
 
     const category = app.category || '';
-    let categoryIcon = <CloudOutlined style={{ fontSize: 20, color: '#13c2c2' }} />;
-    if (category.includes('工具')) categoryIcon = <ApiOutlined style={{ fontSize: 20, color: '#1890ff' }} />;
-    else if (category.includes('游戏')) categoryIcon = <RocketOutlined style={{ fontSize: 20, color: '#52c41a' }} />;
-    else if (category.includes('办公')) categoryIcon = <DatabaseOutlined style={{ fontSize: 20, color: '#722ed1' }} />;
-    else if (category.includes('安全')) categoryIcon = <SafetyOutlined style={{ fontSize: 20, color: '#fa8c16' }} />;
+    let categoryIcon = <CloudOutlined style={{ fontSize: 18, color: '#13c2c2' }} />;
+    let iconBg = 'linear-gradient(135deg, #e6fffb, #b5f5ec)';
+    if (category.includes('工具')) { categoryIcon = <ApiOutlined style={{ fontSize: 18, color: '#1890ff' }} />; iconBg = 'linear-gradient(135deg, #e6f4ff, #bae0ff)'; }
+    else if (category.includes('游戏')) { categoryIcon = <RocketOutlined style={{ fontSize: 18, color: '#52c41a' }} />; iconBg = 'linear-gradient(135deg, #f6ffed, #b7eb8f)'; }
+    else if (category.includes('办公')) { categoryIcon = <DatabaseOutlined style={{ fontSize: 18, color: '#722ed1' }} />; iconBg = 'linear-gradient(135deg, #f9f0ff, #d3adf7)'; }
+    else if (category.includes('安全')) { categoryIcon = <SafetyOutlined style={{ fontSize: 18, color: '#fa8c16' }} />; iconBg = 'linear-gradient(135deg, #fff7e6, #ffd591)'; }
 
     return (
       <Card
         key={app.id}
         size="small"
-        style={{ marginBottom: 12 }}
+        className="app-mobile-card"
+        style={{ borderLeft: `3px solid ${statusInfo.border}` }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Row 1: Icon + Name + Tags + Menu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 8,
-            background: '#f5f5f5',
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: iconBg,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0
+            flexShrink: 0,
           }}>
             {app.iconUrl && app.iconUrl !== '/default-app-icon.png' ? (
-              <img src={app.iconUrl} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+              <img src={app.iconUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
             ) : categoryIcon}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Text strong style={{ fontSize: 15, flexShrink: 0 }}>{app.appName}</Text>
-              <Tag color={statusInfo.color} style={{ margin: 0, flexShrink: 0 }}>{statusInfo.text}</Tag>
-              <Tag color={modelInfo.color} style={{ margin: 0, flexShrink: 0 }}>{modelInfo.text}</Tag>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text strong style={{ fontSize: 14, lineHeight: '20px' }}>{app.appName}</Text>
+              <Tag color={statusInfo.color} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>{statusInfo.text}</Tag>
+              <Tag color={modelInfo.color} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>{modelInfo.text}</Tag>
             </div>
           </div>
           <Dropdown menu={{ items: getAppMenuItems(app) }} trigger={['click']}>
-            <Button type="text" size="small" icon={<MoreOutlined />} style={{ flexShrink: 0 }} />
+            <Button type="text" size="small" icon={<MoreOutlined />} style={{ flexShrink: 0, width: 32, height: 32 }} />
           </Dropdown>
         </div>
 
-        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>AppKey</span>
-            <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'monospace', fontSize: 12 }}>
-              {app.appKey ? `${app.appKey.substring(0, 12)}...` : '-'}
+        {/* Row 2: Key + Traffic bar + Meta */}
+        <div style={{ marginTop: 10, fontSize: 12 }}>
+          {/* AppKey */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>AppKey</Text>
+            <Text copyable={{ text: app.appKey, tooltips: ['复制', '已复制'] }} style={{ fontFamily: 'monospace', fontSize: 11, color: '#8c8c8c' }}>
+              {app.appKey ? `${app.appKey.substring(0, 10)}...` : '-'}
             </Text>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span>流量</span>
-            <span>{formatBytes(used)} / {limit > 0 ? formatBytes(limit) : '不限'}</span>
+
+          {/* 流量进度条 */}
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>流量</Text>
+              <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{formatBytes(used)} / {limit > 0 ? formatBytes(limit) : '不限'}</Text>
+            </div>
+            {limit > 0 && (
+              <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${trafficPercent}%`, background: trafficColor, borderRadius: 2, transition: 'width 0.3s' }} />
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#bfbfbf' }}>
-            <span>{app.ownerName || '-'}</span>
-            <span>{app.createdAt ? new Date(app.createdAt).toLocaleDateString('zh-CN') : '-'}</span>
+
+          {/* 底部信息 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>{app.ownerName || '-'}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>{app.createdAt ? new Date(app.createdAt).toLocaleDateString('zh-CN') : '-'}</Text>
           </div>
         </div>
       </Card>
@@ -1152,714 +1171,1412 @@ const ApplicationManagementContent: React.FC = () => {
       </Space>
 
       {/* 创建/编辑弹窗 */}
-      <Modal
-        title={editingApp ? '编辑应用' : '创建应用'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={isMobile ? '100%' : 700}
-        okText="确定"
-        cancelText="取消"
-        className={`app-edit-modal${isMobile ? ' mobile-modal' : ''}`}
-      >
-        <style>{`
-          /* Modal 滚动条样式 */
-          .app-edit-modal .ant-modal-body::-webkit-scrollbar {
-            width: 6px;
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => setModalVisible(false)}
+          title={editingApp ? '编辑应用' : '创建应用'}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setModalVisible(false)}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={handleSubmit}>确定</Button>
+            </>
           }
-          .app-edit-modal .ant-modal-body::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb {
-            background-color: #d9d9d9;
-            border-radius: 3px;
-          }
-          .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
-            background-color: #bfbfbf;
-          }
-          
-          /* TextArea 滚动条样式 */
-          .app-edit-modal textarea::-webkit-scrollbar {
-            width: 6px;
-          }
-          .app-edit-modal textarea::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .app-edit-modal textarea::-webkit-scrollbar-thumb {
-            background-color: #d9d9d9;
-            border-radius: 3px;
-          }
-          .app-edit-modal textarea::-webkit-scrollbar-thumb:hover {
-            background-color: #bfbfbf;
-          }
-        `}</style>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            businessModel: 1,
-            status: 1,
-            trafficLimit: 0,
-            unbindTimeDeductMode: 'NONE',
-            unbindCooldownHours: 0,
-          }}
         >
-          <Form.Item
-            label="应用名称"
-            name="appName"
-            rules={[
-              { required: true, message: '请输入应用名称' },
-              { max: 100, message: '应用名称不能超过100个字符' },
-            ]}
-          >
-            <Input placeholder="请输入应用名称" />
-          </Form.Item>
-
-          <Form.Item
-            label="应用描述"
-            name="description"
-            rules={[{ max: 500, message: '描述不能超过500个字符' }]}
-          >
-            <TextArea 
-              placeholder="请输入应用描述"
-              autoSize={{ minRows: 3, maxRows: 10 }}
-            />
-          </Form.Item>
-
-          <Row gutter={isMobile ? [8, 0] : 16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="应用分类"
-                name="category"
-                rules={[{ max: 50, message: '分类不能超过50个字符' }]}
-              >
-                <Input placeholder="如：游戏、工具等" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="标签"
-                name="tags"
-                rules={[{ max: 255, message: '标签不能超过255个字符' }]}
-              >
-                <Input placeholder="多个标签用逗号分隔" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={isMobile ? [8, 0] : 16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="业务模式"
-                name="businessModel"
-                rules={[{ required: true, message: '请选择业务模式' }]}
-              >
-                <Select>
-                  <Select.Option value={1}>付费</Select.Option>
-                  <Select.Option value={2}>免费</Select.Option>
-                  <Select.Option value={3}>试用+付费</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="状态" name="status">
-                <Select>
-                  <Select.Option value={1}>正常</Select.Option>
-                  <Select.Option value={2}>维护</Select.Option>
-                  <Select.Option value={3}>停用</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="流量限制 (字节)"
-            name="trafficLimit"
-            tooltip="0 表示不限制"
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0}
-              placeholder="0 表示不限制"
-            />
-          </Form.Item>
-
-          <Divider>卡密换绑扣时</Divider>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-            仅当终端通过三方接口 <strong>POST /api/v1/card/rebind</strong> 换绑设备时，若该卡密<strong>原先已有设备绑定</strong>，才按此处规则从<strong>到期时间</strong>扣减；管理员在后台「解绑设备 / 解绑 IP」<strong>不扣时</strong>。无到期时间（永久）的卡密不扣时。默认不扣。
-          </Text>
-          <Row gutter={isMobile ? [8, 0] : 16}>
-            <Col xs={24} sm={12}>
-              <Form.Item label="扣时模式" name="unbindTimeDeductMode">
-                <Select
-                  options={[
-                    { value: 'NONE', label: '不扣' },
-                    { value: 'PERCENT', label: '按剩余时长百分比' },
-                    { value: 'HOURS', label: '固定扣除小时' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.unbindTimeDeductMode !== cur.unbindTimeDeductMode}>
-                {() => {
-                  const mode = form.getFieldValue('unbindTimeDeductMode') as string | undefined;
-                  if (!mode || mode === 'NONE') {
-                    return null;
-                  }
-                  return (
-                    <Form.Item
-                      label={mode === 'PERCENT' ? '扣除比例 (%)' : '扣除小时数'}
-                      name="unbindTimeDeductValue"
-                      rules={[
-                        { required: true, message: '请填写数值' },
-                        {
-                          type: 'number',
-                          min: mode === 'PERCENT' ? 0 : 0,
-                          max: mode === 'PERCENT' ? 100 : undefined,
-                          message:
-                            mode === 'PERCENT' ? '百分比需在 0～100 之间' : '须为非负数',
-                        },
-                      ]}
-                      extra={
-                        mode === 'PERCENT'
-                          ? '例如 10 表示每次三方换绑扣掉「当前剩余有效期」的 10%'
-                          : '支持小数，例如 2.5 表示每次三方换绑扣 2.5 小时'
-                      }
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        min={0}
-                        max={mode === 'PERCENT' ? 100 : undefined}
-                        step={mode === 'PERCENT' ? 1 : 0.5}
-                      />
-                    </Form.Item>
-                  );
-                }}
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={isMobile ? [8, 0] : 16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="解绑冷却时间(小时)"
-                name="unbindCooldownHours"
-                tooltip="0 表示不限制；仅影响三方卡密换绑接口"
-                rules={[{ type: 'number', min: 0, message: '不能小于 0' }]}
-              >
-                <InputNumber style={{ width: '100%' }} min={0} step={1} placeholder="0 表示不限制" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Divider>版本信息（可选）</Divider>
-
-          <Row gutter={isMobile ? [8, 0] : 16}>
-            <Col xs={24} sm={12}>
-              <Form.Item label="当前版本" name="currentVersion">
-                <Input placeholder="如：1.0.0" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item label="最低支持版本" name="minVersion">
-                <Input placeholder="如：1.0.0" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="应用公告" name="notice">
-            <TextArea 
-              placeholder="请输入应用公告"
-              autoSize={{ minRows: 4, maxRows: 15 }}
-            />
-          </Form.Item>
-
-          <Form.Item label="更新公告" name="updateNotice">
-            <TextArea 
-              placeholder="请输入更新公告，描述最新版本的更新内容"
-              autoSize={{ minRows: 4, maxRows: 15 }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="更新包"
-            tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
-          >
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
-              <Upload
-                maxCount={1}
-                showUploadList={false}
-                disabled={!editingApp || updatePackageUploading}
-                beforeUpload={(file) => {
-                  if (!editingApp) {
-                    message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
-                    return Upload.LIST_IGNORE;
-                  }
-                  void handleUploadUpdatePackage(file as File);
-                  return false;
-                }}
-              >
-                <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
-                  上传到 MinIO
-                </Button>
-              </Upload>
-              {editingApp?.updateFileStorageKey ? (
-                <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
-                  当前对象键：{editingApp.updateFileStorageKey}
-                </Text>
-              ) : editingApp ? (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  尚未上传更新包
-                </Text>
-              ) : null}
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={
-          encryptionApp ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Space>
-                <SlidersOutlined />
-                <span>加密配置</span>
-                <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
-                  {encryptionApp.appName} (ID: {encryptionApp.id})
-                </Text>
-              </Space>
-              <Button
-                size="small"
-                icon={<SyncOutlined />}
-                onClick={handleTemplateCheck}
-              >
-                模板检测
-              </Button>
-            </div>
-          ) : (
-            '加密配置'
-          )
-        }
-        open={encryptionModalVisible}
-        onCancel={() => {
-          setEncryptionModalVisible(false);
-          setEncryptionApp(null);
-          setTemplateMismatch(false);
-        }}
-        width={isMobile ? '100%' : 720}
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={encryptionSaving}
-        okButtonProps={{ disabled: !!encryptionJsonError || encryptionLoading }}
-        onOk={() => void handleSaveEncryptionConfig()}
-        destroyOnHidden
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        {/* 加密方式选择 */}
-        {encryptionPlugins.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <Text style={{ marginRight: 8 }}>加密方式：</Text>
-            <Select
-              value={selectedPluginId}
-              onChange={handlePluginChange}
-              style={{ width: 280 }}
-              options={encryptionPlugins.map(p => ({
-                label: p.pluginName || p.pluginId,
-                value: p.pluginId,
-              }))}
-            />
-          </div>
-        )}
-        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
-          （JSON 对象）。当前加密插件为{' '}
-          <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>
-            {encryptionPlugins.find(p => p.pluginId === selectedPluginId)?.pluginName || selectedPluginId || 'aes-default'}
-          </Tag>
-          ，请按模板配置对应参数。点击右上角「模板检测」可校验配置是否与插件模板一致。
-        </Text>
-        <div
-          style={{
-            border: `1px solid ${encryptionJsonError || templateMismatch ? '#ff4d4f' : '#d9d9d9'}`,
-            borderRadius: 8,
-            overflow: 'hidden',
-          }}
-        >
-          <CodeMirror
-            value={encryptionConfigJson}
-            height="340px"
-            extensions={[json()]}
-            editable={!encryptionLoading}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLine: true,
-              foldGutter: true,
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              businessModel: 1,
+              status: 1,
+              trafficLimit: 0,
+              unbindTimeDeductMode: 'NONE',
+              unbindCooldownHours: 0,
             }}
-            onChange={(value: string) => {
-              setEncryptionConfigJson(value);
-              checkTemplateMismatch(encryptionTemplateKeys);
-            }}
-          />
-        </div>
-        {encryptionJsonError ? (
-          <Text type="danger" style={{ display: 'block', marginTop: 8 }}>
-            {encryptionJsonError}
-          </Text>
-        ) : templateMismatch ? (
-          <Alert
-            type="error"
-            showIcon
-            icon={<WarningOutlined />}
-            style={{ marginTop: 8 }}
-            message="加密配置与当前插件模板不匹配"
-            description={
-              <Space>
-                <span>配置的 key 与插件模板不一致，点击右侧使用新模板。</span>
-                <Button size="small" type="primary" onClick={handleApplyTemplate}>
-                  使用新模板
-                </Button>
-              </Space>
-            }
-          />
-        ) : (
-          <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-            JSON 校验通过{encryptionTemplateKeys && encryptionTemplateKeys.length > 0 ? '，模板匹配' : ''}
-          </Text>
-        )}
-      </Modal>
-
-      <Modal
-        title={agentApp ? `代理配置 - ${agentApp.appName} (ID: ${agentApp.id})` : '代理配置'}
-        open={agentModalVisible}
-        onCancel={() => {
-          setAgentModalVisible(false);
-          setAgentApp(null);
-          setEditingAgent(null);
-          setBindGithubId('');
-          setBindUser(null);
-          agentForm.resetFields();
-        }}
-        width={isMobile ? '100%' : 960}
-        footer={null}
-        destroyOnHidden
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Row gutter={isMobile ? [0, 16] : 16}>
-          <Col xs={24} sm={14}>
-            <Table
-              size="small"
-              rowKey="id"
-              loading={agentLoading}
-              dataSource={agentList}
-              pagination={false}
-              scroll={isMobile ? { x: 400 } : undefined}
-              columns={[
-                { title: '代理名', dataIndex: 'agentCode', key: 'agentCode' },
-                {
-                  title: '绑定用户',
-                  key: 'userId',
-                  render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
-                },
-                { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
-                { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
-                {
-                  title: '操作',
-                  key: 'action',
-                  render: (_: any, r: AppAgentDTO) => (
-                    <Button type="link" size="small" onClick={() => onEditAgent(r)}>
-                      编辑
-                    </Button>
-                  ),
-                },
+          >
+            <Form.Item
+              label="应用名称"
+              name="appName"
+              rules={[
+                { required: true, message: '请输入应用名称' },
+                { max: 100, message: '应用名称不能超过100个字符' },
               ]}
-            />
-          </Col>
-          <Col xs={24} sm={10}>
-            <Card size="small" title={editingAgent ? '编辑代理' : '新建代理'}>
-              <Form
-                form={agentForm}
-                layout="vertical"
-                initialValues={{ scopeMode: 'OWN_ONLY', enabled: true, permissions: [] }}
-              >
-                <Form.Item name="agentCode" label="代理名称" rules={[{ required: true, message: '请输入代理名称' }]}>
-                  <Input placeholder="例如 华东渠道A" />
+            >
+              <Input placeholder="请输入应用名称" />
+            </Form.Item>
+
+            <Form.Item
+              label="应用描述"
+              name="description"
+              rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+            >
+              <TextArea
+                placeholder="请输入应用描述"
+                autoSize={{ minRows: 3, maxRows: 10 }}
+              />
+            </Form.Item>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="应用分类"
+                  name="category"
+                  rules={[{ max: 50, message: '分类不能超过50个字符' }]}
+                >
+                  <Input placeholder="如：游戏、工具等" />
                 </Form.Item>
-                <Form.Item label="绑定后台用户" required>
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input
-                      value={bindGithubId}
-                      onChange={(e) => setBindGithubId(e.target.value)}
-                      placeholder="输入对方 GitHub ID"
-                    />
-                    <Button loading={bindLookupLoading} onClick={() => void handleLookupBindUser()}>
-                      查询
-                    </Button>
-                  </Space.Compact>
-                  <Form.Item name="userId" hidden rules={[{ required: true, message: '请先查询并选择用户' }]}>
-                    <Input />
-                  </Form.Item>
-                  <div style={{ marginTop: 8 }}>
-                    {bindUser ? (
-                      <Text type="success">
-                        已匹配用户：{bindUser.name || bindUser.login || '-'}（ID: {bindUser.id}）
-                      </Text>
-                    ) : (
-                      <Text type="secondary">未选择用户</Text>
-                    )}
-                  </div>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="标签"
+                  name="tags"
+                  rules={[{ max: 255, message: '标签不能超过255个字符' }]}
+                >
+                  <Input placeholder="多个标签用逗号分隔" />
                 </Form.Item>
-                <Form.Item name="scopeMode" label="数据范围">
+              </Col>
+            </Row>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="业务模式"
+                  name="businessModel"
+                  rules={[{ required: true, message: '请选择业务模式' }]}
+                >
+                  <Select>
+                    <Select.Option value={1}>付费</Select.Option>
+                    <Select.Option value={2}>免费</Select.Option>
+                    <Select.Option value={3}>试用+付费</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="状态" name="status">
+                  <Select>
+                    <Select.Option value={1}>正常</Select.Option>
+                    <Select.Option value={2}>维护</Select.Option>
+                    <Select.Option value={3}>停用</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              label="流量限制 (字节)"
+              name="trafficLimit"
+              tooltip="0 表示不限制"
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                min={0}
+                placeholder="0 表示不限制"
+              />
+            </Form.Item>
+
+            <Divider>卡密换绑扣时</Divider>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              仅当终端通过三方接口 <strong>POST /api/v1/card/rebind</strong> 换绑设备时，若该卡密<strong>原先已有设备绑定</strong>，才按此处规则从<strong>到期时间</strong>扣减；管理员在后台「解绑设备 / 解绑 IP」<strong>不扣时</strong>。无到期时间（永久）的卡密不扣时。默认不扣。
+            </Text>
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="扣时模式" name="unbindTimeDeductMode">
                   <Select
                     options={[
-                      { label: '仅代理自己创建数据', value: 'OWN_ONLY' },
-                      { label: '应用内全部数据', value: 'ALL_IN_APP' },
+                      { value: 'NONE', label: '不扣' },
+                      { value: 'PERCENT', label: '按剩余时长百分比' },
+                      { value: 'HOURS', label: '固定扣除小时' },
                     ]}
                   />
                 </Form.Item>
-                <Form.Item name="enabled" label="启用状态" valuePropName="checked">
-                  <Switch />
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.unbindTimeDeductMode !== cur.unbindTimeDeductMode}>
+                  {() => {
+                    const mode = form.getFieldValue('unbindTimeDeductMode') as string | undefined;
+                    if (!mode || mode === 'NONE') {
+                      return null;
+                    }
+                    return (
+                      <Form.Item
+                        label={mode === 'PERCENT' ? '扣除比例 (%)' : '扣除小时数'}
+                        name="unbindTimeDeductValue"
+                        rules={[
+                          { required: true, message: '请填写数值' },
+                          {
+                            type: 'number',
+                            min: mode === 'PERCENT' ? 0 : 0,
+                            max: mode === 'PERCENT' ? 100 : undefined,
+                            message:
+                              mode === 'PERCENT' ? '百分比需在 0～100 之间' : '须为非负数',
+                          },
+                        ]}
+                        extra={
+                          mode === 'PERCENT'
+                            ? '例如 10 表示每次三方换绑扣掉「当前剩余有效期」的 10%'
+                            : '支持小数，例如 2.5 表示每次三方换绑扣 2.5 小时'
+                        }
+                      >
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          max={mode === 'PERCENT' ? 100 : undefined}
+                          step={mode === 'PERCENT' ? 1 : 0.5}
+                        />
+                      </Form.Item>
+                    );
+                  }}
                 </Form.Item>
-                <Form.Item name="permissions" label="代理权限">
-                  <Select mode="multiple" options={AGENT_PERMISSION_OPTIONS} />
-                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
                 <Form.Item
-                  name="quotaText"
-                  label="额度配置"
-                  extra="每行一个：KEY_TYPE:数量，如 MONTH:100"
+                  label="解绑冷却时间(小时)"
+                  name="unbindCooldownHours"
+                  tooltip="0 表示不限制；仅影响三方卡密换绑接口"
+                  rules={[{ type: 'number', min: 0, message: '不能小于 0' }]}
                 >
-                  <TextArea placeholder={'DAY:50\nMONTH:100\nYEAR:10'} autoSize={{ minRows: 4, maxRows: 8 }} />
+                  <InputNumber style={{ width: '100%' }} min={0} step={1} placeholder="0 表示不限制" />
                 </Form.Item>
-                <Form.Item name="remark" label="备注">
-                  <TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+              </Col>
+            </Row>
+
+            <Divider>版本信息（可选）</Divider>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="当前版本" name="currentVersion">
+                  <Input placeholder="如：1.0.0" />
                 </Form.Item>
-                <Space>
-                  <Button type="primary" loading={agentSaving} onClick={() => void submitAgentForm()}>
-                    保存
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="最低支持版本" name="minVersion">
+                  <Input placeholder="如：1.0.0" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="应用公告" name="notice">
+              <TextArea
+                placeholder="请输入应用公告"
+                autoSize={{ minRows: 4, maxRows: 15 }}
+              />
+            </Form.Item>
+
+            <Form.Item label="更新公告" name="updateNotice">
+              <TextArea
+                placeholder="请输入更新公告，描述最新版本的更新内容"
+                autoSize={{ minRows: 4, maxRows: 15 }}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="更新包"
+              tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
+            >
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <Upload
+                  maxCount={1}
+                  showUploadList={false}
+                  disabled={!editingApp || updatePackageUploading}
+                  beforeUpload={(file) => {
+                    if (!editingApp) {
+                      message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
+                      return Upload.LIST_IGNORE;
+                    }
+                    void handleUploadUpdatePackage(file as File);
+                    return false;
+                  }}
+                >
+                  <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
+                    上传到 MinIO
                   </Button>
-                  <Button
-                    onClick={() => {
-                      setEditingAgent(null);
-                      setBindGithubId('');
-                      setBindUser(null);
-                      agentForm.resetFields();
-                    }}
-                  >
-                    重置
+                </Upload>
+                {editingApp?.updateFileStorageKey ? (
+                  <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
+                    当前对象键：{editingApp.updateFileStorageKey}
+                  </Text>
+                ) : editingApp ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    尚未上传更新包
+                  </Text>
+                ) : null}
+              </Space>
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingApp ? '编辑应用' : '创建应用'}
+          open={modalVisible}
+          onOk={handleSubmit}
+          onCancel={() => setModalVisible(false)}
+          width={700}
+          okText="确定"
+          cancelText="取消"
+          className="app-edit-modal"
+        >
+          <style>{`
+            /* Modal 滚动条样式 */
+            .app-edit-modal .ant-modal-body::-webkit-scrollbar {
+              width: 6px;
+            }
+            .app-edit-modal .ant-modal-body::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb {
+              background-color: #d9d9d9;
+              border-radius: 3px;
+            }
+            .app-edit-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+              background-color: #bfbfbf;
+            }
+
+            /* TextArea 滚动条样式 */
+            .app-edit-modal textarea::-webkit-scrollbar {
+              width: 6px;
+            }
+            .app-edit-modal textarea::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .app-edit-modal textarea::-webkit-scrollbar-thumb {
+              background-color: #d9d9d9;
+              border-radius: 3px;
+            }
+            .app-edit-modal textarea::-webkit-scrollbar-thumb:hover {
+              background-color: #bfbfbf;
+            }
+          `}</style>
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              businessModel: 1,
+              status: 1,
+              trafficLimit: 0,
+              unbindTimeDeductMode: 'NONE',
+              unbindCooldownHours: 0,
+            }}
+          >
+            <Form.Item
+              label="应用名称"
+              name="appName"
+              rules={[
+                { required: true, message: '请输入应用名称' },
+                { max: 100, message: '应用名称不能超过100个字符' },
+              ]}
+            >
+              <Input placeholder="请输入应用名称" />
+            </Form.Item>
+
+            <Form.Item
+              label="应用描述"
+              name="description"
+              rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+            >
+              <TextArea
+                placeholder="请输入应用描述"
+                autoSize={{ minRows: 3, maxRows: 10 }}
+              />
+            </Form.Item>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="应用分类"
+                  name="category"
+                  rules={[{ max: 50, message: '分类不能超过50个字符' }]}
+                >
+                  <Input placeholder="如：游戏、工具等" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="标签"
+                  name="tags"
+                  rules={[{ max: 255, message: '标签不能超过255个字符' }]}
+                >
+                  <Input placeholder="多个标签用逗号分隔" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="业务模式"
+                  name="businessModel"
+                  rules={[{ required: true, message: '请选择业务模式' }]}
+                >
+                  <Select>
+                    <Select.Option value={1}>付费</Select.Option>
+                    <Select.Option value={2}>免费</Select.Option>
+                    <Select.Option value={3}>试用+付费</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="状态" name="status">
+                  <Select>
+                    <Select.Option value={1}>正常</Select.Option>
+                    <Select.Option value={2}>维护</Select.Option>
+                    <Select.Option value={3}>停用</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              label="流量限制 (字节)"
+              name="trafficLimit"
+              tooltip="0 表示不限制"
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                min={0}
+                placeholder="0 表示不限制"
+              />
+            </Form.Item>
+
+            <Divider>卡密换绑扣时</Divider>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              仅当终端通过三方接口 <strong>POST /api/v1/card/rebind</strong> 换绑设备时，若该卡密<strong>原先已有设备绑定</strong>，才按此处规则从<strong>到期时间</strong>扣减；管理员在后台「解绑设备 / 解绑 IP」<strong>不扣时</strong>。无到期时间（永久）的卡密不扣时。默认不扣。
+            </Text>
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="扣时模式" name="unbindTimeDeductMode">
+                  <Select
+                    options={[
+                      { value: 'NONE', label: '不扣' },
+                      { value: 'PERCENT', label: '按剩余时长百分比' },
+                      { value: 'HOURS', label: '固定扣除小时' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.unbindTimeDeductMode !== cur.unbindTimeDeductMode}>
+                  {() => {
+                    const mode = form.getFieldValue('unbindTimeDeductMode') as string | undefined;
+                    if (!mode || mode === 'NONE') {
+                      return null;
+                    }
+                    return (
+                      <Form.Item
+                        label={mode === 'PERCENT' ? '扣除比例 (%)' : '扣除小时数'}
+                        name="unbindTimeDeductValue"
+                        rules={[
+                          { required: true, message: '请填写数值' },
+                          {
+                            type: 'number',
+                            min: mode === 'PERCENT' ? 0 : 0,
+                            max: mode === 'PERCENT' ? 100 : undefined,
+                            message:
+                              mode === 'PERCENT' ? '百分比需在 0～100 之间' : '须为非负数',
+                          },
+                        ]}
+                        extra={
+                          mode === 'PERCENT'
+                            ? '例如 10 表示每次三方换绑扣掉「当前剩余有效期」的 10%'
+                            : '支持小数，例如 2.5 表示每次三方换绑扣 2.5 小时'
+                        }
+                      >
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          max={mode === 'PERCENT' ? 100 : undefined}
+                          step={mode === 'PERCENT' ? 1 : 0.5}
+                        />
+                      </Form.Item>
+                    );
+                  }}
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="解绑冷却时间(小时)"
+                  name="unbindCooldownHours"
+                  tooltip="0 表示不限制；仅影响三方卡密换绑接口"
+                  rules={[{ type: 'number', min: 0, message: '不能小于 0' }]}
+                >
+                  <InputNumber style={{ width: '100%' }} min={0} step={1} placeholder="0 表示不限制" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider>版本信息（可选）</Divider>
+
+            <Row gutter={isMobile ? [8, 0] : 16}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="当前版本" name="currentVersion">
+                  <Input placeholder="如：1.0.0" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="最低支持版本" name="minVersion">
+                  <Input placeholder="如：1.0.0" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="应用公告" name="notice">
+              <TextArea
+                placeholder="请输入应用公告"
+                autoSize={{ minRows: 4, maxRows: 15 }}
+              />
+            </Form.Item>
+
+            <Form.Item label="更新公告" name="updateNotice">
+              <TextArea
+                placeholder="请输入更新公告，描述最新版本的更新内容"
+                autoSize={{ minRows: 4, maxRows: 15 }}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="更新包"
+              tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
+            >
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <Upload
+                  maxCount={1}
+                  showUploadList={false}
+                  disabled={!editingApp || updatePackageUploading}
+                  beforeUpload={(file) => {
+                    if (!editingApp) {
+                      message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
+                      return Upload.LIST_IGNORE;
+                    }
+                    void handleUploadUpdatePackage(file as File);
+                    return false;
+                  }}
+                >
+                  <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
+                    上传到 MinIO
+                  </Button>
+                </Upload>
+                {editingApp?.updateFileStorageKey ? (
+                  <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
+                    当前对象键：{editingApp.updateFileStorageKey}
+                  </Text>
+                ) : editingApp ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    尚未上传更新包
+                  </Text>
+                ) : null}
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={encryptionModalVisible}
+          onClose={() => {
+            setEncryptionModalVisible(false);
+            setEncryptionApp(null);
+            setTemplateMismatch(false);
+          }}
+          title="加密配置"
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => {
+                setEncryptionModalVisible(false);
+                setEncryptionApp(null);
+                setTemplateMismatch(false);
+              }}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} disabled={!!encryptionJsonError || encryptionLoading || encryptionSaving} loading={encryptionSaving} onClick={() => void handleSaveEncryptionConfig()}>确定</Button>
+            </>
+          }
+        >
+          {/* 加密方式选择 */}
+          {encryptionPlugins.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Text style={{ marginRight: 8 }}>加密方式：</Text>
+              <Select
+                value={selectedPluginId}
+                onChange={handlePluginChange}
+                style={{ width: 280 }}
+                options={encryptionPlugins.map(p => ({
+                  label: p.pluginName || p.pluginId,
+                  value: p.pluginId,
+                }))}
+              />
+            </div>
+          )}
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
+            （JSON 对象）。当前加密插件为{' '}
+            <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>
+              {encryptionPlugins.find(p => p.pluginId === selectedPluginId)?.pluginName || selectedPluginId || 'aes-default'}
+            </Tag>
+            ，请按模板配置对应参数。点击右上角「模板检测」可校验配置是否与插件模板一致。
+          </Text>
+          <div
+            style={{
+              border: `1px solid ${encryptionJsonError || templateMismatch ? '#ff4d4f' : '#d9d9d9'}`,
+              borderRadius: 8,
+              overflow: 'hidden',
+            }}
+          >
+            <CodeMirror
+              value={encryptionConfigJson}
+              height="340px"
+              extensions={[json()]}
+              editable={!encryptionLoading}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+              onChange={(value: string) => {
+                setEncryptionConfigJson(value);
+                checkTemplateMismatch(encryptionTemplateKeys);
+              }}
+            />
+          </div>
+          {encryptionJsonError ? (
+            <Text type="danger" style={{ display: 'block', marginTop: 8 }}>
+              {encryptionJsonError}
+            </Text>
+          ) : templateMismatch ? (
+            <Alert
+              type="error"
+              showIcon
+              icon={<WarningOutlined />}
+              style={{ marginTop: 8 }}
+              message="加密配置与当前插件模板不匹配"
+              description={
+                <Space>
+                  <span>配置的 key 与插件模板不一致，点击右侧使用新模板。</span>
+                  <Button size="small" type="primary" onClick={handleApplyTemplate}>
+                    使用新模板
                   </Button>
                 </Space>
-              </Form>
-            </Card>
-          </Col>
-        </Row>
-      </Modal>
+              }
+            />
+          ) : (
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              JSON 校验通过{encryptionTemplateKeys && encryptionTemplateKeys.length > 0 ? '，模板匹配' : ''}
+            </Text>
+          )}
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={
+            encryptionApp ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Space>
+                  <SlidersOutlined />
+                  <span>加密配置</span>
+                  <Text type="secondary" style={{ fontSize: 14, fontWeight: 'normal' }}>
+                    {encryptionApp.appName} (ID: {encryptionApp.id})
+                  </Text>
+                </Space>
+                <Button
+                  size="small"
+                  icon={<SyncOutlined />}
+                  onClick={handleTemplateCheck}
+                >
+                  模板检测
+                </Button>
+              </div>
+            ) : (
+              '加密配置'
+            )
+          }
+          open={encryptionModalVisible}
+          onCancel={() => {
+            setEncryptionModalVisible(false);
+            setEncryptionApp(null);
+            setTemplateMismatch(false);
+          }}
+          width={720}
+          okText="保存"
+          cancelText="取消"
+          confirmLoading={encryptionSaving}
+          okButtonProps={{ disabled: !!encryptionJsonError || encryptionLoading }}
+          onOk={() => void handleSaveEncryptionConfig()}
+          destroyOnHidden
+        >
+          {/* 加密方式选择 */}
+          {encryptionPlugins.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Text style={{ marginRight: 8 }}>加密方式：</Text>
+              <Select
+                value={selectedPluginId}
+                onChange={handlePluginChange}
+                style={{ width: 280 }}
+                options={encryptionPlugins.map(p => ({
+                  label: p.pluginName || p.pluginId,
+                  value: p.pluginId,
+                }))}
+              />
+            </div>
+          )}
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            此处为当前应用的 <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>encryptionConfig</Tag>
+            （JSON 对象）。当前加密插件为{' '}
+            <Tag style={{ marginInline: '0 6px', fontFamily: 'Consolas, Monaco, monospace' }}>
+              {encryptionPlugins.find(p => p.pluginId === selectedPluginId)?.pluginName || selectedPluginId || 'aes-default'}
+            </Tag>
+            ，请按模板配置对应参数。点击右上角「模板检测」可校验配置是否与插件模板一致。
+          </Text>
+          <div
+            style={{
+              border: `1px solid ${encryptionJsonError || templateMismatch ? '#ff4d4f' : '#d9d9d9'}`,
+              borderRadius: 8,
+              overflow: 'hidden',
+            }}
+          >
+            <CodeMirror
+              value={encryptionConfigJson}
+              height="340px"
+              extensions={[json()]}
+              editable={!encryptionLoading}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLine: true,
+                foldGutter: true,
+              }}
+              onChange={(value: string) => {
+                setEncryptionConfigJson(value);
+                checkTemplateMismatch(encryptionTemplateKeys);
+              }}
+            />
+          </div>
+          {encryptionJsonError ? (
+            <Text type="danger" style={{ display: 'block', marginTop: 8 }}>
+              {encryptionJsonError}
+            </Text>
+          ) : templateMismatch ? (
+            <Alert
+              type="error"
+              showIcon
+              icon={<WarningOutlined />}
+              style={{ marginTop: 8 }}
+              message="加密配置与当前插件模板不匹配"
+              description={
+                <Space>
+                  <span>配置的 key 与插件模板不一致，点击右侧使用新模板。</span>
+                  <Button size="small" type="primary" onClick={handleApplyTemplate}>
+                    使用新模板
+                  </Button>
+                </Space>
+              }
+            />
+          ) : (
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              JSON 校验通过{encryptionTemplateKeys && encryptionTemplateKeys.length > 0 ? '，模板匹配' : ''}
+            </Text>
+          )}
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={agentModalVisible}
+          onClose={() => {
+            setAgentModalVisible(false);
+            setAgentApp(null);
+            setEditingAgent(null);
+            setBindGithubId('');
+            setBindUser(null);
+            agentForm.resetFields();
+          }}
+          title={agentApp ? `代理配置 - ${agentApp.appName} (ID: ${agentApp.id})` : '代理配置'}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => {
+                setAgentModalVisible(false);
+                setAgentApp(null);
+                setEditingAgent(null);
+                setBindGithubId('');
+                setBindUser(null);
+                agentForm.resetFields();
+              }}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} loading={agentSaving} onClick={() => void submitAgentForm()}>确定</Button>
+            </>
+          }
+        >
+          <Row gutter={isMobile ? [0, 16] : 16}>
+            <Col xs={24} sm={14}>
+              <Table
+                size="small"
+                rowKey="id"
+                loading={agentLoading}
+                dataSource={agentList}
+                pagination={false}
+                scroll={isMobile ? { x: 400 } : undefined}
+                columns={[
+                  { title: '代理名', dataIndex: 'agentCode', key: 'agentCode' },
+                  {
+                    title: '绑定用户',
+                    key: 'userId',
+                    render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
+                  },
+                  { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
+                  { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
+                  {
+                    title: '操作',
+                    key: 'action',
+                    render: (_: any, r: AppAgentDTO) => (
+                      <Button type="link" size="small" onClick={() => onEditAgent(r)}>
+                        编辑
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            </Col>
+            <Col xs={24} sm={10}>
+              <Card size="small" title={editingAgent ? '编辑代理' : '新建代理'}>
+                <Form
+                  form={agentForm}
+                  layout="vertical"
+                  initialValues={{ scopeMode: 'OWN_ONLY', enabled: true, permissions: [] }}
+                >
+                  <Form.Item name="agentCode" label="代理名称" rules={[{ required: true, message: '请输入代理名称' }]}>
+                    <Input placeholder="例如 华东渠道A" />
+                  </Form.Item>
+                  <Form.Item label="绑定后台用户" required>
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        value={bindGithubId}
+                        onChange={(e) => setBindGithubId(e.target.value)}
+                        placeholder="输入对方 GitHub ID"
+                      />
+                      <Button loading={bindLookupLoading} onClick={() => void handleLookupBindUser()}>
+                        查询
+                      </Button>
+                    </Space.Compact>
+                    <Form.Item name="userId" hidden rules={[{ required: true, message: '请先查询并选择用户' }]}>
+                      <Input />
+                    </Form.Item>
+                    <div style={{ marginTop: 8 }}>
+                      {bindUser ? (
+                        <Text type="success">
+                          已匹配用户：{bindUser.name || bindUser.login || '-'}（ID: {bindUser.id}）
+                        </Text>
+                      ) : (
+                        <Text type="secondary">未选择用户</Text>
+                      )}
+                    </div>
+                  </Form.Item>
+                  <Form.Item name="scopeMode" label="数据范围">
+                    <Select
+                      options={[
+                        { label: '仅代理自己创建数据', value: 'OWN_ONLY' },
+                        { label: '应用内全部数据', value: 'ALL_IN_APP' },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item name="permissions" label="代理权限">
+                    <Select mode="multiple" options={AGENT_PERMISSION_OPTIONS} />
+                  </Form.Item>
+                  <Form.Item
+                    name="quotaText"
+                    label="额度配置"
+                    extra="每行一个：KEY_TYPE:数量，如 MONTH:100"
+                  >
+                    <TextArea placeholder={'DAY:50\nMONTH:100\nYEAR:10'} autoSize={{ minRows: 4, maxRows: 8 }} />
+                  </Form.Item>
+                  <Form.Item name="remark" label="备注">
+                    <TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+                  </Form.Item>
+                  <Space>
+                    <Button type="primary" loading={agentSaving} onClick={() => void submitAgentForm()}>
+                      保存
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setEditingAgent(null);
+                        setBindGithubId('');
+                        setBindUser(null);
+                        agentForm.resetFields();
+                      }}
+                    >
+                      重置
+                    </Button>
+                  </Space>
+                </Form>
+              </Card>
+            </Col>
+          </Row>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={agentApp ? `代理配置 - ${agentApp.appName} (ID: ${agentApp.id})` : '代理配置'}
+          open={agentModalVisible}
+          onCancel={() => {
+            setAgentModalVisible(false);
+            setAgentApp(null);
+            setEditingAgent(null);
+            setBindGithubId('');
+            setBindUser(null);
+            agentForm.resetFields();
+          }}
+          width={960}
+          footer={null}
+          destroyOnHidden
+        >
+          <Row gutter={isMobile ? [0, 16] : 16}>
+            <Col xs={24} sm={14}>
+              <Table
+                size="small"
+                rowKey="id"
+                loading={agentLoading}
+                dataSource={agentList}
+                pagination={false}
+                scroll={isMobile ? { x: 400 } : undefined}
+                columns={[
+                  { title: '代理名', dataIndex: 'agentCode', key: 'agentCode' },
+                  {
+                    title: '绑定用户',
+                    key: 'userId',
+                    render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
+                  },
+                  { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
+                  { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
+                  {
+                    title: '操作',
+                    key: 'action',
+                    render: (_: any, r: AppAgentDTO) => (
+                      <Button type="link" size="small" onClick={() => onEditAgent(r)}>
+                        编辑
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            </Col>
+            <Col xs={24} sm={10}>
+              <Card size="small" title={editingAgent ? '编辑代理' : '新建代理'}>
+                <Form
+                  form={agentForm}
+                  layout="vertical"
+                  initialValues={{ scopeMode: 'OWN_ONLY', enabled: true, permissions: [] }}
+                >
+                  <Form.Item name="agentCode" label="代理名称" rules={[{ required: true, message: '请输入代理名称' }]}>
+                    <Input placeholder="例如 华东渠道A" />
+                  </Form.Item>
+                  <Form.Item label="绑定后台用户" required>
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        value={bindGithubId}
+                        onChange={(e) => setBindGithubId(e.target.value)}
+                        placeholder="输入对方 GitHub ID"
+                      />
+                      <Button loading={bindLookupLoading} onClick={() => void handleLookupBindUser()}>
+                        查询
+                      </Button>
+                    </Space.Compact>
+                    <Form.Item name="userId" hidden rules={[{ required: true, message: '请先查询并选择用户' }]}>
+                      <Input />
+                    </Form.Item>
+                    <div style={{ marginTop: 8 }}>
+                      {bindUser ? (
+                        <Text type="success">
+                          已匹配用户：{bindUser.name || bindUser.login || '-'}（ID: {bindUser.id}）
+                        </Text>
+                      ) : (
+                        <Text type="secondary">未选择用户</Text>
+                      )}
+                    </div>
+                  </Form.Item>
+                  <Form.Item name="scopeMode" label="数据范围">
+                    <Select
+                      options={[
+                        { label: '仅代理自己创建数据', value: 'OWN_ONLY' },
+                        { label: '应用内全部数据', value: 'ALL_IN_APP' },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item name="permissions" label="代理权限">
+                    <Select mode="multiple" options={AGENT_PERMISSION_OPTIONS} />
+                  </Form.Item>
+                  <Form.Item
+                    name="quotaText"
+                    label="额度配置"
+                    extra="每行一个：KEY_TYPE:数量，如 MONTH:100"
+                  >
+                    <TextArea placeholder={'DAY:50\nMONTH:100\nYEAR:10'} autoSize={{ minRows: 4, maxRows: 8 }} />
+                  </Form.Item>
+                  <Form.Item name="remark" label="备注">
+                    <TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+                  </Form.Item>
+                  <Space>
+                    <Button type="primary" loading={agentSaving} onClick={() => void submitAgentForm()}>
+                      保存
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setEditingAgent(null);
+                        setBindGithubId('');
+                        setBindUser(null);
+                        agentForm.resetFields();
+                      }}
+                    >
+                      重置
+                    </Button>
+                  </Space>
+                </Form>
+              </Card>
+            </Col>
+          </Row>
+        </Modal>
+      )}
 
       {/* 价格方案弹窗 */}
-      <Modal
-        title={`价格方案 - ${pricingApp?.appName || ''}`}
-        open={pricingModalVisible}
-        onCancel={() => { setPricingModalVisible(false); setEditingPricing(null); pricingForm.resetFields(); }}
-        footer={null}
-        width={isMobile ? '100%' : 700}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingPricing(null); setShowPricingForm(true); pricingForm.resetFields(); }}>
-            新增方案
-          </Button>
-        </div>
-        <Table
-          dataSource={pricingList}
-          rowKey="id"
-          loading={pricingLoading}
-          pagination={false}
-          size="small"
-          columns={[
-            { title: '方案名称', dataIndex: 'planName', key: 'planName' },
-            { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
-            { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
-            { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
-            { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
-            { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
-            {
-              title: '操作', key: 'action',
-              render: (_: any, record: any) => (
-                <Space>
-                  <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
-                  <Button size="small" danger onClick={() => {
-                    Modal.confirm({
-                      title: '确认删除', content: `确定删除方案「${record.planName}」？`,
-                      onOk: async () => {
-                        await pricingPlanApi.delete(pricingApp!.id, record.id);
-                        message.success('删除成功');
-                        loadPricingPlans(pricingApp!.id);
-                      },
-                    });
-                  }}>删除</Button>
-                </Space>
-              ),
-            },
-          ]}
-        />
-        {showPricingForm ? (
-          <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
-            <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
-              try {
-                if (editingPricing) {
-                  await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);
-                  message.success('更新成功');
-                } else {
-                  await pricingPlanApi.create(pricingApp!.id, values);
-                  message.success('创建成功');
+      {isMobile ? (
+        <M5BottomSheet
+          open={pricingModalVisible}
+          onClose={() => { setPricingModalVisible(false); setEditingPricing(null); pricingForm.resetFields(); }}
+          title={`价格方案 - ${pricingApp?.appName || ''}`}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { setPricingModalVisible(false); setEditingPricing(null); pricingForm.resetFields(); }}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => pricingForm.submit()}>确定</Button>
+            </>
+          }
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingPricing(null); setShowPricingForm(true); pricingForm.resetFields(); }}>
+              新增方案
+            </Button>
+          </div>
+          <Table
+            dataSource={pricingList}
+            rowKey="id"
+            loading={pricingLoading}
+            pagination={false}
+            size="small"
+            columns={[
+              { title: '方案名称', dataIndex: 'planName', key: 'planName' },
+              { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
+              { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
+              { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
+              { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
+              {
+                title: '操作', key: 'action',
+                render: (_: any, record: any) => (
+                  <Space>
+                    <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
+                    <Button size="small" danger onClick={() => {
+                      Modal.confirm({
+                        title: '确认删除', content: `确定删除方案「${record.planName}」？`,
+                        onOk: async () => {
+                          await pricingPlanApi.delete(pricingApp!.id, record.id);
+                          message.success('删除成功');
+                          loadPricingPlans(pricingApp!.id);
+                        },
+                      });
+                    }}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+          {showPricingForm ? (
+            <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
+              <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
+                try {
+                  if (editingPricing) {
+                    await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);
+                    message.success('更新成功');
+                  } else {
+                    await pricingPlanApi.create(pricingApp!.id, values);
+                    message.success('创建成功');
+                  }
+                  setEditingPricing(null);
+                  setShowPricingForm(false);
+                  pricingForm.resetFields();
+                  loadPricingPlans(pricingApp!.id);
+                } catch {
+                  // handled
                 }
-                setEditingPricing(null);
-                setShowPricingForm(false);
-                pricingForm.resetFields();
-                loadPricingPlans(pricingApp!.id);
-              } catch {
-                // handled
-              }
-            }}>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item name="planName" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
-                    <Input placeholder="如：月度会员" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="planType" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
-                    <Select placeholder="选择类型" options={[{ value: 'MEMBER', label: '会员' }, { value: 'TRIAL', label: '试用' }]} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="durationDays" label="时长(天)" rules={[{ required: true, message: '请输入天数' }]}>
-                    <InputNumber min={1} style={{ width: '100%' }} placeholder="30" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
-                    <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="sortOrder" label="排序" initialValue={0}>
-                    <InputNumber min={0} style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="enabled" label="状态" initialValue={true}>
-                    <Select options={[{ value: true, label: '启用' }, { value: false, label: '禁用' }]} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>
-                  <Button onClick={() => { setEditingPricing(null); setShowPricingForm(false); pricingForm.resetFields(); }}>取消</Button>
-                </Space>
-              </Form.Item>
-            </Form>
-          </Card>
-        ) : null}
-      </Modal>
+              }}>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item name="planName" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
+                      <Input placeholder="如：月度会员" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="planType" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
+                      <Select placeholder="选择类型" options={[{ value: 'MEMBER', label: '会员' }, { value: 'TRIAL', label: '试用' }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="durationDays" label="时长(天)" rules={[{ required: true, message: '请输入天数' }]}>
+                      <InputNumber min={1} style={{ width: '100%' }} placeholder="30" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
+                      <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="sortOrder" label="排序" initialValue={0}>
+                      <InputNumber min={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="enabled" label="状态" initialValue={true}>
+                      <Select options={[{ value: true, label: '启用' }, { value: false, label: '禁用' }]} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item>
+                  <Space>
+                    <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>
+                    <Button onClick={() => { setEditingPricing(null); setShowPricingForm(false); pricingForm.resetFields(); }}>取消</Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </Card>
+          ) : null}
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`价格方案 - ${pricingApp?.appName || ''}`}
+          open={pricingModalVisible}
+          onCancel={() => { setPricingModalVisible(false); setEditingPricing(null); pricingForm.resetFields(); }}
+          footer={null}
+          width={700}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingPricing(null); setShowPricingForm(true); pricingForm.resetFields(); }}>
+              新增方案
+            </Button>
+          </div>
+          <Table
+            dataSource={pricingList}
+            rowKey="id"
+            loading={pricingLoading}
+            pagination={false}
+            size="small"
+            columns={[
+              { title: '方案名称', dataIndex: 'planName', key: 'planName' },
+              { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
+              { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
+              { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
+              { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
+              {
+                title: '操作', key: 'action',
+                render: (_: any, record: any) => (
+                  <Space>
+                    <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
+                    <Button size="small" danger onClick={() => {
+                      Modal.confirm({
+                        title: '确认删除', content: `确定删除方案「${record.planName}」？`,
+                        onOk: async () => {
+                          await pricingPlanApi.delete(pricingApp!.id, record.id);
+                          message.success('删除成功');
+                          loadPricingPlans(pricingApp!.id);
+                        },
+                      });
+                    }}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+          {showPricingForm ? (
+            <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
+              <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
+                try {
+                  if (editingPricing) {
+                    await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);
+                    message.success('更新成功');
+                  } else {
+                    await pricingPlanApi.create(pricingApp!.id, values);
+                    message.success('创建成功');
+                  }
+                  setEditingPricing(null);
+                  setShowPricingForm(false);
+                  pricingForm.resetFields();
+                  loadPricingPlans(pricingApp!.id);
+                } catch {
+                  // handled
+                }
+              }}>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item name="planName" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
+                      <Input placeholder="如：月度会员" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="planType" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
+                      <Select placeholder="选择类型" options={[{ value: 'MEMBER', label: '会员' }, { value: 'TRIAL', label: '试用' }]} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="durationDays" label="时长(天)" rules={[{ required: true, message: '请输入天数' }]}>
+                      <InputNumber min={1} style={{ width: '100%' }} placeholder="30" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
+                      <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="sortOrder" label="排序" initialValue={0}>
+                      <InputNumber min={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="enabled" label="状态" initialValue={true}>
+                      <Select options={[{ value: true, label: '启用' }, { value: false, label: '禁用' }]} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item>
+                  <Space>
+                    <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>
+                    <Button onClick={() => { setEditingPricing(null); setShowPricingForm(false); pricingForm.resetFields(); }}>取消</Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </Card>
+          ) : null}
+        </Modal>
+      )}
 
       {/* 支付配置弹窗 */}
-      <Modal
-        title={`支付配置 - ${paymentApp?.appName || ''}`}
-        open={paymentModalVisible}
-        onCancel={() => { setPaymentModalVisible(false); setPaymentConfig(null); }}
-        footer={null}
-        width={isMobile ? '100%' : 600}
-      >
-        {paymentConfig && (
-          <div>
-            <div style={{ marginBottom: 16, padding: 12, background: '#fff7e6', borderRadius: 8, border: '1px solid #ffd591' }}>
-              <Text type="warning">
-                配置易支付参数后，超级管理员可以在应用管理中开启终端用户购买功能。
-                回调地址使用系统统一回调，无需手动填写。
-              </Text>
-            </div>
-            <Form layout="vertical">
-              <Form.Item label="易支付域名" required>
-                <Input
-                  value={paymentConfig.epayUrl}
-                  onChange={(e) => setPaymentConfig({ ...paymentConfig, epayUrl: e.target.value })}
-                  placeholder="https://pay.example.com"
-                />
-              </Form.Item>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="商户ID" required>
-                    <Input
-                      value={paymentConfig.epayPid}
-                      onChange={(e) => setPaymentConfig({ ...paymentConfig, epayPid: e.target.value })}
-                      placeholder="商户ID"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="密钥" required>
-                    <Input.Password
-                      value={paymentConfig.epayKey}
-                      onChange={(e) => setPaymentConfig({ ...paymentConfig, epayKey: e.target.value })}
-                      placeholder="商户密钥"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item>
-                <Space>
-                  <Button
-                    type="primary"
-                    loading={paymentSaving}
-                    onClick={async () => {
-                      if (!paymentConfig.epayUrl || !paymentConfig.epayPid || !paymentConfig.epayKey) {
-                        message.error('请填写必填项');
-                        return;
-                      }
-                      setPaymentSaving(true);
-                      try {
-                        await applicationEpayConfigApi.saveConfig(paymentApp!.id, paymentConfig);
-                        message.success('保存成功');
-                        setPaymentModalVisible(false);
-                      } catch {
-                        // handled by interceptor
-                      } finally {
-                        setPaymentSaving(false);
-                      }
-                    }}
-                  >
-                    保存配置
-                  </Button>
-                  {paymentApp && (
-                    isSuperAdmin ? (
-                      <Switch
-                        checkedChildren="开启购买"
-                        unCheckedChildren="关闭购买"
-                        checked={paymentApp.portalPaymentEnabled}
-                        onChange={async (checked) => {
-                          try {
-                            await applicationEpayConfigApi.togglePayment(paymentApp.id, checked);
-                            message.success(checked ? '已开启购买功能' : '已关闭购买功能');
-                            setPaymentApp({ ...paymentApp, portalPaymentEnabled: checked });
-                            fetchApplications();
-                          } catch {
-                            // handled by interceptor
-                          }
-                        }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={paymentModalVisible}
+          onClose={() => { setPaymentModalVisible(false); setPaymentConfig(null); }}
+          title={`支付配置 - ${paymentApp?.appName || ''}`}
+          footer={
+            <>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { setPaymentModalVisible(false); setPaymentConfig(null); }}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={async () => {
+                if (!paymentConfig?.epayUrl || !paymentConfig?.epayPid || !paymentConfig?.epayKey) {
+                  message.error('请填写必填项');
+                  return;
+                }
+                setPaymentSaving(true);
+                try {
+                  await applicationEpayConfigApi.saveConfig(paymentApp!.id, paymentConfig);
+                  message.success('保存成功');
+                  setPaymentModalVisible(false);
+                } catch {
+                  // handled by interceptor
+                } finally {
+                  setPaymentSaving(false);
+                }
+              }}>确定</Button>
+            </>
+          }
+        >
+          {paymentConfig && (
+            <div>
+              <div style={{ marginBottom: 16, padding: 12, background: '#fff7e6', borderRadius: 8, border: '1px solid #ffd591' }}>
+                <Text type="warning">
+                  配置易支付参数后，超级管理员可以在应用管理中开启终端用户购买功能。
+                  回调地址使用系统统一回调，无需手动填写。
+                </Text>
+              </div>
+              <Form layout="vertical">
+                <Form.Item label="易支付域名" required>
+                  <Input
+                    value={paymentConfig.epayUrl}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, epayUrl: e.target.value })}
+                    placeholder="https://pay.example.com"
+                  />
+                </Form.Item>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="商户ID" required>
+                      <Input
+                        value={paymentConfig.epayPid}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, epayPid: e.target.value })}
+                        placeholder="商户ID"
                       />
-                    ) : (
-                      <Tag color={paymentApp.portalPaymentEnabled ? 'success' : 'default'}>
-                        {paymentApp.portalPaymentEnabled ? '购买已开启' : '购买未开启'}
-                      </Tag>
-                    )
-                  )}
-                </Space>
-              </Form.Item>
-            </Form>
-          </div>
-        )}
-      </Modal>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="密钥" required>
+                      <Input.Password
+                        value={paymentConfig.epayKey}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, epayKey: e.target.value })}
+                        placeholder="商户密钥"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item>
+                  <Space>
+                    <Button
+                      type="primary"
+                      loading={paymentSaving}
+                      onClick={async () => {
+                        if (!paymentConfig.epayUrl || !paymentConfig.epayPid || !paymentConfig.epayKey) {
+                          message.error('请填写必填项');
+                          return;
+                        }
+                        setPaymentSaving(true);
+                        try {
+                          await applicationEpayConfigApi.saveConfig(paymentApp!.id, paymentConfig);
+                          message.success('保存成功');
+                          setPaymentModalVisible(false);
+                        } catch {
+                          // handled by interceptor
+                        } finally {
+                          setPaymentSaving(false);
+                        }
+                      }}
+                    >
+                      保存配置
+                    </Button>
+                    {paymentApp && (
+                      isSuperAdmin ? (
+                        <Switch
+                          checkedChildren="开启购买"
+                          unCheckedChildren="关闭购买"
+                          checked={paymentApp.portalPaymentEnabled}
+                          onChange={async (checked) => {
+                            try {
+                              await applicationEpayConfigApi.togglePayment(paymentApp.id, checked);
+                              message.success(checked ? '已开启购买功能' : '已关闭购买功能');
+                              setPaymentApp({ ...paymentApp, portalPaymentEnabled: checked });
+                              fetchApplications();
+                            } catch {
+                              // handled by interceptor
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Tag color={paymentApp.portalPaymentEnabled ? 'success' : 'default'}>
+                          {paymentApp.portalPaymentEnabled ? '购买已开启' : '购买未开启'}
+                        </Tag>
+                      )
+                    )}
+                  </Space>
+                </Form.Item>
+              </Form>
+            </div>
+          )}
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`支付配置 - ${paymentApp?.appName || ''}`}
+          open={paymentModalVisible}
+          onCancel={() => { setPaymentModalVisible(false); setPaymentConfig(null); }}
+          footer={null}
+          width={600}
+        >
+          {paymentConfig && (
+            <div>
+              <div style={{ marginBottom: 16, padding: 12, background: '#fff7e6', borderRadius: 8, border: '1px solid #ffd591' }}>
+                <Text type="warning">
+                  配置易支付参数后，超级管理员可以在应用管理中开启终端用户购买功能。
+                  回调地址使用系统统一回调，无需手动填写。
+                </Text>
+              </div>
+              <Form layout="vertical">
+                <Form.Item label="易支付域名" required>
+                  <Input
+                    value={paymentConfig.epayUrl}
+                    onChange={(e) => setPaymentConfig({ ...paymentConfig, epayUrl: e.target.value })}
+                    placeholder="https://pay.example.com"
+                  />
+                </Form.Item>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="商户ID" required>
+                      <Input
+                        value={paymentConfig.epayPid}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, epayPid: e.target.value })}
+                        placeholder="商户ID"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="密钥" required>
+                      <Input.Password
+                        value={paymentConfig.epayKey}
+                        onChange={(e) => setPaymentConfig({ ...paymentConfig, epayKey: e.target.value })}
+                        placeholder="商户密钥"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item>
+                  <Space>
+                    <Button
+                      type="primary"
+                      loading={paymentSaving}
+                      onClick={async () => {
+                        if (!paymentConfig.epayUrl || !paymentConfig.epayPid || !paymentConfig.epayKey) {
+                          message.error('请填写必填项');
+                          return;
+                        }
+                        setPaymentSaving(true);
+                        try {
+                          await applicationEpayConfigApi.saveConfig(paymentApp!.id, paymentConfig);
+                          message.success('保存成功');
+                          setPaymentModalVisible(false);
+                        } catch {
+                          // handled by interceptor
+                        } finally {
+                          setPaymentSaving(false);
+                        }
+                      }}
+                    >
+                      保存配置
+                    </Button>
+                    {paymentApp && (
+                      isSuperAdmin ? (
+                        <Switch
+                          checkedChildren="开启购买"
+                          unCheckedChildren="关闭购买"
+                          checked={paymentApp.portalPaymentEnabled}
+                          onChange={async (checked) => {
+                            try {
+                              await applicationEpayConfigApi.togglePayment(paymentApp.id, checked);
+                              message.success(checked ? '已开启购买功能' : '已关闭购买功能');
+                              setPaymentApp({ ...paymentApp, portalPaymentEnabled: checked });
+                              fetchApplications();
+                            } catch {
+                              // handled by interceptor
+                            }
+                          }}
+                        />
+                      ) : (
+                        <Tag color={paymentApp.portalPaymentEnabled ? 'success' : 'default'}>
+                          {paymentApp.portalPaymentEnabled ? '购买已开启' : '购买未开启'}
+                        </Tag>
+                      )
+                    )}
+                  </Space>
+                </Form.Item>
+              </Form>
+            </div>
+          )}
+        </Modal>
+      )}
     </Card>
   );
 };

@@ -3,6 +3,7 @@ import { ConfigProvider, Empty } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
+import { ThemeProvider, useTheme } from './theme';
 import '@uiw/react-md-editor/markdown-editor.css';
 import './App.css';
 
@@ -17,14 +18,25 @@ const antdZhCN = {
   },
 };
 
-const App: React.FC = () => {
+const ThemedApp: React.FC = () => {
+  const { themeConfig } = useTheme();
+
   return (
     <ConfigProvider
       locale={antdZhCN}
+      theme={themeConfig}
       renderEmpty={() => <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
     >
       <RouterProvider router={router} />
     </ConfigProvider>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
   );
 };
 

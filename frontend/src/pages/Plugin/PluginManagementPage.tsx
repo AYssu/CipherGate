@@ -17,6 +17,7 @@ import {
   Grid,
 } from 'antd';
 import { ReloadOutlined, UploadOutlined, MoreOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 import type { ColumnsType } from 'antd/es/table';
 import {
   disablePlugin,
@@ -230,7 +231,7 @@ const PluginManagementPage = () => {
                 icon={<ReloadOutlined />}
                 onClick={loadPlugins}
               >
-                刷新
+                {!isMobile && '刷新'}
               </Button>
               <Button
                 type="primary"
@@ -255,98 +256,129 @@ const PluginManagementPage = () => {
         />
       </Card>
 
-      <Modal
-        title="上传插件"
-        open={uploadOpen}
-        onCancel={() => setUploadOpen(false)}
-        onOk={handleSubmitUpload}
-        confirmLoading={uploading}
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item label="插件名称" name="pluginName">
-            <Input placeholder="可选，不填则使用 plugin.id" />
-          </Form.Item>
-          <Form.Item label="备注" name="remark">
-            <Input.TextArea rows={3} placeholder="可选" />
-          </Form.Item>
-          <Form.Item label="Jar 文件" required>
-            <Upload
-              beforeUpload={(file) => {
-                const isJar = file.name.toLowerCase().endsWith('.jar');
-                if (!isJar) {
-                  message.error('只支持 .jar 文件');
-                  return Upload.LIST_IGNORE;
-                }
-                setSelectedFile(file as unknown as File);
-                return false;
-              }}
-              maxCount={1}
-              onRemove={() => {
-                setSelectedFile(null);
-              }}
-            >
-              <Button icon={<UploadOutlined />}>选择 Jar 文件</Button>
-            </Upload>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={uploadOpen}
+          onClose={() => setUploadOpen(false)}
+          title="上传插件"
+          footer={<><Button onClick={() => setUploadOpen(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button><Button type="primary" onClick={handleSubmitUpload} loading={uploading} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button></>}
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item label="插件名称" name="pluginName">
+              <Input placeholder="可选，不填则使用 plugin.id" />
+            </Form.Item>
+            <Form.Item label="备注" name="remark">
+              <Input.TextArea rows={3} placeholder="可选" />
+            </Form.Item>
+            <Form.Item label="Jar 文件" required>
+              <Upload
+                beforeUpload={(file) => {
+                  const isJar = file.name.toLowerCase().endsWith('.jar');
+                  if (!isJar) {
+                    message.error('只支持 .jar 文件');
+                    return Upload.LIST_IGNORE;
+                  }
+                  setSelectedFile(file as unknown as File);
+                  return false;
+                }}
+                maxCount={1}
+                onRemove={() => {
+                  setSelectedFile(null);
+                }}
+              >
+                <Button icon={<UploadOutlined />}>选择 Jar 文件</Button>
+              </Upload>
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="上传插件"
+          open={uploadOpen}
+          onCancel={() => setUploadOpen(false)}
+          onOk={handleSubmitUpload}
+          confirmLoading={uploading}
+          width={520}
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item label="插件名称" name="pluginName">
+              <Input placeholder="可选，不填则使用 plugin.id" />
+            </Form.Item>
+            <Form.Item label="备注" name="remark">
+              <Input.TextArea rows={3} placeholder="可选" />
+            </Form.Item>
+            <Form.Item label="Jar 文件" required>
+              <Upload
+                beforeUpload={(file) => {
+                  const isJar = file.name.toLowerCase().endsWith('.jar');
+                  if (!isJar) {
+                    message.error('只支持 .jar 文件');
+                    return Upload.LIST_IGNORE;
+                  }
+                  setSelectedFile(file as unknown as File);
+                  return false;
+                }}
+                maxCount={1}
+                onRemove={() => {
+                  setSelectedFile(null);
+                }}
+              >
+                <Button icon={<UploadOutlined />}>选择 Jar 文件</Button>
+              </Upload>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
-      <Modal
-        title={`插件配置${activePlugin ? ` - ${activePlugin.pluginId}@${activePlugin.pluginVersion}` : ''}`}
-        open={configOpen}
-        onCancel={() => {
-          setConfigOpen(false);
-          setActivePlugin(null);
-        }}
-        footer={null}
-        width={isMobile ? '100%' : 900}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Alert
-            type="info"
-            showIcon
-            message="说明"
-            description="这里展示插件的配置Schema/默认值，并保存插件配置值(JSON)。"
-          />
-
-          <Card size="small" title="保存插件配置">
-            <Button type="primary" loading={configSaving} onClick={savePluginConfig}>
-              保存配置
-            </Button>
-          </Card>
-
-          <Card size="small" title="插件配置 Schema (只读)">
-            <Input.TextArea
-              value={pluginSchema}
-              readOnly
-              autoSize={{ minRows: 10, maxRows: 18 }}
-              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </Card>
-
-          <Card size="small" title="插件默认配置 (只读)">
-            <Input.TextArea
-              value={pluginDefaults}
-              readOnly
-              autoSize={{ minRows: 6, maxRows: 12 }}
-              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </Card>
-
-          <Card size="small" title="插件 configValues (可编辑JSON)">
-            <Input.TextArea
-              value={configJson}
-              onChange={(e) => setConfigJson(e.target.value)}
-              autoSize={{ minRows: 12, maxRows: 22 }}
-              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-              placeholder='例如：{"aesKey":"cg_demo_key_1234"}'
-            />
-          </Card>
-        </Space>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={configOpen}
+          onClose={() => { setConfigOpen(false); setActivePlugin(null); }}
+          title={`插件配置${activePlugin ? ` - ${activePlugin.pluginId}@${activePlugin.pluginVersion}` : ''}`}
+          maxHeight="90vh"
+          footer={<>
+            <Button onClick={() => { setConfigOpen(false); setActivePlugin(null); }} style={{ flex: 1, height: 44, borderRadius: 10 }}>关闭</Button>
+            <Button type="primary" loading={configSaving} onClick={savePluginConfig} style={{ flex: 1, height: 44, borderRadius: 10 }}>保存配置</Button>
+          </>}
+        >
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Alert type="info" showIcon message="说明" description="这里展示插件的配置Schema/默认值，并保存插件配置值(JSON)。" />
+            <Card size="small" title="插件配置 Schema (只读)">
+              <Input.TextArea value={pluginSchema} readOnly autoSize={{ minRows: 6, maxRows: 12 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+            </Card>
+            <Card size="small" title="插件默认配置 (只读)">
+              <Input.TextArea value={pluginDefaults} readOnly autoSize={{ minRows: 4, maxRows: 8 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+            </Card>
+            <Card size="small" title="插件 configValues (可编辑JSON)">
+              <Input.TextArea value={configJson} onChange={(e) => setConfigJson(e.target.value)} autoSize={{ minRows: 8, maxRows: 16 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} placeholder='例如：{"aesKey":"cg_demo_key_1234"}' />
+            </Card>
+          </Space>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`插件配置${activePlugin ? ` - ${activePlugin.pluginId}@${activePlugin.pluginVersion}` : ''}`}
+          open={configOpen}
+          onCancel={() => { setConfigOpen(false); setActivePlugin(null); }}
+          footer={null}
+          width={900}
+        >
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Alert type="info" showIcon message="说明" description="这里展示插件的配置Schema/默认值，并保存插件配置值(JSON)。" />
+            <Card size="small" title="保存插件配置">
+              <Button type="primary" loading={configSaving} onClick={savePluginConfig}>保存配置</Button>
+            </Card>
+            <Card size="small" title="插件配置 Schema (只读)">
+              <Input.TextArea value={pluginSchema} readOnly autoSize={{ minRows: 10, maxRows: 18 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+            </Card>
+            <Card size="small" title="插件默认配置 (只读)">
+              <Input.TextArea value={pluginDefaults} readOnly autoSize={{ minRows: 6, maxRows: 12 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+            </Card>
+            <Card size="small" title="插件 configValues (可编辑JSON)">
+              <Input.TextArea value={configJson} onChange={(e) => setConfigJson(e.target.value)} autoSize={{ minRows: 12, maxRows: 22 }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} placeholder='例如：{"aesKey":"cg_demo_key_1234"}' />
+            </Card>
+          </Space>
+        </Modal>
+      )}
     </Space>
   );
 };

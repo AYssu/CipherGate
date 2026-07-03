@@ -60,6 +60,7 @@ import {
   type AppUserBinding,
 } from '../services/appUserService';
 import { getApplicationList, type Application } from '../services/applicationService';
+import M5BottomSheet from './M5BottomSheet';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -1305,73 +1306,59 @@ const AppUserManagementContent: React.FC = () => {
   const mobileUserCard = (record: AppUser) => {
     const avatarUrl = getUserAvatar(record);
     const initial = getUserInitial(record);
+
+    // 状态颜色
+    const statusColor = record.isBanned ? '#ff4d4f' : record.wsOnline ? '#52c41a' : '#d9d9d9';
+
     return (
       <div
         key={record.id}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '10px 12px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
-          gap: 10,
-        }}
+        className="appuser-mobile-card"
+        style={{ borderLeft: `3px solid ${statusColor}` }}
       >
-        <div style={{
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          background: avatarUrl ? 'transparent' : '#1890ff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#fff',
-          fontSize: 14,
-          fontWeight: 500,
-          flexShrink: 0,
-          overflow: 'hidden',
-        }}>
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={record.username}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).parentElement!.innerHTML = initial;
-              }}
-            />
-          ) : (
-            initial
+        {/* Row 1: Avatar + Name + Tags + Menu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="appuser-mobile-avatar" style={{
+            background: avatarUrl ? 'transparent' : '#1890ff',
+          }}>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={record.username}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = initial;
+                }}
+              />
+            ) : (
+              initial
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text strong ellipsis style={{ fontSize: 14, maxWidth: 120 }}>{record.username}</Text>
+              {record.isBanned && <Tag color="red" className="appuser-mobile-tag">封禁</Tag>}
+              {record.wsOnline && <Tag color="success" className="appuser-mobile-tag">在线</Tag>}
+              {record.appName && <Tag color="blue" className="appuser-mobile-tag">{record.appName}</Tag>}
+            </div>
+          </div>
+          <Dropdown menu={getActionMenu(record)} trigger={['click']}>
+            <Button type="text" size="small" icon={<MoreOutlined />} style={{ flexShrink: 0, width: 32, height: 32 }} />
+          </Dropdown>
+        </div>
+
+        {/* Row 2: Meta info */}
+        <div className="appuser-mobile-meta">
+          {record.nickname && <span>{record.nickname}</span>}
+          {record.memberExpiresAt && (
+            <span className={record.memberActive ? 'appuser-meta-active' : 'appuser-meta-expired'}>
+              会员{record.memberActive ? '有效' : '已过期'} {dayjs(record.memberExpiresAt).format('MM/DD')}
+            </span>
           )}
+          {record.bindingCount != null && record.bindingCount > 0 && <span>绑定 {record.bindingCount} 台</span>}
+          {record.loginCount > 0 && <span>登录 {record.loginCount} 次</span>}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-            <Text strong ellipsis style={{ fontSize: 14, maxWidth: 120 }}>{record.username}</Text>
-            {record.appName && <Tag color="blue" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>{record.appName}</Tag>}
-            {record.isBanned && <Tag color="red" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>封禁</Tag>}
-            {record.wsOnline && <Tag color="success" style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}>在线</Tag>}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {record.nickname && (
-              <Text type="secondary" style={{ fontSize: 12 }}>{record.nickname}</Text>
-            )}
-            {record.memberExpiresAt && (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                会员{record.memberActive ? '有效' : '已过期'} {dayjs(record.memberExpiresAt).format('MM/DD')}
-              </Text>
-            )}
-            {record.bindingCount != null && record.bindingCount > 0 && (
-              <Text type="secondary" style={{ fontSize: 11 }}>绑定 {record.bindingCount} 台</Text>
-            )}
-            {record.loginCount > 0 && (
-              <Text type="secondary" style={{ fontSize: 11 }}>登录 {record.loginCount} 次</Text>
-            )}
-          </div>
-        </div>
-        <Dropdown menu={getActionMenu(record)} trigger={['click']}>
-          <Button type="text" size="small" icon={<MoreOutlined />} />
-        </Dropdown>
       </div>
     );
   };
@@ -1422,68 +1409,52 @@ const AppUserManagementContent: React.FC = () => {
                 style={{ flex: 1, minWidth: 0 }}
               />
               <Button type="primary" onClick={() => applyUsernameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                open={filterPopoverOpen}
-                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
-                content={
-                  <div style={{ width: 320, maxWidth: '90vw' }}>
-                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                      <Row gutter={12}>
-                        <Col span={12}>
-                          <Form.Item label="应用" name="appId">
-                            <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="用户名" name="username">
-                            <Input allowClear placeholder="模糊查询" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="昵称" name="nickname">
-                            <Input allowClear placeholder="模糊查询" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="邮箱" name="email">
-                            <Input allowClear placeholder="模糊查询" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="手机号" name="phone">
-                            <Input allowClear placeholder="模糊查询" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="封禁状态" name="banned">
-                            <Select allowClear placeholder="选择状态" options={[{ label: '已封禁', value: true }, { label: '正常', value: false }]} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="会员状态" name="expiresFilter">
-                            <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="在线状态" name="wsOnline">
-                            <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
-                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
-                      </Row>
-                    </Form>
-                  </div>
-                }
-              >
-                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
-                </Badge>
-              </Popover>
+              <M5BottomSheet open={filterPopoverOpen} onClose={() => setFilterPopoverOpen(false)} title="筛选条件" footer={<><Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10 }}>重置</Button><Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10 }}>查询</Button></>}>
+                <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <Form.Item label="应用" name="appId">
+                        <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="用户名" name="username">
+                        <Input allowClear placeholder="模糊查询" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="昵称" name="nickname">
+                        <Input allowClear placeholder="模糊查询" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="邮箱" name="email">
+                        <Input allowClear placeholder="模糊查询" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="手机号" name="phone">
+                        <Input allowClear placeholder="模糊查询" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="封禁状态" name="banned">
+                        <Select allowClear placeholder="选择状态" options={[{ label: '已封禁', value: true }, { label: '正常', value: false }]} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="会员状态" name="expiresFilter">
+                        <Select allowClear placeholder="到期状态" options={[{ label: '未到期', value: 'not_expired' }, { label: '已到期', value: 'expired' }]} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="在线状态" name="wsOnline">
+                        <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Form>
+              </M5BottomSheet>
             </>
           ) : (
             <Space size={12}>
@@ -1559,7 +1530,7 @@ const AppUserManagementContent: React.FC = () => {
 
         {/* 用户列表 */}
         {isMobile ? (
-          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+          <div className="appuser-mobile-list">
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>加载中...</div>
             ) : users.length === 0 ? (
@@ -1584,544 +1555,1026 @@ const AppUserManagementContent: React.FC = () => {
             size="middle"
           />
         )}
-        <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
-          <Col flex="none">
-            <Space wrap size={isMobile ? 'small' : 'middle'}>
-              {isMobile ? (
-                <Dropdown
-                  menu={{
-                    items: batchActionOptions.map(opt => ({ key: opt.value, label: opt.label, onClick: () => setSelectedBatchAction(opt.value) })),
-                  }}
-                  trigger={['click']}
-                >
-                  <Button size="small" icon={<ClockCircleOutlined />}>批量操作</Button>
-                </Dropdown>
-              ) : (
-                <Select
-                  placeholder="批量操作"
-                  allowClear
-                  style={{ width: 260 }}
-                  size="middle"
-                  value={selectedBatchAction}
-                  onChange={(value) => setSelectedBatchAction(value)}
-                  options={batchActionOptions}
-                />
-              )}
-              <Button
-                size={isMobile ? 'small' : 'middle'}
-                icon={<ClockCircleOutlined />}
-                disabled={!selectedBatchAction || (selectedRowKeys.length === 0 && !String(selectedBatchAction).startsWith('app-not-expired'))}
-                onClick={handleBatchActionConfirm}
-              >
-                确定
-              </Button>
-              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>已选 {selectedRowKeys.length} 条</Text>
-            </Space>
-          </Col>
-          <Col flex="none">
-            <Pagination
-              {...pagination}
-              size={isMobile ? 'small' : 'default'}
-              showSizeChanger={false}
-              pageSizeOptions={['10', '20', '50', '100', '200', '400']}
-              showQuickJumper={false}
-              simple={isMobile}
-              showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
-              onChange={(page, pageSize) => {
-                fetchUsers(page, pageSize, filters);
+        {/* 批量操作栏 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, marginBottom: 12, flexWrap: 'nowrap' }}>
+          {isMobile ? (
+            <Dropdown
+              menu={{
+                items: batchActionOptions.map(opt => ({ key: opt.value, label: opt.label, onClick: () => setSelectedBatchAction(opt.value) })),
               }}
+              trigger={['click']}
+            >
+              <Button size="small" icon={<ClockCircleOutlined />}>批量操作</Button>
+            </Dropdown>
+          ) : (
+            <Select
+              placeholder="批量操作"
+              allowClear
+              style={{ width: 260 }}
+              size="middle"
+              value={selectedBatchAction}
+              onChange={(value) => setSelectedBatchAction(value)}
+              options={batchActionOptions}
             />
-          </Col>
-        </Row>
+          )}
+          <Button
+            size={isMobile ? 'small' : 'middle'}
+            icon={<ClockCircleOutlined />}
+            disabled={!selectedBatchAction || (selectedRowKeys.length === 0 && !String(selectedBatchAction).startsWith('app-not-expired'))}
+            onClick={handleBatchActionConfirm}
+            style={{ flexShrink: 0 }}
+          >
+            确定
+          </Button>
+          <Text type="secondary" style={{ fontSize: isMobile ? 11 : 14, whiteSpace: 'nowrap' }}>已选 {selectedRowKeys.length} 条</Text>
+        </div>
+        {/* 分页 */}
+        <div style={{ display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end' }}>
+          <Pagination
+            {...pagination}
+            size={isMobile ? 'small' : 'default'}
+            showSizeChanger={false}
+            pageSizeOptions={['10', '20', '50', '100', '200', '400']}
+            showQuickJumper={false}
+            simple={isMobile}
+            showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
+            onChange={(page, pageSize) => {
+              fetchUsers(page, pageSize, filters);
+            }}
+          />
+        </div>
       </Space>
 
 
       {/* 创建/编辑弹窗 */}
-      <Modal
-        title={editingUser ? '编辑用户' : '创建用户'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={isMobile ? '100%' : 600}
-        okText="确定"
-        cancelText="取消"
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          style={{ marginTop: 20 }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => setModalVisible(false)}
+          title={editingUser ? '编辑用户' : '创建用户'}
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setModalVisible(false)}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleSubmit}>确定</Button>
+          </>}
         >
-          <Row gutter={16}>
-            <Col span={12}>
+          <Form
+            form={form}
+            layout="vertical"
+            style={{ marginTop: 20 }}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="所属应用"
+                  name="appId"
+                  rules={[{ required: true, message: '请选择应用' }]}
+                >
+                  <Select placeholder="选择应用" disabled={!!editingUser}>
+                    {applications.map(app => (
+                      <Option key={app.id} value={app.id}>{app.appName}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="用户名"
+                  name="username"
+                  rules={[
+                    { required: true, message: '请输入用户名' },
+                    { min: 3, max: 20, message: '用户名长度为3-20位' },
+                  ]}
+                >
+                  <Input placeholder="输入用户名" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {!editingUser && (
               <Form.Item
-                label="所属应用"
-                name="appId"
-                rules={[{ required: true, message: '请选择应用' }]}
-              >
-                <Select placeholder="选择应用" disabled={!!editingUser}>
-                  {applications.map(app => (
-                    <Option key={app.id} value={app.id}>{app.appName}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="用户名"
-                name="username"
+                label="密码"
+                name="password"
                 rules={[
-                  { required: true, message: '请输入用户名' },
-                  { min: 3, max: 20, message: '用户名长度为3-20位' },
+                  { required: true, message: '请输入密码' },
+                  { min: 6, message: '密码至少6位' }
                 ]}
               >
-                <Input placeholder="输入用户名" />
+                <Input.Password placeholder="输入密码" />
               </Form.Item>
-            </Col>
-          </Row>
+            )}
 
-          {!editingUser && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="邮箱"
+                  name="email"
+                  rules={[
+                    { type: 'email', message: '请输入有效的邮箱地址' }
+                  ]}
+                >
+                  <Input placeholder="输入邮箱" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="手机号"
+                  name="phone"
+                  rules={[
+                    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }
+                  ]}
+                >
+                  <Input placeholder="输入手机号" />
+                </Form.Item>
+              </Col>
+            </Row>
+
             <Form.Item
-              label="密码"
-              name="password"
-              rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少6位' }
-              ]}
+              label="昵称"
+              name="nickname"
             >
-              <Input.Password placeholder="输入密码" />
+              <Input placeholder="输入昵称" />
             </Form.Item>
-          )}
 
-          <Row gutter={16}>
-            <Col span={12}>
+            <Form.Item
+              label="个性签名"
+              name="signature"
+            >
+              <Input.TextArea rows={3} placeholder="输入个性签名" />
+            </Form.Item>
+
+            {!editingUser && (
+              <Form.Item label="会员到期（可选）" name="memberExpiresAt">
+                <DatePicker
+                  showTime
+                  style={{ width: '100%' }}
+                  format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="不选表示暂不开通会员"
+                />
+              </Form.Item>
+            )}
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingUser ? '编辑用户' : '创建用户'}
+          open={modalVisible}
+          onOk={handleSubmit}
+          onCancel={() => setModalVisible(false)}
+          width={600}
+          okText="确定"
+          cancelText="取消"
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            style={{ marginTop: 20 }}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="所属应用"
+                  name="appId"
+                  rules={[{ required: true, message: '请选择应用' }]}
+                >
+                  <Select placeholder="选择应用" disabled={!!editingUser}>
+                    {applications.map(app => (
+                      <Option key={app.id} value={app.id}>{app.appName}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="用户名"
+                  name="username"
+                  rules={[
+                    { required: true, message: '请输入用户名' },
+                    { min: 3, max: 20, message: '用户名长度为3-20位' },
+                  ]}
+                >
+                  <Input placeholder="输入用户名" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {!editingUser && (
               <Form.Item
-                label="邮箱"
-                name="email"
+                label="密码"
+                name="password"
                 rules={[
-                  { type: 'email', message: '请输入有效的邮箱地址' }
+                  { required: true, message: '请输入密码' },
+                  { min: 6, message: '密码至少6位' }
                 ]}
               >
-                <Input placeholder="输入邮箱" />
+                <Input.Password placeholder="输入密码" />
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="手机号"
-                name="phone"
-                rules={[
-                  { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }
-                ]}
-              >
-                <Input placeholder="输入手机号" />
+            )}
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="邮箱"
+                  name="email"
+                  rules={[
+                    { type: 'email', message: '请输入有效的邮箱地址' }
+                  ]}
+                >
+                  <Input placeholder="输入邮箱" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="手机号"
+                  name="phone"
+                  rules={[
+                    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }
+                  ]}
+                >
+                  <Input placeholder="输入手机号" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              label="昵称"
+              name="nickname"
+            >
+              <Input placeholder="输入昵称" />
+            </Form.Item>
+
+            <Form.Item
+              label="个性签名"
+              name="signature"
+            >
+              <Input.TextArea rows={3} placeholder="输入个性签名" />
+            </Form.Item>
+
+            {!editingUser && (
+              <Form.Item label="会员到期（可选）" name="memberExpiresAt">
+                <DatePicker
+                  showTime
+                  style={{ width: '100%' }}
+                  format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="不选表示暂不开通会员"
+                />
               </Form.Item>
-            </Col>
-          </Row>
+            )}
+          </Form>
+        </Modal>
+      )}
 
-          <Form.Item
-            label="昵称"
-            name="nickname"
-          >
-            <Input placeholder="输入昵称" />
-          </Form.Item>
+      {isMobile ? (
+        <M5BottomSheet
+          open={extendModalVisible}
+          onClose={() => {
+            setExtendModalVisible(false);
+            setExtendUserId(null);
+          }}
+          title="延长会员"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => {
+              setExtendModalVisible(false);
+              setExtendUserId(null);
+            }}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleExtendMemberOk}>确定</Button>
+          </>}
+        >
+          <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                      { label: '永久', value: 'PERMANENT' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator: async (_, value) => {
+                        const u = getFieldValue('unit');
+                        if (u === 'PERMANENT') return;
+                        const n = Number(value);
+                        if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                      },
+                    }),
+                  ]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
+            </Text>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="延长会员"
+          open={extendModalVisible}
+          onOk={handleExtendMemberOk}
+          onCancel={() => {
+            setExtendModalVisible(false);
+            setExtendUserId(null);
+          }}
+          okText="确定"
+          cancelText="取消"
+          width={520}
+        >
+          <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                      { label: '永久', value: 'PERMANENT' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator: async (_, value) => {
+                        const u = getFieldValue('unit');
+                        if (u === 'PERMANENT') return;
+                        const n = Number(value);
+                        if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                      },
+                    }),
+                  ]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
+            </Text>
+          </Form>
+        </Modal>
+      )}
 
-          <Form.Item
-            label="个性签名"
-            name="signature"
-          >
-            <Input.TextArea rows={3} placeholder="输入个性签名" />
-          </Form.Item>
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchExtendVisible}
+          onClose={() => setBatchExtendVisible(false)}
+          title="批量加时"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setBatchExtendVisible(false)}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleBatchExtendOk}>确定加时</Button>
+          </>}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按单位累加）。
+          </Text>
+          <Form form={batchExtendForm} layout="vertical">
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                      { label: '永久', value: 'PERMANENT' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator: async (_, value) => {
+                        const u = getFieldValue('unit');
+                        if (u === 'PERMANENT') return;
+                        const n = Number(value);
+                        if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                      },
+                    }),
+                  ]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
+            </Text>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量加时"
+          open={batchExtendVisible}
+          onOk={handleBatchExtendOk}
+          onCancel={() => setBatchExtendVisible(false)}
+          okText="确定加时"
+          cancelText="取消"
+          width={520}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按单位累加）。
+          </Text>
+          <Form form={batchExtendForm} layout="vertical">
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                      { label: '永久', value: 'PERMANENT' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator: async (_, value) => {
+                        const u = getFieldValue('unit');
+                        if (u === 'PERMANENT') return;
+                        const n = Number(value);
+                        if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
+                      },
+                    }),
+                  ]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
+            </Text>
+          </Form>
+        </Modal>
+      )}
 
-          {!editingUser && (
-            <Form.Item label="会员到期（可选）" name="memberExpiresAt">
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchSubtractVisible}
+          onClose={() => setBatchSubtractVisible(false)}
+          title="批量扣时"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setBatchSubtractVisible(false)}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleBatchSubtractOk}>确定扣时</Button>
+          </>}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户扣减会员到期时间（按单位扣减）。
+          </Text>
+          <Form form={batchSubtractForm} layout="vertical">
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={1}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              直接从当前到期时间上扣减；未开通会员会计入失败明细。
+            </Text>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量扣时"
+          open={batchSubtractVisible}
+          onOk={handleBatchSubtractOk}
+          onCancel={() => setBatchSubtractVisible(false)}
+          okText="确定扣时"
+          cancelText="取消"
+          width={520}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户扣减会员到期时间（按单位扣减）。
+          </Text>
+          <Form form={batchSubtractForm} layout="vertical">
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={1}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              直接从当前到期时间上扣减；未开通会员会计入失败明细。
+            </Text>
+          </Form>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={notExpiredAddVisible}
+          onClose={() => setNotExpiredAddVisible(false)}
+          title="未到期批量加时（按应用）"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setNotExpiredAddVisible(false)}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={() => handleNotExpiredInApp('ADD')}>确定</Button>
+          </>}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量加时。
+          </Text>
+          <Form form={notExpiredForm} layout="vertical">
+            <Form.Item
+              label="应用"
+              name="appId"
+              rules={[{ required: true, message: '请选择应用' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择应用"
+                options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="未到期批量加时（按应用）"
+          open={notExpiredAddVisible}
+          onOk={() => handleNotExpiredInApp('ADD')}
+          onCancel={() => setNotExpiredAddVisible(false)}
+          okText="确定"
+          cancelText="取消"
+          width={560}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量加时。
+          </Text>
+          <Form form={notExpiredForm} layout="vertical">
+            <Form.Item
+              label="应用"
+              name="appId"
+              rules={[{ required: true, message: '请选择应用' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择应用"
+                options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={30}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={notExpiredSubtractVisible}
+          onClose={() => setNotExpiredSubtractVisible(false)}
+          title="未到期批量扣时（按应用）"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setNotExpiredSubtractVisible(false)}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={() => handleNotExpiredInApp('SUBTRACT')}>确定</Button>
+          </>}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量扣时。
+          </Text>
+          <Form form={notExpiredForm} layout="vertical">
+            <Form.Item
+              label="应用"
+              name="appId"
+              rules={[{ required: true, message: '请选择应用' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择应用"
+                options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={1}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="未到期批量扣时（按应用）"
+          open={notExpiredSubtractVisible}
+          onOk={() => handleNotExpiredInApp('SUBTRACT')}
+          onCancel={() => setNotExpiredSubtractVisible(false)}
+          okText="确定"
+          cancelText="取消"
+          width={560}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量扣时。
+          </Text>
+          <Form form={notExpiredForm} layout="vertical">
+            <Form.Item
+              label="应用"
+              name="appId"
+              rules={[{ required: true, message: '请选择应用' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择应用"
+                options={applications.map((app) => ({ label: app.appName, value: app.id }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="unit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                  initialValue="DAY"
+                >
+                  <Select
+                    options={[
+                      { label: '分钟', value: 'MINUTE' },
+                      { label: '小时', value: 'HOUR' },
+                      { label: '天', value: 'DAY' },
+                      { label: '周', value: 'WEEK' },
+                      { label: '月', value: 'MONTH' },
+                      { label: '年', value: 'YEAR' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="数值"
+                  name="amount"
+                  rules={[{ required: true, message: '请输入数值' }]}
+                  initialValue={1}
+                >
+                  <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={memberExpModalVisible}
+          onClose={() => {
+            setMemberExpModalVisible(false);
+            setMemberExpUser(null);
+          }}
+          title="设置会员到期"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} danger onClick={handleClearMemberExpires}>清空会员</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => { setMemberExpModalVisible(false); setMemberExpUser(null); }}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleMemberExpiresOk}>保存</Button>
+          </>}
+        >
+          <Form form={memberExpForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item label="到期时间" name="expires">
               <DatePicker
                 showTime
                 style={{ width: '100%' }}
                 format="YYYY-MM-DD HH:mm:ss"
-                placeholder="不选表示暂不开通会员"
+                placeholder="选择日期时间"
               />
             </Form.Item>
-          )}
-        </Form>
-      </Modal>
-
-      <Modal
-        title="延长会员"
-        open={extendModalVisible}
-        onOk={handleExtendMemberOk}
-        onCancel={() => {
-          setExtendModalVisible(false);
-          setExtendUserId(null);
-        }}
-        okText="确定"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form form={extendForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="unit"
-                rules={[{ required: true, message: '请选择单位' }]}
-                initialValue="DAY"
-              >
-                <Select
-                  options={[
-                    { label: '分钟', value: 'MINUTE' },
-                    { label: '小时', value: 'HOUR' },
-                    { label: '天', value: 'DAY' },
-                    { label: '周', value: 'WEEK' },
-                    { label: '月', value: 'MONTH' },
-                    { label: '年', value: 'YEAR' },
-                    { label: '永久', value: 'PERMANENT' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="数值"
-                name="amount"
-                rules={[
-                  ({ getFieldValue }) => ({
-                    validator: async (_, value) => {
-                      const u = getFieldValue('unit');
-                      if (u === 'PERMANENT') return;
-                      const n = Number(value);
-                      if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
-                    },
-                  }),
-                ]}
-                initialValue={30}
-              >
-                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
-          </Text>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量加时"
-        open={batchExtendVisible}
-        onOk={handleBatchExtendOk}
-        onCancel={() => setBatchExtendVisible(false)}
-        okText="确定加时"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户延长会员到期时间（按单位累加）。
-        </Text>
-        <Form form={batchExtendForm} layout="vertical">
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="unit"
-                rules={[{ required: true, message: '请选择单位' }]}
-                initialValue="DAY"
-              >
-                <Select
-                  options={[
-                    { label: '分钟', value: 'MINUTE' },
-                    { label: '小时', value: 'HOUR' },
-                    { label: '天', value: 'DAY' },
-                    { label: '周', value: 'WEEK' },
-                    { label: '月', value: 'MONTH' },
-                    { label: '年', value: 'YEAR' },
-                    { label: '永久', value: 'PERMANENT' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="数值"
-                name="amount"
-                rules={[
-                  ({ getFieldValue }) => ({
-                    validator: async (_, value) => {
-                      const u = getFieldValue('unit');
-                      if (u === 'PERMANENT') return;
-                      const n = Number(value);
-                      if (!Number.isFinite(n) || n < 1) throw new Error('请输入大于等于 1 的数值');
-                    },
-                  }),
-                ]}
-                initialValue={30}
-              >
-                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            在「当前时间」与「原到期时间」中较晚的时间点上累加；未开通则从当前时间起算。
-          </Text>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量扣时"
-        open={batchSubtractVisible}
-        onOk={handleBatchSubtractOk}
-        onCancel={() => setBatchSubtractVisible(false)}
-        okText="确定扣时"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 位用户扣减会员到期时间（按单位扣减）。
-        </Text>
-        <Form form={batchSubtractForm} layout="vertical">
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="unit"
-                rules={[{ required: true, message: '请选择单位' }]}
-                initialValue="DAY"
-              >
-                <Select
-                  options={[
-                    { label: '分钟', value: 'MINUTE' },
-                    { label: '小时', value: 'HOUR' },
-                    { label: '天', value: 'DAY' },
-                    { label: '周', value: 'WEEK' },
-                    { label: '月', value: 'MONTH' },
-                    { label: '年', value: 'YEAR' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="数值"
-                name="amount"
-                rules={[{ required: true, message: '请输入数值' }]}
-                initialValue={1}
-              >
-                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            直接从当前到期时间上扣减；未开通会员会计入失败明细。
-          </Text>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="未到期批量加时（按应用）"
-        open={notExpiredAddVisible}
-        onOk={() => handleNotExpiredInApp('ADD')}
-        onCancel={() => setNotExpiredAddVisible(false)}
-        okText="确定"
-        cancelText="取消"
-        width={isMobile ? '100%' : 560}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量加时。
-        </Text>
-        <Form form={notExpiredForm} layout="vertical">
-          <Form.Item
-            label="应用"
-            name="appId"
-            rules={[{ required: true, message: '请选择应用' }]}
-          >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              placeholder="选择应用"
-              options={applications.map((app) => ({ label: app.appName, value: app.id }))}
-            />
-          </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="unit"
-                rules={[{ required: true, message: '请选择单位' }]}
-                initialValue="DAY"
-              >
-                <Select
-                  options={[
-                    { label: '分钟', value: 'MINUTE' },
-                    { label: '小时', value: 'HOUR' },
-                    { label: '天', value: 'DAY' },
-                    { label: '周', value: 'WEEK' },
-                    { label: '月', value: 'MONTH' },
-                    { label: '年', value: 'YEAR' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="数值"
-                name="amount"
-                rules={[{ required: true, message: '请输入数值' }]}
-                initialValue={30}
-              >
-                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 30" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="未到期批量扣时（按应用）"
-        open={notExpiredSubtractVisible}
-        onOk={() => handleNotExpiredInApp('SUBTRACT')}
-        onCancel={() => setNotExpiredSubtractVisible(false)}
-        okText="确定"
-        cancelText="取消"
-        width={isMobile ? '100%' : 560}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          将筛选所选应用下所有「未到期会员（memberExpiresAt &gt; 当前时间）」的用户并批量扣时。
-        </Text>
-        <Form form={notExpiredForm} layout="vertical">
-          <Form.Item
-            label="应用"
-            name="appId"
-            rules={[{ required: true, message: '请选择应用' }]}
-          >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              placeholder="选择应用"
-              options={applications.map((app) => ({ label: app.appName, value: app.id }))}
-            />
-          </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="unit"
-                rules={[{ required: true, message: '请选择单位' }]}
-                initialValue="DAY"
-              >
-                <Select
-                  options={[
-                    { label: '分钟', value: 'MINUTE' },
-                    { label: '小时', value: 'HOUR' },
-                    { label: '天', value: 'DAY' },
-                    { label: '周', value: 'WEEK' },
-                    { label: '月', value: 'MONTH' },
-                    { label: '年', value: 'YEAR' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="数值"
-                name="amount"
-                rules={[{ required: true, message: '请输入数值' }]}
-                initialValue={1}
-              >
-                <InputNumber min={1} max={36500} style={{ width: '100%' }} placeholder="如 1" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="设置会员到期"
-        open={memberExpModalVisible}
-        onOk={handleMemberExpiresOk}
-        onCancel={() => {
-          setMemberExpModalVisible(false);
-          setMemberExpUser(null);
-        }}
-        footer={[
-          <Button key="clear" danger onClick={handleClearMemberExpires}>
-            清空会员
-          </Button>,
-          <Button key="cancel" onClick={() => { setMemberExpModalVisible(false); setMemberExpUser(null); }}>
-            取消
-          </Button>,
-          <Button key="ok" type="primary" onClick={handleMemberExpiresOk}>
-            保存
-          </Button>,
-        ]}
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form form={memberExpForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item label="到期时间" name="expires">
-            <DatePicker
-              showTime
-              style={{ width: '100%' }}
-              format="YYYY-MM-DD HH:mm:ss"
-              placeholder="选择日期时间"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="设置会员到期"
+          open={memberExpModalVisible}
+          onOk={handleMemberExpiresOk}
+          onCancel={() => {
+            setMemberExpModalVisible(false);
+            setMemberExpUser(null);
+          }}
+          footer={[
+            <Button key="clear" danger onClick={handleClearMemberExpires}>
+              清空会员
+            </Button>,
+            <Button key="cancel" onClick={() => { setMemberExpModalVisible(false); setMemberExpUser(null); }}>
+              取消
+            </Button>,
+            <Button key="ok" type="primary" onClick={handleMemberExpiresOk}>
+              保存
+            </Button>,
+          ]}
+          width={520}
+        >
+          <Form form={memberExpForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item label="到期时间" name="expires">
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD HH:mm:ss"
+                placeholder="选择日期时间"
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       {/* 重置密码弹窗 */}
-      <Modal
-        title="重置密码"
-        open={passwordModalVisible}
-        onOk={handleResetPassword}
-        onCancel={() => {
-          setPasswordModalVisible(false);
-          setResetUserId(null);
-        }}
-        okText="确定"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={passwordForm}
-          layout="vertical"
-          style={{ marginTop: 20 }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={passwordModalVisible}
+          onClose={() => {
+            setPasswordModalVisible(false);
+            setResetUserId(null);
+          }}
+          title="重置密码"
+          footer={<>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => {
+              setPasswordModalVisible(false);
+              setResetUserId(null);
+            }}>取消</Button>
+            <Button style={{ flex: 1, height: 44, borderRadius: 10 }} type="primary" onClick={handleResetPassword}>确定</Button>
+          </>}
         >
-          <Form.Item
-            label="新密码"
-            name="newPassword"
-            rules={[
-              { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码至少6位' }
-            ]}
+          <Form
+            form={passwordForm}
+            layout="vertical"
+            style={{ marginTop: 20 }}
           >
-            <Input.Password placeholder="输入新密码" />
-          </Form.Item>
+            <Form.Item
+              label="新密码"
+              name="newPassword"
+              rules={[
+                { required: true, message: '请输入新密码' },
+                { min: 6, message: '密码至少6位' }
+              ]}
+            >
+              <Input.Password placeholder="输入新密码" />
+            </Form.Item>
 
-          <Form.Item
-            label="确认密码"
-            name="confirmPassword"
-            dependencies={['newPassword']}
-            rules={[
-              { required: true, message: '请确认密码' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('两次输入的密码不一致'));
-                },
-              }),
-            ]}
+            <Form.Item
+              label="确认密码"
+              name="confirmPassword"
+              dependencies={['newPassword']}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('两次输入的密码不一致'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="再次输入新密码" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="重置密码"
+          open={passwordModalVisible}
+          onOk={handleResetPassword}
+          onCancel={() => {
+            setPasswordModalVisible(false);
+            setResetUserId(null);
+          }}
+          okText="确定"
+          cancelText="取消"
+          width={520}
+        >
+          <Form
+            form={passwordForm}
+            layout="vertical"
+            style={{ marginTop: 20 }}
           >
-            <Input.Password placeholder="再次输入新密码" />
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Form.Item
+              label="新密码"
+              name="newPassword"
+              rules={[
+                { required: true, message: '请输入新密码' },
+                { min: 6, message: '密码至少6位' }
+              ]}
+            >
+              <Input.Password placeholder="输入新密码" />
+            </Form.Item>
+
+            <Form.Item
+              label="确认密码"
+              name="confirmPassword"
+              dependencies={['newPassword']}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('两次输入的密码不一致'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="再次输入新密码" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       {/* 用户绑定设备列表弹窗 */}
       <Modal
@@ -2143,8 +2596,7 @@ const AppUserManagementContent: React.FC = () => {
             关闭
           </Button>
         ]}
-        width={isMobile ? '100%' : 1000}
-        className={isMobile ? 'mobile-modal' : undefined}
+        width={1000}
       >
         <Table
           columns={[

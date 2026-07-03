@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Tabs, Grid, Dropdown, Select } from 'antd';
 import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Title, Text } = Typography;
 
@@ -237,7 +238,7 @@ const UserMembershipPage: React.FC = () => {
             {selectedRowKeys.length > 0 && (
               <Text type="secondary" style={{ fontSize: 12 }}>已选 {selectedRowKeys.length} 项</Text>
             )}
-            <Button icon={<ReloadOutlined />} size="small" onClick={fetchUsers} loading={loading}>刷新</Button>
+            <Button icon={<ReloadOutlined />} size="small" onClick={fetchUsers} loading={loading}>{!isMobile && '刷新'}</Button>
           </Space>
         </div>
         <Table
@@ -252,24 +253,33 @@ const UserMembershipPage: React.FC = () => {
         />
       </Card>
 
-      <Modal
-        title={getEditTitle()}
-        open={editType !== ''}
-        onOk={handleSave}
-        onCancel={() => { setEditType(''); setEditingUser(null); }}
-        width={isMobile ? '100%' : 500}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        {renderEditContent()}
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={editType !== ''}
+          onClose={() => { setEditType(''); setEditingUser(null); }}
+          title={getEditTitle()}
+          footer={<><Button onClick={() => { setEditType(''); setEditingUser(null); }} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button><Button type="primary" onClick={handleSave} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button></>}
+        >
+          {renderEditContent()}
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={getEditTitle()}
+          open={editType !== ''}
+          onOk={handleSave}
+          onCancel={() => { setEditType(''); setEditingUser(null); }}
+          width={500}
+        >
+          {renderEditContent()}
+        </Modal>
+      )}
 
       <Modal
         title={`用户 ${editingUser?.userId} 会员详情`}
         open={detailVisible}
         onCancel={() => { setDetailVisible(false); setEditingUser(null); }}
         footer={null}
-        width={isMobile ? '100%' : 700}
-        className={isMobile ? 'mobile-modal' : undefined}
+        width={700}
       >
         {editingUser && (
           <Tabs items={[

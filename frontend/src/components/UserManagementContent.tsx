@@ -17,6 +17,7 @@ import {
   Grid,
   Dropdown,
 } from 'antd';
+import M5BottomSheet from './M5BottomSheet';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -435,76 +436,149 @@ const UserManagementContent: React.FC = () => {
       </Card>
 
       {/* 编辑用户模态框 */}
-      <Modal
-        title="编辑用户"
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="确定"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="用户状态"
-            name="status"
-            rules={[{ required: true, message: '请选择用户状态' }]}
-          >
-            <Select>
-              <Select.Option value={1}>正常</Select.Option>
-              <Select.Option value={0}>禁用</Select.Option>
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            label="用户角色"
-            name="roleIds"
-            rules={[{ required: true, message: '请选择用户角色' }]}
-          >
-            <Select 
-              mode="multiple" 
-              placeholder="请选择角色"
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={handleModalCancel}
+          title="编辑用户"
+          footer={<>
+            <Button onClick={handleModalCancel} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleModalOk} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+          </>}
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item
+              label="用户状态"
+              name="status"
+              rules={[{ required: true, message: '请选择用户状态' }]}
             >
-              {roles.map(role => (
-                <Select.Option key={role.id} value={role.id}>
-                  {role.roleName}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+              <Select>
+                <Select.Option value={1}>正常</Select.Option>
+                <Select.Option value={0}>禁用</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="用户角色"
+              name="roleIds"
+              rules={[{ required: true, message: '请选择用户角色' }]}
+            >
+              <Select
+                mode="multiple"
+                placeholder="请选择角色"
+              >
+                {roles.map(role => (
+                  <Select.Option key={role.id} value={role.id}>
+                    {role.roleName}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="编辑用户"
+          open={modalVisible}
+          onOk={handleModalOk}
+          onCancel={handleModalCancel}
+          width={600}
+          okText="确定"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item
+              label="用户状态"
+              name="status"
+              rules={[{ required: true, message: '请选择用户状态' }]}
+            >
+              <Select>
+                <Select.Option value={1}>正常</Select.Option>
+                <Select.Option value={0}>禁用</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="用户角色"
+              name="roleIds"
+              rules={[{ required: true, message: '请选择用户角色' }]}
+            >
+              <Select
+                mode="multiple"
+                placeholder="请选择角色"
+              >
+                {roles.map(role => (
+                  <Select.Option key={role.id} value={role.id}>
+                    {role.roleName}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
       {/* 重置密码模态框 */}
-      <Modal
-        title={`重置密码 - ${editingUser?.name || editingUser?.login || ''}`}
-        open={passwordModalVisible}
-        onOk={handlePasswordModalOk}
-        onCancel={() => {
-          setPasswordModalVisible(false);
-          setEditingUser(null);
-          passwordForm.resetFields();
-        }}
-        width={isMobile ? '100%' : 400}
-        className={isMobile ? 'mobile-modal' : undefined}
-        okText="确定重置"
-        cancelText="取消"
-        confirmLoading={resettingPassword}
-      >
-        <Form form={passwordForm} layout="vertical">
-          <Form.Item
-            label="新密码"
-            name="password"
-            rules={[
-              { required: true, message: '请输入新密码' },
-              { min: 6, message: '密码长度不能少于6位' }
-            ]}
-          >
-            <Input.Password placeholder="请输入新密码（至少6位）" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={passwordModalVisible}
+          onClose={() => {
+            setPasswordModalVisible(false);
+            setEditingUser(null);
+            passwordForm.resetFields();
+          }}
+          title={`重置密码 - ${editingUser?.name || editingUser?.login || ''}`}
+          footer={<>
+            <Button onClick={() => {
+              setPasswordModalVisible(false);
+              setEditingUser(null);
+              passwordForm.resetFields();
+            }} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" loading={resettingPassword} onClick={handlePasswordModalOk} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定重置</Button>
+          </>}
+        >
+          <Form form={passwordForm} layout="vertical">
+            <Form.Item
+              label="新密码"
+              name="password"
+              rules={[
+                { required: true, message: '请输入新密码' },
+                { min: 6, message: '密码长度不能少于6位' }
+              ]}
+            >
+              <Input.Password placeholder="请输入新密码（至少6位）" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={`重置密码 - ${editingUser?.name || editingUser?.login || ''}`}
+          open={passwordModalVisible}
+          onOk={handlePasswordModalOk}
+          onCancel={() => {
+            setPasswordModalVisible(false);
+            setEditingUser(null);
+            passwordForm.resetFields();
+          }}
+          width={400}
+          okText="确定重置"
+          cancelText="取消"
+          confirmLoading={resettingPassword}
+        >
+          <Form form={passwordForm} layout="vertical">
+            <Form.Item
+              label="新密码"
+              name="password"
+              rules={[
+                { required: true, message: '请输入新密码' },
+                { min: 6, message: '密码长度不能少于6位' }
+              ]}
+            >
+              <Input.Password placeholder="请输入新密码（至少6位）" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
     </div>
   );
 };

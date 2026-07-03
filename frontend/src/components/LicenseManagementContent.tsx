@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import M5BottomSheet from './M5BottomSheet';
 import {
   Card,
   Typography,
@@ -78,6 +79,266 @@ const { TextArea } = Input;
 const { Option } = Select;
 const BATCH_FORM_PRESET_KEY = 'license.batchFormPreset.v1';
 const CREATE_FORM_PRESET_KEY = 'license.createFormPreset.v1';
+
+/** 批量生成卡密表单（移动端 & 桌面端复用） */
+const BatchGenerateForm: React.FC<{
+  form: any;
+  applications: Application[];
+  keyTypeOptions: { label: string; value: string }[];
+}> = ({ form, applications, keyTypeOptions }) => (
+  <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="所属应用" name="appId" rules={[{ required: true, message: '请选择应用' }]}>
+          <Select placeholder="选择应用">
+            {applications.map(app => (<Option key={app.id} value={app.id}>{app.appName}</Option>))}
+          </Select>
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="批次名称" name="batchName" rules={[{ required: true, message: '请输入批次名称' }]}>
+          <Input placeholder="例如：2024年1月批次" />
+        </Form.Item>
+      </Col>
+    </Row>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          label="卡密前缀"
+          name="keyPrefix"
+          tooltip="可选。仅作为前缀拼接到自动生成的随机后缀前。只能包含字母/数字，且长度必须小于16位。"
+          rules={[{ pattern: /^[A-Za-z0-9]*$/, message: '前缀只能包含字母和数字' }, { max: 15, message: '前缀最长15位（总长度固定16位）' }]}
+          getValueFromEvent={(e) => (e?.target?.value ?? '').toUpperCase()}
+        >
+          <Input placeholder="例如：VIP（可留空）" maxLength={15} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="卡密类型" name="keyType" rules={[{ required: true, message: '请选择卡密类型' }]}>
+          <Select placeholder="选择类型" onChange={(v) => { if (v === 'CUSTOM') form.setFieldValue('durationUnit', 'DAY'); }}>
+            {keyTypeOptions.map(opt => (<Option key={opt.value} value={opt.value}>{opt.label}</Option>))}
+          </Select>
+        </Form.Item>
+      </Col>
+    </Row>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="生成数量" name="totalCount" rules={[{ required: true, message: '请输入生成数量' }]}>
+          <InputNumber min={1} max={1000} style={{ width: '100%' }} />
+        </Form.Item>
+      </Col>
+      <Col span={12} />
+    </Row>
+    <Form.Item noStyle shouldUpdate={(p, c) => p.keyType !== c.keyType}>
+      {({ getFieldValue }) => {
+        const kt = getFieldValue('keyType');
+        if (kt === 'CUSTOM') {
+          return (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="时长数值" name="durationValue" rules={[{ required: true, message: '请输入时长数值' }]}>
+                  <InputNumber min={1} style={{ width: '100%' }} placeholder="例如：3、100、365" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="时长单位" name="durationUnit" rules={[{ required: true, message: '请选择时长单位' }]}>
+                  <Select placeholder="选择单位">
+                    <Option value="HOUR">小时</Option><Option value="DAY">天</Option><Option value="MONTH">月</Option><Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          );
+        }
+        if (kt && kt !== 'PERMANENT' && kt !== 'CUSTOM') {
+          return (
+            <Form.Item label="倍数" name="durationValue" tooltip="例如：3天卡输入3，5月卡输入5" rules={[{ required: true, message: '请输入倍数' }]}>
+              <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="输入倍数，例如：1、3、5、10" />
+            </Form.Item>
+          );
+        }
+        return null;
+      }}
+    </Form.Item>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="使用次数限制" name="useLimit" tooltip="0表示不限制">
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="解绑次数限制" name="unbindLimit" tooltip="0表示不限制">
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+        </Form.Item>
+      </Col>
+    </Row>
+    <Row gutter={16}>
+      <Col span={12}><Form.Item label="验证设备" name="deviceCheckEnabled" valuePropName="checked"><Switch /></Form.Item></Col>
+      <Col span={12}><Form.Item label="验证IP" name="ipCheckEnabled" valuePropName="checked"><Switch /></Form.Item></Col>
+    </Row>
+    <Form.Item label="备注" name="remark">
+      <TextArea rows={3} placeholder="输入批次备注信息" />
+    </Form.Item>
+  </Form>
+);
+
+/** 创建/编辑卡密表单（移动端 & 桌面端复用） */
+const CreateEditForm: React.FC<{
+  form: any;
+  editingLicense: LicenseKey | null;
+  applications: Application[];
+  keyTypeOptions: { label: string; value: string }[];
+}> = ({ form, editingLicense, applications, keyTypeOptions }) => (
+  <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="所属应用" name="appId" rules={[{ required: true, message: '请选择应用' }]}>
+          <Select placeholder="选择应用" disabled={!!editingLicense}>
+            {applications.map(app => (
+              <Option key={app.id} value={app.id}>{app.appName}</Option>
+            ))}
+          </Select>
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="卡密类型" name="keyType" rules={[{ required: true, message: '请选择卡密类型' }]}>
+          <Select
+            placeholder="选择类型"
+            disabled={!!editingLicense}
+            onChange={(value) => { if (value === 'CUSTOM') form.setFieldValue('durationUnit', 'DAY'); }}
+          >
+            {keyTypeOptions.map(opt => (
+              <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+            ))}
+          </Select>
+        </Form.Item>
+      </Col>
+    </Row>
+
+    {!editingLicense && (
+      <Form.Item
+        label="自定义卡密"
+        name="keyCode"
+        tooltip="留空自动生成16位；输入1-5位作为前缀自动补全；输入6-64位作为完整卡密"
+        rules={[
+          { pattern: /^[A-Z0-9]*$/, message: '只能包含大写字母和数字' },
+          { max: 64, message: '长度不能超过64位' },
+        ]}
+      >
+        <Input
+          placeholder="留空自动生成，或输入前缀/完整卡密（仅支持大写字母和数字）"
+          maxLength={64}
+          style={{ textTransform: 'uppercase' }}
+          onChange={(e) => form.setFieldValue('keyCode', e.target.value.toUpperCase())}
+        />
+      </Form.Item>
+    )}
+
+    <Form.Item noStyle shouldUpdate={(prev, cur) => prev.keyType !== cur.keyType}>
+      {({ getFieldValue }) => {
+        const keyType = getFieldValue('keyType');
+        const locked = !!editingLicense;
+        if (keyType === 'CUSTOM') {
+          return (
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="时长数值" name="durationValue" rules={[{ required: !locked, message: '请输入时长数值' }]}>
+                  <InputNumber min={1} style={{ width: '100%' }} placeholder="例如：3、100、365" disabled={locked} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="时长单位" name="durationUnit" rules={[{ required: !locked, message: '请选择时长单位' }]}>
+                  <Select placeholder="选择单位" disabled={locked}>
+                    <Option value="HOUR">小时</Option>
+                    <Option value="DAY">天</Option>
+                    <Option value="MONTH">月</Option>
+                    <Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          );
+        }
+        if (keyType && keyType !== 'PERMANENT' && keyType !== 'CUSTOM') {
+          return (
+            <Form.Item label="倍数" name="durationValue" tooltip="例如：3天卡输入3，5月卡输入5" rules={[{ required: !locked, message: '请输入倍数' }]}>
+              <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="输入倍数，例如：1、3、5、10" disabled={locked} />
+            </Form.Item>
+          );
+        }
+        return null;
+      }}
+    </Form.Item>
+
+    {editingLicense && (
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item label="到期时间" name="expiresAt" tooltip="直接修改该卡密的实际到期时间">
+            <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: '100%' }} placeholder="选择到期日期和时间" />
+          </Form.Item>
+        </Col>
+      </Row>
+    )}
+
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="使用次数限制" name="useLimit" tooltip="0表示不限制">
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="解绑次数限制" name="unbindLimit" tooltip="0表示不限制">
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+        </Form.Item>
+      </Col>
+    </Row>
+
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="可使用时间段-开始" name="useTimeStart">
+          <TimePicker format="HH:mm:ss" style={{ width: '100%' }} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="可使用时间段-结束" name="useTimeEnd">
+          <TimePicker format="HH:mm:ss" style={{ width: '100%' }} />
+        </Form.Item>
+      </Col>
+    </Row>
+
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item label="验证设备" name="deviceCheckEnabled" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="验证IP" name="ipCheckEnabled" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+      </Col>
+    </Row>
+
+    {editingLicense && (
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item label="绑定设备" name="bindDeviceId" tooltip="可修改或清空。清空后该卡密下次登录可重新绑定设备（开启设备校验时生效）。">
+            <Input allowClear placeholder="输入设备ID，留空表示清空" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="绑定IP" name="bindIp" tooltip="可修改或清空。清空后该卡密下次登录可重新绑定IP（开启IP校验时生效）。">
+            <Input allowClear placeholder="输入IP，留空表示清空" />
+          </Form.Item>
+        </Col>
+      </Row>
+    )}
+
+    <Form.Item label="备注" name="remark">
+      <TextArea rows={3} placeholder="输入备注信息" />
+    </Form.Item>
+  </Form>
+);
 
 const LicenseManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -1398,13 +1659,13 @@ const LicenseManagementContent: React.FC = () => {
   };
 
   const renderMobileLicenseCard = (record: LicenseKey) => {
-    const statusMap: Record<number, { text: string; color: string }> = {
-      1: { text: '未使用', color: 'default' },
-      2: { text: '使用中', color: 'processing' },
-      3: { text: '已到期', color: 'error' },
-      4: { text: '已禁用', color: 'error' },
+    const statusMap: Record<number, { text: string; color: string; border: string }> = {
+      1: { text: '未使用', color: 'default', border: '#d9d9d9' },
+      2: { text: '使用中', color: 'processing', border: '#1890ff' },
+      3: { text: '已到期', color: 'error', border: '#ff4d4f' },
+      4: { text: '已禁用', color: 'error', border: '#ff4d4f' },
     };
-    const statusInfo = statusMap[record.status] || { text: '未知', color: 'default' };
+    const statusInfo = statusMap[record.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
 
     let typeLabel = getKeyTypeLabel(record.keyType);
     if (record.keyType === 'CUSTOM' && record.durationValue && record.durationUnit) {
@@ -1415,45 +1676,39 @@ const LicenseManagementContent: React.FC = () => {
     }
 
     const isExpired = record.expiresAt && new Date(record.expiresAt) < new Date();
+    const isOnline = record.isOnline;
 
     return (
       <div
         key={record.id}
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
-        }}
+        className="license-mobile-card"
+        style={{ borderLeft: `3px solid ${statusInfo.border}` }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-          <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
-            <Text
-              copyable={{ text: record.keyCode, tooltips: ['复制', '已复制'] }}
-              style={{
-                fontFamily: 'Consolas, Monaco, monospace',
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#1a1a1a',
-              }}
-            >
-              {record.keyCode}
-            </Text>
-          </div>
+        {/* Row 1: Key code + Menu */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <Text
+            copyable={{ text: record.keyCode, tooltips: ['复制', '已复制'] }}
+            className="license-mobile-key"
+          >
+            {record.keyCode}
+          </Text>
           <Dropdown menu={{ items: getLicenseMenuItems(record) }} trigger={['click']}>
-            <Button type="text" size="small" icon={<MoreOutlined />} />
+            <Button type="text" size="small" icon={<MoreOutlined />} style={{ flexShrink: 0, width: 32, height: 32 }} />
           </Dropdown>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <Badge status={statusInfo.color as any} text={<span style={{ fontSize: 12 }}>{statusInfo.text}</span>} />
-          {record.isOnline && <Tag color="success" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>在线</Tag>}
-          <Tag color="blue" style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>{typeLabel}</Tag>
-          {record.appName && <Tag style={{ margin: 0, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>{record.appName}</Tag>}
+        {/* Row 2: Status + Tags */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+          <Badge status={statusInfo.color as any} text={<span style={{ fontSize: 11 }}>{statusInfo.text}</span>} />
+          {isOnline && <Tag color="success" className="license-mobile-tag">在线</Tag>}
+          <Tag color="blue" className="license-mobile-tag">{typeLabel}</Tag>
+          {record.appName && <Tag className="license-mobile-tag">{record.appName}</Tag>}
         </div>
 
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#8c8c8c' }}>
+        {/* Row 3: Metadata grid */}
+        <div className="license-mobile-meta">
           {record.expiresAt && (
-            <span style={{ color: isExpired ? '#ff4d4f' : undefined }}>
+            <span className={isExpired ? 'license-meta-expired' : ''}>
               {isExpired ? '已过期' : '到期'} {dayjs(record.expiresAt).format('MM/DD HH:mm')}
             </span>
           )}
@@ -1461,8 +1716,8 @@ const LicenseManagementContent: React.FC = () => {
           {(record.unbindLimit ?? 0) > 0 && (
             <span>解绑 {record.unbindCount ?? 0}/{record.unbindLimit}</span>
           )}
-          {record.bindDeviceId?.trim() && <span style={{ color: '#fa8c16' }}>已绑设备</span>}
-          {record.bindIp?.trim() && <span style={{ color: '#1890ff' }}>已绑IP</span>}
+          {record.bindDeviceId?.trim() && <span className="license-meta-device">已绑设备</span>}
+          {record.bindIp?.trim() && <span className="license-meta-ip">已绑IP</span>}
         </div>
       </div>
     );
@@ -1535,58 +1790,53 @@ const LicenseManagementContent: React.FC = () => {
                 size="small"
               />
               <Button type="primary" onClick={() => applyKeyCodeSearch()} style={{ flexShrink: 0 }}>搜索</Button>
-              <Popover
-                trigger="click"
-                placement="bottomRight"
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }} onClick={() => { setFilterPopoverOpen(true); syncListFilterFormFromFilters(); }}>筛选</Button>
+              </Badge>
+              <M5BottomSheet
                 open={filterPopoverOpen}
-                onOpenChange={(open) => { setFilterPopoverOpen(open); if (open) syncListFilterFormFromFilters(); }}
-                content={
-                  <div style={{ width: 320, maxWidth: '90vw' }}>
-                    <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
-                      <Row gutter={12}>
-                        <Col span={12}>
-                          <Form.Item label="应用" name="appId">
-                            <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="卡密类型" name="keyType">
-                            <Select allowClear placeholder="卡密类型" options={keyTypeOptions.map((opt) => ({ label: opt.label, value: opt.value }))} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="批次名称" name="batchName">
-                            <Input allowClear placeholder="模糊匹配" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="备注" name="remark">
-                            <Input allowClear placeholder="模糊匹配" />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="状态" name="status">
-                            <Select allowClear placeholder="状态" options={[{ label: '未使用', value: 1 }, { label: '使用中', value: 2 }, { label: '已到期', value: 3 }, { label: '已禁用', value: 4 }]} />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="在线状态" name="isOnline">
-                            <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                      <Row justify="end" gutter={8} style={{ marginTop: 8 }}>
-                        <Col><Button onClick={handleAdvancedFilterReset}>重置</Button></Col>
-                        <Col><Button type="primary" onClick={() => void handleAdvancedFilterQuery()}>查询</Button></Col>
-                      </Row>
-                    </Form>
-                  </div>
-                }
+                onClose={() => setFilterPopoverOpen(false)}
+                title="筛选条件"
+                footer={<>
+                  <Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10, fontWeight: 500 }}>重置</Button>
+                  <Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10, fontWeight: 500 }}>查询</Button>
+                </>}
               >
-                <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
-                  <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }}>筛选</Button>
-                </Badge>
-              </Popover>
+                <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
+                  <Row gutter={[12, 0]}>
+                    <Col span={12}>
+                      <Form.Item label="应用" name="appId" style={{ marginBottom: 16 }}>
+                        <Select allowClear placeholder="选择应用" options={applications.map((app) => ({ label: app.appName, value: app.id }))} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="卡密类型" name="keyType" style={{ marginBottom: 16 }}>
+                        <Select allowClear placeholder="卡密类型" options={keyTypeOptions.map((opt) => ({ label: opt.label, value: opt.value }))} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="批次名称" name="batchName" style={{ marginBottom: 16 }}>
+                        <Input allowClear placeholder="模糊匹配" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="备注" name="remark" style={{ marginBottom: 16 }}>
+                        <Input allowClear placeholder="模糊匹配" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="状态" name="status" style={{ marginBottom: 16 }}>
+                        <Select allowClear placeholder="状态" options={[{ label: '未使用', value: 1 }, { label: '使用中', value: 2 }, { label: '已到期', value: 3 }, { label: '已禁用', value: 4 }]} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="在线状态" name="isOnline" style={{ marginBottom: 16 }}>
+                        <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Form>
+              </M5BottomSheet>
             </>
           ) : (
             <Space size={12}>
@@ -1693,7 +1943,7 @@ const LicenseManagementContent: React.FC = () => {
 
         {/* 卡密列表 */}
         {isMobile ? (
-          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+          <div className="license-mobile-list">
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>加载中...</div>
             ) : licenses.length === 0 ? (
@@ -1717,800 +1967,652 @@ const LicenseManagementContent: React.FC = () => {
             size="middle"
           />
         )}
-        <Row justify="space-between" align="middle" wrap gutter={[12, 12]}>
-          <Col flex="none">
-            <Space wrap size={isMobile ? 'small' : 'middle'}>
-              <Select
-                placeholder="批量操作"
-                allowClear
-                style={{ width: isMobile ? 140 : 220 }}
-                size={isMobile ? 'small' : 'middle'}
-                value={selectedBatchAction}
-                onChange={(value) => setSelectedBatchAction(value)}
-                options={batchActionOptions}
-              />
-              <Button
-                size={isMobile ? 'small' : 'middle'}
-                icon={<ClockCircleOutlined />}
-                disabled={selectedRowKeys.length === 0 || !selectedBatchAction}
-                onClick={handleBatchActionConfirm}
-              >
-                确定
-              </Button>
-              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
-                已选 {selectedRowKeys.length} 条
-              </Text>
-            </Space>
-          </Col>
-          <Col flex="none">
-            <Pagination
-              {...pagination}
-              size={isMobile ? 'small' : 'default'}
-              showSizeChanger={!isMobile}
-              pageSizeOptions={['10', '20', '50', '100', '200', '400']}
-              showQuickJumper={!isMobile}
-              simple={isMobile}
-              showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
-              onChange={(page, pageSize) => {
-                fetchLicenses(page, pageSize, filters);
-              }}
-            />
-          </Col>
-        </Row>
+        {/* 批量操作栏 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, marginBottom: 12, flexWrap: 'nowrap' }}>
+          <Select
+            placeholder="批量操作"
+            allowClear
+            style={{ width: isMobile ? 100 : 220 }}
+            size={isMobile ? 'small' : 'middle'}
+            value={selectedBatchAction}
+            onChange={(value) => setSelectedBatchAction(value)}
+            options={batchActionOptions}
+          />
+          <Button
+            size={isMobile ? 'small' : 'middle'}
+            icon={<ClockCircleOutlined />}
+            disabled={selectedRowKeys.length === 0 || !selectedBatchAction}
+            onClick={handleBatchActionConfirm}
+            style={{ flexShrink: 0 }}
+          >
+            确定
+          </Button>
+          <Text type="secondary" style={{ fontSize: isMobile ? 11 : 14, whiteSpace: 'nowrap' }}>
+            已选 {selectedRowKeys.length} 条
+          </Text>
+        </div>
+        {/* 分页 */}
+        <div style={{ display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end' }}>
+          <Pagination
+            {...pagination}
+            size={isMobile ? 'small' : 'default'}
+            showSizeChanger={!isMobile}
+            pageSizeOptions={['10', '20', '50', '100', '200', '400']}
+            showQuickJumper={!isMobile}
+            simple={isMobile}
+            showTotal={isMobile ? undefined : (total) => `共 ${total} 条`}
+            onChange={(page, pageSize) => {
+              fetchLicenses(page, pageSize, filters);
+            }}
+          />
+        </div>
       </Space>
 
       {/* 创建/编辑弹窗 */}
-      <Modal
-        title={editingLicense ? '编辑卡密' : '创建卡密'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={isMobile ? '100%' : 700}
-        okText="确定"
-        cancelText="取消"
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          style={{ marginTop: 20 }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => setModalVisible(false)}
+          title={editingLicense ? '编辑卡密' : '创建卡密'}
+          maxHeight="90vh"
+          footer={<>
+            <Button onClick={() => setModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10, fontWeight: 500 }}>取消</Button>
+            <Button type="primary" onClick={handleSubmit} style={{ flex: 2, height: 44, borderRadius: 10, fontWeight: 500 }}>确定</Button>
+          </>}
         >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="所属应用"
-                name="appId"
-                rules={[{ required: true, message: '请选择应用' }]}
-              >
-                <Select placeholder="选择应用" disabled={!!editingLicense}>
-                  {applications.map(app => (
-                    <Option key={app.id} value={app.id}>{app.appName}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="卡密类型"
-                name="keyType"
-                rules={[{ required: true, message: '请选择卡密类型' }]}
-              >
-                <Select 
-                  placeholder="选择类型" 
-                  disabled={!!editingLicense}
-                  onChange={(value) => {
-                    // 当选择自定义类型时，显示自定义时长字段
-                    if (value === 'CUSTOM') {
-                      form.setFieldValue('durationUnit', 'DAY');
-                    }
-                  }}
-                >
-                  {keyTypeOptions.map(opt => (
-                    <Option key={opt.value} value={opt.value}>{opt.label}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {!editingLicense && (
-            <Form.Item
-              label="自定义卡密"
-              name="keyCode"
-              tooltip="留空自动生成16位；输入1-5位作为前缀自动补全；输入6-64位作为完整卡密"
-              rules={[
-                {
-                  pattern: /^[A-Z0-9]*$/,
-                  message: '只能包含大写字母和数字',
-                },
-                {
-                  max: 64,
-                  message: '长度不能超过64位',
-                },
-              ]}
-            >
-              <Input 
-                placeholder="留空自动生成，或输入前缀/完整卡密（仅支持大写字母和数字）" 
-                maxLength={64}
-                style={{ textTransform: 'uppercase' }}
-                onChange={(e) => {
-                  // 自动转大写
-                  const value = e.target.value.toUpperCase();
-                  form.setFieldValue('keyCode', value);
-                }}
-              />
-            </Form.Item>
-          )}
-
-          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.keyType !== currentValues.keyType}>
-            {({ getFieldValue }) => {
-              const keyType = getFieldValue('keyType');
-              const durationLocked = !!editingLicense;
-              
-              // 如果是自定义类型，显示自定义时长配置
-              if (keyType === 'CUSTOM') {
-                return (
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        label="时长数值"
-                        name="durationValue"
-                        rules={[{ required: !durationLocked, message: '请输入时长数值' }]}
-                      >
-                        <InputNumber 
-                          min={1} 
-                          style={{ width: '100%' }} 
-                          placeholder="例如：3、100、365"
-                          disabled={durationLocked}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        label="时长单位"
-                        name="durationUnit"
-                        rules={[{ required: !durationLocked, message: '请选择时长单位' }]}
-                      >
-                        <Select placeholder="选择单位" disabled={durationLocked}>
-                          <Option value="HOUR">小时</Option>
-                          <Option value="DAY">天</Option>
-                          <Option value="MONTH">月</Option>
-                          <Option value="YEAR">年</Option>
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                );
-              }
-              
-              // 如果是预设类型（非永久卡），显示倍数
-              if (keyType && keyType !== 'PERMANENT' && keyType !== 'CUSTOM') {
-                return (
-                  <Form.Item
-                    label="倍数"
-                    name="durationValue"
-                    tooltip="例如：3天卡输入3，5月卡输入5"
-                    rules={[{ required: !durationLocked, message: '请输入倍数' }]}
-                  >
-                    <InputNumber 
-                      min={1} 
-                      max={999}
-                      style={{ width: '100%' }} 
-                      placeholder="输入倍数，例如：1、3、5、10"
-                      disabled={durationLocked}
-                    />
-                  </Form.Item>
-                );
-              }
-              
-              return null;
-            }}
-          </Form.Item>
-
-          {editingLicense && (
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="到期时间"
-                  name="expiresAt"
-                  tooltip="直接修改该卡密的实际到期时间"
-                >
-                  <DatePicker
-                    showTime
-                    format="YYYY-MM-DD HH:mm:ss"
-                    style={{ width: '100%' }}
-                    placeholder="选择到期日期和时间"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          )}
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="使用次数限制"
-                name="useLimit"
-                tooltip="0表示不限制"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="解绑次数限制"
-                name="unbindLimit"
-                tooltip="0表示不限制"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="可使用时间段-开始"
-                name="useTimeStart"
-              >
-                <TimePicker format="HH:mm:ss" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="可使用时间段-结束"
-                name="useTimeEnd"
-              >
-                <TimePicker format="HH:mm:ss" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="验证设备"
-                name="deviceCheckEnabled"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="验证IP"
-                name="ipCheckEnabled"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {editingLicense && (
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="绑定设备"
-                  name="bindDeviceId"
-                  tooltip="可修改或清空。清空后该卡密下次登录可重新绑定设备（开启设备校验时生效）。"
-                >
-                  <Input allowClear placeholder="输入设备ID，留空表示清空" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="绑定IP"
-                  name="bindIp"
-                  tooltip="可修改或清空。清空后该卡密下次登录可重新绑定IP（开启IP校验时生效）。"
-                >
-                  <Input allowClear placeholder="输入IP，留空表示清空" />
-                </Form.Item>
-              </Col>
-            </Row>
-          )}
-
-          <Form.Item
-            label="备注"
-            name="remark"
-          >
-            <TextArea rows={3} placeholder="输入备注信息" />
-          </Form.Item>
-        </Form>
-      </Modal>
+          <CreateEditForm form={form} editingLicense={editingLicense} applications={applications} keyTypeOptions={keyTypeOptions} />
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingLicense ? '编辑卡密' : '创建卡密'}
+          open={modalVisible}
+          onOk={handleSubmit}
+          onCancel={() => setModalVisible(false)}
+          width={700}
+          okText="确定"
+          cancelText="取消"
+        >
+          <CreateEditForm form={form} editingLicense={editingLicense} applications={applications} keyTypeOptions={keyTypeOptions} />
+        </Modal>
+      )}
 
       {/* 批量生成弹窗 */}
-      <Modal
-        title="批量生成卡密"
-        open={batchModalVisible}
-        onOk={handleBatchSubmit}
-        onCancel={() => setBatchModalVisible(false)}
-        width={isMobile ? '100%' : 700}
-        okText="生成"
-        cancelText="取消"
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Form
-          form={batchForm}
-          layout="vertical"
-          style={{ marginTop: 20 }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchModalVisible}
+          onClose={() => setBatchModalVisible(false)}
+          title="批量生成卡密"
+          maxHeight="90vh"
+          footer={<>
+            <Button onClick={() => setBatchModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10, fontWeight: 500 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchSubmit} style={{ flex: 2, height: 44, borderRadius: 10, fontWeight: 500 }}>生成</Button>
+          </>}
         >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="所属应用"
-                name="appId"
-                rules={[{ required: true, message: '请选择应用' }]}
-              >
-                <Select placeholder="选择应用">
-                  {applications.map(app => (
-                    <Option key={app.id} value={app.id}>{app.appName}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="批次名称"
-                name="batchName"
-                rules={[{ required: true, message: '请输入批次名称' }]}
-              >
-                <Input placeholder="例如：2024年1月批次" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <BatchGenerateForm form={batchForm} applications={applications} keyTypeOptions={keyTypeOptions} />
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量生成卡密"
+          open={batchModalVisible}
+          onOk={handleBatchSubmit}
+          onCancel={() => setBatchModalVisible(false)}
+          width={700}
+          okText="生成"
+          cancelText="取消"
+        >
+          <BatchGenerateForm form={batchForm} applications={applications} keyTypeOptions={keyTypeOptions} />
+        </Modal>
+      )}
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label={
-                  <Space size={6}>
-                    <span>卡密前缀</span>
-                    <Tooltip title="可选。仅作为前缀拼接到自动生成的随机后缀前。只能包含字母/数字，且长度必须小于16位（不支持指定整条卡密）。">
-                      <KeyOutlined />
-                    </Tooltip>
-                  </Space>
-                }
-                name="keyPrefix"
-                rules={[
-                  { pattern: /^[A-Za-z0-9]*$/, message: '前缀只能包含字母和数字' },
-                  { max: 15, message: '前缀最长15位（总长度固定16位）' },
-                ]}
-                getValueFromEvent={(e) => (e?.target?.value ?? '').toUpperCase()}
-              >
-                <Input placeholder="例如：VIP（可留空）" maxLength={15} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="卡密类型"
-                name="keyType"
-                rules={[{ required: true, message: '请选择卡密类型' }]}
-              >
-                <Select 
-                  placeholder="选择类型"
-                  onChange={(value) => {
-                    if (value === 'CUSTOM') {
-                      batchForm.setFieldValue('durationUnit', 'DAY');
-                    }
-                  }}
-                >
-                  {keyTypeOptions.map(opt => (
-                    <Option key={opt.value} value={opt.value}>{opt.label}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchUnbindVisible}
+          onClose={() => setBatchUnbindVisible(false)}
+          title="批量解绑"
+          footer={<>
+            <Button onClick={() => setBatchUnbindVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchUnbindSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定解绑</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密执行解绑操作。
+          </Paragraph>
+          <Form form={batchUnbindForm} layout="vertical">
+            <Form.Item label="解绑类型">
+              <Space direction="vertical">
+                <Form.Item name="unbindDevice" valuePropName="checked" noStyle>
+                  <Checkbox>解绑设备</Checkbox>
+                </Form.Item>
+                <Form.Item name="unbindIp" valuePropName="checked" noStyle>
+                  <Checkbox>解绑 IP</Checkbox>
+                </Form.Item>
+              </Space>
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量解绑"
+          open={batchUnbindVisible}
+          onOk={handleBatchUnbindSubmit}
+          onCancel={() => setBatchUnbindVisible(false)}
+          okText="确定解绑"
+          cancelText="取消"
+          width={520}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密执行解绑操作。
+          </Paragraph>
+          <Form form={batchUnbindForm} layout="vertical">
+            <Form.Item label="解绑类型">
+              <Space direction="vertical">
+                <Form.Item name="unbindDevice" valuePropName="checked" noStyle>
+                  <Checkbox>解绑设备</Checkbox>
+                </Form.Item>
+                <Form.Item name="unbindIp" valuePropName="checked" noStyle>
+                  <Checkbox>解绑 IP</Checkbox>
+                </Form.Item>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="生成数量"
-                name="totalCount"
-                rules={[{ required: true, message: '请输入生成数量' }]}
-              >
-                <InputNumber min={1} max={1000} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12} />
-          </Row>
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchUseLimitVisible}
+          onClose={() => setBatchUseLimitVisible(false)}
+          title="批量设置使用次数限制"
+          footer={<>
+            <Button onClick={() => setBatchUseLimitVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchUseLimitSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定设置</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置使用次数限制。
+            输入 <Text code>0</Text> 表示不限制。
+          </Paragraph>
+          <Form form={batchUseLimitForm} layout="vertical">
+            <Form.Item
+              label="使用次数限制"
+              name="useLimit"
+              rules={[{ required: true, message: '请输入使用次数限制' }]}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量设置使用次数限制"
+          open={batchUseLimitVisible}
+          onOk={handleBatchUseLimitSubmit}
+          onCancel={() => setBatchUseLimitVisible(false)}
+          okText="确定设置"
+          cancelText="取消"
+          width={520}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置使用次数限制。
+            输入 <Text code>0</Text> 表示不限制。
+          </Paragraph>
+          <Form form={batchUseLimitForm} layout="vertical">
+            <Form.Item
+              label="使用次数限制"
+              name="useLimit"
+              rules={[{ required: true, message: '请输入使用次数限制' }]}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
-          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.keyType !== currentValues.keyType}>
-            {({ getFieldValue }) => {
-              const keyType = getFieldValue('keyType');
-              
-              // 如果是自定义类型，显示自定义时长配置
-              if (keyType === 'CUSTOM') {
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchUnbindLimitVisible}
+          onClose={() => setBatchUnbindLimitVisible(false)}
+          title="批量设置解绑次数限制"
+          footer={<>
+            <Button onClick={() => setBatchUnbindLimitVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchUnbindLimitSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定设置</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置解绑次数限制。
+            输入 <Text code>0</Text> 表示不限制。
+          </Paragraph>
+          <Form form={batchUnbindLimitForm} layout="vertical">
+            <Form.Item
+              label="解绑次数限制"
+              name="unbindLimit"
+              rules={[{ required: true, message: '请输入解绑次数限制' }]}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量设置解绑次数限制"
+          open={batchUnbindLimitVisible}
+          onOk={handleBatchUnbindLimitSubmit}
+          onCancel={() => setBatchUnbindLimitVisible(false)}
+          okText="确定设置"
+          cancelText="取消"
+          width={520}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置解绑次数限制。
+            输入 <Text code>0</Text> 表示不限制。
+          </Paragraph>
+          <Form form={batchUnbindLimitForm} layout="vertical">
+            <Form.Item
+              label="解绑次数限制"
+              name="unbindLimit"
+              rules={[{ required: true, message: '请输入解绑次数限制' }]}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchUseTimeVisible}
+          onClose={() => setBatchUseTimeVisible(false)}
+          title="批量设置使用时间段限制"
+          footer={<>
+            <Button onClick={() => setBatchUseTimeVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchUseTimeSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定设置</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置可使用时间段。
+          </Paragraph>
+          <Form form={batchUseTimeForm} layout="vertical">
+            <Form.Item name="clearTimeRange" valuePropName="checked">
+              <Checkbox>清空时间段限制</Checkbox>
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldValue }) => {
+                const clearTimeRange = !!getFieldValue('clearTimeRange');
                 return (
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item
-                        label="时长数值"
-                        name="durationValue"
-                        rules={[{ required: true, message: '请输入时长数值' }]}
+                        label="开始时间"
+                        name="useTimeStart"
+                        rules={clearTimeRange ? [] : [{ required: true, message: '请选择开始时间' }]}
                       >
-                        <InputNumber 
-                          min={1} 
-                          style={{ width: '100%' }} 
-                          placeholder="例如：3、100、365"
+                        <TimePicker
+                          format="HH:mm:ss"
+                          style={{ width: '100%' }}
+                          disabled={clearTimeRange}
                         />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
                       <Form.Item
-                        label="时长单位"
-                        name="durationUnit"
-                        rules={[{ required: true, message: '请选择时长单位' }]}
+                        label="结束时间"
+                        name="useTimeEnd"
+                        rules={clearTimeRange ? [] : [{ required: true, message: '请选择结束时间' }]}
                       >
-                        <Select placeholder="选择单位">
-                          <Option value="HOUR">小时</Option>
-                          <Option value="DAY">天</Option>
-                          <Option value="MONTH">月</Option>
-                          <Option value="YEAR">年</Option>
-                        </Select>
+                        <TimePicker
+                          format="HH:mm:ss"
+                          style={{ width: '100%' }}
+                          disabled={clearTimeRange}
+                        />
                       </Form.Item>
                     </Col>
                   </Row>
                 );
-              }
-              
-              // 如果是预设类型（非永久卡），显示倍数
-              if (keyType && keyType !== 'PERMANENT' && keyType !== 'CUSTOM') {
+              }}
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量设置使用时间段限制"
+          open={batchUseTimeVisible}
+          onOk={handleBatchUseTimeSubmit}
+          onCancel={() => setBatchUseTimeVisible(false)}
+          okText="确定设置"
+          cancelText="取消"
+          width={560}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置可使用时间段。
+          </Paragraph>
+          <Form form={batchUseTimeForm} layout="vertical">
+            <Form.Item name="clearTimeRange" valuePropName="checked">
+              <Checkbox>清空时间段限制</Checkbox>
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldValue }) => {
+                const clearTimeRange = !!getFieldValue('clearTimeRange');
                 return (
-                  <Form.Item
-                    label="倍数"
-                    name="durationValue"
-                    tooltip="例如：3天卡输入3，5月卡输入5"
-                    rules={[{ required: true, message: '请输入倍数' }]}
-                  >
-                    <InputNumber 
-                      min={1} 
-                      max={999}
-                      style={{ width: '100%' }} 
-                      placeholder="输入倍数，例如：1、3、5、10"
-                    />
-                  </Form.Item>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="开始时间"
+                        name="useTimeStart"
+                        rules={clearTimeRange ? [] : [{ required: true, message: '请选择开始时间' }]}
+                      >
+                        <TimePicker
+                          format="HH:mm:ss"
+                          style={{ width: '100%' }}
+                          disabled={clearTimeRange}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label="结束时间"
+                        name="useTimeEnd"
+                        rules={clearTimeRange ? [] : [{ required: true, message: '请选择结束时间' }]}
+                      >
+                        <TimePicker
+                          format="HH:mm:ss"
+                          style={{ width: '100%' }}
+                          disabled={clearTimeRange}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
                 );
-              }
-              
-              return null;
-            }}
-          </Form.Item>
+              }}
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="使用次数限制"
-                name="useLimit"
-                tooltip="0表示不限制"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="解绑次数限制"
-                name="unbindLimit"
-                tooltip="0表示不限制"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="验证设备"
-                name="deviceCheckEnabled"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="验证IP"
-                name="ipCheckEnabled"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="备注"
-            name="remark"
-          >
-            <TextArea rows={3} placeholder="输入批次备注信息" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量解绑"
-        open={batchUnbindVisible}
-        onOk={handleBatchUnbindSubmit}
-        onCancel={() => setBatchUnbindVisible(false)}
-        okText="确定解绑"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密执行解绑操作。
-        </Paragraph>
-        <Form form={batchUnbindForm} layout="vertical">
-          <Form.Item label="解绑类型">
-            <Space direction="vertical">
-              <Form.Item name="unbindDevice" valuePropName="checked" noStyle>
-                <Checkbox>解绑设备</Checkbox>
-              </Form.Item>
-              <Form.Item name="unbindIp" valuePropName="checked" noStyle>
-                <Checkbox>解绑 IP</Checkbox>
-              </Form.Item>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量设置使用次数限制"
-        open={batchUseLimitVisible}
-        onOk={handleBatchUseLimitSubmit}
-        onCancel={() => setBatchUseLimitVisible(false)}
-        okText="确定设置"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置使用次数限制。
-          输入 <Text code>0</Text> 表示不限制。
-        </Paragraph>
-        <Form form={batchUseLimitForm} layout="vertical">
-          <Form.Item
-            label="使用次数限制"
-            name="useLimit"
-            rules={[{ required: true, message: '请输入使用次数限制' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量设置解绑次数限制"
-        open={batchUnbindLimitVisible}
-        onOk={handleBatchUnbindLimitSubmit}
-        onCancel={() => setBatchUnbindLimitVisible(false)}
-        okText="确定设置"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置解绑次数限制。
-          输入 <Text code>0</Text> 表示不限制。
-        </Paragraph>
-        <Form form={batchUnbindLimitForm} layout="vertical">
-          <Form.Item
-            label="解绑次数限制"
-            name="unbindLimit"
-            rules={[{ required: true, message: '请输入解绑次数限制' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="0=不限" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量设置使用时间段限制"
-        open={batchUseTimeVisible}
-        onOk={handleBatchUseTimeSubmit}
-        onCancel={() => setBatchUseTimeVisible(false)}
-        okText="确定设置"
-        cancelText="取消"
-        width={isMobile ? '100%' : 560}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密统一设置可使用时间段。
-        </Paragraph>
-        <Form form={batchUseTimeForm} layout="vertical">
-          <Form.Item name="clearTimeRange" valuePropName="checked">
-            <Checkbox>清空时间段限制</Checkbox>
-          </Form.Item>
-          <Form.Item noStyle shouldUpdate>
-            {({ getFieldValue }) => {
-              const clearTimeRange = !!getFieldValue('clearTimeRange');
-              return (
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      label="开始时间"
-                      name="useTimeStart"
-                      rules={clearTimeRange ? [] : [{ required: true, message: '请选择开始时间' }]}
-                    >
-                      <TimePicker
-                        format="HH:mm:ss"
-                        style={{ width: '100%' }}
-                        disabled={clearTimeRange}
-                      />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      label="结束时间"
-                      name="useTimeEnd"
-                      rules={clearTimeRange ? [] : [{ required: true, message: '请选择结束时间' }]}
-                    >
-                      <TimePicker
-                        format="HH:mm:ss"
-                        style={{ width: '100%' }}
-                        disabled={clearTimeRange}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              );
-            }}
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="批量加时"
-        open={batchAddTimeVisible}
-        onOk={handleBatchAddTimeSubmit}
-        onCancel={() => setBatchAddTimeVisible(false)}
-        okText="确定加时"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密延长到期时间。
-          仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
-        </Paragraph>
-        <Form form={addTimeForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="延长数值"
-                name="durationValue"
-                rules={[{ required: true, message: '请输入延长数值' }]}
-              >
-                <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="durationUnit"
-                rules={[{ required: true, message: '请选择单位' }]}
-              >
-                <Select placeholder="选择单位">
-                  <Option value="MINUTE">分钟</Option>
-                  <Option value="HOUR">小时</Option>
-                  <Option value="DAY">天</Option>
-                  <Option value="WEEK">周</Option>
-                  <Option value="MONTH">月</Option>
-                  <Option value="YEAR">年</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-      <Modal
-        title="批量扣时"
-        open={batchSubtractTimeVisible}
-        onOk={handleBatchSubtractTimeSubmit}
-        onCancel={() => setBatchSubtractTimeVisible(false)}
-        okText="确定扣时"
-        cancelText="取消"
-        width={isMobile ? '100%' : 520}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密扣减到期时间。
-          仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
-        </Paragraph>
-        <Form form={subtractTimeForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="扣减数值"
-                name="durationValue"
-                rules={[{ required: true, message: '请输入扣减数值' }]}
-              >
-                <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="单位"
-                name="durationUnit"
-                rules={[{ required: true, message: '请选择单位' }]}
-              >
-                <Select placeholder="选择单位">
-                  <Option value="MINUTE">分钟</Option>
-                  <Option value="HOUR">小时</Option>
-                  <Option value="DAY">天</Option>
-                  <Option value="WEEK">周</Option>
-                  <Option value="MONTH">月</Option>
-                  <Option value="YEAR">年</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchAddTimeVisible}
+          onClose={() => setBatchAddTimeVisible(false)}
+          title="批量加时"
+          footer={<>
+            <Button onClick={() => setBatchAddTimeVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchAddTimeSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定加时</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密延长到期时间。
+            仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+          </Paragraph>
+          <Form form={addTimeForm} layout="vertical">
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="延长数值"
+                  name="durationValue"
+                  rules={[{ required: true, message: '请输入延长数值' }]}
+                >
+                  <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="durationUnit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                >
+                  <Select placeholder="选择单位">
+                    <Option value="MINUTE">分钟</Option>
+                    <Option value="HOUR">小时</Option>
+                    <Option value="DAY">天</Option>
+                    <Option value="WEEK">周</Option>
+                    <Option value="MONTH">月</Option>
+                    <Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量加时"
+          open={batchAddTimeVisible}
+          onOk={handleBatchAddTimeSubmit}
+          onCancel={() => setBatchAddTimeVisible(false)}
+          okText="确定加时"
+          cancelText="取消"
+          width={520}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密延长到期时间。
+            仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+          </Paragraph>
+          <Form form={addTimeForm} layout="vertical">
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="延长数值"
+                  name="durationValue"
+                  rules={[{ required: true, message: '请输入延长数值' }]}
+                >
+                  <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="durationUnit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                >
+                  <Select placeholder="选择单位">
+                    <Option value="MINUTE">分钟</Option>
+                    <Option value="HOUR">小时</Option>
+                    <Option value="DAY">天</Option>
+                    <Option value="WEEK">周</Option>
+                    <Option value="MONTH">月</Option>
+                    <Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
+      {isMobile ? (
+        <M5BottomSheet
+          open={batchSubtractTimeVisible}
+          onClose={() => setBatchSubtractTimeVisible(false)}
+          title="批量扣时"
+          footer={<>
+            <Button onClick={() => setBatchSubtractTimeVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleBatchSubtractTimeSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定扣时</Button>
+          </>}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密扣减到期时间。
+            仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+          </Paragraph>
+          <Form form={subtractTimeForm} layout="vertical">
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="扣减数值"
+                  name="durationValue"
+                  rules={[{ required: true, message: '请输入扣减数值' }]}
+                >
+                  <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="durationUnit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                >
+                  <Select placeholder="选择单位">
+                    <Option value="MINUTE">分钟</Option>
+                    <Option value="HOUR">小时</Option>
+                    <Option value="DAY">天</Option>
+                    <Option value="WEEK">周</Option>
+                    <Option value="MONTH">月</Option>
+                    <Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="批量扣时"
+          open={batchSubtractTimeVisible}
+          onOk={handleBatchSubtractTimeSubmit}
+          onCancel={() => setBatchSubtractTimeVisible(false)}
+          okText="确定扣时"
+          cancelText="取消"
+          width={520}
+        >
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            将对当前已勾选的 <Text strong>{selectedRowKeys.length}</Text> 条卡密扣减到期时间。
+            仅<strong>已激活</strong>（已首次使用）且有到期时间的卡密会生效；未激活的会在结果中提示「该卡密未激活」。
+          </Paragraph>
+          <Form form={subtractTimeForm} layout="vertical">
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="扣减数值"
+                  name="durationValue"
+                  rules={[{ required: true, message: '请输入扣减数值' }]}
+                >
+                  <InputNumber min={1} max={99999} style={{ width: '100%' }} placeholder="正整数" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="单位"
+                  name="durationUnit"
+                  rules={[{ required: true, message: '请选择单位' }]}
+                >
+                  <Select placeholder="选择单位">
+                    <Option value="MINUTE">分钟</Option>
+                    <Option value="HOUR">小时</Option>
+                    <Option value="DAY">天</Option>
+                    <Option value="WEEK">周</Option>
+                    <Option value="MONTH">月</Option>
+                    <Option value="YEAR">年</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+      )}
 
       {/* 导入卡密弹窗 */}
-      <Modal
-        title="导入卡密"
-        open={importVisible}
-        onCancel={() => { setImportVisible(false); setImportResult(null); }}
-        footer={null}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text type="secondary">
-              导入将使用当前筛选的应用（{filters.appId ? applications.find(a => a.id === filters.appId)?.appName || 'ID: ' + filters.appId : '请先选择应用'}）。
-              请先下载模板，填写后上传 .xlsx 文件。
-            </Text>
-            <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>下载导入模板</Button>
-          </Space>
-        </div>
-
-        <Upload.Dragger
-          accept=".xlsx"
-          showUploadList={false}
-          beforeUpload={(file) => { handleImport(file); return false; }}
-          disabled={importing}
+      {isMobile ? (
+        <M5BottomSheet
+          open={importVisible}
+          onClose={() => { setImportVisible(false); setImportResult(null); }}
+          title="导入卡密"
+          closeText="关闭"
+          maxHeight="90vh"
         >
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">点击或拖拽 .xlsx 文件到此处导入</p>
-          <p className="ant-upload-hint">卡密码必须在当前应用下唯一，重复的行将跳过</p>
-        </Upload.Dragger>
-
-        {importResult && (
-          <div style={{ marginTop: 16 }}>
-            <Card size="small" title="导入结果">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Row gutter={16}>
-                  <Col span={8}><Text>总行数：</Text><Text strong>{importResult.totalRows}</Text></Col>
-                  <Col span={8}><Text>成功：</Text><Text strong type="success">{importResult.successCount}</Text></Col>
-                  <Col span={8}><Text>失败：</Text><Text strong type={importResult.failCount > 0 ? 'danger' : undefined}>{importResult.failCount}</Text></Col>
-                </Row>
-                {importResult.failItems.length > 0 && (
-                  <div style={{ maxHeight: 200, overflow: 'auto' }}>
-                    <Table
-                      size="small"
-                      dataSource={importResult.failItems}
-                      rowKey="rowNumber"
-                      pagination={false}
-                      columns={[
-                        { title: '行号', dataIndex: 'rowNumber', width: 60 },
-                        { title: '卡密码', dataIndex: 'keyCode', width: 180 },
-                        { title: '失败原因', dataIndex: 'reason' },
-                      ]}
-                    />
-                  </div>
-                )}
-              </Space>
-            </Card>
+          <div style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">
+                导入将使用当前筛选的应用（{filters.appId ? applications.find(a => a.id === filters.appId)?.appName || 'ID: ' + filters.appId : '请先选择应用'}）。
+                请先下载模板，填写后上传 .xlsx 文件。
+              </Text>
+              <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>下载导入模板</Button>
+            </Space>
           </div>
-        )}
-      </Modal>
+          <Upload.Dragger
+            accept=".xlsx"
+            showUploadList={false}
+            beforeUpload={(file) => { handleImport(file); return false; }}
+            disabled={importing}
+          >
+            <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+            <p className="ant-upload-text">点击或拖拽 .xlsx 文件到此处导入</p>
+            <p className="ant-upload-hint">卡密码必须在当前应用下唯一，重复的行将跳过</p>
+          </Upload.Dragger>
+          {importResult && (
+            <div style={{ marginTop: 16 }}>
+              <Card size="small" title="导入结果">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Row gutter={16}>
+                    <Col span={8}><Text>总行数：</Text><Text strong>{importResult.totalRows}</Text></Col>
+                    <Col span={8}><Text>成功：</Text><Text strong type="success">{importResult.successCount}</Text></Col>
+                    <Col span={8}><Text>失败：</Text><Text strong type={importResult.failCount > 0 ? 'danger' : undefined}>{importResult.failCount}</Text></Col>
+                  </Row>
+                  {importResult.failItems.length > 0 && (
+                    <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                      <Table size="small" dataSource={importResult.failItems} rowKey="rowNumber" pagination={false}
+                        columns={[
+                          { title: '行号', dataIndex: 'rowNumber', width: 60 },
+                          { title: '卡密码', dataIndex: 'keyCode', width: 180 },
+                          { title: '失败原因', dataIndex: 'reason' },
+                        ]}
+                      />
+                    </div>
+                  )}
+                </Space>
+              </Card>
+            </div>
+          )}
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title="导入卡密"
+          open={importVisible}
+          onCancel={() => { setImportVisible(false); setImportResult(null); }}
+          footer={null}
+          width={600}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">
+                导入将使用当前筛选的应用（{filters.appId ? applications.find(a => a.id === filters.appId)?.appName || 'ID: ' + filters.appId : '请先选择应用'}）。
+                请先下载模板，填写后上传 .xlsx 文件。
+              </Text>
+              <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>下载导入模板</Button>
+            </Space>
+          </div>
+          <Upload.Dragger
+            accept=".xlsx"
+            showUploadList={false}
+            beforeUpload={(file) => { handleImport(file); return false; }}
+            disabled={importing}
+          >
+            <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+            <p className="ant-upload-text">点击或拖拽 .xlsx 文件到此处导入</p>
+            <p className="ant-upload-hint">卡密码必须在当前应用下唯一，重复的行将跳过</p>
+          </Upload.Dragger>
+          {importResult && (
+            <div style={{ marginTop: 16 }}>
+              <Card size="small" title="导入结果">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Row gutter={16}>
+                    <Col span={8}><Text>总行数：</Text><Text strong>{importResult.totalRows}</Text></Col>
+                    <Col span={8}><Text>成功：</Text><Text strong type="success">{importResult.successCount}</Text></Col>
+                    <Col span={8}><Text>失败：</Text><Text strong type={importResult.failCount > 0 ? 'danger' : undefined}>{importResult.failCount}</Text></Col>
+                  </Row>
+                  {importResult.failItems.length > 0 && (
+                    <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                      <Table size="small" dataSource={importResult.failItems} rowKey="rowNumber" pagination={false}
+                        columns={[
+                          { title: '行号', dataIndex: 'rowNumber', width: 60 },
+                          { title: '卡密码', dataIndex: 'keyCode', width: 180 },
+                          { title: '失败原因', dataIndex: 'reason' },
+                        ]}
+                      />
+                    </div>
+                  )}
+                </Space>
+              </Card>
+            </div>
+          )}
+        </Modal>
+      )}
     </Card>
   );
 };

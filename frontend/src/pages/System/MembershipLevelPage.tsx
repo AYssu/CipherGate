@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, message, Typography, Grid } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Title } = Typography;
 
@@ -56,18 +57,38 @@ const MembershipLevelPage: React.FC = () => {
           <Button type="primary" size={isMobile ? 'small' : 'middle'} icon={<PlusOutlined />} onClick={() => { setEditing(null); form.resetFields(); setEditVisible(true); }}>新增等级</Button>
         </div>
         <Table columns={columns} dataSource={levels} rowKey="id" loading={loading} pagination={false} scroll={{ x: isMobile ? 420 : undefined, y: isMobile ? 450 : undefined }} size={isMobile ? 'small' : 'middle'} />
-        <Modal title={editing ? '编辑等级' : '新增等级'} open={editVisible} onOk={handleSave} onCancel={() => setEditVisible(false)} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
-          <Form form={form} layout="vertical">
-            <Form.Item name="level" label="等级编号" rules={[{ required: true }]}><InputNumber min={1} max={99} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="levelName" label="等级名称" rules={[{ required: true }]}><Input /></Form.Item>
-            <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="appQuota" label="应用额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="licenseQuota" label="卡密额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="userRegisterQuota" label="用户注册额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="trafficQuota" label="流量额度(字节)"><InputNumber style={{ width: '100%' }} /></Form.Item>
-            <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
-          </Form>
-        </Modal>
+        {isMobile ? (
+          <M5BottomSheet
+            open={editVisible}
+            onClose={() => setEditVisible(false)}
+            title={editing ? '编辑等级' : '新增等级'}
+            footer={<><Button onClick={() => setEditVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button><Button type="primary" onClick={handleSave} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button></>}
+          >
+            <Form form={form} layout="vertical">
+              <Form.Item name="level" label="等级编号" rules={[{ required: true }]}><InputNumber min={1} max={99} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="levelName" label="等级名称" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="appQuota" label="应用额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="licenseQuota" label="卡密额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="userRegisterQuota" label="用户注册额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="trafficQuota" label="流量额度(字节)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
+            </Form>
+          </M5BottomSheet>
+        ) : (
+          <Modal title={editing ? '编辑等级' : '新增等级'} open={editVisible} onOk={handleSave} onCancel={() => setEditVisible(false)} width={520}>
+            <Form form={form} layout="vertical">
+              <Form.Item name="level" label="等级编号" rules={[{ required: true }]}><InputNumber min={1} max={99} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="levelName" label="等级名称" rules={[{ required: true }]}><Input /></Form.Item>
+              <Form.Item name="price" label="价格(元)" rules={[{ required: true }]}><InputNumber min={0} step={0.01} style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="appQuota" label="应用额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="licenseQuota" label="卡密额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="userRegisterQuota" label="用户注册额度(-1不限)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="trafficQuota" label="流量额度(字节)"><InputNumber style={{ width: '100%' }} /></Form.Item>
+              <Form.Item name="description" label="描述"><Input.TextArea rows={2} /></Form.Item>
+            </Form>
+          </Modal>
+        )}
       </Card>
     </div>
   );

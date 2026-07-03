@@ -18,6 +18,7 @@ import {
   Grid,
   Dropdown,
 } from 'antd';
+import M5BottomSheet from './M5BottomSheet';
 import {
   PlusOutlined,
   EditOutlined,
@@ -338,102 +339,110 @@ const PermissionManagementContent: React.FC = () => {
         size={isMobile ? 'small' : 'middle'}
       />
 
-      <Modal
-        title={editingPermission ? '编辑权限' : '新增权限'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        width={isMobile ? '100%' : 600}
-        className={isMobile ? 'mobile-modal' : undefined}
-        destroyOnHidden
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            resourceType: 'API',
-            status: true
-          }}
+      {isMobile ? (
+        <M5BottomSheet
+          open={modalVisible}
+          onClose={() => setModalVisible(false)}
+          title={editingPermission ? '编辑权限' : '新增权限'}
+          footer={<>
+            <Button onClick={() => setModalVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+            <Button type="primary" onClick={handleSubmit} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+          </>}
         >
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="权限名称"
-                name="permissionName"
-                rules={[{ required: true, message: '请输入权限名称' }]}
-              >
-                <Input placeholder="请输入权限名称" />
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="权限编码"
-                name="permissionCode"
-                rules={[{ required: true, message: '请输入权限编码' }]}
-              >
-                <Input placeholder="请输入权限编码" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={isMobile ? 0 : 16}>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="资源类型"
-                name="resourceType"
-                rules={[{ required: true, message: '请选择资源类型' }]}
-              >
-                <Select placeholder="请选择资源类型">
-                  {resourceTypes.map(type => (
-                    <Option key={type} value={type}>
-                      {type}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={isMobile ? 24 : 12}>
-              <Form.Item
-                label="HTTP方法"
-                name="httpMethod"
-              >
-                <Select placeholder="请选择HTTP方法" allowClear>
-                  {httpMethods.map(method => (
-                    <Option key={method} value={method}>
-                      {method}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="资源路径"
-            name="resourcePath"
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ resourceType: 'API', status: true }}
           >
-            <Input placeholder="请输入资源路径，如：/api/users" />
-          </Form.Item>
-
-          <Form.Item
-            label="权限描述"
-            name="description"
+            <Form.Item label="权限名称" name="permissionName" rules={[{ required: true, message: '请输入权限名称' }]}>
+              <Input placeholder="请输入权限名称" />
+            </Form.Item>
+            <Form.Item label="权限编码" name="permissionCode" rules={[{ required: true, message: '请输入权限编码' }]}>
+              <Input placeholder="请输入权限编码" />
+            </Form.Item>
+            <Form.Item label="资源类型" name="resourceType" rules={[{ required: true, message: '请选择资源类型' }]}>
+              <Select placeholder="请选择资源类型">
+                {resourceTypes.map(type => (
+                  <Option key={type} value={type}>{type}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item label="HTTP方法" name="httpMethod">
+              <Select placeholder="请选择HTTP方法" allowClear>
+                {httpMethods.map(method => (
+                  <Option key={method} value={method}>{method}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item label="资源路径" name="resourcePath">
+              <Input placeholder="请输入资源路径，如：/api/users" />
+            </Form.Item>
+            <Form.Item label="权限描述" name="description">
+              <Input.TextArea placeholder="请输入权限描述" rows={3} />
+            </Form.Item>
+            <Form.Item label="权限状态" name="status" valuePropName="checked">
+              <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            </Form.Item>
+          </Form>
+        </M5BottomSheet>
+      ) : (
+        <Modal
+          title={editingPermission ? '编辑权限' : '新增权限'}
+          open={modalVisible}
+          onOk={handleSubmit}
+          onCancel={() => setModalVisible(false)}
+          width={600}
+          destroyOnHidden
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ resourceType: 'API', status: true }}
           >
-            <Input.TextArea
-              placeholder="请输入权限描述"
-              rows={3}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="权限状态"
-            name="status"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="权限名称" name="permissionName" rules={[{ required: true, message: '请输入权限名称' }]}>
+                  <Input placeholder="请输入权限名称" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="权限编码" name="permissionCode" rules={[{ required: true, message: '请输入权限编码' }]}>
+                  <Input placeholder="请输入权限编码" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="资源类型" name="resourceType" rules={[{ required: true, message: '请选择资源类型' }]}>
+                  <Select placeholder="请选择资源类型">
+                    {resourceTypes.map(type => (
+                      <Option key={type} value={type}>{type}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="HTTP方法" name="httpMethod">
+                  <Select placeholder="请选择HTTP方法" allowClear>
+                    {httpMethods.map(method => (
+                      <Option key={method} value={method}>{method}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label="资源路径" name="resourcePath">
+              <Input placeholder="请输入资源路径，如：/api/users" />
+            </Form.Item>
+            <Form.Item label="权限描述" name="description">
+              <Input.TextArea placeholder="请输入权限描述" rows={3} />
+            </Form.Item>
+            <Form.Item label="权限状态" name="status" valuePropName="checked">
+              <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
     </Card>
   );
 };

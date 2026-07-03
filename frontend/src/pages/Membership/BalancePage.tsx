@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, Grid } from 'antd';
 import { WalletOutlined, CrownOutlined } from '@ant-design/icons';
+import M5BottomSheet from '../../components/M5BottomSheet';
 
 const { Text } = Typography;
 
@@ -137,78 +138,179 @@ const BalancePage: React.FC = () => {
         />
       </Card>
 
-      <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
-        <div style={{ padding: '16px 0' }}>
-          <Text>请输入充值金额：</Text>
-          <div style={{ margin: '16px 0' }}>
-            <Space>
+      {isMobile ? (
+        <M5BottomSheet
+          open={rechargeVisible}
+          onClose={() => setRechargeVisible(false)}
+          title="充值余额"
+          footer={
+            <>
+              <Button onClick={() => setRechargeVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handleRecharge} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+            </>
+          }
+        >
+          <div style={{ padding: '8px 0' }}>
+            <Text style={{ fontSize: 15, fontWeight: 500 }}>请输入充值金额：</Text>
+            <div style={{ margin: '16px 0' }}>
               <InputNumber
                 min={1}
                 max={10000}
                 value={rechargeAmount}
                 onChange={(v) => setRechargeAmount(v || 10)}
                 addonBefore="¥"
-                style={{ width: isMobile ? 150 : 200 }}
-                size={isMobile ? 'middle' : 'large'}
+                style={{ width: '100%' }}
+                size="large"
               />
-            </Space>
-          </div>
-          <Space wrap size={isMobile ? 'small' : 'middle'}>
-            {[10, 20, 50, 100, 200, 500].map(amount => (
-              <Button key={amount} type={rechargeAmount === amount ? 'primary' : 'default'} size={isMobile ? 'small' : 'middle'} onClick={() => setRechargeAmount(amount)}>
-                ¥{amount}
-              </Button>
-            ))}
-          </Space>
-          <div style={{ marginTop: 16, padding: '8px 12px', background: '#f0f5ff', borderRadius: 6, border: '1px solid #91d5ff' }}>
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              充值将跳转到支付页面，支持支付宝扫码支付。
-            </Text>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }} width={isMobile ? '100%' : 520} className={isMobile ? 'mobile-modal' : undefined}>
-        <div style={{ padding: '8px 0' }}>
-          {['APP_QUOTA', 'LICENSE_QUOTA', 'USER_REGISTER_QUOTA', 'TRAFFIC_QUOTA', 'MEMBERSHIP'].map(type => {
-            const items = products.filter(p => p.productType === type);
-            if (items.length === 0) return null;
-            return (
-              <div key={type} style={{ marginBottom: 16 }}>
-                <Text strong style={{ fontSize: 14 }}>
-                  <Tag color={productTypeMap[type]?.color}>{productTypeMap[type]?.text}</Tag>
-                </Text>
-                <div style={{ marginTop: 8 }}>
-                  {items.map(p => (
-                    <div
-                      key={p.id}
-                      onClick={() => setSelectedProduct(p)}
-                      style={{
-                        display: isMobile ? 'block' : 'inline-block',
-                        padding: isMobile ? '6px 10px' : '8px 16px',
-                        margin: isMobile ? '4px 0' : '4px 8px 4px 0',
-                        border: selectedProduct?.id === p.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        background: selectedProduct?.id === p.id ? '#e6f7ff' : '#fff',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ fontWeight: 500 }}>{p.productName}</div>
-                      <div style={{ color: '#1890ff', fontSize: 16, fontWeight: 600 }}>¥{(p.price / 100).toFixed(2)}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {selectedProduct && (
-            <div style={{ marginTop: 16, padding: '12px', background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
-              <Text>将使用余额购买：<Text strong>{selectedProduct.productName}</Text>，扣款：<Text strong style={{ color: '#ff4d4f' }}>¥{(selectedProduct.price / 100).toFixed(2)}</Text></Text>
             </div>
-          )}
-        </div>
-      </Modal>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+              {[10, 20, 50, 100, 200, 500].map(amount => (
+                <Button
+                  key={amount}
+                  type={rechargeAmount === amount ? 'primary' : 'default'}
+                  size="large"
+                  style={{ height: 48, borderRadius: 10, fontSize: 16, fontWeight: 600 }}
+                  onClick={() => setRechargeAmount(amount)}
+                >
+                  ¥{amount}
+                </Button>
+              ))}
+            </div>
+            <div style={{ padding: '10px 12px', background: '#f0f5ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                充值将跳转到支付页面，支持支付宝扫码支付。
+              </Text>
+            </div>
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal title="充值余额" open={rechargeVisible} onOk={handleRecharge} onCancel={() => setRechargeVisible(false)} width={520}>
+          <div style={{ padding: '16px 0' }}>
+            <Text>请输入充值金额：</Text>
+            <div style={{ margin: '16px 0' }}>
+              <Space>
+                <InputNumber
+                  min={1}
+                  max={10000}
+                  value={rechargeAmount}
+                  onChange={(v) => setRechargeAmount(v || 10)}
+                  addonBefore="¥"
+                  style={{ width: 200 }}
+                  size="large"
+                />
+              </Space>
+            </div>
+            <Space wrap size="middle">
+              {[10, 20, 50, 100, 200, 500].map(amount => (
+                <Button key={amount} type={rechargeAmount === amount ? 'primary' : 'default'} size="middle" onClick={() => setRechargeAmount(amount)}>
+                  ¥{amount}
+                </Button>
+              ))}
+            </Space>
+            <div style={{ marginTop: 16, padding: '8px 12px', background: '#f0f5ff', borderRadius: 6, border: '1px solid #91d5ff' }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                充值将跳转到支付页面，支持支付宝扫码支付。
+              </Text>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {isMobile ? (
+        <M5BottomSheet
+          open={purchaseVisible}
+          onClose={() => setPurchaseVisible(false)}
+          title="购买额度/会员"
+          footer={
+            <>
+              <Button onClick={() => setPurchaseVisible(false)} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
+              <Button type="primary" onClick={handlePurchase} disabled={!selectedProduct} style={{ flex: 1, height: 44, borderRadius: 10 }}>确认购买</Button>
+            </>
+          }
+        >
+          <div style={{ padding: '8px 0' }}>
+            {['APP_QUOTA', 'LICENSE_QUOTA', 'USER_REGISTER_QUOTA', 'TRAFFIC_QUOTA', 'MEMBERSHIP'].map(type => {
+              const items = products.filter(p => p.productType === type);
+              if (items.length === 0) return null;
+              return (
+                <div key={type} style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: 14 }}>
+                    <Tag color={productTypeMap[type]?.color}>{productTypeMap[type]?.text}</Tag>
+                  </Text>
+                  <div style={{ marginTop: 8 }}>
+                    {items.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedProduct(p)}
+                        style={{
+                          display: 'block',
+                          padding: '6px 10px',
+                          margin: '4px 0',
+                          border: selectedProduct?.id === p.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          background: selectedProduct?.id === p.id ? '#e6f7ff' : '#fff',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <div style={{ fontWeight: 500 }}>{p.productName}</div>
+                        <div style={{ color: '#1890ff', fontSize: 16, fontWeight: 600 }}>¥{(p.price / 100).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {selectedProduct && (
+              <div style={{ marginTop: 16, padding: '12px', background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
+                <Text>将使用余额购买：<Text strong>{selectedProduct.productName}</Text>，扣款：<Text strong style={{ color: '#ff4d4f' }}>¥{(selectedProduct.price / 100).toFixed(2)}</Text></Text>
+              </div>
+            )}
+          </div>
+        </M5BottomSheet>
+      ) : (
+        <Modal title="购买额度/会员" open={purchaseVisible} onOk={handlePurchase} onCancel={() => setPurchaseVisible(false)} okText="确认购买" okButtonProps={{ disabled: !selectedProduct }} width={520}>
+          <div style={{ padding: '8px 0' }}>
+            {['APP_QUOTA', 'LICENSE_QUOTA', 'USER_REGISTER_QUOTA', 'TRAFFIC_QUOTA', 'MEMBERSHIP'].map(type => {
+              const items = products.filter(p => p.productType === type);
+              if (items.length === 0) return null;
+              return (
+                <div key={type} style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: 14 }}>
+                    <Tag color={productTypeMap[type]?.color}>{productTypeMap[type]?.text}</Tag>
+                  </Text>
+                  <div style={{ marginTop: 8 }}>
+                    {items.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedProduct(p)}
+                        style={{
+                          display: 'inline-block',
+                          padding: '8px 16px',
+                          margin: '4px 8px 4px 0',
+                          border: selectedProduct?.id === p.id ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          background: selectedProduct?.id === p.id ? '#e6f7ff' : '#fff',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <div style={{ fontWeight: 500 }}>{p.productName}</div>
+                        <div style={{ color: '#1890ff', fontSize: 16, fontWeight: 600 }}>¥{(p.price / 100).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {selectedProduct && (
+              <div style={{ marginTop: 16, padding: '12px', background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
+                <Text>将使用余额购买：<Text strong>{selectedProduct.productName}</Text>，扣款：<Text strong style={{ color: '#ff4d4f' }}>¥{(selectedProduct.price / 100).toFixed(2)}</Text></Text>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
