@@ -46,6 +46,10 @@ jobs:
           Compress-Archive -Path "deploy-bundle\*" -DestinationPath "deploy-bundle.zip" -Force
           if (Test-Path "frontend-dist.zip") { Remove-Item "frontend-dist.zip" -Force }
           Compress-Archive -Path "deploy-bundle\frontend\dist\*" -DestinationPath "frontend-dist.zip" -Force
+          if (Test-Path "deploy-bundle\docs\*") {
+            if (Test-Path "docs-dist.zip") { Remove-Item "docs-dist.zip" -Force }
+            Compress-Archive -Path "deploy-bundle\docs\*" -DestinationPath "docs-dist.zip" -Force
+          }
 
       - name: Upload deploy bundle zip
         uses: actions/upload-artifact@v4
@@ -169,3 +173,4 @@ jobs:
             deploy-bundle/app/app.jar
             deploy-bundle/plugins/*.jar
             frontend-dist.zip
+            docs-dist.zip
