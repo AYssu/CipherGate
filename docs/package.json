@@ -1,0 +1,14 @@
+{
+  "name": "ciphergate-docs",
+  "version": "1.0.0",
+  "description": "CipherGate 使用文档",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev --port 5174",
+    "build": "NODE_ENV=production vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
