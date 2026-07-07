@@ -1409,6 +1409,9 @@ const AppUserManagementContent: React.FC = () => {
                 style={{ flex: 1, minWidth: 0 }}
               />
               <Button type="primary" onClick={() => applyUsernameSearch()} style={{ flexShrink: 0 }}>搜索</Button>
+              <Badge count={activeAdvancedFilterCount} size="small" offset={[-2, 2]}>
+                <Button icon={<FilterOutlined />} style={{ flexShrink: 0 }} onClick={() => { setFilterPopoverOpen(true); syncListFilterFormFromFilters(); }}>筛选</Button>
+              </Badge>
               <M5BottomSheet open={filterPopoverOpen} onClose={() => setFilterPopoverOpen(false)} title="筛选条件" footer={<><Button onClick={handleAdvancedFilterReset} style={{ flex: 1, height: 44, borderRadius: 10 }}>重置</Button><Button type="primary" onClick={() => { void handleAdvancedFilterQuery(); setFilterPopoverOpen(false); }} style={{ flex: 2, height: 44, borderRadius: 10 }}>查询</Button></>}>
                 <Form form={listFilterForm} layout="vertical" style={{ marginBottom: 0 }}>
                   <Row gutter={12}>

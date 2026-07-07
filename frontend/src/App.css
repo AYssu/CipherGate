@@ -2205,7 +2205,26 @@ div[data-color-mode="light"] .w-md-editor-preview {
   to { opacity: 1; }
 }
 
+/* 移动端铃铛角标缩小 */
+.mobile-bell-badge .ant-badge-count,
+.mobile-bell-badge .ant-badge-count-sm {
+  font-size: 10px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  padding: 0 4px !important;
+  border-radius: 8px !important;
+}
+
 @keyframes m5-slide-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+
+/* Captcha input addonAfter fix */
+.captcha-input .ant-input-group-addon {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+

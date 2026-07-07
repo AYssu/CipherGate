@@ -144,6 +144,7 @@ services:
     volumes:
       - ./frontend/dist:/usr/share/nginx/html:ro
       - ./frontend/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./docs:/usr/share/nginx/docs:ro
 
 volumes:
   mysql_data:

@@ -4,15 +4,15 @@ setlocal
 set "BUNDLE_DIR=deploy-bundle"
 set "ZIP_NAME=ciphergate-deploy.zip"
 
-echo [1/6] Build backend JAR...
+echo [1/7] Build backend JAR...
 call gradlew.bat clean bootJar --no-daemon
 if errorlevel 1 goto :fail
 
-echo [2/6] Build crypto plugins...
+echo [2/7] Build crypto plugins...
 call gradlew.bat -p plugins\rsa-crypto-plugin clean jar --no-daemon
 if errorlevel 1 goto :fail
 
-echo [3/6] Build frontend dist...
+echo [3/7] Build frontend dist...
 pushd frontend
 if not exist "node_modules" (
   call npm install --include=dev --no-audit --no-fund
@@ -36,11 +36,28 @@ if errorlevel 1 (
 )
 popd
 
-echo [4/6] Prepare bundle...
+echo [4/7] Build docs...
+pushd docs
+if not exist "node_modules" (
+  call npm install --no-audit --no-fund
+  if errorlevel 1 (
+    popd
+    goto :fail
+  )
+)
+call npm run build
+if errorlevel 1 (
+  popd
+  goto :fail
+)
+popd
+
+echo [5/7] Prepare bundle...
 if exist "%BUNDLE_DIR%" rmdir /s /q "%BUNDLE_DIR%"
 mkdir "%BUNDLE_DIR%\app"
 mkdir "%BUNDLE_DIR%\plugins"
 mkdir "%BUNDLE_DIR%\frontend"
+mkdir "%BUNDLE_DIR%\docs"
 
 set "JAR_FILE="
 for /f "delims=" %%f in ('dir /b /o:-d "build\libs\*.jar" ^| findstr /v /i "\-plain\.jar$"') do (
@@ -59,6 +76,14 @@ copy /y "frontend\nginx.conf" "%BUNDLE_DIR%\frontend\nginx.conf" >nul
 if errorlevel 1 goto :fail
 copy /y "docker-compose.server.yml" "%BUNDLE_DIR%\docker-compose.server.yml" >nul
 if errorlevel 1 goto :fail
+
+:: Copy docs
+if exist "docs\.vitepress\dist" (
+  xcopy /e /i /y "docs\.vitepress\dist\*" "%BUNDLE_DIR%\docs\" >nul
+  echo [INFO] Docs bundled.
+) else (
+  echo [WARN] docs\.vitepress\dist not found, skipping docs.
+)
 
 :: Copy plugin JARs (use powershell for reliability on Windows CI)
 powershell -NoProfile -Command ^
@@ -96,12 +121,12 @@ powershell -NoProfile -Command ^
   "Set-Content -LiteralPath $dst -Value $out -Encoding UTF8"
 if errorlevel 1 goto :fail
 
-echo [5/6] Create zip package...
+echo [6/7] Create zip package...
 if exist "%ZIP_NAME%" del /f /q "%ZIP_NAME%"
 powershell -NoProfile -Command "Compress-Archive -Path '%BUNDLE_DIR%\*' -DestinationPath '%ZIP_NAME%' -Force"
 if errorlevel 1 goto :fail
 
-echo [6/6] Done.
+echo [7/7] Done.
 echo Bundle folder: %BUNDLE_DIR%
 echo Zip package : %ZIP_NAME%
 echo Upload one of them to server, then run:

@@ -131,7 +131,7 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        path: '/docs',
+        path: '/admin/docs',
         children: [
           { path: 'categories', element: <DocManagementPage /> },
           { path: 'view/:id', element: <DocViewPage /> },

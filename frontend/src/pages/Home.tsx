@@ -67,9 +67,9 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
   },
   headerInner: {
-    maxWidth: 1200,
+    maxWidth: '100%',
     margin: '0 auto',
-    padding: '0 24px',
+    padding: '0 32px',
     width: '100%',
     display: 'flex',
     justifyContent: 'space-between',
@@ -928,6 +928,18 @@ const Home: React.FC = () => {
             transform: none !important;
           }
         }
+
+        /* 移动端按钮文字切换 */
+        .btn-app-text-mobile { display: none; }
+        .btn-app-text-desktop { display: inline; }
+        .btn-dev-text-mobile { display: none; }
+        .btn-dev-text-desktop { display: inline; }
+        @media (max-width: 768px) {
+          .btn-app-text-mobile { display: inline; }
+          .btn-app-text-desktop { display: none; }
+          .btn-dev-text-mobile { display: inline; }
+          .btn-dev-text-desktop { display: none; }
+        }
       `}</style>
 
       {/* ── Header ── */}
@@ -939,32 +951,22 @@ const Home: React.FC = () => {
           </a>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Button
-              type="text"
-              className="home-btn-ghost"
+            <a
+              href={import.meta.env.VITE_DOCS_URL || '/docs/'}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                ...styles.btnGhost,
-                height: 40,
-                padding: '0 20px',
+                color: C.textMuted,
                 fontSize: 14,
-              }}
-              onClick={() => setLoginModalVisible(true)}
-            >
-              登录
-            </Button>
-            <Button
-              type="primary"
-              className="home-btn-primary"
-              style={{
-                ...styles.btnPrimary,
+                textDecoration: 'none',
+                padding: '0 12px',
                 height: 40,
-                padding: '0 20px',
-                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
               }}
-              onClick={() => setLoginModalVisible(true)}
             >
-              入驻开发者
-            </Button>
+              使用文档
+            </a>
           </div>
         </div>
       </Header>
@@ -1003,17 +1005,19 @@ const Home: React.FC = () => {
                 type="primary"
                 className="home-btn-primary"
                 style={styles.btnPrimary}
-                onClick={() => setLoginModalVisible(true)}
+                icon={<UserOutlined />}
+                onClick={handleAppUserLogin}
               >
-                入驻开发者 →
+                <span className="btn-app-text-mobile">应用</span>
+                <span className="btn-app-text-desktop">应用用户登录</span>
               </Button>
               <Button
                 className="home-btn-ghost"
                 style={styles.btnGhost}
-                icon={<UserOutlined />}
-                onClick={handleAppUserLogin}
+                onClick={() => setLoginModalVisible(true)}
               >
-                应用用户
+                <span className="btn-dev-text-mobile">开发者</span>
+                <span className="btn-dev-text-desktop">开发者登录</span>
               </Button>
               <Button
                 className="home-btn-ghost"
@@ -1129,7 +1133,7 @@ const Home: React.FC = () => {
             </div>
             <div>
               <div style={styles.footerColTitle}>资源中心</div>
-              <a href="#" className="home-footer-link" style={styles.footerLink}>使用文档</a>
+              <a href={import.meta.env.VITE_DOCS_URL || '/docs/'} target="_blank" rel="noopener noreferrer" className="home-footer-link" style={styles.footerLink}>使用文档</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>更新日志</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>常见问题</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>服务条款</a>
@@ -1395,21 +1399,33 @@ const Home: React.FC = () => {
               />
             </Form.Item>
             <Form.Item name="captchaCode" rules={[{ required: true, message: '请输入验证码' }]}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ position: 'relative' }}>
                 <Input
                   prefix={<KeyOutlined style={{ color: C.textDim }} />}
                   placeholder="验证码"
                   size="large"
-                  style={{ flex: 1, background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }}
+                  className="captcha-input"
+                  style={{ background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }}
                 />
                 <div
                   onClick={loadCaptcha}
                   style={{
-                    cursor: 'pointer', height: 40, borderRadius: 8, overflow: 'hidden',
-                    border: `1px solid ${C.border}`, flexShrink: 0, background: C.slate,
+                    position: 'absolute',
+                    right: 5,
+                    top: 1,
+                    bottom: 1,
+                    width: 86,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: C.slate,
+                    borderRadius: '0 6px 6px 0',
+                    overflow: 'hidden',
+                    zIndex: 1,
                   }}
                 >
-                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 40, display: 'block' }} />}
+                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 32, display: 'block', borderRadius: '0 6px 6px 0' }} />}
                 </div>
               </div>
             </Form.Item>

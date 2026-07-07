@@ -295,7 +295,7 @@ const DocManagementContent: React.FC = () => {
     <Dropdown
       menu={{
         items: [
-          { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/docs/view/${record.id}`) },
+          { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/admin/docs/view/${record.id}`) },
           { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditItem(record) },
           { key: 'attach', label: '附件', icon: <PaperClipOutlined />, onClick: () => handleManageAttachments(record.id) },
           { type: 'divider' },
@@ -447,7 +447,7 @@ const DocManagementContent: React.FC = () => {
                       <Dropdown
                         menu={{
                           items: [
-                            { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/docs/view/${record.id}`) },
+                            { key: 'view', label: '查看', icon: <EyeOutlined />, onClick: () => navigate(`/admin/docs/view/${record.id}`) },
                             { key: 'edit', label: '编辑', icon: <EditOutlined />, onClick: () => handleEditItem(record) },
                             { key: 'attach', label: '附件', icon: <PaperClipOutlined />, onClick: () => handleManageAttachments(record.id) },
                             { type: 'divider' },

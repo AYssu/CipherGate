@@ -8,15 +8,15 @@ info()  { echo -e "\033[1;32m[INFO]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # ---------- 1. Build backend JAR ----------
-info "[1/6] Build backend JAR..."
+info "[1/7] Build backend JAR..."
 ./gradlew clean bootJar --no-daemon
 
 # ---------- 2. Build crypto plugins ----------
-info "[2/6] Build crypto plugins..."
+info "[2/7] Build crypto plugins..."
 ./gradlew -p plugins/rsa-crypto-plugin clean jar --no-daemon
 
 # ---------- 3. Build frontend dist ----------
-info "[3/6] Build frontend dist..."
+info "[3/7] Build frontend dist..."
 pushd frontend > /dev/null
 if [ ! -d "node_modules" ]; then
   npm install --include=dev --no-audit --no-fund
@@ -28,10 +28,19 @@ fi
 npm run build
 popd > /dev/null
 
-# ---------- 4. Prepare bundle ----------
-info "[4/6] Prepare bundle..."
+# ---------- 4. Build docs ----------
+info "[4/7] Build docs..."
+pushd docs > /dev/null
+if [ ! -d "node_modules" ]; then
+  npm install --no-audit --no-fund
+fi
+npm run build
+popd > /dev/null
+
+# ---------- 5. Prepare bundle ----------
+info "[5/7] Prepare bundle..."
 rm -rf "$BUNDLE_DIR"
-mkdir -p "$BUNDLE_DIR/app" "$BUNDLE_DIR/plugins" "$BUNDLE_DIR/frontend"
+mkdir -p "$BUNDLE_DIR/app" "$BUNDLE_DIR/plugins" "$BUNDLE_DIR/frontend" "$BUNDLE_DIR/docs"
 
 # 找到最新的非 plain jar
 JAR_FILE=$(ls -t build/libs/*.jar 2>/dev/null | grep -v '\-plain\.jar$' | head -1)
@@ -44,6 +53,14 @@ cp "$JAR_FILE" "$BUNDLE_DIR/app/app.jar"
 cp -r frontend/dist "$BUNDLE_DIR/frontend/dist"
 cp frontend/nginx.conf "$BUNDLE_DIR/frontend/nginx.conf"
 cp docker-compose.server.yml "$BUNDLE_DIR/docker-compose.server.yml"
+
+# 复制文档
+if [ -d "docs/.vitepress/dist" ]; then
+  cp -r docs/.vitepress/dist/* "$BUNDLE_DIR/docs/"
+  info "Docs bundled."
+else
+  echo -e "\033[1;33m[WARN]\033[0m docs/.vitepress/dist not found, skipping docs."
+fi
 
 # Copy plugin JARs
 PLUGIN_COUNT=0
@@ -109,13 +126,13 @@ info "  FRONTEND_PORT=${PORTS[5]}"
 info "  RABBITMQ_PORT=${PORTS[6]}"
 info "  RABBITMQ_MGMT_PORT=${PORTS[7]}"
 
-# ---------- 5. Create zip ----------
-info "[5/6] Create zip package..."
+# ---------- 6. Create zip ----------
+info "[6/7] Create zip package..."
 rm -f "$ZIP_NAME"
 (cd "$BUNDLE_DIR" && zip -r -q "../$ZIP_NAME" .)
 
-# ---------- 6. Done ----------
-info "[6/6] Done."
+# ---------- 7. Done ----------
+info "[7/7] Done."
 echo ""
 echo "  Bundle folder : $BUNDLE_DIR"
 echo "  Zip package   : $ZIP_NAME"

@@ -346,7 +346,7 @@ const MainLayout: React.FC = () => {
       app_user_management: '/applications/users',
       app_variable_management: '/applications/variables',
       plugin_list_page: '/plugins/list',
-      doc_management_admin: '/docs/categories',
+      doc_management_admin: '/admin/docs/categories',
       announcement_management: '/system/announcements',
     };
     const globalMatchedPath = globalRouteMap[childKey];
@@ -449,7 +449,7 @@ const MainLayout: React.FC = () => {
             children: (cat.items || []).map((item: any) => ({
               key: `doc-item-${item.id}`,
               label: item.title,
-              onClick: () => navigate(`/docs/view/${item.id}`),
+              onClick: () => navigate(`/admin/docs/view/${item.id}`),
             })),
           })),
         };
@@ -534,8 +534,8 @@ const MainLayout: React.FC = () => {
       return { selectedMenu: 'profile', pageTitle: '个人信息', parentMenuKey: '' };
     }
 
-    if (routePath.startsWith('/docs/view/')) {
-      const docId = routePath.split('/docs/view/')[1];
+    if (routePath.startsWith('/admin/docs/view/')) {
+      const docId = routePath.split('/admin/docs/view/')[1];
       return {
         selectedMenu: `doc-item-${docId}`,
         pageTitle: '对接文档',
@@ -543,7 +543,7 @@ const MainLayout: React.FC = () => {
       };
     }
 
-    if (routePath === '/docs/categories') {
+    if (routePath === '/admin/docs/categories') {
       return {
         selectedMenu: 'doc_management',
         pageTitle: '对接文档',
@@ -735,7 +735,10 @@ const MainLayout: React.FC = () => {
                   count={unreadCount}
                   size="small"
                   dot={showBadge && unreadCount === 0}
-                  offset={isMobile ? [-2, 2] : [-4, 4]}
+                  offset={isMobile ? [-2, 0] : [-4, 4]}
+                  overflowCount={99}
+                  className={isMobile ? 'mobile-bell-badge' : undefined}
+                  style={isMobile ? { '--ant-badge-font-size': '10px', '--ant-badge-size-height': '16px', '--ant-badge-dot-size': '6px' } as React.CSSProperties : undefined}
                 >
                   <BellOutlined style={{
                     fontSize: isMobile ? 16 : 20,
