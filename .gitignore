@@ -46,4 +46,8 @@ out/
 session-ses_115e.md
 node_modules/
 logs/
-/docs/.vitepress
+
+### Docs ###
+/docs/node_modules/
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/

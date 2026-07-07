@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev --port 5174",
-    "build": "NODE_ENV=production vitepress build",
+    "build": "vitepress build",
     "preview": "vitepress preview"
   },
   "devDependencies": {
