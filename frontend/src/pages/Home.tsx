@@ -1411,10 +1411,10 @@ const Home: React.FC = () => {
                   onClick={loadCaptcha}
                   style={{
                     position: 'absolute',
-                    right: 5,
+                    right: 6,
                     top: 1,
                     bottom: 1,
-                    width: 86,
+                    width: 100,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1425,7 +1425,7 @@ const Home: React.FC = () => {
                     zIndex: 1,
                   }}
                 >
-                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 32, display: 'block', borderRadius: '0 6px 6px 0' }} />}
+                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 32, width: '100%', display: 'block', borderRadius: '0 6px 6px 0' }} />}
                 </div>
               </div>
             </Form.Item>

@@ -51,3 +51,8 @@ logs/
 /docs/node_modules/
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
+# Added by code-review-graph
+.code-review-graph/
+.claude/
+.mcp.json
+CLAUDE.md
