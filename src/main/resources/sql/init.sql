@@ -1626,7 +1626,7 @@ AND m.menu_code = 'DOC_MANAGEMENT'
 ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
 SET @sys_mgmt_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'SYSTEM_MANAGEMENT') AS tmp);
 INSERT IGNORE INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
-VALUES ('文档管理', 'DOC_MANAGEMENT_ADMIN', @sys_mgmt_id, 2, '/docs/categories', 'DocManagement', 'book', 8, 1, 1, NOW(), NOW());
+VALUES ('文档管理', 'DOC_MANAGEMENT_ADMIN', @sys_mgmt_id, 2, '/admin/docs/categories', 'DocManagement', 'book', 8, 1, 1, NOW(), NOW());
 
 INSERT IGNORE INTO role_menus (role_id, menu_id)
 SELECT r.id, m.id

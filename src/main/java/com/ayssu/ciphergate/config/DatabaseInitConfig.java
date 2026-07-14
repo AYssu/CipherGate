@@ -43,7 +43,8 @@ public class DatabaseInitConfig implements CommandLineRunner {
                     "alter_membership_system.sql",
                     "alter_membership_extra_quota.sql",
                     "migrate_menus.sql",
-                    "alter_portal.sql"
+                    "alter_portal.sql",
+                    "alter_doc_menu_path.sql"
             );
             for (String file : upgradeSqlFiles) {
                 try {
