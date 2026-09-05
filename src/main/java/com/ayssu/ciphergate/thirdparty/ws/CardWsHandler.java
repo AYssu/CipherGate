@@ -5,7 +5,9 @@ import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
 import com.ayssu.ciphergate.thirdparty.ws.crypto.WsCrypto;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsCipher;
 import com.ayssu.ciphergate.thirdparty.ws.model.WsEnvelope;
+import com.ayssu.ciphergate.thirdparty.ws.model.FunctionResult;
 import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
+import com.ayssu.ciphergate.thirdparty.ws.service.FunctionRuntimeService;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -63,6 +65,7 @@ public class CardWsHandler extends TextWebSocketHandler {
     private final CardWsSessionRegistry sessionRegistry;
     private final ObjectMapper objectMapper;
     private final WsNonceService wsNonceService;
+    private final FunctionRuntimeService functionRuntimeService;
 
     /**
      * 连接建立：从 query param 取 token 验证
@@ -165,6 +168,7 @@ public class CardWsHandler extends TextWebSocketHandler {
         switch (type) {
             case "HELLO" -> handleHello(session, env);
             case "PONG" -> handlePong(session, env);
+            case "FUNC_CALL" -> handleFuncCall(session, env);
             default -> close(session, CloseStatus.NOT_ACCEPTABLE, "UNSUPPORTED");
         }
     }
@@ -267,6 +271,61 @@ public class CardWsHandler extends TextWebSocketHandler {
         }
 
         updateRedisHeartbeat(cardId);
+    }
+
+    /**
+     * 处理 FUNC_CALL：客户端调用插件函数
+     */
+    private void handleFuncCall(WebSocketSession session, WsEnvelope env) throws Exception {
+        // 校验参数
+        String funcName = env.getFunc();
+        if (!StringUtils.hasText(funcName)) {
+            sendFuncError(session, env.getReqId(), null, "MISSING_FUNC", "缺少函数名称");
+            return;
+        }
+
+        // 获取卡密ID作为 pluginId
+        Object cardIdObj = session.getAttributes().get(ATTR_CARD_ID);
+        Object appIdObj = session.getAttributes().get(ATTR_APP_ID);
+        if (!(cardIdObj instanceof Long cardId)) {
+            sendFuncError(session, env.getReqId(), funcName, "NO_CARD", "无法获取卡密信息");
+            return;
+        }
+
+        // 使用 appId 作为 pluginId（如果有的话），否则用 cardId
+        String pluginId = appIdObj instanceof Long appId ? String.valueOf(appId) : String.valueOf(cardId);
+
+        Map<String, Object> params = env.getParams();
+        if (params == null) {
+            params = Map.of();
+        }
+
+        // 执行函数
+        FunctionResult result = functionRuntimeService.executeFunction(pluginId, funcName, params);
+
+        // 发送响应
+        if (result.success()) {
+            WsEnvelope resp = new WsEnvelope();
+            resp.setType("FUNC_RESULT");
+            resp.setReqId(env.getReqId());
+            resp.setFunc(funcName);
+            resp.setData(result.data());
+            resp.setTs(Instant.now().toEpochMilli());
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resp)));
+        } else {
+            sendFuncError(session, env.getReqId(), funcName, result.code(), result.message());
+        }
+    }
+
+    private void sendFuncError(WebSocketSession session, String reqId, String func, String code, String message) throws Exception {
+        WsEnvelope resp = new WsEnvelope();
+        resp.setType("FUNC_ERROR");
+        resp.setReqId(reqId);
+        resp.setFunc(func);
+        resp.setCode(code);
+        resp.setMessage(message);
+        resp.setTs(Instant.now().toEpochMilli());
+        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resp)));
     }
 
     /**

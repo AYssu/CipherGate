@@ -1,3 +1,5 @@
 rootProject.name = 'CipherGate'
 
 include 'ciphergate-plugin-api'
+include 'plugins:example-function-plugin'
+include 'plugins:rsa-crypto-plugin'

@@ -1,0 +1,15 @@
+mybatis-plus:
+  configuration:
+    # 生产环境关闭 SQL 控制台输出（默认配置为 StdOutImpl）
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    root: INFO
+    # 调试模块及调试链路在生产环境降噪
+    com.ayssu.ciphergate.controller.DebugController: WARN
+    com.ayssu.ciphergate.thirdparty.ws: INFO
+spring:
+  docker:
+    compose:
+      enabled: false

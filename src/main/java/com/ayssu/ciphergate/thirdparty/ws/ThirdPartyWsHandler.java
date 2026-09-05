@@ -15,6 +15,8 @@ import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
 import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsHeartbeatService;
 import com.ayssu.ciphergate.thirdparty.ws.service.ThirdPartyWsSessionRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.WsNonceService;
+import com.ayssu.ciphergate.thirdparty.ws.service.FunctionRuntimeService;
+import com.ayssu.ciphergate.thirdparty.ws.model.FunctionResult;
 import com.ayssu.ciphergate.thirdparty.ws.util.WsClientIp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +80,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private final AppUserWsDeviceBindService appUserWsDeviceBindService;
     private final AppUserWsSessionKickService appUserWsSessionKickService;
     private final ThirdPartyWsHeartbeatService thirdPartyWsHeartbeatService;
+    private final FunctionRuntimeService functionRuntimeService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -122,6 +125,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             case "HELLO" -> handleHello(session, env);
             case "AUTH" -> handleAuth(session, env);
             case "PING" -> session.sendMessage(new TextMessage("{\"type\":\"PONG\"}"));
+            case "FUNC_CALL" -> handleFuncCall(session, env);
             default -> close(session, 1008, "UNSUPPORTED");
         }
     }
@@ -330,6 +334,67 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
         ok.put("ts", now);
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(ok)));
         thirdPartyWsHeartbeatService.sendHeartbeatOnce(session);
+    }
+
+    /**
+     * 处理 FUNC_CALL：客户端调用插件函数
+     */
+    private void handleFuncCall(WebSocketSession session, WsEnvelope env) throws Exception {
+        // 检查是否已 AUTH
+        if (!Boolean.TRUE.equals(session.getAttributes().get(ATTR_AUTHED))) {
+            sendFuncError(session, env.getReqId(), env.getFunc(), "NOT_AUTHED", "未认证，无法调用函数");
+            return;
+        }
+
+        // 校验参数
+        String funcName = env.getFunc();
+        if (!StringUtils.hasText(funcName)) {
+            sendFuncError(session, env.getReqId(), null, "MISSING_FUNC", "缺少函数名称");
+            return;
+        }
+
+        Map<String, Object> params = env.getParams();
+        if (params == null) {
+            params = Map.of();
+        }
+
+        // 优先使用请求中指定的 pluginId，否则尝试自动查找
+        String pluginId = env.getPluginId();
+        if (!StringUtils.hasText(pluginId)) {
+            // 自动查找：遍历所有已注册的函数插件，找到包含该函数的插件
+            pluginId = functionRuntimeService.findPluginByFunction(funcName);
+            if (!StringUtils.hasText(pluginId)) {
+                sendFuncError(session, env.getReqId(), funcName, "FUNC_NOT_FOUND", "未找到包含函数 " + funcName + " 的插件");
+                return;
+            }
+        }
+
+        // 执行函数
+        FunctionResult result = functionRuntimeService.executeFunction(pluginId, funcName, params);
+
+        // 发送响应
+        if (result.success()) {
+            WsEnvelope resp = new WsEnvelope();
+            resp.setType("FUNC_RESULT");
+            resp.setReqId(env.getReqId());
+            resp.setFunc(funcName);
+            resp.setData(result.data());
+            resp.setTs(Instant.now().toEpochMilli());
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resp)));
+        } else {
+            sendFuncError(session, env.getReqId(), funcName, result.code(), result.message());
+        }
+    }
+
+    private void sendFuncError(WebSocketSession session, String reqId, String func, String code, String message) throws Exception {
+        WsEnvelope resp = new WsEnvelope();
+        resp.setType("FUNC_ERROR");
+        resp.setReqId(reqId);
+        resp.setFunc(func);
+        resp.setCode(code);
+        resp.setMessage(message);
+        resp.setTs(Instant.now().toEpochMilli());
+        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(resp)));
     }
 
     private String buildAppSigString(String appKey,

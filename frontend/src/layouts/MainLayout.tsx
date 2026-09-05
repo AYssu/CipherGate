@@ -346,6 +346,7 @@ const MainLayout: React.FC = () => {
       app_user_management: '/applications/users',
       app_variable_management: '/applications/variables',
       plugin_list_page: '/plugins/list',
+      function_plugin_list_page: '/plugins/function',
       doc_management_admin: '/admin/docs/categories',
       announcement_management: '/system/announcements',
     };
@@ -414,7 +415,9 @@ const MainLayout: React.FC = () => {
     }
 
     if (parentKey === 'plugin_management') {
-      return childKey === 'plugin_list_page' ? '/plugins/list' : `/plugins/${childKey}`;
+      if (childKey === 'plugin_list_page') return '/plugins/list';
+      if (childKey === 'function_plugin_list_page') return '/plugins/function';
+      return `/plugins/${childKey}`;
     }
 
     if (parentKey === 'my_membership') {

@@ -1,0 +1,44 @@
+{
+  "functions": [
+    {
+      "name": "echo",
+      "description": "回显输入参数，原样返回",
+      "inputExample": {
+        "message": "hello world",
+        "number": 123
+      },
+      "outputExample": {
+        "echo": {
+          "message": "hello world",
+          "number": 123
+        },
+        "timestamp": 1721568000000
+      },
+      "inputSchema": {
+        "type": "object",
+        "description": "任意 JSON 对象，原样返回"
+      }
+    },
+    {
+      "name": "add",
+      "description": "计算两个数的和",
+      "inputExample": {
+        "a": 10,
+        "b": 20
+      },
+      "outputExample": {
+        "result": 30.0,
+        "a": 10,
+        "b": 20
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": { "type": "number", "description": "第一个加数" },
+          "b": { "type": "number", "description": "第二个加数" }
+        },
+        "required": ["a", "b"]
+      }
+    }
+  ]
+}

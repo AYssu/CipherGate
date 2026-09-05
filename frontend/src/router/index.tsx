@@ -19,6 +19,7 @@ import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
 import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
 import PluginManagementPage from '../pages/Plugin/PluginManagementPage';
+import FunctionPluginManagementPage from '../pages/Plugin/FunctionPluginManagementPage';
 import AnnouncementManagementPage from '../pages/System/AnnouncementManagementPage';
 import MembershipInfoPage from '../pages/Membership/MembershipInfoPage';
 import BalancePage from '../pages/Membership/BalancePage';
@@ -128,6 +129,7 @@ export const router = createBrowserRouter([
         path: '/plugins',
         children: [
           { path: 'list', element: <PluginManagementPage /> },
+          { path: 'function', element: <FunctionPluginManagementPage /> },
         ],
       },
       {
