@@ -13,7 +13,7 @@ info "[1/7] Build backend JAR..."
 
 # ---------- 2. Build crypto plugins ----------
 info "[2/7] Build crypto plugins..."
-./gradlew -p plugins/rsa-crypto-plugin clean jar --no-daemon
+./gradlew :plugins:rsa-crypto-plugin:clean :plugins:rsa-crypto-plugin:jar --no-daemon
 
 # ---------- 3. Build frontend dist ----------
 info "[3/7] Build frontend dist..."
