@@ -9,7 +9,7 @@ call gradlew.bat clean bootJar --no-daemon
 if errorlevel 1 goto :fail
 
 echo [2/7] Build crypto plugins...
-call gradlew.bat -p plugins\rsa-crypto-plugin clean jar --no-daemon
+call gradlew.bat :plugins:rsa-crypto-plugin:clean :plugins:rsa-crypto-plugin:jar --no-daemon
 if errorlevel 1 goto :fail
 
 echo [3/7] Build frontend dist...
