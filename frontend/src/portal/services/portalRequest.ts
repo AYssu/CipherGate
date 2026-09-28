@@ -4,6 +4,7 @@ import { message } from 'antd';
 const portalRequest = axios.create({
   baseURL: '/api/portal',
   timeout: 15000,
+  withCredentials: true,
 });
 
 portalRequest.interceptors.request.use((config) => {

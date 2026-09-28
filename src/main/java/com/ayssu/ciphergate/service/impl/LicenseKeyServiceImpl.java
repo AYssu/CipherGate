@@ -52,6 +52,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -645,6 +646,13 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
 
         ensureLicensePermission(appId, operatorId, AgentPermissionCodes.LICENSE_CREATE, "无权限导入此应用的卡密");
 
+        if (excelBytes == null || excelBytes.length == 0) {
+            throw new RuntimeException("导入文件为空");
+        }
+        if (excelBytes.length > 10 * 1024 * 1024) {
+            throw new RuntimeException("导入文件不能超过 10MB");
+        }
+
         LicenseImportResult result = new LicenseImportResult();
         List<LicenseImportResult.FailItem> failItems = new ArrayList<>();
 
@@ -652,10 +660,17 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 new java.io.ByteArrayInputStream(excelBytes));
         Sheet sheet = reader.getSheet();
         int lastRow = sheet.getLastRowNum();
-        result.setTotalRows(lastRow);
+        if (lastRow > 50_000) {
+            throw new RuntimeException("单次最多导入 50000 行");
+        }
 
-        List<String> batchKeyCodes = new ArrayList<>();
+        Set<String> batchKeyCodes = new LinkedHashSet<>();
+        int processedRows = 0;
         for (int i = 1; i <= lastRow; i++) {
+            if (isLicenseImportRowBlank(sheet, i)) {
+                continue;
+            }
+            processedRows++;
             int rowNum = i + 1;
             try {
                 String keyCode = getCellStringValue(sheet, i, 0);
@@ -715,16 +730,30 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 String useLimitStr = getCellStringValue(sheet, i, 6);
                 if (StringUtils.hasText(useLimitStr) && !useLimitStr.contains("不限")) {
                     String[] parts = useLimitStr.split("/");
-                    if (parts.length == 2) {
-                        try { lk.setUseLimit(Integer.parseInt(parts[1].trim())); } catch (Exception ignored) {}
+                    if (parts.length != 2) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "使用次数格式不正确: " + useLimitStr));
+                        continue;
+                    }
+                    try {
+                        lk.setUseLimit(Integer.parseInt(parts[1].trim()));
+                    } catch (Exception e) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "使用次数必须是数字: " + useLimitStr));
+                        continue;
                     }
                 }
 
                 String unbindLimitStr = getCellStringValue(sheet, i, 7);
                 if (StringUtils.hasText(unbindLimitStr) && !unbindLimitStr.contains("不限")) {
                     String[] parts = unbindLimitStr.split("/");
-                    if (parts.length == 2) {
-                        try { lk.setUnbindLimit(Integer.parseInt(parts[1].trim())); } catch (Exception ignored) {}
+                    if (parts.length != 2) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "解绑次数格式不正确: " + unbindLimitStr));
+                        continue;
+                    }
+                    try {
+                        lk.setUnbindLimit(Integer.parseInt(parts[1].trim()));
+                    } catch (Exception e) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "解绑次数必须是数字: " + unbindLimitStr));
+                        continue;
                     }
                 }
 
@@ -732,7 +761,10 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 if (StringUtils.hasText(expiresStr)) {
                     try {
                         lk.setExpiresAt(LocalDateTime.parse(expiresStr.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        failItems.add(new LicenseImportResult.FailItem(rowNum, keyCode, "到期时间格式必须为 yyyy-MM-dd HH:mm:ss: " + expiresStr));
+                        continue;
+                    }
                 }
 
                 ensurePresetDurationUnitStored(lk);
@@ -747,6 +779,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             }
         }
 
+        result.setTotalRows(processedRows);
         result.setSuccessCount(batchKeyCodes.size());
         result.setFailCount(failItems.size());
         result.setFailItems(failItems);
@@ -779,6 +812,19 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
 
         log.info("导入卡密完成: appId={}, 成功={}, 失败={}", appId, result.getSuccessCount(), result.getFailCount());
         return result;
+    }
+
+    private boolean isLicenseImportRowBlank(Sheet sheet, int row) {
+        org.apache.poi.ss.usermodel.Row excelRow = sheet.getRow(row);
+        if (excelRow == null) {
+            return true;
+        }
+        for (int col = 0; col <= 9; col++) {
+            if (StringUtils.hasText(getCellStringValue(sheet, row, col))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String getCellStringValue(Sheet sheet, int row, int col) {

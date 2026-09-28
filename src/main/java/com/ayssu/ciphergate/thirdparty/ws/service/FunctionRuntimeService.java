@@ -1,5 +1,6 @@
 package com.ayssu.ciphergate.thirdparty.ws.service;
 
+import com.ayssu.ciphergate.service.FunctionPluginAppAccessService;
 import com.ayssu.ciphergate.thirdparty.ws.model.FunctionResult;
 import com.ciphergate.plugin.api.FunctionPlugin;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.pf4j.PluginManager;
 import org.pf4j.PluginWrapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -30,6 +32,7 @@ public class FunctionRuntimeService {
     private long timeoutMs;
 
     private final PluginManager pluginManager;
+    private final FunctionPluginAppAccessService appAccessService;
 
     /** pluginId -> (functionName -> FunctionPlugin) */
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, FunctionPlugin>> registry = new ConcurrentHashMap<>();
@@ -144,14 +147,37 @@ public class FunctionRuntimeService {
     }
 
     /**
-     * 执行函数（带超时控制）。
+     * 执行应用侧函数调用。默认拒绝：应用必须与插件建立显式授权。
      *
-     * @param pluginId   插件ID
+     * @param appId        已认证应用ID
+     * @param pluginId     显式插件ID
      * @param functionName 函数名称
-     * @param params     输入参数
-     * @return 执行结果
+     * @param params       输入参数
      */
-    public FunctionResult executeFunction(String pluginId, String functionName, Map<String, Object> params) {
+    public FunctionResult executeFunction(Long appId, String pluginId, String functionName, Map<String, Object> params) {
+        if (!StringUtils.hasText(pluginId)) {
+            return FunctionResult.error("PLUGIN_ID_REQUIRED", "必须显式指定 pluginId");
+        }
+        if (appId == null) {
+            return FunctionResult.error("APP_REQUIRED", "无法获取调用方应用");
+        }
+        if (!appAccessService.isAllowed(pluginId, appId)) {
+            return FunctionResult.error("PLUGIN_ACCESS_DENIED", "应用无权调用该插件函数");
+        }
+        return executeFunctionInternal(pluginId, functionName, params);
+    }
+
+    /**
+     * 管理端测试执行，仅供已授权管理接口调用，不参与应用授权。
+     */
+    public FunctionResult executeFunctionForAdmin(String pluginId, String functionName, Map<String, Object> params) {
+        if (!StringUtils.hasText(pluginId)) {
+            return FunctionResult.error("PLUGIN_ID_REQUIRED", "必须显式指定 pluginId");
+        }
+        return executeFunctionInternal(pluginId, functionName, params);
+    }
+
+    private FunctionResult executeFunctionInternal(String pluginId, String functionName, Map<String, Object> params) {
         // 查找插件
         ConcurrentHashMap<String, FunctionPlugin> funcMap = registry.get(pluginId);
         if (funcMap == null) {

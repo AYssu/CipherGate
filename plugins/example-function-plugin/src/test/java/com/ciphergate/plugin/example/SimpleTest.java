@@ -1,41 +1,35 @@
 package com.ciphergate.plugin.example;
 
 import com.ciphergate.plugin.api.FunctionPlugin;
+import org.junit.jupiter.api.Test;
 
-import java.util.*;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * 独立测试 - 直接在插件模块中运行
+ * 插件函数隔离测试，不依赖宿主服务。
  */
-public class SimpleTest {
+class SimpleTest {
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("====================================");
-        System.out.println("  函数插件独立测试");
-        System.out.println("====================================\n");
-
-        // 测试 echo
-        System.out.println("[测试1] Echo 函数");
+    @Test
+    void echoReturnsInput() throws Exception {
         FunctionPlugin echoPlugin = new ExampleFunctionPlugin();
-        Map<String, Object> params1 = Map.of("message", "hello world");
-        Map<String, Object> result1 = echoPlugin.execute(params1);
-        System.out.println("  输入: " + params1);
-        System.out.println("  输出: " + result1);
-        System.out.println("  ✓ Echo 函数测试通过\n");
 
-        // 测试 add
-        System.out.println("[测试2] Add 函数");
+        Map<String, Object> result = echoPlugin.execute(Map.of("message", "hello world"));
+
+        assertNotNull(result.get("echo"));
+        assertEquals(Map.of("message", "hello world"), result.get("echo"));
+        assertNotNull(result.get("timestamp"));
+    }
+
+    @Test
+    void addReturnsSum() throws Exception {
         FunctionPlugin addPlugin = new AddFunctionPlugin();
-        Map<String, Object> params2 = Map.of("a", 10, "b", 20);
-        Map<String, Object> result2 = addPlugin.execute(params2);
-        System.out.println("  输入: " + params2);
-        System.out.println("  输出: " + result2);
-        double sum = (double) result2.get("result");
-        assert sum == 30.0 : "期望 30.0，实际 " + sum;
-        System.out.println("  ✓ Add 函数测试通过\n");
 
-        System.out.println("====================================");
-        System.out.println("  所有测试通过！");
-        System.out.println("====================================");
+        Map<String, Object> result = addPlugin.execute(Map.of("a", 10, "b", 20));
+
+        assertEquals(30.0, result.get("result"));
     }
 }

@@ -8,6 +8,7 @@ import {
   Input,
   Modal,
   Row,
+  Select,
   Space,
   Table,
   Tabs,
@@ -38,12 +39,20 @@ import {
   enableFunctionPlugin,
   listFunctionPlugins,
   getFunctionPluginFunctions,
+  getFunctionPluginAppAccess,
+  replaceFunctionPluginAppAccess,
   testFunction,
   type FunctionPluginModule,
   type FunctionInfo,
   type TestFunctionResponse,
   uploadFunctionPlugin,
 } from '../../services/functionPluginService';
+import { getApplicationList, type Application } from '../../services/applicationService';
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: '已上传', color: 'default' },
@@ -74,10 +83,18 @@ const FunctionPluginManagementPage = () => {
   const [testOutput, setTestOutput] = useState<string>('');
   const [testing, setTesting] = useState(false);
 
+  // 应用授权
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [accessPlugin, setAccessPlugin] = useState<FunctionPluginModule | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [allowedAppIds, setAllowedAppIds] = useState<number[]>([]);
+
   const loadPlugins = async () => {
     setLoading(true);
     try {
-      const res: any = await listFunctionPlugins();
+      const res = await listFunctionPlugins() as unknown as { data?: FunctionPluginModule[] };
       setPlugins(res.data || []);
     } finally {
       setLoading(false);
@@ -87,6 +104,44 @@ const FunctionPluginManagementPage = () => {
   useEffect(() => {
     loadPlugins();
   }, []);
+
+  const openAppAccess = async (plugin: FunctionPluginModule) => {
+    setAccessPlugin(plugin);
+    setAccessOpen(true);
+    setAccessLoading(true);
+    try {
+      const [appsRaw, accessRaw] = await Promise.all([
+        getApplicationList({ current: 1, size: 500 }),
+        getFunctionPluginAppAccess(plugin.id),
+      ]);
+      const appsRes = appsRaw as unknown as {
+        data?: Application[] | { records?: Application[]; list?: Application[] };
+      };
+      const accessRes = accessRaw as unknown as { data?: number[] };
+      const appData = appsRes.data;
+      setApplications(Array.isArray(appData) ? appData : appData?.records || appData?.list || []);
+      setAllowedAppIds(Array.isArray(accessRes.data) ? accessRes.data : []);
+    } catch (error) {
+      message.error(getErrorMessage(error, '加载应用授权失败'));
+      setAccessOpen(false);
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
+  const saveAppAccess = async () => {
+    if (!accessPlugin) return;
+    setAccessSaving(true);
+    try {
+      await replaceFunctionPluginAppAccess(accessPlugin.id, allowedAppIds);
+      message.success('应用授权已更新');
+      setAccessOpen(false);
+    } catch (error) {
+      message.error(getErrorMessage(error, '更新应用授权失败'));
+    } finally {
+      setAccessSaving(false);
+    }
+  };
 
   const openDetail = async (plugin: FunctionPluginModule) => {
     setActivePlugin(plugin);
@@ -98,9 +153,9 @@ const FunctionPluginManagementPage = () => {
     // 加载函数列表
     setLoadingFunctions(true);
     try {
-      const res: any = await getFunctionPluginFunctions(plugin.id);
+      const res = await getFunctionPluginFunctions(plugin.id) as unknown as { data?: FunctionInfo[] };
       setFunctions(res.data || []);
-    } catch (e) {
+    } catch {
       message.error('加载函数列表失败');
     } finally {
       setLoadingFunctions(false);
@@ -113,10 +168,10 @@ const FunctionPluginManagementPage = () => {
       return;
     }
 
-    let params: Record<string, any>;
+    let params: Record<string, unknown>;
     try {
-      params = JSON.parse(testInput || '{}');
-    } catch (e) {
+      params = JSON.parse(testInput || '{}') as Record<string, unknown>;
+    } catch {
       message.error('输入参数不是合法的 JSON');
       return;
     }
@@ -124,20 +179,21 @@ const FunctionPluginManagementPage = () => {
     setTesting(true);
     setTestOutput('');
     try {
-      const res: any = await testFunction({
+      const res = await testFunction({
         pluginId: activePlugin.pluginId,
         func: selectedFunc,
         params,
       });
-      const result: TestFunctionResponse = res.data;
+      const result = (res as unknown as { data?: TestFunctionResponse }).data;
+      if (!result) throw new Error('测试接口未返回结果');
       setTestOutput(JSON.stringify(result, null, 2));
       if (result.success) {
         message.success('函数执行成功');
       } else {
         message.error(`函数执行失败: ${result.message}`);
       }
-    } catch (e: any) {
-      setTestOutput(JSON.stringify({ error: e.message }, null, 2));
+    } catch (error) {
+      setTestOutput(JSON.stringify({ error: getErrorMessage(error, '测试请求失败') }, null, 2));
       message.error('测试请求失败');
     } finally {
       setTesting(false);
@@ -153,19 +209,24 @@ const FunctionPluginManagementPage = () => {
 
   const parseFunctions = (functionsStr?: string): string[] => {
     if (!functionsStr) return [];
-    try {
-      const parsed = JSON.parse(functionsStr);
-      // 兼容两种格式：
-      // 1. 简单数组: ["echo", "add"]
-      // 2. 对象格式: {"functions": [{"name": "echo"}, ...]}
-      if (Array.isArray(parsed)) {
-        if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0].name) {
-          return parsed.map((f: any) => f.name);
+    const readNames = (items: unknown[]): string[] => items
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (typeof item === 'object' && item !== null && 'name' in item) {
+          const name = (item as { name?: unknown }).name;
+          return typeof name === 'string' ? name : '';
         }
-        return parsed;
-      }
-      if (parsed.functions && Array.isArray(parsed.functions)) {
-        return parsed.functions.map((f: any) => f.name);
+        return '';
+      })
+      .filter((name) => name.length > 0);
+
+    try {
+      const parsed: unknown = JSON.parse(functionsStr);
+      // 兼容简单数组与 {"functions": [{"name": "echo"}]} 两种格式。
+      if (Array.isArray(parsed)) return readNames(parsed);
+      if (typeof parsed === 'object' && parsed !== null && 'functions' in parsed) {
+        const functionsValue = (parsed as { functions?: unknown }).functions;
+        if (Array.isArray(functionsValue)) return readNames(functionsValue);
       }
       return [];
     } catch {
@@ -216,6 +277,7 @@ const FunctionPluginManagementPage = () => {
                 menu={{
                   items: [
                     { key: 'detail', label: '详情/测试', onClick: () => openDetail(record) },
+                    { key: 'access', label: '授权应用', onClick: () => { void openAppAccess(record); } },
                     { key: 'enable', label: '启用', disabled: record.status === 1, onClick: async () => { await enableFunctionPlugin(record.id); message.success('插件已启用'); await loadPlugins(); } },
                     { key: 'disable', label: '停用', disabled: record.status !== 1, onClick: async () => { await disableFunctionPlugin(record.id); message.success('插件已停用'); await loadPlugins(); } },
                     { type: 'divider' },
@@ -231,6 +293,7 @@ const FunctionPluginManagementPage = () => {
           return (
             <Space>
               <Button size="small" icon={<CodeOutlined />} onClick={() => openDetail(record)}>详情/测试</Button>
+              <Button size="small" onClick={() => { void openAppAccess(record); }}>授权应用</Button>
               <Tooltip title={record.status === 1 ? '已启用' : ''}>
                 <Button type="primary" size="small" disabled={record.status === 1} onClick={async () => { await enableFunctionPlugin(record.id); message.success('插件已启用'); await loadPlugins(); }}>启用</Button>
               </Tooltip>
@@ -250,7 +313,14 @@ const FunctionPluginManagementPage = () => {
 
   const MOBILE_VISIBLE_KEYS = ['pluginName', 'status', 'functions', 'actions'];
   const displayColumns = isMobile
-    ? allColumns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes((c as any).dataIndex as string))
+    ? allColumns.filter((column) => {
+      const dataIndex = 'dataIndex' in column && typeof column.dataIndex === 'string'
+        ? column.dataIndex
+        : undefined;
+      const keys = [column.key, dataIndex]
+        .filter((key): key is string | number => key !== undefined && key !== null);
+      return keys.some((key) => MOBILE_VISIBLE_KEYS.includes(String(key)));
+    })
     : allColumns;
 
   const handleSubmitUpload = async () => {
@@ -502,6 +572,10 @@ const FunctionPluginManagementPage = () => {
                     message.error('只支持 .jar 文件');
                     return Upload.LIST_IGNORE;
                   }
+                  if (file.size > 50 * 1024 * 1024) {
+                    message.error('插件文件不能超过 50MB');
+                    return Upload.LIST_IGNORE;
+                  }
                   setSelectedFile(file as unknown as File);
                   return false;
                 }}
@@ -535,6 +609,10 @@ const FunctionPluginManagementPage = () => {
                   const isJar = file.name.toLowerCase().endsWith('.jar');
                   if (!isJar) {
                     message.error('只支持 .jar 文件');
+                    return Upload.LIST_IGNORE;
+                  }
+                  if (file.size > 50 * 1024 * 1024) {
+                    message.error('插件文件不能超过 50MB');
                     return Upload.LIST_IGNORE;
                   }
                   setSelectedFile(file as unknown as File);
@@ -572,6 +650,38 @@ const FunctionPluginManagementPage = () => {
           {renderDetailContent()}
         </Modal>
       )}
+
+      <Modal
+        title={accessPlugin ? `应用授权 - ${accessPlugin.pluginId}` : '应用授权'}
+        open={accessOpen}
+        onCancel={() => setAccessOpen(false)}
+        onOk={saveAppAccess}
+        confirmLoading={accessSaving}
+        okText="保存"
+        cancelText="取消"
+        width={640}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message="默认拒绝"
+          description="只有勾选的应用才能通过 WebSocket 调用该插件函数；未勾选应用调用时会返回 PLUGIN_ACCESS_DENIED。"
+          style={{ marginBottom: 16 }}
+        />
+        <Spin spinning={accessLoading}>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="请选择允许调用该插件的应用"
+            value={allowedAppIds}
+            onChange={(values: number[]) => setAllowedAppIds(values)}
+            options={applications.map((app) => ({ value: app.id, label: `${app.appName} (#${app.id})` }))}
+            filterOption={(input, option) =>
+              String(option?.label || '').toLowerCase().includes(input.toLowerCase())
+            }
+          />
+        </Spin>
+      </Modal>
     </Space>
   );
 };

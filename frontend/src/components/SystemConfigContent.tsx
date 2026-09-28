@@ -1,10 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, InputNumber, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid, Tag, Select } from 'antd';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Button, Card, Checkbox, Col, Form, Input, InputNumber, Row, Space, Spin, Switch, Tabs, Typography, Upload, message, Grid, Tag, Select } from 'antd';
 import { UploadOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { systemApi } from '../services';
 import type { SystemSettings } from '../services/systemService';
 
 const { Title, Text } = Typography;
+
+interface PaymentConfigPayload {
+  epayUrl?: string;
+  epayPid?: string;
+  epayKey?: string;
+  epayNotifyUrl?: string;
+  epayReturnUrl?: string;
+  successRedirectUrl?: string;
+  portalNotifyUrl?: string;
+  portalReturnUrl?: string;
+  portalSuccessUrl?: string;
+}
+
+interface ProxyTestResponse {
+  googleStatus?: number;
+  googlestatus?: number;
+  googleReachable?: boolean;
+  ipReachable?: boolean;
+  ipreachable?: boolean;
+  githubreachable?: boolean;
+  apireachable?: boolean;
+  githublatencyMs?: number;
+  apilatencyMs?: number;
+  publicIp?: string;
+  publicip?: string;
+  proxyType?: string;
+  proxytype?: string;
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const value = (error as { message?: unknown }).message;
+    if (typeof value === 'string' && value) return value;
+  }
+  return fallback;
+};
+
+const isFormValidationError = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && 'errorFields' in error;
 
 const SystemConfigContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -24,7 +64,15 @@ const SystemConfigContent: React.FC = () => {
   const [proxyForm] = Form.useForm();
   const [proxySaving, setProxySaving] = useState(false);
   const [proxyTesting, setProxyTesting] = useState(false);
-  const [proxyTestResult, setProxyTestResult] = useState<{ success: boolean; githubLatency: number; apiLatency: number } | null>(null);
+  const [proxyPasswordSet, setProxyPasswordSet] = useState(false);
+  const [proxyTestResult, setProxyTestResult] = useState<{
+    success: boolean;
+    googleStatus: number;
+    publicIp: string;
+    githubLatency: number;
+    apiLatency: number;
+    proxyType?: string;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     const validTabs = ['github', 'site', 'email', 'payment', 'proxy', 'invite'];
@@ -36,7 +84,7 @@ const SystemConfigContent: React.FC = () => {
     window.location.hash = key;
   };
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const response = await systemApi.getSystemSettings();
@@ -77,7 +125,9 @@ const SystemConfigContent: React.FC = () => {
           portalReturnUrl: payData?.portalReturnUrl || '',
           portalSuccessUrl: payData?.portalSuccessUrl || '',
         });
-      } catch {}
+      } catch (error) {
+        console.warn('加载支付配置失败:', error);
+      }
       // 加载邀请配置
       try {
         const inviteRes = await systemApi.getInviteConfig();
@@ -87,11 +137,14 @@ const SystemConfigContent: React.FC = () => {
           maxCount: inviteData?.maxCount ?? 20,
           rewardAmount: inviteData?.rewardAmount ? inviteData.rewardAmount / 100 : 3,
         });
-      } catch {}
+      } catch (error) {
+        console.warn('加载邀请配置失败:', error);
+      }
       // 加载代理配置
       try {
         const proxyRes = await systemApi.getOAuth2ProxySettings();
         const proxyData = proxyRes.data;
+        setProxyPasswordSet(!!proxyData?.passwordSet);
         proxyForm.setFieldsValue({
           enabled: !!proxyData?.enabled,
           host: proxyData?.host || '',
@@ -100,18 +153,20 @@ const SystemConfigContent: React.FC = () => {
           password: '',
           type: proxyData?.type || 'socks5',
         });
-      } catch {}
+      } catch (error) {
+        console.warn('加载代理配置失败:', error);
+      }
     } catch (error) {
       console.error('加载系统配置失败:', error);
       message.error('加载系统配置失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [githubForm, siteForm, emailForm, paymentForm, inviteForm, proxyForm]);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    void loadSettings();
+  }, [loadSettings]);
 
   const submitGithub = async () => {
     try {
@@ -121,9 +176,9 @@ const SystemConfigContent: React.FC = () => {
       message.success('GitHub 配置已保存');
       githubForm.setFieldValue('clientSecret', '');
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存 GitHub 配置失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存 GitHub 配置失败'));
       }
     } finally {
       setSaving(false);
@@ -137,9 +192,9 @@ const SystemConfigContent: React.FC = () => {
       await systemApi.updateSiteSettings(values);
       message.success('备案信息已保存');
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存备案信息失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存备案信息失败'));
       }
     } finally {
       setSaving(false);
@@ -154,9 +209,9 @@ const SystemConfigContent: React.FC = () => {
       message.success('邮箱配置已保存');
       emailForm.setFieldValue('smtpPassword', '');
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存邮箱配置失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存邮箱配置失败'));
       }
     } finally {
       setSaving(false);
@@ -167,7 +222,7 @@ const SystemConfigContent: React.FC = () => {
     try {
       const values = await paymentForm.validateFields();
       setPaymentSaving(true);
-      const data: any = {};
+      const data: PaymentConfigPayload = {};
       if (values.epayUrl) data.epayUrl = values.epayUrl;
       if (values.epayPid) data.epayPid = values.epayPid;
       if (values.epayKey) data.epayKey = values.epayKey;
@@ -181,9 +236,9 @@ const SystemConfigContent: React.FC = () => {
       message.success('支付配置已保存');
       paymentForm.setFieldValue('epayKey', '');
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存支付配置失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存支付配置失败'));
       }
     } finally {
       setPaymentSaving(false);
@@ -201,9 +256,9 @@ const SystemConfigContent: React.FC = () => {
       });
       message.success('邀请配置已保存');
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存邀请配置失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存邀请配置失败'));
       }
     } finally {
       setInviteSaving(false);
@@ -214,21 +269,24 @@ const SystemConfigContent: React.FC = () => {
     try {
       const values = await proxyForm.validateFields();
       setProxySaving(true);
+      const clearPassword = values.clearPassword === true;
       await systemApi.updateOAuth2ProxySettings({
         enabled: values.enabled,
         host: values.host,
         port: values.port,
         username: values.username,
-        password: values.password || undefined,
+        password: clearPassword ? undefined : values.password || undefined,
+        clearPassword,
         type: values.type,
       });
       message.success('代理配置已保存');
       proxyForm.setFieldValue('password', '');
+      proxyForm.setFieldValue('clearPassword', false);
       setProxyTestResult(null);
       await loadSettings();
-    } catch (error: any) {
-      if (!error?.errorFields) {
-        message.error(error?.message || '保存代理配置失败');
+    } catch (error) {
+      if (!isFormValidationError(error)) {
+        message.error(getErrorMessage(error, '保存代理配置失败'));
       }
     } finally {
       setProxySaving(false);
@@ -239,24 +297,44 @@ const SystemConfigContent: React.FC = () => {
     try {
       setProxyTesting(true);
       setProxyTestResult(null);
-      const res = await systemApi.testOAuth2Proxy();
-      const data = (res as any)?.data || (res as any);
+      const values = await proxyForm.validateFields();
+      const clearPassword = values.clearPassword === true;
+      const res = await systemApi.testOAuth2Proxy({
+        enabled: values.enabled === true,
+        host: values.host || '',
+        port: String(values.port || ''),
+        username: values.username || '',
+        password: clearPassword ? undefined : values.password || undefined,
+        passwordSet: proxyPasswordSet,
+        clearPassword,
+        type: values.type || 'socks5',
+      });
+      const raw = res as unknown;
+      const data = typeof raw === 'object' && raw !== null && 'data' in raw
+        ? (raw as { data?: ProxyTestResponse }).data
+        : raw as ProxyTestResponse | undefined;
       const githubReachable = data?.githubreachable;
       const apiReachable = data?.apireachable;
-      const passed = githubReachable || apiReachable;
+      const googleStatus = data?.googleStatus ?? data?.googlestatus ?? -1;
+      const googleReachable = data?.googleReachable ?? (googleStatus >= 200 && googleStatus < 400);
+      const ipReachable = !!data?.ipReachable || !!data?.ipreachable;
+      const passed = !!googleReachable && ipReachable && !!githubReachable && !!apiReachable;
       setProxyTestResult({
         success: passed,
+        googleStatus,
+        publicIp: data?.publicIp || data?.publicip || '',
         githubLatency: data?.githublatencyMs ?? -1,
         apiLatency: data?.apilatencyMs ?? -1,
+        proxyType: data?.proxyType || data?.proxytype,
       });
       if (passed) {
         message.success('代理连通性测试通过');
       } else {
         message.error('代理连通性测试失败，请检查代理配置');
       }
-    } catch (error: any) {
-      setProxyTestResult({ success: false, githubLatency: -1, apiLatency: -1 });
-      message.error(error?.message || '代理连通性测试失败');
+    } catch (error) {
+      setProxyTestResult({ success: false, googleStatus: -1, publicIp: '', githubLatency: -1, apiLatency: -1 });
+      message.error(getErrorMessage(error, '代理连通性测试失败'));
     } finally {
       setProxyTesting(false);
     }
@@ -268,8 +346,8 @@ const SystemConfigContent: React.FC = () => {
       await systemApi.updateGeoIpSettings({ enabled });
       message.success(enabled ? '已开启 IP 解析' : '已关闭 IP 解析');
       await loadSettings();
-    } catch (error: any) {
-      message.error(error?.message || '更新 IP 解析开关失败');
+    } catch (error) {
+      message.error(getErrorMessage(error, '更新 IP 解析开关失败'));
     } finally {
       setGeoIpSaving(false);
     }
@@ -281,8 +359,8 @@ const SystemConfigContent: React.FC = () => {
       await systemApi.uploadGeoIpDb(dbType, file);
       message.success(`${dbType === 'country' ? '国家库' : '城市库'}上传成功`);
       await loadSettings();
-    } catch (error: any) {
-      message.error(error?.message || '上传失败');
+    } catch (error) {
+      message.error(getErrorMessage(error, '上传失败'));
     } finally {
       setGeoIpSaving(false);
     }
@@ -295,8 +373,8 @@ const SystemConfigContent: React.FC = () => {
       await systemApi.updateIp2RegionSettings({ enabled });
       message.success(enabled ? '已开启 ip2region' : '已关闭 ip2region');
       await loadSettings();
-    } catch (error: any) {
-      message.error(error?.message || '更新 ip2region 开关失败');
+    } catch (error) {
+      message.error(getErrorMessage(error, '更新 ip2region 开关失败'));
     } finally {
       setIp2RegionSaving(false);
     }
@@ -308,8 +386,8 @@ const SystemConfigContent: React.FC = () => {
       await systemApi.uploadIp2RegionDb(file);
       message.success('ip2region 数据库上传成功');
       await loadSettings();
-    } catch (error: any) {
-      message.error(error?.message || '上传失败');
+    } catch (error) {
+      message.error(getErrorMessage(error, '上传失败'));
     } finally {
       setIp2RegionSaving(false);
     }
@@ -696,11 +774,16 @@ const SystemConfigContent: React.FC = () => {
                     </Form.Item>
                   </Col>
                   <Col span={isMobile ? 24 : 8}>
-                    <Form.Item name="password" label="密码（不填则保持不变）">
+                    <Form.Item name="password" label={proxyPasswordSet ? '密码（已保存，留空保持不变）' : '密码（无认证可留空）'}>
                       <Input.Password placeholder="密码" />
                     </Form.Item>
                   </Col>
                 </Row>
+                {proxyPasswordSet && (
+                  <Form.Item name="clearPassword" valuePropName="checked" style={{ marginTop: -8, marginBottom: 12 }}>
+                    <Checkbox>清除已保存的代理密码</Checkbox>
+                  </Form.Item>
+                )}
                 <Space direction={isMobile ? 'vertical' : 'horizontal'} size={8}>
                   <Button type="primary" loading={proxySaving} onClick={submitProxy}>保存代理配置</Button>
                   <Button icon={<ApiOutlined />} loading={proxyTesting} onClick={testProxy}>测试连通性</Button>
@@ -714,13 +797,27 @@ const SystemConfigContent: React.FC = () => {
                           {proxyTestResult.success ? '代理连通性测试通过' : '代理连通性测试失败'}
                         </Text>
                       </Space>
-                      {proxyTestResult.success && (
-                        <Space>
-                          <Text type="secondary">github.com：</Text>
-                          <Tag color="green">{proxyTestResult.githubLatency}ms</Tag>
-                          <Text type="secondary">api.github.com：</Text>
-                          <Tag color="green">{proxyTestResult.apiLatency}ms</Tag>
-                        </Space>
+                      <Space wrap size={8}>
+                        <Text type="secondary">Google 状态：</Text>
+                        <Tag color={proxyTestResult.googleStatus >= 200 && proxyTestResult.googleStatus < 400 ? 'green' : 'red'}>
+                          {proxyTestResult.googleStatus > 0 ? proxyTestResult.googleStatus : '失败'}
+                        </Tag>
+                        <Text type="secondary">公网 IP：</Text>
+                        <Tag color={proxyTestResult.publicIp ? 'green' : 'red'}>
+                          {proxyTestResult.publicIp || '获取失败'}
+                        </Tag>
+                      </Space>
+                      <Space wrap size={8}>
+                        <Text type="secondary">GitHub OAuth：</Text>
+                        <Tag color={proxyTestResult.githubLatency >= 0 ? 'green' : 'red'}>
+                          github.com {proxyTestResult.githubLatency >= 0 ? `${proxyTestResult.githubLatency}ms` : '失败'}
+                        </Tag>
+                        <Tag color={proxyTestResult.apiLatency >= 0 ? 'green' : 'red'}>
+                          api.github.com {proxyTestResult.apiLatency >= 0 ? `${proxyTestResult.apiLatency}ms` : '失败'}
+                        </Tag>
+                      </Space>
+                      {proxyTestResult.proxyType && (
+                        <Text type="secondary">测试代理类型：{proxyTestResult.proxyType.toUpperCase()}</Text>
                       )}
                     </Space>
                   </div>

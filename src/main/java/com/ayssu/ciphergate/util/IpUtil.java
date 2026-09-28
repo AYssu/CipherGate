@@ -2,6 +2,12 @@ package com.ayssu.ciphergate.util;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+/**
+ * 客户端 IP 解析。
+ * <p>
+ * 只读取 Spring Boot RemoteIpValve 规范化后的 remoteAddr，避免客户端伪造
+ * X-Forwarded-For/X-Real-IP 影响限流、白名单和审计。
+ */
 public final class IpUtil {
     private IpUtil() {
     }
@@ -28,13 +34,11 @@ public final class IpUtil {
         }
         return ip.trim();
     }
-
     private static String headerOrNull(HttpServletRequest request, String key) {
-        String v = request.getHeader(key);
-        if (v == null || v.isBlank() || "unknown".equalsIgnoreCase(v)) {
+        String value = request.getHeader(key);
+        if (value == null || value.isBlank() || "unknown".equalsIgnoreCase(value)) {
             return null;
         }
-        return v;
+        return value.trim();
     }
 }
-

@@ -1090,6 +1090,15 @@ CREATE TABLE IF NOT EXISTS function_plugin_module (
     INDEX idx_updated_at (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='函数插件模块表';
 
+-- 函数插件与应用的显式授权（空记录 = 默认拒绝）
+CREATE TABLE IF NOT EXISTS function_plugin_app_access (
+    plugin_id VARCHAR(100) NOT NULL COMMENT '函数插件标识',
+    app_id BIGINT NOT NULL COMMENT '被授权应用ID',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (plugin_id, app_id),
+    INDEX idx_func_access_app (app_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='函数插件应用访问授权';
+
 -- 卡密登录 / 终端用户 WS 登录流水（按次记录，供仪表盘统计）
 CREATE TABLE IF NOT EXISTS access_event (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',

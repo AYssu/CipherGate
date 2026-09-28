@@ -685,7 +685,9 @@ public class ConfigController {
             if (request.containsKey("username")) {
                 systemConfigService.setConfigValue("oauth2.proxy.username", toSafeValue((String) request.get("username")), "OAuth2代理用户名", false);
             }
-            if (request.get("password") instanceof String pwd && StringUtils.hasText(pwd)) {
+            if (Boolean.TRUE.equals(request.get("clearPassword"))) {
+                systemConfigService.setConfigValue("oauth2.proxy.password", "", "OAuth2代理密码", true);
+            } else if (request.get("password") instanceof String pwd && StringUtils.hasText(pwd)) {
                 systemConfigService.setConfigValue("oauth2.proxy.password", pwd.trim(), "OAuth2代理密码", true);
             }
             if (request.containsKey("type")) {
@@ -703,42 +705,91 @@ public class ConfigController {
 
     @PostMapping("/settings/oauth2-proxy/test")
     @RequirePermission("CONFIG_UPDATE")
-    @Operation(summary = "测试OAuth2代理连通性")
-    public Result<Map<String, Object>> testOAuth2Proxy() {
+    @Operation(summary = "测试OAuth2代理及外部网络连通性")
+    public Result<Map<String, Object>> testOAuth2Proxy(@RequestBody(required = false) Map<String, Object> request) {
         try {
             requireSuperAdmin();
-            String host = systemConfigService.getConfigValue("oauth2.proxy.host", "");
-            String portStr = systemConfigService.getConfigValue("oauth2.proxy.port", "1080");
-            String username = systemConfigService.getConfigValue("oauth2.proxy.username", "");
-            String password = systemConfigService.getConfigValue("oauth2.proxy.password", "");
-            String type = systemConfigService.getConfigValue("oauth2.proxy.type", "socks5");
+            Map<String, Object> form = request == null ? Map.of() : request;
+            String host = testProxyValue(form, "host",
+                    systemConfigService.getConfigValue("oauth2.proxy.host", ""));
+            String portStr = testProxyValue(form, "port",
+                    systemConfigService.getConfigValue("oauth2.proxy.port", "1080"));
+            String username = form.containsKey("username")
+                    ? toSafeValue(String.valueOf(form.get("username")))
+                    : systemConfigService.getConfigValue("oauth2.proxy.username", "");
+            String type = testProxyValue(form, "type",
+                    systemConfigService.getConfigValue("oauth2.proxy.type", "socks5"));
+
+            String password;
+            if (Boolean.TRUE.equals(form.get("clearPassword"))) {
+                password = "";
+            } else if (form.get("password") instanceof String pwd && StringUtils.hasText(pwd)) {
+                password = pwd.trim();
+            } else if (form.containsKey("passwordSet")) {
+                password = Boolean.TRUE.equals(form.get("passwordSet"))
+                        ? systemConfigService.getConfigValue("oauth2.proxy.password", "")
+                        : "";
+            } else {
+                // 兼容旧客户端：未传表单时继续测试已保存密码。
+                password = systemConfigService.getConfigValue("oauth2.proxy.password", "");
+            }
 
             if (!StringUtils.hasText(host)) {
                 return Result.error("代理主机未配置");
+            }
+
+            boolean isHttp = "http".equalsIgnoreCase(type);
+            boolean isSocks5 = "socks5".equalsIgnoreCase(type);
+            if (!isHttp && !isSocks5) {
+                return Result.error("代理类型无效，仅支持 socks5 或 http");
             }
 
             int port;
             try {
                 port = Integer.parseInt(portStr);
             } catch (NumberFormatException e) {
-                port = 1080;
+                return Result.error("代理端口必须是数字");
+            }
+            if (port < 1 || port > 65535) {
+                return Result.error("代理端口必须在 1 到 65535 之间");
             }
 
-            boolean isHttp = "http".equalsIgnoreCase(type);
-            Map<String, Object> result = new HashMap<>();
-            long githubTime = testConnection("https://github.com", host, port, username, password, isHttp);
-            long apiTime = testConnection("https://api.github.com", host, port, username, password, isHttp);
+            var requestFactory = com.ayssu.ciphergate.config.OAuth2ProxyConfig.createTestFactory(
+                    host, port, username, password, isHttp);
+            var restTemplate = new org.springframework.web.client.RestTemplate();
+            restTemplate.setRequestFactory(requestFactory);
 
-            result.put("githubreachable", githubTime > 0);
-            result.put("githublatencyMs", githubTime);
-            result.put("apireachable", apiTime > 0);
-            result.put("apilatencyMs", apiTime);
+            HttpProbe google = probeGet(restTemplate, "https://www.google.com");
+            HttpProbe ip = probeGet(restTemplate, "https://api.ipify.org");
+            HttpProbe github = probeHead(restTemplate, "https://github.com");
+            HttpProbe apiGithub = probeHead(restTemplate, "https://api.github.com");
+
+            boolean googleReachable = google.statusCode() >= 200 && google.statusCode() < 400;
+            String publicIp = normalizePublicIp(ip.body());
+            boolean ipReachable = ip.statusCode() >= 200 && ip.statusCode() < 300 && publicIp != null;
+            boolean githubReachable = github.statusCode() >= 200 && github.statusCode() < 400;
+            boolean apiReachable = apiGithub.statusCode() >= 200 && apiGithub.statusCode() < 400;
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("googleStatus", google.statusCode());
+            result.put("googleReachable", googleReachable);
+            result.put("googleLatencyMs", google.latencyMs());
+            result.put("publicIp", publicIp == null ? "" : publicIp);
+            result.put("ipReachable", ipReachable);
+            result.put("ipLatencyMs", ip.latencyMs());
+            result.put("githubreachable", githubReachable);
+            result.put("githublatencyMs", github.latencyMs());
+            result.put("apireachable", apiReachable);
+            result.put("apilatencyMs", apiGithub.latencyMs());
             result.put("proxyHost", host);
             result.put("proxyPort", port);
             result.put("proxyType", isHttp ? "http" : "socks5");
+            result.put("proxyEnabled", form.containsKey("enabled")
+                    ? Boolean.TRUE.equals(form.get("enabled"))
+                    : oAuth2ProxyConfig.isProxyEnabled());
 
-            boolean ok = githubTime > 0 || apiTime > 0;
-            return Result.success(ok ? "代理连通性测试通过" : "代理连通性测试失败", result);
+            boolean ok = googleReachable && ipReachable && githubReachable && apiReachable;
+            return Result.success(ok ? "代理及外部网络测试通过" : "代理测试存在失败项", result);
         } catch (SecurityException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
@@ -746,24 +797,53 @@ public class ConfigController {
         }
     }
 
-    private long testConnection(String url, String proxyHost, int proxyPort, String username, String password, boolean isHttp) {
+    private String testProxyValue(Map<String, Object> form, String key, String defaultValue) {
+        if (!form.containsKey(key) || form.get(key) == null) {
+            return defaultValue;
+        }
+        return toSafeValue(String.valueOf(form.get(key)));
+    }
+
+    private HttpProbe probeGet(org.springframework.web.client.RestTemplate restTemplate, String url) {
         try {
-            org.springframework.http.client.ClientHttpRequestFactory factory =
-                    oAuth2ProxyConfig.createRoutingRequestFactory();
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            restTemplate.setRequestFactory(factory);
-
             long start = System.currentTimeMillis();
-            restTemplate.headForHeaders(url);
-            long elapsed = System.currentTimeMillis() - start;
-
-            log.info("Proxy test {} -> latency={}ms", url, elapsed);
-            return elapsed;
+            var response = restTemplate.getForEntity(url, String.class);
+            return new HttpProbe(response.getStatusCode().value(), System.currentTimeMillis() - start, response.getBody());
         } catch (Exception e) {
-            log.warn("Proxy test {} failed: {}", url, e.getMessage());
-            return -1;
+            log.warn("Proxy GET test {} failed: {}", url, e.getMessage());
+            return new HttpProbe(-1, -1, null);
         }
     }
+
+    private HttpProbe probeHead(org.springframework.web.client.RestTemplate restTemplate, String url) {
+        try {
+            long start = System.currentTimeMillis();
+            var response = restTemplate.exchange(url, org.springframework.http.HttpMethod.HEAD, null, String.class);
+            return new HttpProbe(response.getStatusCode().value(), System.currentTimeMillis() - start, response.getBody());
+        } catch (Exception e) {
+            log.warn("Proxy HEAD test {} failed: {}", url, e.getMessage());
+            return new HttpProbe(-1, -1, null);
+        }
+    }
+
+    private String normalizePublicIp(String body) {
+        if (!StringUtils.hasText(body)) {
+            return null;
+        }
+        String value = body.trim();
+        if (value.isEmpty() || value.length() > 128 || value.indexOf('<') >= 0 || value.chars().anyMatch(Character::isWhitespace)) {
+            return null;
+        }
+        if (!value.contains(".") && !value.contains(":")) {
+            return null;
+        }
+        if (!value.matches("[0-9a-fA-F:.%]+")) {
+            return null;
+        }
+        return value;
+    }
+
+    private record HttpProbe(int statusCode, long latencyMs, String body) {}
 
     // ==================== 支付配置 ====================
 

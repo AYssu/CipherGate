@@ -70,11 +70,11 @@ public class PortalPaymentController {
             String orderNo = params.get("out_trade_no");
             String tradeNo = params.get("trade_no");
             String status = params.get("trade_status");
-            if (orderNo == null || tradeNo == null) {
-                return Result.success("success");
+            if (orderNo == null || tradeNo == null || status == null) {
+                return Result.badRequest("支付回调参数不完整");
             }
             boolean result = paymentService.handlePaymentNotify(orderNo, tradeNo, status, params);
-            return result ? Result.success("success") : Result.error("订单不存在");
+            return result ? Result.success("success") : Result.error("支付回调校验失败");
         } catch (Exception e) {
             log.error("门户支付回调处理失败", e);
             return Result.error("处理失败");
@@ -101,8 +101,11 @@ public class PortalPaymentController {
         }
 
         // 处理订单
-        if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus)) {
-            paymentService.handlePaymentNotify(orderNo, params.get("trade_no"), tradeStatus, params);
+        if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus) || "FINISHED".equals(tradeStatus)) {
+            boolean handled = paymentService.handlePaymentNotify(orderNo, params.get("trade_no"), tradeStatus, params);
+            if (!handled) {
+                return "<script>alert('支付校验失败');window.location.href='" + successUrl + "';</script>";
+            }
         }
 
         return "<script>window.location.href='" + successUrl + "';</script>";

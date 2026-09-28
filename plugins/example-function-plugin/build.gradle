@@ -22,6 +22,8 @@ dependencies {
     compileOnly project(':ciphergate-plugin-api')
     // 测试时需要 API 模块
     testImplementation project(':ciphergate-plugin-api')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 jar {
@@ -39,4 +41,8 @@ jar {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }

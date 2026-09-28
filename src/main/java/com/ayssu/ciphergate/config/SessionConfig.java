@@ -15,6 +15,9 @@ public class SessionConfig {
     @Value("${app.session.cookie-domain:}")
     private String cookieDomain;
 
+    @Value("${app.session.cookie-secure:false}")
+    private boolean cookieSecure;
+
     @Bean
     public CookieSerializer cookieSerializer() {
         DefaultCookieSerializer serializer = new DefaultCookieSerializer();
@@ -33,8 +36,8 @@ public class SessionConfig {
         // HttpOnly 防止 XSS 攻击
         serializer.setUseHttpOnlyCookie(true);
         
-        // 生产环境启用 Secure（需要 HTTPS）
-        serializer.setUseSecureCookie(false); // 开发环境设为 false
+        // 本地 HTTP 默认关闭；生产 HTTPS 通过 APP_SESSION_COOKIE_SECURE=true 开启
+        serializer.setUseSecureCookie(cookieSecure);
         
         // SameSite 设置为 Lax（允许顶级导航携带 Cookie）
         serializer.setSameSite("Lax");

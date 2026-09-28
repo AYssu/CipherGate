@@ -284,16 +284,22 @@ public class CardWsHandler extends TextWebSocketHandler {
             return;
         }
 
-        // 获取卡密ID作为 pluginId
         Object cardIdObj = session.getAttributes().get(ATTR_CARD_ID);
         Object appIdObj = session.getAttributes().get(ATTR_APP_ID);
-        if (!(cardIdObj instanceof Long cardId)) {
+        if (!(cardIdObj instanceof Long)) {
             sendFuncError(session, env.getReqId(), funcName, "NO_CARD", "无法获取卡密信息");
             return;
         }
+        if (!(appIdObj instanceof Long appId)) {
+            sendFuncError(session, env.getReqId(), funcName, "APP_REQUIRED", "无法获取卡密所属应用");
+            return;
+        }
 
-        // 使用 appId 作为 pluginId（如果有的话），否则用 cardId
-        String pluginId = appIdObj instanceof Long appId ? String.valueOf(appId) : String.valueOf(cardId);
+        String pluginId = env.getPluginId();
+        if (!StringUtils.hasText(pluginId)) {
+            sendFuncError(session, env.getReqId(), funcName, "PLUGIN_ID_REQUIRED", "必须显式指定 pluginId");
+            return;
+        }
 
         Map<String, Object> params = env.getParams();
         if (params == null) {
@@ -301,7 +307,7 @@ public class CardWsHandler extends TextWebSocketHandler {
         }
 
         // 执行函数
-        FunctionResult result = functionRuntimeService.executeFunction(pluginId, funcName, params);
+        FunctionResult result = functionRuntimeService.executeFunction(appId, pluginId, funcName, params);
 
         // 发送响应
         if (result.success()) {

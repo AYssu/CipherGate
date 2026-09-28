@@ -3,17 +3,20 @@ package com.ayssu.ciphergate.service;
 import com.ayssu.ciphergate.entity.PaymentOrder;
 import com.ayssu.ciphergate.entity.UserMembership;
 import com.ayssu.ciphergate.config.EpayConfig;
+import org.springframework.util.StringUtils;
 import com.ayssu.ciphergate.service.PaymentOrderService;
 import com.ayssu.ciphergate.service.UserMembershipService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -73,9 +76,13 @@ public class EpayService {
      * 验证回调签名（与易支付服务端一致：只用 money/name/out_trade_no/pid/trade_no/trade_status/type）
      */
     public boolean verifyNotifySign(Map<String, String> params) {
-        String receivedSign = params.get("sign");
-        if (receivedSign == null || receivedSign.isEmpty()) return false;
+        if (!hasRequiredNotifyFields(params)
+                || !epayConfig.getEpayPid().equals(params.get("pid"))
+                || !StringUtils.hasText(epayConfig.getEpayKey())) {
+            return false;
+        }
 
+        String receivedSign = params.get("sign");
         Map<String, String> sorted = new TreeMap<>();
         sorted.put("money", params.get("money"));
         sorted.put("name", params.get("name"));
@@ -86,23 +93,58 @@ public class EpayService {
         sorted.put("type", params.get("type"));
 
         String calculatedSign = calculateSign(sorted, epayConfig.getEpayKey());
-        log.info("签名验证: 期望={}, 计算={}", receivedSign, calculatedSign);
-        return receivedSign.equalsIgnoreCase(calculatedSign);
+        return !calculatedSign.isEmpty() && receivedSign.equalsIgnoreCase(calculatedSign);
+    }
+
+    private boolean hasRequiredNotifyFields(Map<String, String> params) {
+        return List.of("money", "name", "out_trade_no", "pid", "trade_no", "trade_status", "type", "sign")
+                .stream()
+                .allMatch(field -> params.get(field) != null && !params.get(field).isBlank());
     }
 
     /**
      * 处理支付回调
      */
     public void handleNotify(Map<String, String> params) {
+        if (!verifyNotifySign(params)) {
+            throw new IllegalArgumentException("支付回调校验失败");
+        }
+
         String tradeStatus = params.get("trade_status");
         String orderNo = params.get("out_trade_no");
         String tradeNo = params.get("trade_no");
-
         log.info("易支付回调: orderNo={}, tradeNo={}, status={}", orderNo, tradeNo, tradeStatus);
 
-        if ("TRADE_SUCCESS".equals(tradeStatus) || "FINISHED".equals(tradeStatus)) {
-            paymentOrderService.handlePaymentSuccess(orderNo, tradeNo);
+        if (!isSuccessStatus(tradeStatus)) {
+            return;
         }
+
+        PaymentOrder order = paymentOrderService.getByOrderNo(orderNo);
+        if (order == null) {
+            throw new IllegalArgumentException("支付订单不存在");
+        }
+
+        BigDecimal callbackAmount;
+        try {
+            callbackAmount = new BigDecimal(params.get("money"));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("支付金额格式错误");
+        }
+        if (callbackAmount.scale() > 2 || callbackAmount.signum() < 0) {
+            throw new IllegalArgumentException("支付金额格式错误");
+        }
+        long callbackAmountFen = callbackAmount.movePointRight(2).longValueExact();
+        if (order.getTotalAmount() == null || order.getTotalAmount() != callbackAmountFen) {
+            throw new IllegalArgumentException("支付金额与订单金额不一致");
+        }
+
+        paymentOrderService.handlePaymentSuccess(orderNo, tradeNo);
+    }
+
+    public static boolean isSuccessStatus(String tradeStatus) {
+        return "TRADE_SUCCESS".equals(tradeStatus)
+                || "TRADE_FINISHED".equals(tradeStatus)
+                || "FINISHED".equals(tradeStatus);
     }
 
     /**
@@ -123,8 +165,6 @@ public class EpayService {
             sb.append(merchantKey);
 
             String signStr = sb.toString();
-            log.info("签名原文: {}", signStr);
-
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] digest = md.digest(signStr.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();

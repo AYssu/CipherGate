@@ -358,19 +358,19 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
             params = Map.of();
         }
 
-        // 优先使用请求中指定的 pluginId，否则尝试自动查找
         String pluginId = env.getPluginId();
         if (!StringUtils.hasText(pluginId)) {
-            // 自动查找：遍历所有已注册的函数插件，找到包含该函数的插件
-            pluginId = functionRuntimeService.findPluginByFunction(funcName);
-            if (!StringUtils.hasText(pluginId)) {
-                sendFuncError(session, env.getReqId(), funcName, "FUNC_NOT_FOUND", "未找到包含函数 " + funcName + " 的插件");
-                return;
-            }
+            sendFuncError(session, env.getReqId(), funcName, "PLUGIN_ID_REQUIRED", "必须显式指定 pluginId");
+            return;
         }
 
-        // 执行函数
-        FunctionResult result = functionRuntimeService.executeFunction(pluginId, funcName, params);
+        Application app = (Application) session.getAttributes().get(ATTR_APP);
+        if (app == null || app.getId() == null) {
+            sendFuncError(session, env.getReqId(), funcName, "APP_REQUIRED", "无法获取调用方应用");
+            return;
+        }
+
+        FunctionResult result = functionRuntimeService.executeFunction(app.getId(), pluginId, funcName, params);
 
         // 发送响应
         if (result.success()) {

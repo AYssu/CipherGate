@@ -26,8 +26,12 @@ public class ThirdPartyRechargeController {
     public Result<?> recharge(@Valid @RequestBody ThirdPartyRechargeDTO dto, HttpServletRequest request) {
         String ip = IpUtil.getIpAddr(request);
         String ua = request.getHeader("User-Agent");
-        log.info("third party recharge request: apiKey={}, email={}, days={}, ip={}",
-                dto.getApiKey(), dto.getUserEmail(), dto.getDays(), ip);
+        String apiKeyFingerprint = dto.getApiKey() == null || dto.getApiKey().isBlank()
+                ? "missing"
+                : cn.hutool.crypto.digest.DigestUtil.sha256Hex(dto.getApiKey().trim())
+                        .substring(0, 12);
+        log.info("third party recharge request: apiKeyFingerprint={}, email={}, days={}, ip={}",
+                apiKeyFingerprint, dto.getUserEmail(), dto.getDays(), ip);
         return rechargeService.recharge(dto, ip, ua);
     }
 }

@@ -3,6 +3,7 @@ package com.ayssu.ciphergate.service.impl;
 import com.ayssu.ciphergate.config.PluginProperties;
 import com.ayssu.ciphergate.entity.FunctionPluginModule;
 import com.ayssu.ciphergate.mapper.FunctionPluginModuleMapper;
+import com.ayssu.ciphergate.service.FunctionPluginAppAccessService;
 import com.ayssu.ciphergate.service.FunctionPluginModuleService;
 import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.thirdparty.ws.model.FunctionResult;
@@ -40,12 +41,14 @@ import java.util.jar.JarInputStream;
 public class FunctionPluginModuleServiceImpl implements FunctionPluginModuleService {
 
     private static final ObjectMapper CONFIG_OBJECT_MAPPER = new ObjectMapper();
+    private static final long MAX_PLUGIN_JAR_BYTES = 50L * 1024 * 1024;
 
     private final FunctionPluginModuleMapper functionPluginModuleMapper;
     private final MinioObjectService minioObjectService;
     private final PluginManager pluginManager;
     private final PluginProperties pluginProperties;
     private final FunctionRuntimeService functionRuntimeService;
+    private final FunctionPluginAppAccessService appAccessService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -55,6 +58,9 @@ public class FunctionPluginModuleServiceImpl implements FunctionPluginModuleServ
         }
         if (file.getOriginalFilename() == null || !file.getOriginalFilename().toLowerCase().endsWith(".jar")) {
             throw new RuntimeException("只支持上传 jar 文件");
+        }
+        if (file.getSize() > MAX_PLUGIN_JAR_BYTES) {
+            throw new RuntimeException("插件文件不能超过 50MB");
         }
 
         PluginJarMetadata metadata = readPluginMetadata(file);
@@ -233,6 +239,7 @@ public class FunctionPluginModuleServiceImpl implements FunctionPluginModuleServ
             log.warn("删除 MinIO 对象失败，继续删除数据库记录: bucket={}, objectKey={}",
                     pluginModule.getBucketName(), pluginModule.getObjectKey(), e);
         }
+        appAccessService.replaceAllowedAppIds(pluginModule.getPluginId(), List.of());
         int updated = functionPluginModuleMapper.softDeleteWithTimestamp(id);
         if (updated <= 0) {
             throw new RuntimeException("删除函数插件失败：记录不存在或已删除");
@@ -385,7 +392,7 @@ public class FunctionPluginModuleServiceImpl implements FunctionPluginModuleServ
     public FunctionResult testFunction(String pluginId, String funcName, Map<String, Object> params) {
         // 刷新函数注册表，确保最新
         functionRuntimeService.refresh();
-        return functionRuntimeService.executeFunction(pluginId, funcName, params);
+        return functionRuntimeService.executeFunctionForAdmin(pluginId, funcName, params);
     }
 
     @Override
@@ -419,5 +426,25 @@ public class FunctionPluginModuleServiceImpl implements FunctionPluginModuleServ
         }
 
         return Collections.emptyList();
+    }
+
+    @Override
+    public List<Long> getAllowedAppIds(Long id) {
+        FunctionPluginModule pluginModule = requirePlugin(id);
+        return appAccessService.getAllowedAppIds(pluginModule.getPluginId());
+    }
+
+    @Override
+    public void replaceAllowedAppIds(Long id, List<Long> appIds) {
+        FunctionPluginModule pluginModule = requirePlugin(id);
+        appAccessService.replaceAllowedAppIds(pluginModule.getPluginId(), appIds);
+    }
+
+    private FunctionPluginModule requirePlugin(Long id) {
+        FunctionPluginModule pluginModule = functionPluginModuleMapper.selectById(id);
+        if (pluginModule == null) {
+            throw new RuntimeException("函数插件不存在");
+        }
+        return pluginModule;
     }
 }

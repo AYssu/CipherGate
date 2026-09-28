@@ -162,6 +162,46 @@ public class FunctionPluginModuleController {
         }
     }
 
+    @GetMapping("/{id}/app-access")
+    @RequirePermission("PLUGIN_LIST")
+    @Operation(summary = "获取函数插件已授权应用")
+    public Result<List<Long>> getAllowedApps(@PathVariable Long id) {
+        try {
+            return Result.success(functionPluginModuleService.getAllowedAppIds(id));
+        } catch (Exception e) {
+            log.error("查询函数插件应用授权失败", e);
+            return Result.error("查询函数插件应用授权失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/app-access")
+    @RequirePermission("PLUGIN_ENABLE")
+    @Operation(summary = "覆盖函数插件应用授权", description = "appIds 为空表示不授权任何应用")
+    public Result<String> replaceAllowedApps(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            Object raw = body.get("appIds");
+            List<Long> appIds = new java.util.ArrayList<>();
+            if (raw instanceof List<?> values) {
+                for (Object value : values) {
+                    if (value instanceof Number number) {
+                        appIds.add(number.longValue());
+                    } else if (value != null) {
+                        try {
+                            appIds.add(Long.valueOf(value.toString()));
+                        } catch (NumberFormatException ignored) {
+                            return Result.error("应用ID格式不正确");
+                        }
+                    }
+                }
+            }
+            functionPluginModuleService.replaceAllowedAppIds(id, appIds);
+            return Result.success("函数插件应用授权更新成功", "OK");
+        } catch (Exception e) {
+            log.error("更新函数插件应用授权失败", e);
+            return Result.error("更新函数插件应用授权失败: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/{id}/functions")
     @RequirePermission("PLUGIN_LIST")
     @Operation(summary = "获取插件函数列表详情", description = "获取插件提供的函数列表及参数说明")

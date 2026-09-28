@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ayssu.ciphergate.util.IpUtil;
 @Slf4j
 @RestController
 @Validated
@@ -67,18 +68,6 @@ public class OpenTrialController {
     }
 
     private static String resolveClientIp(HttpServletRequest request) {
-        if (request == null) {
-            return null;
-        }
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int comma = xff.indexOf(',');
-            return comma > 0 ? xff.substring(0, comma).trim() : xff.trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return IpUtil.getIpAddr(request);
     }
 }

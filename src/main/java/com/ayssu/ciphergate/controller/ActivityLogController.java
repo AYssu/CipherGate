@@ -61,7 +61,9 @@ public class ActivityLogController {
             return Result.unauthorized("未登录");
         }
         Long userIdFilter = securityUtils.isAdmin(user.getId()) ? null : user.getId();
-        Page<ActivityLogEntity> page = activityLogService.getRecentActivities(pageNum, pageSize, userIdFilter);
+        int safePageNum = Math.max(pageNum, 1);
+        int safePageSize = clamp(pageSize, 1, 100);
+        Page<ActivityLogEntity> page = activityLogService.getRecentActivities(safePageNum, safePageSize, userIdFilter);
         return Result.success(page);
     }
     
@@ -78,7 +80,7 @@ public class ActivityLogController {
             return Result.unauthorized("未登录");
         }
         Long userIdFilter = securityUtils.isAdmin(user.getId()) ? null : user.getId();
-        List<ActivityLogEntity> activities = activityLogService.getRecentActivities(limit, userIdFilter);
+        List<ActivityLogEntity> activities = activityLogService.getRecentActivities(clamp(limit, 1, 100), userIdFilter);
         return Result.success(activities);
     }
     
@@ -98,10 +100,14 @@ public class ActivityLogController {
         if (!current.getId().equals(userId) && !securityUtils.isAdmin(current.getId())) {
             return Result.forbidden("无权限查看该用户活动");
         }
-        List<ActivityLogEntity> activities = activityLogService.getUserRecentActivities(userId, limit);
+        List<ActivityLogEntity> activities = activityLogService.getUserRecentActivities(userId, clamp(limit, 1, 100));
         return Result.success(activities);
     }
     
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     /**
      * 获取当前用户未读消息统计（包括活动日志和系统消息）
      */

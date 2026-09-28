@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ayssu.ciphergate.util.IpUtil;
 /**
  * 应用终端用户自助注册（公开接口，无需登录）。
  */
@@ -66,15 +67,6 @@ public class PublicAppUserRegisterController {
     }
 
     private static String resolveClientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int comma = xff.indexOf(',');
-            return comma > 0 ? xff.substring(0, comma).trim() : xff.trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return IpUtil.getIpAddr(request);
     }
 }

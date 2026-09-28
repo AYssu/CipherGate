@@ -135,15 +135,21 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
     @Transactional
     public void handlePaymentSuccess(String orderNo, String tradeNo) {
         PaymentOrder order = getByOrderNo(orderNo);
-        if (order == null || order.getStatus() != 0) {
-            log.warn("订单不存在或状态异常: {}", orderNo);
-            return;
+        if (order == null) {
+            throw new IllegalArgumentException("支付订单不存在");
         }
 
-        order.setStatus(1);
-        order.setTradeNo(tradeNo);
-        order.setPaidAt(LocalDateTime.now());
-        updateById(order);
+        boolean claimed = lambdaUpdate()
+                .eq(PaymentOrder::getOrderNo, orderNo)
+                .eq(PaymentOrder::getStatus, 0)
+                .set(PaymentOrder::getStatus, 1)
+                .set(PaymentOrder::getTradeNo, tradeNo)
+                .set(PaymentOrder::getPaidAt, LocalDateTime.now())
+                .update();
+        if (!claimed) {
+            log.info("支付回调重复到达，忽略: orderNo={}", orderNo);
+            return;
+        }
 
         if ("RECHARGE".equals(order.getProductType())) {
             userMembershipService.grantBalance(order.getUserId(), order.getTotalAmount(), null, "在线充值");

@@ -12,6 +12,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import java.util.Map;
 
+import com.ayssu.ciphergate.util.IpUtil;
 /**
  * 在 WS 握手阶段解析客户端 IP，写入会话属性，供后续 AUTH 复用。
  */
@@ -44,20 +45,7 @@ public class WsHandshakeIpInterceptor implements HandshakeInterceptor {
 
     private static String resolveIp(ServerHttpRequest request) {
         if (request instanceof ServletServerHttpRequest servletRequest) {
-            HttpServletRequest req = servletRequest.getServletRequest();
-            String xff = trimToNull(req.getHeader("X-Forwarded-For"));
-            if (xff != null) {
-                int comma = xff.indexOf(',');
-                return comma > 0 ? xff.substring(0, comma).trim() : xff;
-            }
-            String realIp = trimToNull(req.getHeader("X-Real-IP"));
-            if (realIp != null) {
-                return realIp;
-            }
-            String remote = trimToNull(req.getRemoteAddr());
-            if (remote != null) {
-                return remote;
-            }
+            return IpUtil.getIpAddr(servletRequest.getServletRequest());
         }
         return request.getRemoteAddress() != null && request.getRemoteAddress().getAddress() != null
                 ? request.getRemoteAddress().getAddress().getHostAddress()

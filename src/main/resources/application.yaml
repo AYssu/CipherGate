@@ -47,6 +47,14 @@ mybatis-plus:
 
 server:
   port: 8080
+  # 仅由内置 RemoteIpValve 规范化可信反向代理头；代码必须使用 request.getRemoteAddr()。
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+      # 仅信任本机与 Docker 默认网段。Nginx 会覆盖 XFF，外部直连伪造头不会生效。
+      internal-proxies: '^(?:127(?:\.[0-9]{1,3}){3}|::1|172\.(?:1[6-9]|2[0-9]|3[01])(?:\.[0-9]{1,3}){2})$'
 
 springdoc:
   # 规避部分 Spring / springdoc 组合下的 NoSuchMethodError（通用响应覆盖逻辑）
@@ -56,6 +64,8 @@ app:
   session:
     # 选填：会话 Cookie 域名（如 .ayssu.com）。不配置则使用当前请求主机，避免与线上域名不匹配。
     cookie-domain: ${APP_SESSION_COOKIE_DOMAIN:}
+    # 生产启用 HTTPS 时设置 APP_SESSION_COOKIE_SECURE=true。
+    cookie-secure: ${APP_SESSION_COOKIE_SECURE:false}
   backend:
     # 可选：OAuth 授权入口所在后端根 URL（无末尾/）。当前端与后端不同源且 redirect-uri 仍为 Spring 占位符时通过环境变量指定；通常可从已配置的全量 github.oauth2.redirect-uri 自动解析。
     public-base-url: ${APP_BACKEND_PUBLIC_BASE_URL:}

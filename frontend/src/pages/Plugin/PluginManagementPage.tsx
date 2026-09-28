@@ -31,6 +31,20 @@ import {
   uploadPlugin,
 } from '../../services/pluginService';
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
+
+interface PluginConfigEnvelope {
+  configSchema?: string;
+  configDefaults?: string;
+}
+
+interface PluginConfigState {
+  configValues?: string;
+}
+
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: '已上传', color: 'default' },
   1: { text: '已启用', color: 'green' },
@@ -58,7 +72,7 @@ const PluginManagementPage = () => {
   const loadPlugins = async () => {
     setLoading(true);
     try {
-      const res: any = await listPlugins();
+      const res = await listPlugins() as unknown as { data?: PluginModule[] };
       setPlugins(res.data || []);
     } finally {
       setLoading(false);
@@ -73,10 +87,12 @@ const PluginManagementPage = () => {
     setActivePlugin(plugin);
     setConfigOpen(true);
     try {
-      const [schemaRes, cfgRes]: any = await Promise.all([
+      const [schemaRaw, cfgRaw] = await Promise.all([
         getPluginConfigSchema(plugin.id),
         getPluginConfig(plugin.id),
       ]);
+      const schemaRes = schemaRaw as unknown as { data?: PluginConfigEnvelope };
+      const cfgRes = cfgRaw as unknown as { data?: PluginConfigState };
       const schemaPayload = schemaRes.data || {};
       const cfgPayload = cfgRes.data || {};
       setPluginSchema(schemaPayload.configSchema || '');
@@ -88,7 +104,9 @@ const PluginManagementPage = () => {
       } else {
         setConfigJson('{}');
       }
-    } finally {
+    } catch (error) {
+      message.error(getErrorMessage(error, '加载插件配置失败'));
+      setConfigOpen(false);
     }
   };
 
@@ -97,11 +115,15 @@ const PluginManagementPage = () => {
       message.warning('未选择插件');
       return;
     }
-    let obj: any;
+    let obj: Record<string, unknown>;
     try {
-      obj = JSON.parse(configJson || '{}');
-    } catch (e) {
-      message.error('配置不是合法JSON');
+      const parsed: unknown = JSON.parse(configJson || '{}');
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('配置根节点必须是 JSON 对象');
+      }
+      obj = parsed as Record<string, unknown>;
+    } catch {
+      message.error('配置不是合法JSON对象');
       return;
     }
     setConfigSaving(true);
@@ -178,7 +200,14 @@ const PluginManagementPage = () => {
 
   const MOBILE_VISIBLE_KEYS = ['pluginName', 'status', 'actions'];
   const displayColumns = isMobile
-    ? allColumns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes((c as any).dataIndex as string))
+    ? allColumns.filter((column) => {
+      const dataIndex = 'dataIndex' in column && typeof column.dataIndex === 'string'
+        ? column.dataIndex
+        : undefined;
+      const keys = [column.key, dataIndex]
+        .filter((key): key is string | number => key !== undefined && key !== null);
+      return keys.some((key) => MOBILE_VISIBLE_KEYS.includes(String(key)));
+    })
     : allColumns;
 
   const handleSubmitUpload = async () => {
@@ -278,6 +307,10 @@ const PluginManagementPage = () => {
                     message.error('只支持 .jar 文件');
                     return Upload.LIST_IGNORE;
                   }
+                  if (file.size > 50 * 1024 * 1024) {
+                    message.error('插件文件不能超过 50MB');
+                    return Upload.LIST_IGNORE;
+                  }
                   setSelectedFile(file as unknown as File);
                   return false;
                 }}
@@ -313,6 +346,10 @@ const PluginManagementPage = () => {
                   const isJar = file.name.toLowerCase().endsWith('.jar');
                   if (!isJar) {
                     message.error('只支持 .jar 文件');
+                    return Upload.LIST_IGNORE;
+                  }
+                  if (file.size > 50 * 1024 * 1024) {
+                    message.error('插件文件不能超过 50MB');
                     return Upload.LIST_IGNORE;
                   }
                   setSelectedFile(file as unknown as File);

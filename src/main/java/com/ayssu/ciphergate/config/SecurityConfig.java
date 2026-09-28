@@ -30,9 +30,9 @@ public class SecurityConfig {
 
     @PostConstruct
     public void init() {
-        if (oAuth2ProxyConfig.isProxyEnabled()) {
-            customOAuth2UserService.configureRestOperations();
-        }
+        // RestOperations 内部使用动态代理工厂，启动时只安装一次；
+        // 后续代理配置变化会在下一次请求时自动生效。
+        customOAuth2UserService.configureRestOperations();
     }
 
     @Bean
@@ -69,10 +69,9 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> {
                     oauth2.userInfoEndpoint(userInfo -> userInfo
                             .userService(customOAuth2UserService));
-                    if (oAuth2ProxyConfig.isProxyEnabled()) {
-                        oauth2.tokenEndpoint(token -> token
-                                .accessTokenResponseClient(buildTokenResponseClient()));
-                    }
+                    // 始终安装自定义 token client；其请求工厂会按当前配置选择直连或代理。
+                    oauth2.tokenEndpoint(token -> token
+                            .accessTokenResponseClient(buildTokenResponseClient()));
                     oauth2.successHandler(oAuth2LoginSuccessHandler)
                             .failureHandler(oAuth2LoginFailureHandler);
                 })
@@ -87,7 +86,7 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(403);
                             response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"code\":403,\"message\":\"权限不足，只有超级管理员可以访问 API 文档\"}");
+                            response.getWriter().write("{\"code\":403,\"message\":\"请求被拒绝，请重新登录或检查操作权限\"}");
                         })
                 );
 

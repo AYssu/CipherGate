@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.ayssu.ciphergate.util.IpUtil;
 /**
  * 活动日志切面
  * 自动拦截带有 @ActivityLog 注解的方法并记录日志
@@ -91,26 +92,6 @@ public class ActivityLogAspect {
      * 获取客户端IP地址
      */
     private String getIpAddress(HttpServletRequest request) {
-        if (request == null) {
-            return "";
-        }
-        
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        
-        // 处理多个IP的情况，取第一个
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        
-        return ip;
+        return IpUtil.getIpAddr(request);
     }
 }

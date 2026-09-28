@@ -45,6 +45,6 @@ export const getPluginConfig = (id: number) => {
   return request.get(`/plugins/${id}/config`);
 };
 
-export const updatePluginConfig = (id: number, configValues: Record<string, any>) => {
+export const updatePluginConfig = (id: number, configValues: Record<string, unknown>) => {
   return request.put(`/plugins/${id}/config`, configValues);
 };

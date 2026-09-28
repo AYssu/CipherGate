@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpSession;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,8 +28,13 @@ public class PermissionAspect {
     @Autowired
     private UserService userService;
 
-    @Around("@annotation(requirePermission)")
-    public Object checkPermission(ProceedingJoinPoint joinPoint, RequirePermission requirePermission) throws Throwable {
+    @Around("@annotation(com.ayssu.ciphergate.annotation.RequirePermission)"
+            + " || @within(com.ayssu.ciphergate.annotation.RequirePermission)")
+    public Object checkPermission(ProceedingJoinPoint joinPoint) throws Throwable {
+        RequirePermission requirePermission = resolvePermission(joinPoint);
+        if (requirePermission == null) {
+            throw new SecurityException("缺少权限声明");
+        }
         Authentication authentication = getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -49,6 +56,20 @@ public class PermissionAspect {
         }
 
         return joinPoint.proceed();
+    }
+
+    private RequirePermission resolvePermission(ProceedingJoinPoint joinPoint) {
+        if (joinPoint.getSignature() instanceof MethodSignature signature) {
+            RequirePermission methodAnnotation = AnnotatedElementUtils.findMergedAnnotation(
+                    signature.getMethod(), RequirePermission.class);
+            if (methodAnnotation != null) {
+                return methodAnnotation;
+            }
+        }
+        Class<?> targetClass = joinPoint.getTarget() != null ? joinPoint.getTarget().getClass() : null;
+        return targetClass != null
+                ? AnnotatedElementUtils.findMergedAnnotation(targetClass, RequirePermission.class)
+                : null;
     }
 
     /**

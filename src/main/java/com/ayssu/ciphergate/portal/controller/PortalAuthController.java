@@ -18,6 +18,7 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 
+import com.ayssu.ciphergate.util.IpUtil;
 @Slf4j
 @RestController
 @RequestMapping("/api/portal/auth")
@@ -121,18 +122,7 @@ public class PortalAuthController {
     }
 
     private static String resolveClientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isEmpty()) {
-            int comma = xff.indexOf(',');
-            String ip = comma > 0 ? xff.substring(0, comma).trim() : xff.trim();
-            return normalizeIp(ip);
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isEmpty()) {
-            return normalizeIp(realIp.trim());
-        }
-        String remote = request.getRemoteAddr();
-        return normalizeIp(remote);
+        return normalizeIp(IpUtil.getIpAddr(request));
     }
 
     private static String normalizeIp(String ip) {

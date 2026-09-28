@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.ayssu.ciphergate.util.IpUtil;
 /**
  * 应用服务实现类
  */
@@ -612,14 +613,7 @@ public class ApplicationServiceImpl implements ApplicationService {
      * 获取客户端IP
      */
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
+        return IpUtil.getIpAddr(request);
     }
     
     /**

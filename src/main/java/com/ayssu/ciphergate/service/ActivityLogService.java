@@ -76,7 +76,7 @@ public class ActivityLogService {
      * @param userIdFilter 非空时只查该用户的日志；空表示不限用户（仅应由管理员场景传入）
      */
     public Page<ActivityLogEntity> getRecentActivities(int pageNum, int pageSize, Long userIdFilter) {
-        Page<ActivityLogEntity> page = new Page<>(pageNum, pageSize);
+        Page<ActivityLogEntity> page = new Page<>(Math.max(1, pageNum), Math.max(1, Math.min(100, pageSize)));
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
         if (userIdFilter != null) {
             queryWrapper.eq("user_id", userIdFilter);
@@ -90,6 +90,7 @@ public class ActivityLogService {
      * 获取用户最近活动
      */
     public List<ActivityLogEntity> getUserRecentActivities(Long userId, int limit) {
+        limit = Math.max(1, Math.min(100, limit));
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId)
                    .orderByAsc("is_read")
@@ -104,6 +105,7 @@ public class ActivityLogService {
      * @param userIdFilter 非空时只查该用户；空表示不限用户（仅应由管理员场景传入）
      */
     public List<ActivityLogEntity> getRecentActivities(int limit, Long userIdFilter) {
+        limit = Math.max(1, Math.min(100, limit));
         QueryWrapper<ActivityLogEntity> queryWrapper = new QueryWrapper<>();
         if (userIdFilter != null) {
             queryWrapper.eq("user_id", userIdFilter);

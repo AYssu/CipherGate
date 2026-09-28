@@ -12,11 +12,13 @@ import com.ayssu.ciphergate.portal.mapper.ApplicationEpayConfigMapper;
 import com.ayssu.ciphergate.portal.mapper.PortalPaymentOrderMapper;
 import com.ayssu.ciphergate.portal.mapper.PortalPricingPlanMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -99,29 +101,17 @@ public class PortalPaymentService {
 
     @Transactional
     public boolean handlePaymentNotify(String orderNo, String tradeNo, String status, Map<String, String> allParams) {
+        if (!hasRequiredNotifyFields(allParams) || !orderNo.equals(allParams.get("out_trade_no"))) {
+            log.warn("门户支付回调: 必填字段或订单号不匹配, orderNo={}", orderNo);
+            return false;
+        }
+
         PortalPaymentOrder order = orderMapper.selectOne(
             new LambdaQueryWrapper<PortalPaymentOrder>()
                 .eq(PortalPaymentOrder::getOrderNo, orderNo)
         );
-
         if (order == null) {
             log.warn("门户支付回调: 订单不存在, orderNo={}", orderNo);
-            return false;
-        }
-
-        if (order.getStatus() != 0) {
-            log.info("门户支付回调: 订单已处理, orderNo={}", orderNo);
-            return true;
-        }
-
-        // 获取该应用的支付配置并验签
-        ApplicationEpayConfig config = epayConfigMapper.selectOne(
-            new LambdaQueryWrapper<ApplicationEpayConfig>()
-                .eq(ApplicationEpayConfig::getAppId, order.getAppId())
-                .eq(ApplicationEpayConfig::getEnabled, true)
-        );
-        if (config == null) {
-            log.warn("门户支付回调: 应用支付配置不存在, appId={}", order.getAppId());
             return false;
         }
 
@@ -130,19 +120,62 @@ public class PortalPaymentService {
             return false;
         }
 
-        if ("TRADE_SUCCESS".equals(status) || "TRADE_FINISHED".equals(status)) {
-            order.setStatus(1);
-            order.setTradeNo(tradeNo);
-            order.setPaidAt(LocalDateTime.now());
-            order.setNotifyReceived(true);
-            orderMapper.updateById(order);
-
-            extendMembership(order);
-
-            log.info("门户支付订单完成: orderNo={}, tradeNo={}", orderNo, tradeNo);
+        if (!isSuccessStatus(status)) {
+            return true;
         }
 
+        ApplicationEpayConfig config = epayConfigMapper.selectOne(
+            new LambdaQueryWrapper<ApplicationEpayConfig>()
+                .eq(ApplicationEpayConfig::getAppId, order.getAppId())
+                .eq(ApplicationEpayConfig::getEnabled, true)
+        );
+        if (config == null || !config.getEpayPid().equals(allParams.get("pid"))) {
+            log.warn("门户支付回调: 支付商户配置不匹配, appId={}", order.getAppId());
+            return false;
+        }
+
+        long callbackAmountFen;
+        try {
+            BigDecimal money = new BigDecimal(allParams.get("money"));
+            if (money.scale() > 2 || money.signum() < 0) {
+                return false;
+            }
+            callbackAmountFen = money.movePointRight(2).longValueExact();
+        } catch (ArithmeticException | NumberFormatException e) {
+            log.warn("门户支付回调: 金额格式错误, orderNo={}", orderNo);
+            return false;
+        }
+        if (order.getAmountFen() == null || order.getAmountFen() != callbackAmountFen) {
+            log.warn("门户支付回调: 金额不匹配, orderNo={}, expected={}, actual={}",
+                orderNo, order.getAmountFen(), callbackAmountFen);
+            return false;
+        }
+
+        boolean claimed = orderMapper.update(null, new LambdaUpdateWrapper<PortalPaymentOrder>()
+            .eq(PortalPaymentOrder::getOrderNo, orderNo)
+            .eq(PortalPaymentOrder::getStatus, 0)
+            .set(PortalPaymentOrder::getStatus, 1)
+            .set(PortalPaymentOrder::getTradeNo, tradeNo)
+            .set(PortalPaymentOrder::getPaidAt, LocalDateTime.now())
+            .set(PortalPaymentOrder::getNotifyReceived, true)) > 0;
+        if (!claimed) {
+            log.info("门户支付回调重复到达, orderNo={}", orderNo);
+            return true;
+        }
+
+        extendMembership(order);
+        log.info("门户支付订单完成: orderNo={}, tradeNo={}", orderNo, tradeNo);
         return true;
+    }
+
+    private boolean hasRequiredNotifyFields(Map<String, String> params) {
+        return List.of("money", "name", "out_trade_no", "pid", "trade_no", "trade_status", "type", "sign")
+            .stream()
+            .allMatch(field -> params.get(field) != null && !params.get(field).isBlank());
+    }
+
+    private static boolean isSuccessStatus(String status) {
+        return "TRADE_SUCCESS".equals(status) || "TRADE_FINISHED".equals(status) || "FINISHED".equals(status);
     }
 
     /**
@@ -163,13 +196,13 @@ public class PortalPaymentService {
                 .eq(ApplicationEpayConfig::getAppId, order.getAppId())
                 .eq(ApplicationEpayConfig::getEnabled, true)
         );
-        if (config == null) {
-            log.warn("同步回调验签: 应用支付配置不存在, appId={}", order.getAppId());
+        if (config == null || !hasRequiredNotifyFields(params)
+            || !config.getEpayPid().equals(params.get("pid"))) {
+            log.warn("同步回调验签: 支付配置或必填字段不匹配, appId={}", order.getAppId());
             return false;
         }
 
         String receivedSign = params.get("sign");
-        if (receivedSign == null || receivedSign.isEmpty()) return false;
 
         Map<String, String> sorted = new TreeMap<>();
         sorted.put("money", params.get("money"));

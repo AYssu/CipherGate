@@ -83,4 +83,14 @@ public interface FunctionPluginModuleService {
      * 获取插件提供的函数列表详情。
      */
     List<Map<String, Object>> getPluginFunctions(Long id);
+
+    /**
+     * 获取插件已授权的应用ID列表。
+     */
+    List<Long> getAllowedAppIds(Long id);
+
+    /**
+     * 覆盖插件应用授权；空列表表示继续默认拒绝。
+     */
+    void replaceAllowedAppIds(Long id, List<Long> appIds);
 }

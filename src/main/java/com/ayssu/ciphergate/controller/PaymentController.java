@@ -147,9 +147,7 @@ public class PaymentController {
             return "<script>alert('签名验证失败');window.location.href='" + redirectUrl + "';</script>";
         }
 
-        if ("TRADE_SUCCESS".equals(tradeStatus) || "FINISHED".equals(tradeStatus)) {
-            paymentOrderService.handlePaymentSuccess(orderNo, params.get("trade_no"));
-        }
+        epayService.handleNotify(params);
 
         return "<script>alert('支付成功');window.location.href='" + redirectUrl + "';</script>";
     }

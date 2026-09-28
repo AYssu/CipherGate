@@ -203,12 +203,22 @@ export const systemApi = {
     port?: string;
     username?: string;
     password?: string;
+    clearPassword?: boolean;
     type?: string;
   }) => {
     return request.post('/config/settings/oauth2-proxy', data);
   },
 
-  testOAuth2Proxy: () => {
-    return request.post('/config/settings/oauth2-proxy/test', undefined, { timeout: 30000 });
+  testOAuth2Proxy: (data: {
+    enabled: boolean;
+    host: string;
+    port: string;
+    username?: string;
+    password?: string;
+    passwordSet?: boolean;
+    clearPassword?: boolean;
+    type: string;
+  }) => {
+    return request.post('/config/settings/oauth2-proxy/test', data, { timeout: 60000 });
   },
 };

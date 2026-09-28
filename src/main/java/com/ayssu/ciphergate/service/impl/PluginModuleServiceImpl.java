@@ -38,6 +38,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PluginModuleServiceImpl implements PluginModuleService {
 
+    private static final long MAX_PLUGIN_JAR_BYTES = 50L * 1024 * 1024;
+
     private static final ObjectMapper CONFIG_OBJECT_MAPPER = new ObjectMapper();
 
     private final PluginModuleMapper pluginModuleMapper;
@@ -53,6 +55,9 @@ public class PluginModuleServiceImpl implements PluginModuleService {
         }
         if (file.getOriginalFilename() == null || !file.getOriginalFilename().toLowerCase().endsWith(".jar")) {
             throw new RuntimeException("只支持上传 jar 文件");
+        }
+        if (file.getSize() > MAX_PLUGIN_JAR_BYTES) {
+            throw new RuntimeException("插件文件不能超过 50MB");
         }
 
         PluginJarMetadata metadata = readPluginMetadata(file);
