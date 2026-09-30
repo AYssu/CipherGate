@@ -83,6 +83,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [loadingAllActivities, setLoadingAllActivities] = useState(false);
+  const [markingAllActivitiesRead, setMarkingAllActivitiesRead] = useState(false);
   const [todayStats, setTodayStats] = useState<DashboardTodayStats | null>(null);
   const [loadingTodayStats, setLoadingTodayStats] = useState(false);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
@@ -211,6 +212,31 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     } catch (error) {
       console.error('标记已读失败:', error);
       message.error('标记已读失败');
+    }
+  };
+
+  // 一键标记所有活动为已读
+  const handleMarkAllAsRead = async () => {
+    if (markingAllActivitiesRead) return;
+
+    setMarkingAllActivitiesRead(true);
+    try {
+      await activityApi.markAllAsRead();
+
+      const recentResult = await activityApi.getRecentActivities(5);
+      setRecentActivities(recentResult.data || []);
+
+      if (allActivitiesVisible) {
+        await fetchAllActivities(currentPage, pageSize);
+      }
+
+      window.dispatchEvent(new Event('ciphergate-unread-refresh'));
+      message.success('已将全部活动标记为已读');
+    } catch (error) {
+      console.error('全部标记已读失败:', error);
+      message.error('全部标记已读失败');
+    } finally {
+      setMarkingAllActivitiesRead(false);
     }
   };
 
@@ -601,7 +627,19 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 <span>最近活动</span>
               </Space>
             }
-            extra={<Button type="link" size="small" onClick={handleShowAllActivities}>查看全部</Button>}
+            extra={
+              <Space size={0}>
+                <Button
+                  type="link"
+                  size="small"
+                  loading={markingAllActivitiesRead}
+                  onClick={handleMarkAllAsRead}
+                >
+                  一键已读
+                </Button>
+                <Button type="link" size="small" onClick={handleShowAllActivities}>查看全部</Button>
+              </Space>
+            }
             style={{ height: '100%' }}
             loading={loadingActivities}
           >
@@ -707,7 +745,19 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
       {/* 全部活动弹窗 */}
       <Modal
-        title="全部活动"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span>全部活动</span>
+            <Button
+              type="link"
+              size="small"
+              loading={markingAllActivitiesRead}
+              onClick={handleMarkAllAsRead}
+            >
+              一键已读
+            </Button>
+          </div>
+        }
         open={allActivitiesVisible}
         onCancel={() => setAllActivitiesVisible(false)}
         footer={null}

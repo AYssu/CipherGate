@@ -56,3 +56,15 @@ logs/
 .claude/
 .mcp.json
 CLAUDE.md
+
+### AI / editor tooling ###
+.cursor/
+.cursorrules
+.gemini/
+.github/code-review-graph.instruction.md
+.kiro/
+.opencode.json
+.qoder/
+.windsurfrules
+GEMINI.md
+QODER.md

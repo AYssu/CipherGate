@@ -35,5 +35,15 @@ export const messageApi = {
       url: `/messages/${id}/read`,
       method: 'PUT'
     });
+  },
+
+  /**
+   * 将当前用户的所有未读消息标记为已读
+   */
+  markAllAsRead: () => {
+    return request<void>({
+      url: '/messages/read/all',
+      method: 'PUT'
+    });
   }
 };

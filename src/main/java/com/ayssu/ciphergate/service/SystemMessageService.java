@@ -202,4 +202,25 @@ public class SystemMessageService {
             log.info("用户 {} 标记消息 {} 为已读", userId, messageId);
         }
     }
+
+    /**
+     * 将当前用户的所有未读系统消息标记为已读
+     */
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        if (userId == null) {
+            return;
+        }
+
+        UserMessageEntity updateEntity = new UserMessageEntity();
+        updateEntity.setIsRead(true);
+        updateEntity.setReadTime(LocalDateTime.now());
+
+        QueryWrapper<UserMessageEntity> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", userId)
+                   .eq("is_read", false);
+
+        int updated = userMessageMapper.update(updateEntity, queryWrapper);
+        log.info("用户 {} 标记全部系统消息为已读，更新 {} 条", userId, updated);
+    }
 }

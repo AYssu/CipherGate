@@ -107,6 +107,19 @@ public class SystemMessageController {
         return Result.success(null);
     }
 
+    /**
+     * 将当前用户的所有未读系统消息标记为已读
+     */
+    @Operation(summary = "标记所有系统消息为已读", description = "将当前用户的所有未读系统消息一次性标记为已读状态")
+    @PutMapping("/read/all")
+    public Result<Void> markAllMessagesAsRead(Authentication authentication) {
+        User user = resolveUser(authentication);
+        if (user != null) {
+            systemMessageService.markAllAsRead(user.getId());
+        }
+        return Result.success(null);
+    }
+
     private User resolveUser(Authentication authentication) {
         User user = AuthUtils.getCurrentUser();
         if (user != null) return user;

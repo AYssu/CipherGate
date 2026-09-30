@@ -45,6 +45,7 @@ const MainLayout: React.FC = () => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [messages, setMessages] = useState<SystemMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [markingAllMessagesRead, setMarkingAllMessagesRead] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<SystemMessage | null>(null);
   const [messageDetailVisible, setMessageDetailVisible] = useState(false);
   const [announcementVisible, setAnnouncementVisible] = useState(false);
@@ -86,8 +87,17 @@ const MainLayout: React.FC = () => {
     
     // 每30秒刷新一次未读消息数
     const interval = setInterval(fetchUnreadCount, 30000);
-    
-    return () => clearInterval(interval);
+    const handleUnreadCountRefresh = () => {
+      void fetchUnreadCount();
+    };
+
+    // 其他页面批量标记已读后立即刷新全局未读徽标
+    window.addEventListener('ciphergate-unread-refresh', handleUnreadCountRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('ciphergate-unread-refresh', handleUnreadCountRefresh);
+    };
   }, []);
 
   // 检查公告弹窗
@@ -197,11 +207,33 @@ const MainLayout: React.FC = () => {
       setMessages((result as any).data || []);
       // 刷新未读数
       const countResult = await activityApi.getUnreadCount();
+      setUnreadCount(countResult.data.total);
+      setShowBadge(countResult.data.showBadge);
+    } catch (error) {
+      console.error('标记已读失败:', error);
+    }
+  };
+
+  // 一键标记所有系统消息为已读
+  const handleMarkAllMessagesAsRead = async () => {
+    if (markingAllMessagesRead) return;
+
+    setMarkingAllMessagesRead(true);
+    try {
+      await messageApi.markAllAsRead();
+      setMessages((current) => current.map((item) => ({
+        ...item,
+        isRead: true,
+      })));
+
+      const countResult = await activityApi.getUnreadCount();
       const data = (countResult as any).data;
       setUnreadCount(data.total);
       setShowBadge(data.showBadge);
     } catch (error) {
-      console.error('标记已读失败:', error);
+      console.error('全部标记已读失败:', error);
+    } finally {
+      setMarkingAllMessagesRead(false);
     }
   };
 
@@ -782,7 +814,20 @@ const MainLayout: React.FC = () => {
 
       {/* 消息通知抽屉 */}
       <Drawer
-        title="系统消息"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span>系统消息</span>
+            <Button
+              type="link"
+              size="small"
+              loading={markingAllMessagesRead}
+              disabled={!messages.some((item) => !item.isRead)}
+              onClick={handleMarkAllMessagesAsRead}
+            >
+              一键已读
+            </Button>
+          </div>
+        }
         placement={isMobile ? 'bottom' : 'right'}
         onClose={handleCloseNotification}
         open={notificationVisible}

@@ -61,7 +61,8 @@ public class SecurityConfig {
                                 "/api/login/oauth2/code/**",
                                 "/oauth2/authorization/**",
                                 "/login/oauth2/code/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**",
+                        .requestMatchers("/doc.html",
+                                "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-resources/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .anyRequest().authenticated()
