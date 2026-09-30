@@ -2,8 +2,10 @@ package com.ayssu.ciphergate.util;
 
 import com.ayssu.ciphergate.entity.User;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -21,7 +23,7 @@ public final class AuthUtils {
      */
     public static Authentication getAuthentication() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated()) {
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
             return auth;
         }
 
@@ -41,15 +43,41 @@ public final class AuthUtils {
     }
 
     /**
-     * 获取当前登录用户（密码登录时 principal 就是 User）
+     * 获取当前登录用户，兼容密码登录和 GitHub OAuth2 登录。
      */
     public static User getCurrentUser() {
         Authentication auth = getAuthentication();
-        if (auth == null) return null;
+        if (auth == null) {
+            return null;
+        }
+
         Object principal = auth.getPrincipal();
         if (principal instanceof User user) {
             return user;
         }
+
+        // OAuth2 principal 只包含 GitHub 资料，业务用户保存在当前 Session 中。
+        // 校验 GitHub ID，避免读取到不属于当前认证身份的 Session 用户。
+        if (principal instanceof OAuth2User oauth2User) {
+            HttpSession session = getRequestSession();
+            if (session == null) {
+                return null;
+            }
+
+            Object sessionUser = session.getAttribute("user");
+            if (!(sessionUser instanceof User user)) {
+                return null;
+            }
+
+            Object githubId = oauth2User.getAttribute("id");
+            return githubId != null && githubId.toString().equals(user.getGithubId()) ? user : null;
+        }
+
         return null;
+    }
+
+    private static HttpSession getRequestSession() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attrs != null ? attrs.getRequest().getSession(false) : null;
     }
 }

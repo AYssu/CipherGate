@@ -48,10 +48,16 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 保存或更新用户信息到数据库
         User user = userService.findOrCreateUser(oauth2User);
         log.info("保存/更新用户信息: {}", user);
-        
+
+        // Session 中保存包含角色和权限的完整用户，供业务接口统一读取。
+        User sessionUser = userService.getUserWithRolesAndPermissions(user.getId());
+        if (sessionUser == null) {
+            sessionUser = user;
+        }
+
         // 将用户信息存储到 Session 中
         HttpSession session = request.getSession();
-        session.setAttribute("user", user);
+        session.setAttribute("user", sessionUser);
         session.setAttribute("githubUser", oauth2User.getAttributes());
         
         // 设置 Session 最大不活跃时间（7天）
