@@ -59,6 +59,16 @@ server:
 springdoc:
   # 规避部分 Spring / springdoc 组合下的 NoSuchMethodError（通用响应覆盖逻辑）
   override-with-generic-response: false
+  swagger-ui:
+    # 与 Knife4j 使用同一份 OpenAPI 配置；让 /swagger-ui 与 doc.html 的浏览/调试体验一致。
+    doc-expansion: list
+    filter: true
+    deep-linking: true
+    tags-sorter: alpha
+    operations-sorter: method
+    try-it-out-enabled: true
+    persist-authorization: true
+    display-request-duration: true
 
 app:
   session:

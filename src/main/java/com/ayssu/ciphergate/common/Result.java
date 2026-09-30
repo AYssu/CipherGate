@@ -2,6 +2,7 @@ package com.ayssu.ciphergate.common;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,32 +14,38 @@ import java.time.LocalDateTime;
  */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)  // 空值不返回
+@Schema(description = "CipherGate 统一 API 响应封装")
 public class Result<T> {
 
     /**
      * 状态码
      */
+    @Schema(description = "业务状态码；200 表示成功", example = "200")
     private Integer code;
 
     /**
      * 提示信息
      */
+    @Schema(description = "面向调用方的提示信息", example = "操作成功")
     private String message;
 
     /**
      * 数据
      */
+    @Schema(description = "响应数据；无数据或发生错误时省略")
     private T data;
 
     /**
      * 时间戳（格式：yyyy-MM-dd HH:mm:ss）
      */
+    @Schema(description = "服务端响应时间", example = "2026-09-30 12:00:00")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime timestamp;
 
     /**
      * 是否成功
      */
+    @Schema(description = "是否成功；与 code==200 一致", example = "true")
     private Boolean success;
 
     public Result() {

@@ -8,7 +8,7 @@ export default defineConfig({
   lang: 'zh-CN',
   base: '/docs/',
   head: [
-    ['link', { rel: 'icon', href: '/favicon.svg' }],
+    ['link', { rel: 'icon', href: '/docs/favicon.svg' }],
   ],
   themeConfig: {
     logo: '/favicon.svg',
@@ -17,7 +17,10 @@ export default defineConfig({
       { text: '首页', link: '/' },
       { text: '快速开始', link: '/quick-start' },
       { text: '开发者中心', link: '/developer/' },
+      { text: '用户中心', link: '/user/' },
       { text: '应用用户', link: '/portal/' },
+      { text: '管理后台', link: '/admin/' },
+      { text: 'API 对接', link: '/developer/api-integration' },
     ],
     sidebar: [
       {
@@ -38,6 +41,7 @@ export default defineConfig({
           { text: '变量管理', link: '/developer/variable' },
           { text: '第三方凭证', link: '/developer/credential' },
           { text: '调用日志', link: '/developer/call-log' },
+          { text: '第三方 API 对接', link: '/developer/api-integration' },
         ]
       },
       {
@@ -56,10 +60,23 @@ export default defineConfig({
         text: '应用用户（Portal）',
         items: [
           { text: '概览', link: '/portal/' },
+          { text: '控制台', link: '/portal/dashboard' },
           { text: '会员信息', link: '/portal/membership' },
           { text: '充值', link: '/portal/recharge' },
           { text: '订单历史', link: '/portal/order' },
           { text: '设置', link: '/portal/settings' },
+          { text: '密码找回', link: '/portal/password-recovery' },
+        ]
+      },
+      {
+        text: '管理后台',
+        items: [
+          { text: '概览', link: '/admin/' },
+          { text: '用户与权限', link: '/admin/users-permissions' },
+          { text: '系统配置', link: '/admin/system' },
+          { text: '会员与配额运营', link: '/admin/membership-operation' },
+          { text: '插件管理', link: '/admin/plugins' },
+          { text: '内容与运营', link: '/admin/content' },
         ]
       },
       {

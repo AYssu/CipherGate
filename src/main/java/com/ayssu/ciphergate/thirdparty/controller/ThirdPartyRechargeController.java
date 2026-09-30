@@ -22,7 +22,10 @@ public class ThirdPartyRechargeController {
     private final ThirdPartyRechargeService rechargeService;
 
     @PostMapping("/third_party/recharge")
-    @Operation(summary = "三方凭证加时")
+    @Operation(
+            summary = "三方凭证加时",
+            description = "使用请求体内的 apiKey、timestamp、sign 完成鉴权，不使用 X-App-Key/X-Timestamp/X-Nonce/X-Signature 请求头"
+    )
     public Result<?> recharge(@Valid @RequestBody ThirdPartyRechargeDTO dto, HttpServletRequest request) {
         String ip = IpUtil.getIpAddr(request);
         String ua = request.getHeader("User-Agent");

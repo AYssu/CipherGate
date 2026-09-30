@@ -6,6 +6,9 @@ import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.MinioObjectService;
 import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.thirdparty.service.ThirdPartyUpdateDownloadTicketService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
@@ -32,6 +35,7 @@ import java.util.Optional;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1")
+@Tag(name = "三方更新下载", description = "使用短时 ticket 下载应用更新包，不使用 X-App-Key/X-Signature 请求头")
 public class ThirdPartyUpdateDownloadController {
 
     private final ApplicationMapper applicationMapper;
@@ -41,7 +45,17 @@ public class ThirdPartyUpdateDownloadController {
     private final UserMembershipService userMembershipService;
 
     @GetMapping("/app/update-package")
-    public ResponseEntity<Resource> download(@RequestParam("ticket") String ticket) {
+    @Operation(
+            summary = "下载应用更新包",
+            description = "使用 /api/v1/app/update-check 返回的短时 ticket 下载；票据默认 5 分钟有效，仅需 ticket 查询参数，无需第三方签名头"
+    )
+    public ResponseEntity<Resource> download(
+            @Parameter(
+                    description = "检查更新接口返回并经过 URL 编码的短时下载票据",
+                    required = true,
+                    example = "<urlencoded-ticket>"
+            )
+            @RequestParam("ticket") String ticket) {
         Application app = resolveApplication(ticket);
         if (app == null) {
             return ResponseEntity.status(403).build();
