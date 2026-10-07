@@ -51,6 +51,22 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 
 卡密登录解密后的字段包括 `cardCode`、`deviceId`、可选 `ip` 和 `appUserId`；响应包含卡密状态、绑定数、在线状态、到期时间和 `variables`。
 
+### 仅登录客户端与免费访客
+
+登录成功后新增两个兼容字段，旧客户端可以忽略，不改变原请求格式和卡密授权判断：
+
+| 响应字段 | 卡密模式 | 免费模式 |
+| --- | --- | --- |
+| `identityType` | `CARD` | `VISITOR` |
+| `identityId` | `card_` + 原有卡密 ID | `visitor_` + 应用隔离的设备摘要 |
+| `cardId` | 保留真实卡密 ID | 保留原有 `0` |
+| `token` | 保留原心跳 token，可按客户端需要接入 | 保留原有空值，不强制接入心跳 |
+
+免费模式仍只需有效的 `deviceId`，不要求填写卡密或账号密码。同一应用和设备再次登录会关联到相同访客身份；来源 IP 改变不产生新身份，不同应用互相隔离。服务端记录设备标识的 SHA-256 摘要，不在访问流水中保存原始设备标识。
+
+统计身份仅用于数据展示和去重，**不能用作卡密、心跳 token、用户登录凭证或付费授权**。只调用登录接口也能在首页查看登录次数、活跃卡密、免费访客和设备数据。没有客户端心跳时只能判断近期登录活跃，不能证明持续在线。原有 `online` 响应字段保留兼容口径：卡密按最近使用时间估计，免费模式仍返回 `false`。
+
+
 ## WebSocket 登录
 
 `AUTH` 载荷经 AES-GCM 解密后必须包含 `appKey`、`appSig`、`username`、`password`、`ts`、`nonce`、`seq`、`deviceId`，并可包含 `deviceName` 和 `deviceOs`。

@@ -29,6 +29,38 @@ export interface DashboardTrendPoint {
   appUserWsLogin: number;
 }
 
+export interface DashboardAccessStats {
+  paidCardLoginToday: number;
+  freeLoginToday: number;
+  activeCardToday: number;
+  activeVisitorToday: number;
+  activeDeviceToday: number;
+  activeCard7d: number;
+  activeVisitor7d: number;
+  activeDevice7d: number;
+  recentCardCount: number;
+  recentVisitorCount: number;
+  unidentifiedFreeLogin7d: number;
+}
+
+export interface DashboardAccessRecord {
+  id: number;
+  appId: number;
+  appName?: string;
+  identityType: 'CARD' | 'VISITOR';
+  identityId?: string;
+  deviceHash?: string;
+  clientIp?: string;
+  createdAt: string;
+}
+
+export interface DashboardAccessPage {
+  records: DashboardAccessRecord[];
+  total: number;
+  current: number;
+  size: number;
+}
+
 export const dashboardApi = {
   getTodayStats: () =>
     request.get<DashboardTodayStats>('/dashboard/stats/today'),
@@ -36,6 +68,10 @@ export const dashboardApi = {
     request.get<DashboardOverview>('/dashboard/overview'),
   getOnline: () =>
     request.get<DashboardOnlineStats>('/dashboard/online'),
+  getAccessStats: () =>
+    request.get<DashboardAccessStats>('/dashboard/access/stats'),
+  getRecentAccess: (page = 1, size = 10) =>
+    request.get<DashboardAccessPage>('/dashboard/access/recent', { params: { page, size } }),
   getTrend7d: () =>
     request.get<DashboardTrendPoint[]>('/dashboard/trend/7d'),
 };

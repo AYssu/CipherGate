@@ -18,6 +18,7 @@ import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.service.UserMembershipService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ayssu.ciphergate.util.IdPageQuery;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,11 +78,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         log.info("=== 开始查询应用列表 ===");
         log.info("查询参数: {}, operatorId={}", queryDTO, operatorId);
         
-        // 测试：先直接查询所有数据
-        List<Application> allApps = applicationMapper.selectList(null);
-        log.info("数据库中总共有 {} 条application记录", allApps.size());
-        
-        Page<Application> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        // 兼容现有应用选择器请求 500/1000 条；其他管理分页默认上限为 100。
+        Page<Application> page = IdPageQuery.page(queryDTO.getCurrent(), queryDTO.getSize(), 1000);
         log.info("分页参数: current={}, size={}", page.getCurrent(), page.getSize());
         
         LambdaQueryWrapper<Application> wrapper = new LambdaQueryWrapper<>();
@@ -93,14 +91,15 @@ public class ApplicationServiceImpl implements ApplicationService {
                    Application::getBusinessModel, queryDTO.getBusinessModel())
                .eq(queryDTO.getStatus() != null, 
                    Application::getStatus, queryDTO.getStatus())
-               .orderByDesc(Application::getCreatedAt);
+               .orderByDesc(Application::getCreatedAt, Application::getId);
 
-        if (securityUtils.isAdmin(operatorId)) {
+        boolean admin = securityUtils.isAdmin(operatorId);
+        if (admin) {
             wrapper.eq(queryDTO.getOwnerId() != null,
                     Application::getOwnerId, queryDTO.getOwnerId());
         } else {
             List<Long> ownedAppIds = applicationMapper.selectList(
-                            new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, operatorId))
+                            new LambdaQueryWrapper<Application>().select(Application::getId).eq(Application::getOwnerId, operatorId))
                     .stream()
                     .map(Application::getId)
                     .toList();
@@ -118,18 +117,26 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
         }
         
-        Page<Application> result = applicationMapper.selectPage(page, wrapper);
+        Page<Application> result = IdPageQuery.select(applicationMapper, page, wrapper,
+                Application::getId, Application::getCreatedAt);
         
         log.info("查询结果: total={}, records={}, pages={}", 
                 result.getTotal(), result.getRecords().size(), result.getPages());
         
-        // 填充所属用户名称
+        // 本页所属用户一次批量读取，不随列表行数重复查询。
+        List<Long> ownerIds = result.getRecords().stream().map(Application::getOwnerId).distinct().toList();
+        Map<Long, User> owners = new HashMap<>();
+        if (!ownerIds.isEmpty()) {
+            userMapper.selectList(new LambdaQueryWrapper<User>()
+                    .select(User::getId, User::getName, User::getLogin)
+                    .in(User::getId, ownerIds)).forEach(user -> owners.put(user.getId(), user));
+        }
         result.getRecords().forEach(app -> {
-            User user = userMapper.selectById(app.getOwnerId());
+            User user = owners.get(app.getOwnerId());
             if (user != null) {
                 app.setOwnerName(user.getName() != null ? user.getName() : user.getLogin());
             }
-            if (!securityUtils.isAdmin(operatorId) && !operatorId.equals(app.getOwnerId())) {
+            if (!admin && !operatorId.equals(app.getOwnerId())) {
                 maskDelegatedApplicationView(app);
             }
         });

@@ -1,7 +1,6 @@
 package com.ayssu.ciphergate.thirdparty.ws.service;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.CloseStatus;
@@ -10,7 +9,6 @@ import org.springframework.web.socket.WebSocketSession;
 /**
  * 主动断开终端用户已建立的第三方 WS：管理端封禁、或新 AUTH 挤掉旧会话等。
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AppUserWsSessionKickService {
@@ -50,13 +48,11 @@ public class AppUserWsSessionKickService {
                 continue;
             }
             WebSocketSession session = sessionRegistry.get(t.connId());
-            if (session == null || !session.isOpen()) {
-                continue;
-            }
-            try {
-                session.close(status);
-            } catch (Exception e) {
-                log.warn("close ws failed, connId={}, appUserId={}, reason={}", t.connId(), appUserId, status.getReason(), e);
+            if (session == null) {
+                // 清理只有 presence、没有底层连接的残留记录。
+                sessionRegistry.remove(t.connId());
+            } else {
+                sessionRegistry.close(session, status);
             }
         }
     }

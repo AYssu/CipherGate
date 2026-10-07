@@ -405,7 +405,9 @@ CREATE TABLE IF NOT EXISTS application (
     INDEX idx_app_key (app_key),
     INDEX idx_status (status),
     INDEX idx_deleted (deleted),
-    INDEX idx_created (created_at)
+    INDEX idx_created (created_at),
+    INDEX idx_application_page (deleted, created_at, id),
+    INDEX idx_application_owner_page (owner_id, deleted, created_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用表';
 
 -- 应用操作日志表
@@ -560,7 +562,9 @@ CREATE TABLE IF NOT EXISTS license_key (
     INDEX idx_status (status),
     INDEX idx_expires (expires_at),
     INDEX idx_deleted (deleted),
-    INDEX idx_heartbeat (last_heartbeat_at)
+    INDEX idx_heartbeat (last_heartbeat_at),
+    INDEX idx_license_page (deleted, created_at, id),
+    INDEX idx_license_app_page (app_id, deleted, created_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='卡密表';
 
 -- 卡密批次表
@@ -680,7 +684,9 @@ CREATE TABLE IF NOT EXISTS app_user (
     INDEX idx_agent (agent_id),
     INDEX idx_phone (phone),
     INDEX idx_deleted (deleted),
-    INDEX idx_member_expires (member_expires_at)
+    INDEX idx_member_expires (member_expires_at),
+    INDEX idx_app_user_page (deleted, created_at, id),
+    INDEX idx_app_user_app_page (app_id, deleted, created_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用终端用户表';
 
 -- 应用用户绑定表（用户与设备的绑定关系）
@@ -737,7 +743,9 @@ CREATE TABLE IF NOT EXISTS app_user_binding (
     INDEX idx_device (device_id),
     INDEX idx_expires (expires_at),
     INDEX idx_status (status),
-    INDEX idx_deleted (deleted)
+    INDEX idx_deleted (deleted),
+    INDEX idx_binding_user_page (user_id, deleted, created_at, id),
+    INDEX idx_binding_user_banned (user_id, deleted, is_banned)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用用户绑定表';
 
 -- 用户试用记录表（记录每个用户在每个应用的试用情况）
@@ -837,7 +845,9 @@ CREATE TABLE IF NOT EXISTS app_variable (
     INDEX idx_enabled (enabled),
     INDEX idx_created_by (created_by),
     INDEX idx_created_at (created_at),
-    INDEX idx_deleted (deleted)
+    INDEX idx_deleted (deleted),
+    INDEX idx_variable_page (deleted, sort_order ASC, created_at DESC, id DESC),
+    INDEX idx_variable_app_page (app_id, deleted, sort_order ASC, created_at DESC, id DESC)
 );
 
 -- 应用变量历史记录表
@@ -859,7 +869,8 @@ CREATE TABLE IF NOT EXISTS app_variable_history (
     INDEX idx_variable_name (variable_name),
     INDEX idx_operation_type (operation_type),
     INDEX idx_operator_id (operator_id),
-    INDEX idx_operated_at (operated_at)
+    INDEX idx_operated_at (operated_at),
+    INDEX idx_variable_history_page (variable_id, operated_at, id)
 );
 
 -- 插入变量管理权限
@@ -1105,9 +1116,12 @@ CREATE TABLE IF NOT EXISTS access_event (
     event_type VARCHAR(40) NOT NULL COMMENT 'CARD_LOGIN | CARD_LOGIN_FREE | APP_USER_WS_LOGIN',
     app_id BIGINT NOT NULL COMMENT '应用ID',
     ref_id BIGINT NOT NULL COMMENT 'license_key.id 或 app_user.id；免费卡密登录为 0',
+    device_hash VARCHAR(64) NULL COMMENT '应用隔离的设备摘要，非认证凭证',
+    client_ip VARCHAR(64) NULL COMMENT '本次登录来源IP',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
     INDEX idx_type_time (event_type, created_at),
-    INDEX idx_app_time (app_id, created_at)
+    INDEX idx_app_time (app_id, created_at),
+    INDEX idx_access_login_stats (app_id, event_type, created_at, ref_id, device_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务访问事件（登录等）';
 
 -- 三方凭证（用于调用三方加时接口）

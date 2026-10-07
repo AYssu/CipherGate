@@ -21,10 +21,16 @@ public class DatabaseInitConfig implements CommandLineRunner {
 
     private final RawSqlMapper rawSqlMapper;
     private final SystemConfigService systemConfigService;
+    private final AccessEventSchemaInitializer accessEventSchemaInitializer;
+    private final QueryIndexSchemaInitializer queryIndexSchemaInitializer;
 
-    public DatabaseInitConfig(RawSqlMapper rawSqlMapper, SystemConfigService systemConfigService) {
+    public DatabaseInitConfig(RawSqlMapper rawSqlMapper, SystemConfigService systemConfigService,
+                              AccessEventSchemaInitializer accessEventSchemaInitializer,
+                              QueryIndexSchemaInitializer queryIndexSchemaInitializer) {
         this.rawSqlMapper = rawSqlMapper;
         this.systemConfigService = systemConfigService;
+        this.accessEventSchemaInitializer = accessEventSchemaInitializer;
+        this.queryIndexSchemaInitializer = queryIndexSchemaInitializer;
     }
 
     @Override
@@ -34,6 +40,7 @@ public class DatabaseInitConfig implements CommandLineRunner {
         try {
             // 执行 init.sql（建表/初始化数据）
             executeSqlResource(new ClassPathResource("sql/init.sql"));
+            accessEventSchemaInitializer.initialize();
 
             // 执行升级脚本（按顺序执行；需要新增升级时，在这里追加一行即可）
             List<String> upgradeSqlFiles = List.of(
@@ -55,6 +62,8 @@ public class DatabaseInitConfig implements CommandLineRunner {
                 }
             }
             
+            queryIndexSchemaInitializer.initialize();
+
             // 创建 Spring Session 索引（单独处理，避免 IF NOT EXISTS 问题）
             createIndexIfNotExists("SPRING_SESSION_IX1", "CREATE UNIQUE INDEX SPRING_SESSION_IX1 ON SPRING_SESSION (SESSION_ID)");
             createIndexIfNotExists("SPRING_SESSION_IX2", "CREATE INDEX SPRING_SESSION_IX2 ON SPRING_SESSION (EXPIRY_TIME)");

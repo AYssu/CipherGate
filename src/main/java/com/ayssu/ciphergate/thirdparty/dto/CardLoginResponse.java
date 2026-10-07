@@ -60,5 +60,11 @@ public class CardLoginResponse {
      * 心跳交换令牌（用于后续心跳接口，免费模式为 null）
      */
     private String token;
+
+    /** CARD / VISITOR；仅用于统计展示，不是权限或付费授权。 */
+    private String identityType;
+
+    /** 卡密身份复用 cardId；免费访客按应用和设备关联，无需注册。 */
+    private String identityId;
 }
 

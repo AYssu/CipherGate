@@ -60,6 +60,9 @@ public class ThirdPartyCardService {
 
     @Transactional(rollbackFor = Exception.class)
     public CardLoginResponse login(Long appId, CardLoginRequest req, String clientIp) {
+        if (req == null) {
+            throw new RuntimeException("登录参数不能为空");
+        }
         Application application = applicationMapper.selectById(appId);
         if (application == null) {
             throw new RuntimeException("应用不存在");
@@ -141,7 +144,6 @@ public class ThirdPartyCardService {
         key.setIsOnline(true);
         key.setUpdatedAt(LocalDateTime.now());
         licenseKeyMapper.updateById(key);
-        accessEventService.recordCardLogin(appId, key.getId());
 
         AppVariableTemplateContext variableCtx = new AppVariableTemplateContext();
         variableCtx.setClientIp(clientIp);
@@ -176,6 +178,10 @@ public class ThirdPartyCardService {
                 key.getHeartbeatInterval() != null ? key.getHeartbeatInterval() : 60);
         resp.setToken(heartbeatToken);
 
+        AccessEventService.LoginIdentity identity = accessEventService.recordCardLogin(
+                appId, key.getId(), req.getDeviceId(), clientIp);
+        resp.setIdentityType(identity.identityType());
+        resp.setIdentityId(identity.identityId());
         return resp;
     }
 
@@ -186,7 +192,6 @@ public class ThirdPartyCardService {
         if (req == null || !StringUtils.hasText(req.getDeviceId())) {
             throw new RuntimeException("deviceId 必填");
         }
-        accessEventService.recordFreeModeCardLogin(appId);
 
         long availableSeconds = 99_999L;
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(availableSeconds);
@@ -211,6 +216,10 @@ public class ThirdPartyCardService {
         //resp.setVariables(variables);
         resp.setVariables(JSON.toJSONString(variables)); // Fastjson2
         resp.setOnline(false);
+        AccessEventService.LoginIdentity identity = accessEventService.recordFreeModeCardLogin(
+                appId, req.getDeviceId(), clientIp);
+        resp.setIdentityType(identity.identityType());
+        resp.setIdentityId(identity.identityId());
         return resp;
     }
 

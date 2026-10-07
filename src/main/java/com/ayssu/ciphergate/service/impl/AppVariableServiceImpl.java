@@ -12,6 +12,7 @@ import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.AppVariableService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ayssu.ciphergate.util.IdPageQuery;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,7 +43,7 @@ public class AppVariableServiceImpl implements AppVariableService {
     
     @Override
     public Page<AppVariable> getVariablePage(AppVariableQueryDTO queryDTO, Long operatorId) {
-        Page<AppVariable> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        Page<AppVariable> page = IdPageQuery.page(queryDTO.getCurrent(), queryDTO.getSize());
 
         LambdaQueryWrapper<AppVariable> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForVariableQuery(wrapper, queryDTO, operatorId);
@@ -53,14 +54,15 @@ public class AppVariableServiceImpl implements AppVariableService {
                .eq(queryDTO.getCreatedBy() != null, AppVariable::getCreatedBy, queryDTO.getCreatedBy())
                .eq(AppVariable::getDeleted, 0)
                .orderByAsc(AppVariable::getSortOrder)
-               .orderByDesc(AppVariable::getCreatedAt);
+               .orderByDesc(AppVariable::getCreatedAt, AppVariable::getId);
         
         // 标签模糊查询
         if (StringUtils.hasText(queryDTO.getTag())) {
             wrapper.like(AppVariable::getTags, queryDTO.getTag());
         }
         
-        Page<AppVariable> result = appVariableMapper.selectPage(page, wrapper);
+        Page<AppVariable> result = IdPageQuery.select(appVariableMapper, page, wrapper,
+                AppVariable::getId, AppVariable::getSortOrder, AppVariable::getCreatedAt);
         
         // 填充关联信息
         result.getRecords().forEach(this::fillRelatedInfo);
@@ -93,7 +95,7 @@ public class AppVariableServiceImpl implements AppVariableService {
 
     private List<Long> listOwnedApplicationIds(Long userId) {
         return applicationMapper.selectList(
-                        new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                        new LambdaQueryWrapper<Application>().select(Application::getId).eq(Application::getOwnerId, userId))
                 .stream()
                 .map(Application::getId)
                 .toList();
@@ -384,13 +386,14 @@ public class AppVariableServiceImpl implements AppVariableService {
             throw new RuntimeException("无权限查看此变量历史");
         }
 
-        Page<AppVariableHistory> page = new Page<>(current, size);
+        Page<AppVariableHistory> page = IdPageQuery.page(current, size);
         
         LambdaQueryWrapper<AppVariableHistory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AppVariableHistory::getVariableId, variableId)
-               .orderByDesc(AppVariableHistory::getOperatedAt);
+               .orderByDesc(AppVariableHistory::getOperatedAt, AppVariableHistory::getId);
         
-        return appVariableHistoryMapper.selectPage(page, wrapper);
+        return IdPageQuery.select(appVariableHistoryMapper, page, wrapper,
+                AppVariableHistory::getId, AppVariableHistory::getOperatedAt);
     }
     
     @Override

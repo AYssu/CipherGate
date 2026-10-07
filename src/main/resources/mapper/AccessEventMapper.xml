@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ayssu.ciphergate.mapper.AccessEventMapper">
+    <!-- 空应用列表必须拒绝全表读取，不能省略 owner 过滤。 -->
+    <sql id="ownedApps">
+        <choose>
+            <when test="appIds != null and appIds.size() > 0">
+                e.app_id IN
+                <foreach collection="appIds" item="appId" open="(" separator="," close=")">#{appId}</foreach>
+            </when>
+            <otherwise>1 = 0</otherwise>
+        </choose>
+    </sql>
+    <sql id="loginEvents">
+        e.event_type IN ('CARD_LOGIN', 'CARD_LOGIN_FREE')
+    </sql>
+    <select id="selectLoginStats" resultType="com.ayssu.ciphergate.dto.DashboardAccessStatsDTO">
+        SELECT
+            COALESCE(SUM(e.event_type = 'CARD_LOGIN' AND e.created_at &gt;= #{todayStart}), 0) AS paid_card_login_today,
+            COALESCE(SUM(e.event_type = 'CARD_LOGIN_FREE' AND e.created_at &gt;= #{todayStart}), 0) AS free_login_today,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0
+                AND e.created_at &gt;= #{todayStart} THEN CONCAT(e.app_id, ':', e.ref_id) END) AS active_card_today,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN_FREE' AND e.created_at &gt;= #{todayStart}
+                THEN e.device_hash END) AS active_visitor_today,
+            COUNT(DISTINCT CASE WHEN e.created_at &gt;= #{todayStart} THEN e.device_hash END) AS active_device_today,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0
+                THEN CONCAT(e.app_id, ':', e.ref_id) END) AS active_card7d,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN_FREE' THEN e.device_hash END) AS active_visitor7d,
+            COUNT(DISTINCT e.device_hash) AS active_device7d,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0
+                AND e.created_at &gt;= #{recentCutoff} THEN CONCAT(e.app_id, ':', e.ref_id) END) AS recent_card_count,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN_FREE' AND e.created_at &gt;= #{recentCutoff}
+                THEN e.device_hash END) AS recent_visitor_count,
+            COALESCE(SUM(e.event_type = 'CARD_LOGIN_FREE' AND e.device_hash IS NULL), 0) AS unidentified_free_login7d
+        FROM access_event e
+        WHERE <include refid="ownedApps"/> AND <include refid="loginEvents"/>
+            AND e.created_at &gt;= #{start7d} AND e.created_at &lt; #{end}
+    </select>
+    <sql id="recentLoginFilter">
+        <include refid="ownedApps"/> AND <include refid="loginEvents"/>
+        AND e.created_at &gt;= #{start} AND e.created_at &lt; #{end}
+    </sql>
+    <select id="countRecentLogins" resultType="long">
+        SELECT COUNT(*) FROM access_event e WHERE <include refid="recentLoginFilter"/>
+    </select>
+    <select id="selectRecentLogins" resultType="com.ayssu.ciphergate.dto.DashboardAccessRecordDTO">
+        SELECT e.id, e.app_id, a.app_name AS app_name,
+            CASE WHEN e.event_type = 'CARD_LOGIN' THEN 'CARD' ELSE 'VISITOR' END AS identity_type,
+            CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0 THEN CONCAT('card_', e.ref_id)
+                 WHEN e.event_type = 'CARD_LOGIN_FREE' AND e.device_hash IS NOT NULL
+                    THEN CONCAT('visitor_', e.device_hash) END AS identity_id,
+            e.device_hash, e.client_ip, e.created_at
+        FROM access_event e
+        LEFT JOIN application a ON a.id = e.app_id AND a.deleted = 0
+        WHERE <include refid="recentLoginFilter"/>
+        ORDER BY e.created_at DESC, e.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

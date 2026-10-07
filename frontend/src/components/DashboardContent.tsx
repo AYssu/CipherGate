@@ -32,6 +32,7 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
+import LoginAccessPanel from './LoginAccessPanel';
 import type { User } from '../services';
 import { activityApi, dashboardApi, type ActivityLog, type DashboardOnlineStats, type DashboardOverview, type DashboardTodayStats, type DashboardTrendPoint } from '../services';
 
@@ -522,7 +523,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
       {!isMobile && (
         <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
-          总览与在线指标按当前登录用户拥有的应用统计，在线口径：卡密 5 分钟内有使用记录，用户为 WS 在线会话。
+          总览按当前登录用户拥有的应用统计；卡密近期活跃指 5 分钟内有使用记录，不代表实时在线；终端用户为 WS 在线会话。
         </Text>
       )}
       <Row gutter={[isMobile ? 6 : 16, isMobile ? 6 : 16]} style={{ marginBottom: isMobile ? 12 : 24 }} wrap>
@@ -543,7 +544,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
-            <Statistic title="在线卡密" value={onlineStats?.cardOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#52c41a' }} suffix="张" />
+            <Statistic title="近期活跃卡密" value={onlineStats?.cardOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#52c41a' }} suffix="张" />
           </Card>
         </Col>
         <Col xs={12} sm={12} lg={6}>
@@ -571,6 +572,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       >
         <ReactECharts option={trendOption} style={{ height: isMobile ? 200 : 340, width: '100%' }} notMerge />
       </Card>
+
+      <LoginAccessPanel isMobile={isMobile} />
 
       <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
         {/* 快速操作 */}

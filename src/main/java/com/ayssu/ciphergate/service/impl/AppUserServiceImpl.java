@@ -33,6 +33,7 @@ import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsSessionKickService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ayssu.ciphergate.util.IdPageQuery;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,7 +76,7 @@ public class AppUserServiceImpl implements AppUserService {
     
     @Override
     public Page<AppUser> getAppUserPage(AppUserQueryDTO queryDTO, Long operatorId) {
-        Page<AppUser> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        Page<AppUser> page = IdPageQuery.page(queryDTO.getCurrent(), queryDTO.getSize());
         log.info("终端用户列表查询开始: operatorId={}, appId={}, username={}, email={}, phone={}",
                 operatorId, queryDTO.getAppId(), queryDTO.getUsername(), queryDTO.getEmail(), queryDTO.getPhone());
 
@@ -87,7 +88,7 @@ public class AppUserServiceImpl implements AppUserService {
                .like(StringUtils.hasText(queryDTO.getPhone()), AppUser::getPhone, queryDTO.getPhone())
                .like(StringUtils.hasText(queryDTO.getNickname()), AppUser::getNickname, queryDTO.getNickname())
                .eq(AppUser::getDeleted, 0)
-               .orderByDesc(AppUser::getCreatedAt);
+               .orderByDesc(AppUser::getCreatedAt, AppUser::getId);
 
         // 封禁状态：由 app_user_binding 是否存在已封禁且未删除的记录决定
         if (queryDTO.getBanned() != null) {
@@ -134,7 +135,8 @@ public class AppUserServiceImpl implements AppUserService {
             }
         }
         
-        Page<AppUser> result = appUserMapper.selectPage(page, wrapper);
+        Page<AppUser> result = IdPageQuery.select(appUserMapper, page, wrapper,
+                AppUser::getId, AppUser::getCreatedAt);
         log.info("终端用户列表查询完成: operatorId={}, total={}, records={}",
                 operatorId, result.getTotal(), result.getRecords() == null ? 0 : result.getRecords().size());
         
@@ -237,7 +239,7 @@ public class AppUserServiceImpl implements AppUserService {
 
     private List<Long> listOwnedApplicationIds(Long userId) {
         return applicationMapper.selectList(
-                        new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                        new LambdaQueryWrapper<Application>().select(Application::getId).eq(Application::getOwnerId, userId))
                 .stream()
                 .map(Application::getId)
                 .toList();
@@ -552,14 +554,15 @@ public class AppUserServiceImpl implements AppUserService {
         }
         ensureAppUserListPermission(appUser.getAppId(), operatorId, "无权限查看此用户绑定信息");
         
-        Page<AppUserBinding> page = new Page<>(current, size);
+        Page<AppUserBinding> page = IdPageQuery.page(current, size);
         
         LambdaQueryWrapper<AppUserBinding> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AppUserBinding::getUserId, userId)
                .eq(AppUserBinding::getDeleted, 0)
-               .orderByDesc(AppUserBinding::getCreatedAt);
+               .orderByDesc(AppUserBinding::getCreatedAt, AppUserBinding::getId);
         
-        Page<AppUserBinding> result = appUserBindingMapper.selectPage(page, wrapper);
+        Page<AppUserBinding> result = IdPageQuery.select(appUserBindingMapper, page, wrapper,
+                AppUserBinding::getId, AppUserBinding::getCreatedAt);
         
         // 填充用户名和卡密码信息
         result.getRecords().forEach(binding -> {

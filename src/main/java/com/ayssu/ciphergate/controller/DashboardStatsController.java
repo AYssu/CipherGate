@@ -2,6 +2,9 @@ package com.ayssu.ciphergate.controller;
 
 import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.dto.DashboardOnlineDTO;
+import com.ayssu.ciphergate.dto.DashboardAccessStatsDTO;
+import com.ayssu.ciphergate.dto.DashboardAccessRecordDTO;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ayssu.ciphergate.dto.DashboardOverviewDTO;
 import com.ayssu.ciphergate.dto.DashboardTrendPointDTO;
 import com.ayssu.ciphergate.dto.DashboardTodayStatsDTO;
@@ -21,6 +24,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -71,7 +75,7 @@ public class DashboardStatsController {
     }
 
     @GetMapping("/online")
-    @Operation(summary = "在线统计")
+    @Operation(summary = "近期活跃卡密与在线终端用户统计")
     public Result<DashboardOnlineDTO> online(Authentication authentication) {
         List<Long> ownedAppIds = getOwnedAppIds(authentication);
         return Result.success(dashboardStatsService.getOnlineStats(ownedAppIds));
@@ -84,7 +88,34 @@ public class DashboardStatsController {
         return Result.success(dashboardStatsService.getTrend7d(ownedAppIds));
     }
 
+    @GetMapping("/access/stats")
+    @Operation(summary = "登录活跃统计", description = "仅统计自己拥有的应用。成功登录即可记录，无需心跳；不表示实时在线。")
+    public Result<DashboardAccessStatsDTO> accessStats(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return Result.unauthorized("未登录");
+        }
+        return Result.success(dashboardStatsService.getAccessStats(getOwnedAppIds(user)));
+    }
+
+    @GetMapping("/access/recent")
+    @Operation(summary = "近7天成功登录记录", description = "按应用 owner 隔离；只返回统计身份与设备摘要，不返回卡密明文和 token。")
+    public Result<Page<DashboardAccessRecordDTO>> recentAccess(Authentication authentication,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return Result.unauthorized("未登录");
+        }
+        return Result.success(dashboardStatsService.getRecentAccess(getOwnedAppIds(user), page, size));
+    }
+
     private List<Long> getOwnedAppIds(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        return user == null ? List.of() : getOwnedAppIds(user);
+    }
+
+    private User resolveCurrentUser(Authentication authentication) {
         // 优先用 AuthUtils 获取用户（兼容密码登录和 OAuth2）
         User user = AuthUtils.getCurrentUser();
         if (user == null && authentication != null && authentication.isAuthenticated()) {
@@ -95,9 +126,10 @@ public class DashboardStatsController {
                 user = userService.getUserByGithubId(githubId);
             }
         }
-        if (user == null) {
-            return List.of();
-        }
+        return user;
+    }
+
+    private List<Long> getOwnedAppIds(User user) {
         return applicationMapper.selectList(new LambdaQueryWrapper<Application>()
                         .eq(Application::getOwnerId, user.getId())
                         .select(Application::getId))

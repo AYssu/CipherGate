@@ -35,6 +35,7 @@ import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.ExcelWriter;
 import org.apache.poi.ss.usermodel.Sheet;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ayssu.ciphergate.util.IdPageQuery;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +79,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     
     @Override
     public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId) {
-        Page<LicenseKey> page = new Page<>(queryDTO.getCurrent(), queryDTO.getSize());
+        Page<LicenseKey> page = IdPageQuery.page(queryDTO.getCurrent(), queryDTO.getSize());
         LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
         log.info("卡密列表查询开始: operatorId={}, appId={}, keyType={}, status={}, batchId={}, keyCode={}",
                 operatorId, queryDTO.getAppId(), queryDTO.getKeyType(), queryDTO.getStatus(), queryDTO.getBatchId(), queryDTO.getKeyCode());
@@ -90,7 +91,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         wrapper.like(StringUtils.hasText(queryDTO.getKeyCode()), LicenseKey::getKeyCode, queryDTO.getKeyCode())
                .eq(StringUtils.hasText(queryDTO.getKeyType()), LicenseKey::getKeyType, queryDTO.getKeyType())
                .eq(queryDTO.getBatchId() != null, LicenseKey::getBatchId, queryDTO.getBatchId())
-               .orderByDesc(LicenseKey::getCreatedAt);
+               .orderByDesc(LicenseKey::getCreatedAt, LicenseKey::getId);
 
         // 状态筛选：过期(3)直接比较 expires_at，其他状态用 status 字段
         if (queryDTO.getStatus() != null) {
@@ -112,7 +113,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             }
         }
         
-        Page<LicenseKey> result = licenseKeyMapper.selectPage(page, wrapper);
+        Page<LicenseKey> result = IdPageQuery.select(licenseKeyMapper, page, wrapper,
+                LicenseKey::getId, LicenseKey::getCreatedAt);
         log.info("卡密列表查询完成: operatorId={}, total={}, records={}",
                 operatorId, result.getTotal(), result.getRecords() == null ? 0 : result.getRecords().size());
         
@@ -1449,7 +1451,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     
     private List<Long> listOwnedApplicationIds(Long userId) {
         return applicationMapper.selectList(
-                new LambdaQueryWrapper<Application>().eq(Application::getOwnerId, userId))
+                new LambdaQueryWrapper<Application>().select(Application::getId).eq(Application::getOwnerId, userId))
                 .stream()
                 .map(Application::getId)
                 .toList();

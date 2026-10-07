@@ -2,6 +2,9 @@ package com.ayssu.ciphergate.service;
 
 import com.ayssu.ciphergate.constant.AccessEventTypes;
 import com.ayssu.ciphergate.dto.DashboardOnlineDTO;
+import com.ayssu.ciphergate.dto.DashboardAccessStatsDTO;
+import com.ayssu.ciphergate.dto.DashboardAccessRecordDTO;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ayssu.ciphergate.dto.DashboardOverviewDTO;
 import com.ayssu.ciphergate.dto.DashboardTrendPointDTO;
 import com.ayssu.ciphergate.dto.DashboardTodayStatsDTO;
@@ -138,6 +141,35 @@ public class DashboardStatsService {
                     .eq(AppUser::getDeleted, 0)));
         }
         return dto;
+    }
+
+    public DashboardAccessStatsDTO getAccessStats(List<Long> ownedAppIds) {
+        if (ownedAppIds == null || ownedAppIds.isEmpty()) {
+            return new DashboardAccessStatsDTO();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
+        DashboardAccessStatsDTO stats = accessEventMapper.selectLoginStats(ownedAppIds,
+                todayStart.minusDays(6), todayStart, todayStart.plusDays(1), now.minusMinutes(5));
+        return stats == null ? new DashboardAccessStatsDTO() : stats;
+    }
+
+    public Page<DashboardAccessRecordDTO> getRecentAccess(List<Long> ownedAppIds, long page, long size) {
+        long safePage = Math.max(1, Math.min(page, 1_000_000));
+        long safeSize = Math.max(1, Math.min(size, 100));
+        Page<DashboardAccessRecordDTO> result = new Page<>(safePage, safeSize);
+        if (ownedAppIds == null || ownedAppIds.isEmpty()) {
+            return result;
+        }
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime start = todayStart.minusDays(6);
+        LocalDateTime end = todayStart.plusDays(1);
+        result.setTotal(accessEventMapper.countRecentLogins(ownedAppIds, start, end));
+        long offset = (safePage - 1) * safeSize;
+        if (offset < result.getTotal()) {
+            result.setRecords(accessEventMapper.selectRecentLogins(ownedAppIds, start, end, safeSize, offset));
+        }
+        return result;
     }
 
     public List<DashboardTrendPointDTO> getTrend7d(List<Long> ownedAppIds) {

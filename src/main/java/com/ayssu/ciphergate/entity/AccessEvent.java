@@ -21,5 +21,10 @@ public class AccessEvent implements Serializable {
 
     private Long refId;
 
+    /** 应用隔离的设备摘要；历史记录和非设备事件可为空。 */
+    private String deviceHash;
+
+    private String clientIp;
+
     private LocalDateTime createdAt;
 }

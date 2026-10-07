@@ -71,12 +71,18 @@ public class ThirdPartyWsHeartbeatService {
         try {
             doSendHeartbeat(session, Instant.now().toEpochMilli());
         } catch (Exception e) {
-            log.debug("heartbeat send failed: {}", e.getMessage());
+            log.warn("heartbeat failed, connId={}", session != null
+                    ? session.getAttributes().get(ATTR_CONN_ID) : null, e);
+            sessionRegistry.close(session, CloseStatus.SERVER_ERROR);
         }
     }
 
     private void doSendHeartbeat(WebSocketSession session, long now) throws Exception {
-        if (session == null || !session.isOpen()) {
+        if (session == null) {
+            return;
+        }
+        if (!session.isOpen()) {
+            sessionRegistry.close(session, CloseStatus.NORMAL);
             return;
         }
         Object authedObj = session.getAttributes().get(ATTR_AUTHED);
@@ -150,10 +156,7 @@ public class ThirdPartyWsHeartbeatService {
     }
 
     private void close(WebSocketSession session, String reason) {
-        try {
-            session.close(new CloseStatus(1008, reason));
-        } catch (Exception ignored) {
-        }
+        sessionRegistry.close(session, new CloseStatus(1008, reason));
     }
 
     private AppVariableTemplateContext buildTemplateContext(WebSocketSession session,
