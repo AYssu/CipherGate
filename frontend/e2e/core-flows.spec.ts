@@ -100,3 +100,25 @@ for (const blocked of [false, true]) test(`user transfer ${blocked ? 'blocks con
     expect(requests).toHaveLength(2);
   }
 });
+
+
+test('first-run OAuth defaults use the visited site origin and submit through the API proxy', async ({ page }) => {
+  let submitted: unknown;
+  await mockApi(page, async (route, path) => {
+    if (path === '/config/init/status') { await route.fulfill({ json: envelope({ initialized: false, allowInit: true }) }); return true; }
+    if (path === '/config/init') { submitted = route.request().postDataJSON(); await route.fulfill({ json: envelope(null) }); return true; }
+    return false;
+  });
+  await page.goto('/');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const origin = new URL(page.url()).origin;
+  await expect(dialog.locator('#redirectUri')).toHaveValue(`${origin}/api/login/oauth2/code/github`);
+  await expect(dialog.locator('#frontendUrl')).toHaveValue(`${origin}/dashboard`);
+  await dialog.locator('#clientId').fill('my-oauth-client');
+  await dialog.locator('#clientSecret').fill('my-oauth-secret');
+  await dialog.getByRole('button', { name: '完成初始化' }).click();
+  await expect.poll(() => submitted).toEqual({ clientId: 'my-oauth-client', clientSecret: 'my-oauth-secret',
+    redirectUri: `${origin}/api/login/oauth2/code/github`, frontendUrl: `${origin}/dashboard` });
+  await expect(dialog).not.toBeVisible();
+});

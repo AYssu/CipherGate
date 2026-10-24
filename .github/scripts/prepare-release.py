@@ -6,7 +6,9 @@ import zipfile
 
 bundle = Path('deploy-bundle')
 required = ['app/app.jar', 'frontend/dist/index.html', 'frontend/nginx.conf',
-            'docs/index.html', 'docker-compose.server.yml', 'DATABASE-UPGRADE.md', '.env.example', 'setup-env.py']
+            'docs/index.html', 'docker-compose.server.yml', 'DATABASE-UPGRADE.md', '.env.example', 'setup-env.py',
+            'install.py', 'update.py', 'operations.py', 'release_tools.py', 'OPERATIONS.md',
+            'LICENSE', 'NOTICE']
 for relative in required:
     if not (bundle / relative).is_file():
         raise SystemExit(f'Missing deployment asset: {relative}')
@@ -27,11 +29,16 @@ def archive(name, root):
         for file in sorted(root.rglob('*')):
             if file.is_file():
                 output.write(file, file.relative_to(root))
+        for license_name in ['LICENSE', 'NOTICE']:
+            if not (root / license_name).is_file():
+                output.write(bundle / license_name, license_name)
 
 archive('ciphergate-deploy.zip', bundle)
 archive('frontend-dist.zip', bundle / 'frontend' / 'dist')
 archive('docs-dist.zip', bundle / 'docs')
 shutil.copy2(bundle / 'app' / 'app.jar', assets / 'app.jar')
+for name in ['LICENSE', 'NOTICE']:
+    shutil.copy2(bundle / name, assets / name)
 for plugin in (bundle / 'plugins').glob('*.jar'):
     shutil.copy2(plugin, assets / plugin.name)
 with (assets / 'SHA256SUMS').open('w', encoding='utf-8', newline='\n') as output:

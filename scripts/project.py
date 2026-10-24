@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -69,13 +70,15 @@ def package():
         (".env.server.example", ".env.example"),
         ("scripts/setup-env.py", "setup-env.py"),
         ("scripts/operations.py", "operations.py"),
+        ("scripts/install.py", "install.py"),
+        ("scripts/update.py", "update.py"),
+        ("scripts/project.py", "release_tools.py"),
         ("docs/database/README.md", "DATABASE-UPGRADE.md"),
         ("docs/operations.md", "OPERATIONS.md"),
     ]:
         shutil.copy2(ROOT / source, bundle / target)
     for license_name in ["LICENSE", "NOTICE"]:
-        if (ROOT / license_name).exists():
-            shutil.copy2(ROOT / license_name, bundle / license_name)
+        shutil.copy2(ROOT / license_name, bundle / license_name)
     (bundle / "plugins").mkdir()
     for plugin in ["rsa-crypto-plugin", "example-function-plugin"]:
         outputs = list((ROOT / "plugins" / plugin / "build/libs").glob("*.jar"))
@@ -100,7 +103,25 @@ def package():
     verify_artifact(archive)
     (ROOT / "ciphergate-deploy.zip.sha256").write_text(f"{sha256(archive)}  {archive.name}\n", encoding="utf-8")
     print("Built", archive, "version", version)
-    print("On installation: python3 setup-env.py ; read OPERATIONS.md before starting or upgrading.")
+    print("Install: python3 install.py ; update: python3 update.py /path/to/new-release.zip ; see OPERATIONS.md.")
+
+
+def private_configuration(name):
+    filename = PurePosixPath(name).name
+    return (filename == ".env" or (filename.startswith(".env.") and filename != ".env.example")
+            or re.fullmatch(r"application-(?:dev|test|local)(?:[.-].*)?\.(?:ya?ml|properties)", filename))
+
+
+def verify_backend_jar(source):
+    if not zipfile.is_zipfile(source):
+        raise ValueError("Invalid backend JAR")
+    with zipfile.ZipFile(source) as jar:
+        for name in jar.namelist():
+            if private_configuration(name):
+                raise ValueError("Private configuration in backend JAR: " + name)
+        for name in ["META-INF/LICENSE", "META-INF/NOTICE"]:
+            if name not in jar.namelist():
+                raise ValueError("Missing backend license notice: " + name)
 
 
 def verify_artifact(archive):
@@ -108,15 +129,16 @@ def verify_artifact(archive):
         names = content.namelist()
         if len(names) != len(set(names)):
             raise ValueError("Duplicate archive entry")
-        required = {".env.example", "setup-env.py", "operations.py", "app/app.jar", "build-info.json", "SHA256SUMS", "OPERATIONS.md", "DATABASE-UPGRADE.md", "docker-compose.server.yml"}
+        required = {".env.example", "setup-env.py", "operations.py", "install.py", "update.py", "release_tools.py", "frontend/dist/index.html", "frontend/nginx.conf", "docs/index.html", "app/app.jar", "build-info.json", "SHA256SUMS", "OPERATIONS.md", "DATABASE-UPGRADE.md", "docker-compose.server.yml", "LICENSE", "NOTICE"}
         if not required.issubset(names):
             raise ValueError("Incomplete artifact: " + str(required - set(names)))
         for name in names:
             path = PurePosixPath(name)
             if path.is_absolute() or ".." in path.parts or "\\" in name:
                 raise ValueError("Unsafe archive path")
-            if path.name in {".env", ".env.server", ".env.server.local"}:
+            if private_configuration(name):
                 raise ValueError("Private configuration packaged: " + name)
+        verify_backend_jar(io.BytesIO(content.read("app/app.jar")))
         for line in content.read(".env.example").decode().splitlines():
             if "=" not in line or line.lstrip().startswith("#"):
                 continue

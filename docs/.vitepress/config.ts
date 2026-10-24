@@ -7,6 +7,7 @@ export default defineConfig({
   description: '企业级授权与安全管控平台使用文档',
   lang: 'zh-CN',
   base: '/docs/',
+  lastUpdated: true,
   head: [
     ['link', { rel: 'icon', href: '/docs/favicon.svg' }],
   ],
@@ -14,21 +15,35 @@ export default defineConfig({
     logo: '/favicon.svg',
     siteTitle: 'CipherGate Docs',
     nav: [
-      { text: '首页', link: '/' },
-      { text: '快速开始', link: '/quick-start' },
-      { text: '开发者中心', link: '/developer/' },
-      { text: '用户中心', link: '/user/' },
-      { text: '应用用户', link: '/portal/' },
-      { text: '管理后台', link: '/admin/' },
+      { text: '使用指南', link: '/quick-start' },
+      { text: '开发者指南', link: '/developer/' },
+      { text: '部署与运维', link: '/operations' },
       { text: 'API 对接', link: '/developer/api-integration' },
     ],
+    outline: { level: [2, 3], label: '本页内容' },
+    docFooter: { prev: '上一篇', next: '下一篇' },
+    sidebarMenuLabel: '文档目录',
+    returnToTopLabel: '返回顶部',
+    darkModeSwitchLabel: '外观',
+    lastUpdated: { text: '最后更新' },
+    editLink: {
+      pattern: 'https://github.com/AYssu/CipherGate/edit/master/docs/:path',
+      text: '编辑此页',
+    },
     sidebar: [
       {
         text: '快速开始',
         items: [
-          { text: '什么是 CipherGate', link: '/quick-start' },
+          { text: '使用路径与账号范围', link: '/quick-start' },
           { text: '快速注册', link: '/quick-start/register' },
           { text: '首次登录', link: '/quick-start/login' },
+        ]
+      },
+      {
+        text: '部署与运维',
+        items: [
+          { text: '安装、更新与恢复', link: '/operations' },
+          { text: '数据库迁移规范', link: '/database/README' },
         ]
       },
       {
@@ -38,6 +53,7 @@ export default defineConfig({
           { text: '应用管理', link: '/developer/application' },
           { text: '卡密管理', link: '/developer/license' },
           { text: '终端用户管理', link: '/developer/app-user' },
+          { text: '用户迁移', link: '/developer/user-transfer' },
           { text: '变量管理', link: '/developer/variable' },
           { text: '第三方凭证', link: '/developer/credential' },
           { text: '调用日志', link: '/developer/call-log' },
@@ -74,8 +90,6 @@ export default defineConfig({
           { text: '概览', link: '/admin/' },
           { text: '用户与权限', link: '/admin/users-permissions' },
           { text: '系统配置', link: '/admin/system' },
-          { text: '数据库升级', link: '/database/README' },
-          { text: '部署与备份恢复', link: '/operations' },
           { text: '会员与配额运营', link: '/admin/membership-operation' },
           { text: '插件管理', link: '/admin/plugins' },
           { text: '内容与运营', link: '/admin/content' },
@@ -93,7 +107,7 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/AYssu/CipherGate' }
     ],
     footer: {
-      message: 'CipherGate - 企业级授权与安全管控平台',
+      message: '应用授权、用户管理与第三方接入',
       copyright: `© ${new Date().getFullYear()} Created by AYssu`
     },
     search: {

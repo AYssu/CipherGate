@@ -20,7 +20,8 @@ class ReleaseAssetsTest(unittest.TestCase):
             try:
                 for name in ['app/app.jar', 'frontend/dist/index.html', 'frontend/nginx.conf',
                              'docs/index.html', 'docker-compose.server.yml', 'DATABASE-UPGRADE.md',
-                             '.env.example', 'setup-env.py', 'plugins/example.jar']:
+                             '.env.example', 'setup-env.py', 'install.py', 'update.py', 'operations.py',
+                             'release_tools.py', 'OPERATIONS.md', 'plugins/example.jar', 'LICENSE', 'NOTICE']:
                     path = Path('deploy-bundle') / name
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text('public example', encoding='utf-8')
@@ -36,10 +37,14 @@ class ReleaseAssetsTest(unittest.TestCase):
                 self.assertIn('setup-env.py', archive.namelist())
                 self.assertNotIn('.env', archive.namelist())
             checksums = Path('release-assets/SHA256SUMS').read_text().splitlines()
-            self.assertEqual(5, len(checksums))
+            self.assertEqual(7, len(checksums))
             for line in checksums:
                 expected, name = line.split('  ', 1)
                 self.assertEqual(expected, hashlib.sha256((Path('release-assets') / name).read_bytes()).hexdigest())
+            for name in ['ciphergate-deploy.zip', 'frontend-dist.zip', 'docs-dist.zip']:
+                with zipfile.ZipFile(Path('release-assets') / name) as archive:
+                    self.assertIn('LICENSE', archive.namelist())
+                    self.assertIn('NOTICE', archive.namelist())
 
     def test_regeneration_drops_stale_release_assets(self):
         with self.bundle():

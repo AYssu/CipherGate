@@ -228,5 +228,49 @@ class RestoreOperationTest(unittest.TestCase):
             process.assert_not_called()
 
 
+class ComposeSelectionTest(unittest.TestCase):
+    def test_command_selects_private_env_project_and_ordered_overrides(self):
+        directory = Path("/srv/ciphergate")
+        self.assertEqual(operations.compose_command(directory, "custom", ["compose.yml", "/srv/runtime.json"]),
+            ["docker", "compose", "--project-directory", str(directory), "--env-file", str(directory / ".env"),
+             "--project-name", "custom", "-f", str(directory / "compose.yml"), "-f", "/srv/runtime.json"])
+
+    def test_default_command_uses_installation_compose_file_and_env(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary).resolve()
+            self.assertEqual(operations.compose_command(directory),
+                ["docker", "compose", "--project-directory", str(directory), "--env-file", str(directory / ".env"),
+                 "-f", str(directory / "docker-compose.server.yml")])
+
+    def test_cli_restore_runs_in_selected_directory_and_restores_process_context(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary).resolve()
+            original_directory, original_command = Path.cwd(), operations.COMPOSE
+            observed = []
+            def capture(source, confirmation):
+                observed.append((Path.cwd(), list(operations.COMPOSE), source, confirmation))
+            arguments = ["operations.py", "--directory", str(directory), "--project-name", "custom",
+                         "--compose-file", "docker-compose.server.yml", "--compose-file", "/srv/override.json",
+                         "restore", "backup.sql.gz", "--confirm-database", "selected_database"]
+            with patch.object(sys, "argv", arguments), patch.object(operations, "restore", side_effect=capture):
+                operations.main()
+            self.assertEqual(observed[0], (directory,
+                operations.compose_command(directory, "custom", ["docker-compose.server.yml", "/srv/override.json"]),
+                Path("backup.sql.gz"), "selected_database"))
+            self.assertEqual(Path.cwd(), original_directory)
+            self.assertIs(operations.COMPOSE, original_command)
+
+    def test_cli_failure_still_restores_directory_and_compose_command(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            original_directory, original_command = Path.cwd(), operations.COMPOSE
+            with patch.object(sys, "argv", ["operations.py", "--directory", temporary, "backup", "backup.sql.gz"]), \
+                 patch.object(operations, "backup", side_effect=RuntimeError("test error")), \
+                 patch.object(sys, "stderr", new_callable=io.StringIO):
+                with self.assertRaises(SystemExit):
+                    operations.main()
+            self.assertEqual(Path.cwd(), original_directory)
+            self.assertIs(operations.COMPOSE, original_command)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,163 +1,166 @@
 # CipherGate
 
-![Java](https://img.shields.io/badge/Java-17-2ea44f?style=flat-square)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-6db33f?style=flat-square)
-![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61dafb?style=flat-square)
-![Database](https://img.shields.io/badge/Stack-MySQL%20%7C%20Redis%20%7C%20MinIO-4c8eda?style=flat-square)
-![License](https://img.shields.io/badge/License-Open%20Source-orange?style=flat-square)
+应用授权、用户管理与第三方接入平台。
 
-企业级统一鉴权与安全接入平台，面向 SaaS、客户端软件和第三方生态，提供标准化的接入与安全中台能力。
+![Java 17](https://img.shields.io/badge/Java-17-2563eb?style=flat-square)
+![Spring Boot 4](https://img.shields.io/badge/Spring_Boot-4-16a34a?style=flat-square)
+![React + TypeScript](https://img.shields.io/badge/React-TypeScript-0284c7?style=flat-square)
+![PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-64748b?style=flat-square)
 
----
+CipherGate 为客户端软件和应用服务提供卡密授权、应用用户、设备管理、会员运营、调用审计与插件扩展。管理后台、平台用户中心和应用用户 Portal 共用前端，由各自的账号体系和权限控制访问。
 
-## 项目简介
+## 文档导航
 
-CipherGate 将分散在业务侧的鉴权、会话、风控、配置分发能力统一收敛，帮助团队实现：
+| 目标 | 文档 |
+| --- | --- |
+| 安装、更新、备份与恢复 | [部署运维指南](docs/operations.md) |
+| 了解账号与入口 | [使用指南](docs/quick-start.md) |
+| 创建应用、管理更新包 | [应用管理](docs/developer/application.md) |
+| 在应用间复制或移动用户 | [用户迁移](docs/developer/user-transfer.md) |
+| 接入客户端与第三方充值 | [API 对接](docs/developer/api-integration.md)、[第三方凭证](docs/developer/credential.md) |
+| 修改数据库结构 | [数据库迁移规范](docs/database/README.md) |
+| 参与开发与提交 PR | [贡献指南](CONTRIBUTING.md) |
+| 报告安全问题 | [安全政策](SECURITY.md) |
 
-- **更低的接入成本**：HTTP / WebSocket 协议统一
-- **更强的安全一致性**：签名、防重放、限流、加密链路
-- **更清晰的运营治理**：用户、卡密、在线时长、行为日志
+部署后，使用文档位于站点的 `/docs/` 路径。
 
----
+## 功能概览
 
-## 核心功能
+| 领域 | 能力 |
+| --- | --- |
+| 应用与授权 | 应用配置、卡密生成与激活、设备/IP 绑定、版本检查和更新包分发 |
+| 应用用户 | 注册、登录、封禁、密码重置、会员到期管理与跨应用用户迁移 |
+| 第三方接入 | HTTP/WebSocket 接口、签名与防重放、加密插件、变量下发和调用日志 |
+| 充值凭证 | 独立 API Key/Secret、多应用授权、IP 限制、调用额度和订单幂等 |
+| 会员与运营 | 会员等级、配额产品、支付订单、余额、签到、邀请和工单 |
+| 权限与审计 | 平台用户、角色、菜单与接口权限、活动记录及应用代理权限 |
+| 扩展与管理 | PF4J 加密/函数插件、公告、系统配置和文档管理 |
 
-### 🔐 安全管理
-- 端到端数据加密，时间窗校验、nonce 防重放
-- 细粒度访问控制与签名验证
-- 会话加密通信
-- OAuth2 登录集成（GitHub 等）
+> **账号边界**：平台账号与应用用户账号分别管理。Portal 中的会员、设备和订单属于选定应用，不会与平台用户中心自动合并。
 
-### 👥 用户体系
-- 应用用户管理、密码重置、封禁与解封
-- 会员等级体系与设备绑定
-- 多设备绑定与账号状态治理
-- 用户注册验证码（OTP）支持
-
-### 🎫 卡密运营
-- 卡密批量生成、分发、加时续期
-- 设备/IP 绑定与解绑控制
-- 卡密激活统计与状态流转
-- 卡密心跳检测与在线管理
-
-### 💰 支付与财务
-- 集成 Epay 支付网关
-- 订单管理与支付状态追踪
-- 余额系统与交易记录
-- 定价计划管理
-
-### 📊 数据监控
-- 实时数据统计与仪表盘
-- 调用日志分析与用户行为追踪
-- 在线状态实时展示与掉线感知
-- 活动日志审计
-
-### 🎟️ 运营工具
-- **工单系统**：技术支持请求与问题反馈
-- **公告系统**：系统公告与应用公告管理
-- **签到系统**：每日签到与连续签到奖励
-- **邀请系统**：邀请好友注册获得奖励
-
-### 🤝 代理协作
-- 代理账户管理与权限分配
-- 代理配额控制
-- 代理绑定用户管理
-
-### 🔌 第三方接入
-- HTTP + WebSocket 双通道接入
-- 统一开放接口标准
-- 变量配置中心与动态下发
-- 系统消息推送
-
-### 🧩 插件扩展
-- 插件上传、启停、配置管理
-- 支持按需扩展加解密或协议处理逻辑
-- 平台能力可持续演进而不侵入主干业务
-
-### 🛡️ RBAC 权限
-- 后台用户、角色、菜单、权限点统一管理
-- 细粒度接口授权与权限隔离
-- 多角色协作和审计支持
-
----
-
-## 适用场景
-
-- **企业应用授权**：管理内部应用的用户授权
-- **SaaS 服务**：为 SaaS 应用提供用户管理能力
-- **软件分发**：通过卡密进行软件授权分发
-- **API 网关**：统一管理 API 访问权限
-- **代理商管理**：多级代理体系与分润
-
----
-
-## 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| **后端** | Java 17, Spring Boot 4, Spring Security, WebSocket, MyBatis-Plus |
-| **前端** | React 18, TypeScript, Vite, Ant Design 5, ECharts |
-| **基础设施** | MySQL 8, Redis 7, RabbitMQ 3, MinIO |
-| **构建交付** | Gradle, Docker Compose, GitHub Actions |
-| **扩展机制** | PF4J (插件框架) |
-| **工具库** | Hutool, Fastjson2, ip2region, JJWT |
-
----
-
-## 项目结构
-
-```
-CipherGate/
-├── src/                          # 后端源码
-│   └── main/java/com/ayssu/ciphergate/
-│       ├── controller/           # API 控制器
-│       ├── entity/               # 数据库实体
-│       ├── service/              # 业务逻辑层
-│       ├── mapper/               # MyBatis Mapper
-│       ├── config/               # 配置类
-│       ├── agent/                # 代理模块
-│       ├── portal/               # 用户门户
-│       └── thirdparty/           # 第三方接入
-├── frontend/                     # 前端源码
-│   ├── src/
-│   │   ├── components/           # 组件
-│   │   ├── pages/                # 页面
-│   │   └── services/             # API 服务
-│   └── dist/                     # 构建产物
-├── plugins/                      # 插件模块
-│   └── rsa-crypto-plugin/        # RSA 加密插件
-├── docs/                         # 文档源码
-├── deploy-bundle/                # 部署包
-└── ciphergate-plugin-api/        # 插件 API
-```
-
----
-
-## 快速开始
+## 安装发布包
 
 ### 环境要求
 
-- Docker & Docker Compose
-- Java 17+ (仅本地开发)
-- Node.js 22.22.0、Python 3.12+ (源码构建)
+| 使用方式 | 所需环境 |
+| --- | --- |
+| 运行发布包 | Docker、Docker Compose v2、Python 3.12+ |
+| 从源码开发或构建 | JDK 17、Node.js 22.22.0、Python 3.12+；Docker 用于依赖服务和集成测试 |
 
-### 方式一：本地开发
+运行发布包无需在宿主机安装 Java、Node.js 或 Gradle。Windows 使用支持 Linux containers 的 Docker Desktop，并将下文 `python3` 替换为 `py -3`。
 
-**1) 启动依赖服务**
+### 1. 获取发布包
+
+从 [Releases](https://github.com/AYssu/CipherGate/releases) 下载完整 `ciphergate-deploy.zip` 和对应的 `SHA256SUMS`。核对完整包的 SHA256 后，解压到固定安装目录：
 
 ```bash
-docker compose -f compose.yaml up -d
+unzip ciphergate-deploy.zip -d CipherGate
+cd CipherGate
 ```
 
-启动 MySQL、Redis、RabbitMQ、MinIO 四个基础服务。
+本文中的自动化命令适用于**包含 `install.py` 和 `update.py` 的发布包**。早期版本升级方式见[运维指南](docs/operations.md)。
 
-**2) 启动后端服务**
+### 2. 安装并启动
+
+本机体验：
+
+```bash
+python3 install.py
+```
+
+正式域名首次安装：
+
+```bash
+python3 install.py --public-url https://auth.example.com
+```
+
+两种方式选择其一。脚本校验发布文件、生成本次安装独立的 `.env`、启动全部服务，最后检查健康状态及前后端版本。已有 `.env` 永不覆盖；重试安装不会重新生成凭据。
+
+默认仅监听本机，访问地址为 `http://127.0.0.1:5173`。远程服务器可使用 SSH 隧道；正式域名需要自行准备 DNS、HTTPS 证书和反向代理。安装脚本不修改防火墙或申请证书。
+
+### 3. 完成首次初始化
+
+1. 打开首页，填写自己的 GitHub OAuth App 的 Client ID 和 Client Secret。
+2. 在 GitHub OAuth App 中设置与页面一致的回调地址：`https://auth.example.com/api/login/oauth2/code/github`。
+3. 确认前端跳转地址为 `https://auth.example.com/dashboard`，完成初始化并登录。
+
+本机体验使用对应的 HTTP 地址。首位 GitHub 登录用户获得超级管理员角色，部署者应先完成初始化和首登，再开放站点。支付、邮件等可选集成仍需配置自己的服务信息。
+
+空数据库由 Flyway 自动初始化；后续只执行新增迁移。已有业务库首次接入必须按[数据库迁移规范](docs/database/README.md)核验，不能直接重放历史 `init.sql`。
+
+## 更新与回退
+
+### 完整更新
+
+将新版完整 ZIP 上传到服务器，放在安装目录之外。在**现有安装目录**执行：
+
+```bash
+python3 update.py /path/to/ciphergate-deploy.zip
+```
+
+| 自动更新 | 保留原状 |
+| --- | --- |
+| 后端 JAR、前端、使用文档、官方插件和运维工具 | `.env`、Compose、Nginx 配置、运行镜像及持久化数据卷 |
+
+脚本停止前后端、备份应用和数据库，替换文件后重建应用容器，最后检查健康状态及版本。MySQL、Redis、RabbitMQ 和 MinIO 不随应用更新重建。
+
+> **升级边界**：不要将新包直接覆盖解压到线上目录。数据库已迁移或迁移历史无法核验时，脚本会阻止自动回退旧程序，保留备份并停止应用，交由运维人员处理。
+
+### 回退应用
+
+数据库迁移历史未变化时，使用更新日志输出的备份目录：
+
+```bash
+python3 update.py rollback --backup backups/<时间>-update
+```
+
+旧版没有脚本、自定义 Compose overrides、配置升级和数据库恢复流程，见[部署运维指南](docs/operations.md)。
+
+独立的 `app.jar`、`frontend-dist.zip`、`docs-dist.zip` 仍供人工维护使用；推荐完整包更新，统一验证前后端版本并自动执行备份与健康检查。
+
+## 配置与服务
+
+`.env.example` 是空凭据模板，`.env` 是安装主机上的私有配置。完整参数以模板为准；已有安装升级时保留原值，不能重新生成数据库或对象存储凭据。
+
+| 配置 | 用途 |
+| --- | --- |
+| `APP_BACKEND_PUBLIC_BASE_URL` | 后端对外访问地址 |
+| `THIRD_PARTY_PUBLIC_BASE_URL` | 第三方下载地址使用的公开根地址；要求 HTTPS 的客户端应配置 HTTPS 域名 |
+| `APP_SESSION_COOKIE_SECURE` | HTTPS 环境启用 Secure Cookie；仅本机 HTTP 体验设为 `false` |
+| `FRONTEND_BIND_ADDRESS`、`FRONTEND_PORT` | 前端宿主机监听地址及端口 |
+| `SERVICE_BIND_ADDRESS` | 后端及基础设施宿主机监听地址，默认回环地址 |
+| `MYSQL_IMAGE` | MySQL 镜像；新安装与旧安装分别保留已确认的版本 |
+
+默认宿主机端口如下，可在 `.env` 中调整：
+
+| 服务 | 端口 | 说明 |
+| --- | --- | --- |
+| Frontend | 5173 | Web 界面、API 反向代理及 `/docs/` |
+| Backend | 8080 | 后端服务，外部访问通过前端或受控反向代理 |
+| MySQL | 13306 | 数据库 |
+| Redis | 16379 | 缓存与在线状态 |
+| RabbitMQ | 15673 / 15672 | AMQP / 管理界面 |
+| MinIO | 19000 / 19001 | S3 API / 控制台 |
+
+`.env`、数据库备份和对象存储数据应分别安全备份。不要将基础设施端口直接暴露到公网，也不要在原数据卷上随应用更新切换 MySQL 大版本。
+
+## 本地开发
+
+以下命令在仓库根目录执行。开发 Compose 的配置与生产配置分别维护，只用于本地环境。
+
+启动依赖服务：
+
+```bash
+docker compose -f compose.yaml up -d --wait
+```
+
+启动后端：
 
 ```bash
 ./gradlew bootRun
 ```
 
-**3) 启动前端（可选）**
+在另一个终端启动前端：
 
 ```bash
 cd frontend
@@ -165,248 +168,42 @@ npm ci
 npm run dev
 ```
 
-前端开发服务器默认运行在 `http://localhost:5173`。
+前端默认位于 `http://localhost:5173`，将 `/api` 请求代理到后端 `http://localhost:8080`。使用仓库自带的 Gradle Wrapper，无需安装全局 Gradle。根目录的 `package.json` 不属于前端，前端依赖在 `frontend/` 中安装。
 
-### 方式二：生产部署
+### 检查与构建
 
-**1) 下载部署包**
+| 任务 | 命令 | 条件 |
+| --- | --- | --- |
+| 后端单元测试 | `./gradlew unitTest --no-daemon` | JDK 17 |
+| 后端集成测试及覆盖率 | `./gradlew unitTest integrationTest jacocoTestReport --no-daemon` | 独立测试数据库与 Redis，见贡献指南 |
+| 前端检查 | `cd frontend && npm ci && npm run check` | Node.js 22.22.0 |
+| 前端浏览器测试 | `cd frontend && npm run build && npm run test:e2e` | 已安装 Playwright Chromium |
+| 文档构建 | `cd docs && npm ci && npm run build` | Node.js 22.22.0 |
+| 运维工具测试 | `python3 -m unittest discover -s scripts/tests` | Python 3.12+ |
+| 完整发布包 | `./deploy-server.sh` | 全部源码构建环境 |
 
-从 [GitHub Releases](https://github.com/AYssu/CipherGate/releases) 下载 `ciphergate-deploy.zip`。
+Windows 使用 `gradlew.bat` 和 `deploy-server.bat`。完整构建会生成 `deploy-bundle/`、`ciphergate-deploy.zip` 及 SHA256 校验文件。
 
-**2) 解压并配置**
+CI 包含后端单元测试、MySQL 8.0/8.4 集成测试、前端检查与浏览器测试、文档构建、密钥和依赖扫描，以及真实 Docker 安装、更新和回退验证。正式发布由版本标签触发，并在 Linux、Windows 完成打包。
 
-```bash
-unzip ciphergate-deploy.zip -d deploy-bundle
-cd deploy-bundle
+## 项目结构
+
+```text
+CipherGate/
+├── src/                    # 后端代码、测试与 Flyway 迁移
+├── frontend/               # React 管理界面与用户门户
+├── docs/                   # VitePress 使用和运维文档
+├── plugins/                # PF4J 插件实现
+├── ciphergate-plugin-api/  # 插件接口
+├── scripts/                # 构建、安装、更新及备份恢复工具
+├── .github/                # CI、发布与协作模板
+└── deploy-bundle/          # 生成的部署目录，不提交 Git
 ```
 
-运行 `python3 setup-env.py` 为本次安装生成独立 `.env`，再编辑域名和端口，并执行 `python3 setup-env.py --check`。已有服务器升级必须保留原 `.env`，不要重新生成凭证。
+后端采用 Java 17、Spring Boot 4、Spring Security、MyBatis-Plus 与 Flyway；前端采用 React、TypeScript、Vite、Ant Design 与 ECharts。基础设施版本以对应 Compose 文件为准。
 
-**3) 启动服务**
+## 贡献与许可
 
-```bash
-docker compose -f docker-compose.server.yml up -d
-```
+提交问题和 Pull Request 前，请阅读[贡献指南](CONTRIBUTING.md)。安全漏洞按[安全政策](SECURITY.md)私下报告，不在公开 Issue 中提交凭据或可利用的漏洞细节。
 
-服务启动后，访问 `http://localhost:<FRONTEND_PORT>` 进入管理后台。
-
-数据库结构由 Flyway 自动迁移：空库自动初始化，后续只执行新增版本。
-**从旧版升级时，必须先备份并按 [数据库升级说明](docs/database/README.md) 完成一次旧库接入。**
-不要直接重放历史 `init.sql`，也不要启用 `baseline-on-migrate` 绕过核验。
-
----
-
-## 部署架构
-
-生产环境包含以下服务：
-
-| 服务 | 说明 | 默认端口 |
-|------|------|----------|
-| **frontend** | Nginx 前端服务 | 5173 |
-| **backend** | Java 后端服务 | 8080 |
-| **mysql** | MySQL 数据库 | 3306 |
-| **redis** | Redis 缓存与会话存储 | 6379 |
-| **rabbitmq** | RabbitMQ 消息队列 | 5672 |
-| **minio** | MinIO 对象存储 | 9000 |
-
-所有端口均可通过 `.env` 文件自定义。
-
-### 服务依赖关系
-
-```
-frontend → backend → mysql
-                  → redis
-                  → rabbitmq
-                  → minio
-```
-
----
-
-## 增量更新
-
-当只需要更新部分组件时，无需下载全量包：
-
-### 仅更新后端
-
-1. 下载 `app.jar`
-2. 替换服务器 `app/app.jar`
-3. 执行：`docker compose -f docker-compose.server.yml up -d backend`
-
-### 仅更新前端
-
-1. 下载 `frontend-dist.zip`
-2. 覆盖服务器 `frontend/dist` 目录
-3. 执行：`docker compose -f docker-compose.server.yml up -d frontend`
-
----
-
-## 配置说明
-
-### 环境变量
-
-部署包只带空凭证模板 `.env.example`；完整参数以该模板为准。安装时生成私有 `.env`。以下仅说明主要参数，不能直接作为生产配置：
-
-```bash
-# 数据库配置
-MYSQL_ROOT_PASSWORD=your_password
-MYSQL_DATABASE=ciphergate
-MYSQL_USER=your_user
-MYSQL_PASSWORD=your_password
-MYSQL_PORT=3306
-
-# Redis 配置
-REDIS_PORT_HOST=16379
-REDIS_PASSWORD=<独立强密码>
-PORTAL_JWT_SECRET=<至少32字节随机密钥>
-
-# RabbitMQ 配置
-RABBITMQ_USERNAME=ciphergate
-RABBITMQ_PASSWORD=<独立强密码>
-RABBITMQ_PORT=5672
-RABBITMQ_MGMT_PORT=15672
-
-# MinIO 配置
-MINIO_ACCESS_KEY=your_access_key
-MINIO_SECRET_KEY=your_secret_key
-MINIO_BUCKET=ciphergate-plugins
-MINIO_API_PORT=9000
-MINIO_CONSOLE_PORT=9001
-
-# 服务端口
-BACKEND_PORT=8080
-FRONTEND_PORT=5173
-```
-
-### 安全建议
-
-生产环境部署前，务必：
-
-1. 修改所有默认密码
-2. 使用强密码策略
-3. 限制数据库、Redis 等服务的外网访问
-4. 配置 HTTPS 反向代理
-5. 定期备份数据库
-
----
-
-## 功能模块详解
-
-### 开发者中心
-
-面向应用开发者，提供应用全生命周期管理：
-
-| 功能 | 说明 |
-|------|------|
-| **应用管理** | 创建、编辑、删除应用，配置应用参数 |
-| **卡密管理** | 批量生成卡密、查看激活统计、管理卡密状态 |
-| **用户管理** | 管理应用用户、封禁/解封、密码重置 |
-| **变量配置** | 配置应用变量，支持动态下发 |
-| **调用日志** | 查看 API 调用记录与统计数据 |
-| **凭证管理** | 管理应用的 appKey/appSecret |
-
-### 用户门户
-
-面向终端用户，提供自助服务：
-
-| 功能 | 说明 |
-|------|------|
-| **会员服务** | 查看会员等级、续费、升级 |
-| **订单管理** | 查看历史订单、支付状态 |
-| **余额充值** | 账户余额充值与消费记录 |
-| **工单系统** | 提交技术支持、查看处理进度 |
-| **签到系统** | 每日签到获取奖励 |
-| **邀请好友** | 分享邀请码获取奖励 |
-
-### 第三方接入
-
-支持 HTTP 和 WebSocket 两种接入方式：
-
-| 方式 | 适用场景 | 特点 |
-|------|----------|------|
-| **HTTP** | 请求式调用 | 签名验证、防重放、限流 |
-| **WebSocket** | 实时通信 | 认证握手、加密通信、心跳维持 |
-
-### 代理系统
-
-支持多级代理体系：
-
-- 代理账户创建与管理
-- 代理权限分配
-- 代理配额控制
-- 代理绑定用户管理
-
----
-
-## 文档
-
-部署后可通过以下路径访问在线文档：
-
-- **管理后台文档**：`http://your-domain/docs/`
-- **快速入门**：注册账号、首次登录
-- **开发者中心**：应用管理、卡密管理、变量配置
-- **用户中心**：会员服务、订单管理、工单系统
-- **代理中心**：代理管理、配额分配
-
----
-
-## 开发指南
-
-### 本地开发环境搭建
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/AYssu/CipherGate.git
-cd CipherGate
-
-# 2. 启动基础服务
-docker compose -f compose.yaml up -d
-
-# 3. 启动后端
-./gradlew bootRun
-
-# 4. 启动前端（可选）
-cd frontend && npm ci && npm run dev
-```
-
-### 构建部署包
-
-```bash
-# Linux/macOS
-./deploy-server.sh
-
-# Windows
-deploy-server.bat
-```
-
-构建完成后生成 `ciphergate-deploy.zip`、SHA256 校验和及逐文件清单。Linux/Windows 入口共用 Python 打包器，发布包不包含真实凭证。
-
-完整安装、升级、备份恢复、日志排障见 [运维说明](docs/operations.md)；数据库变更见 [Flyway 迁移规范](docs/database/README.md)。
-
-PR 检查包含后端单元/真实 MySQL 集成测试、插件测试、前端 lint/类型/单元/浏览器测试、文档构建、密钥及依赖检查。主分支推送只验证，发布通过版本标签触发。
-
-### 插件开发
-
-插件使用 PF4J 框架，参考 `plugins/rsa-crypto-plugin` 示例：
-
-1. 在 `plugins/` 目录下创建新模块
-2. 实现 `ciphergate-plugin-api` 中定义的接口
-3. 使用 Gradle 构建插件 JAR
-4. 通过管理后台上传插件
-
----
-
-## 贡献
-
-欢迎提交 Issue / PR。环境准备、测试和审查规范见 [CONTRIBUTING.md](CONTRIBUTING.md)，漏洞报告见 [SECURITY.md](SECURITY.md)。
-
-建议在变更说明中包含：
-- 功能范围
-- 风险点
-- 回滚方案
-- 自测结果
-
----
-
-## 许可证
-
-许可证尚待维护者确定，当前仓库没有 LICENSE，不应假定采用 MIT 或 Apache 授权。
+本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE)。允许用途以许可证原文为准；商业用途需另行联系 [AYssu](https://github.com/AYssu) 获取授权。分发须保留 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)，第三方依赖继续遵循各自许可证。

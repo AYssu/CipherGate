@@ -60,10 +60,24 @@ class EnvironmentTest(unittest.TestCase):
 
 
 class ArtifactTest(unittest.TestCase):
+    def backend_jar(self, extra=None):
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w") as jar:
+            jar.writestr("META-INF/LICENSE", (ROOT / "LICENSE").read_bytes())
+            jar.writestr("META-INF/NOTICE", (ROOT / "NOTICE").read_bytes())
+            jar.writestr("BOOT-INF/classes/application.yaml", "spring: {}")
+            for name, body in (extra or {}).items():
+                jar.writestr(name, body)
+        return output.getvalue()
+
     def archive(self, folder, extra=None, tamper=False):
-        files = {n: b"test" for n in ["setup-env.py", "operations.py", "app/app.jar", "build-info.json",
+        files = {n: b"test" for n in ["setup-env.py", "operations.py", "install.py", "update.py", "release_tools.py",
+            "frontend/dist/index.html", "frontend/nginx.conf", "docs/index.html", "app/app.jar", "build-info.json",
             "OPERATIONS.md", "DATABASE-UPGRADE.md", "docker-compose.server.yml"]}
         files[".env.example"] = (ROOT / ".env.server.example").read_bytes()
+        files["app/app.jar"] = self.backend_jar()
+        for name in ["LICENSE", "NOTICE"]:
+            files[name] = (ROOT / name).read_bytes()
         files.update(extra or {})
         manifest = "".join(f"{hashlib.sha256(body).hexdigest()}  {name}\n" for name, body in files.items())
         if tamper: files["app/app.jar"] = b"changed after manifest"
@@ -79,9 +93,34 @@ class ArtifactTest(unittest.TestCase):
 
     def test_public_archive_rejects_private_env_and_traversal(self):
         with tempfile.TemporaryDirectory() as folder:
-            for name in [".env", ".env.server", "nested/.env", "../escape", "/absolute"]:
+            for name in [".env", ".env.server", "nested/.env", ".env.production", ".env.backup", "../escape", "/absolute"]:
                 with self.assertRaises(ValueError):
                     project.verify_artifact(self.archive(folder, {name: b"private"}))
+
+    def test_nested_development_configuration_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for name in ["BOOT-INF/classes/application-dev.yaml", "application-test.yml",
+                         "application-local.properties", "BOOT-INF/classes/.env.production"]:
+                with self.subTest(name=name), self.assertRaisesRegex(ValueError, "Private configuration"):
+                    project.verify_artifact(self.archive(folder, {
+                        "app/app.jar": self.backend_jar({name: b"private-default-password"})}))
+
+    def test_license_notices_are_required_in_distribution_and_backend(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for name in ["LICENSE", "NOTICE"]:
+                archive = self.archive(folder)
+                with zipfile.ZipFile(archive) as source:
+                    files = {n: source.read(n) for n in source.namelist() if n != name}
+                with zipfile.ZipFile(archive, "w") as output:
+                    for entry, body in files.items():
+                        output.writestr(entry, body)
+                with self.assertRaisesRegex(ValueError, "Incomplete artifact"):
+                    project.verify_artifact(archive)
+            output = io.BytesIO()
+            with zipfile.ZipFile(output, "w") as jar:
+                jar.writestr("BOOT-INF/classes/application.yaml", "spring: {}")
+            with self.assertRaisesRegex(ValueError, "Missing backend license"):
+                project.verify_artifact(self.archive(folder, {"app/app.jar": output.getvalue()}))
 
     def test_public_template_rejects_embedded_password(self):
         with tempfile.TemporaryDirectory() as folder:

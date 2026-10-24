@@ -95,8 +95,24 @@ def restore(source, confirmation):
     print("Restore completed into", target, "(source database:", metadata["database"] + ")")
 
 
+def compose_command(directory, project_name=None, compose_files=None):
+    directory = Path(directory).resolve()
+    command = ["docker", "compose", "--project-directory", str(directory),
+               "--env-file", str(directory / ".env")]
+    if project_name:
+        command += ["--project-name", project_name]
+    for filename in compose_files or ["docker-compose.server.yml"]:
+        path = Path(filename)
+        command += ["-f", str(path if path.is_absolute() else directory / path)]
+    return command
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--directory", type=Path, default=Path.cwd(),
+                        help="Existing installation directory (default: current directory)")
+    parser.add_argument("--project-name", help="Existing Compose project name")
+    parser.add_argument("--compose-file", action="append", help="Compose file; repeat for installation overrides")
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("backup")
     create.add_argument("destination", type=Path)
@@ -104,11 +120,19 @@ def main():
     load.add_argument("source", type=Path)
     load.add_argument("--confirm-database", required=True)
     args = parser.parse_args()
+    global COMPOSE
+    original_directory, original_command = Path.cwd(), COMPOSE
     try:
+        directory = args.directory.resolve()
+        COMPOSE = compose_command(directory, args.project_name, args.compose_file)
+        os.chdir(directory)
         if args.command == "backup": backup(args.destination)
         else: restore(args.source, args.confirm_database)
     except (OSError, EOFError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Operation failed: {error}\n")
+    finally:
+        os.chdir(original_directory)
+        COMPOSE = original_command
 
 
 if __name__ == "__main__":

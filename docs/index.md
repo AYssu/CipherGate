@@ -3,37 +3,49 @@ layout: home
 
 hero:
   name: CipherGate
-  text: 授权、用户与应用安全平台
-  tagline: 管理应用授权、终端用户、会员配额、插件和第三方接入，并通过审计与风控降低滥用风险。
+  text: 产品与运维文档
+  tagline: 从安装部署到应用接入，按角色和任务查阅操作说明、配置要求与维护流程。
   actions:
     - theme: brand
-      text: 查看使用文档
+      text: 开始使用
       link: /quick-start
     - theme: alt
-      text: 第三方 API 对接
-      link: /developer/api-integration
+      text: 安装与更新
+      link: /operations
 
 features:
-  - title: 应用授权
-    details: 管理 AppKey/AppSecret、卡密、终端用户、设备/IP 绑定和调用日志。
-  - title: 会员与配额
-    details: 维护会员等级、用户会员、配额产品、订单和充值能力。
-  - title: 权限与审计
-    details: 使用用户、角色、菜单、API 权限和活动记录控制后台访问。
-  - title: 插件扩展
-    details: 管理加密插件和函数插件，并为应用分配插件能力和配置。
-  - title: Portal 用户中心
-    details: 提供控制台、登录记录、设备信息、充值、订单和账号设置。
-  - title: 第三方接入
-    details: 通过签名、报文加密、WebSocket 和更新下载接口接入客户端。
+  - title: 部署与运维
+    details: 运行发布包，配置 HTTPS 入口，执行更新、备份和有条件回退。
+    link: /operations
+  - title: 应用与授权
+    details: 管理应用、卡密、终端用户、更新包和跨应用用户迁移。
+    link: /developer/
+  - title: 客户端接入
+    details: 查阅 HTTP/WebSocket 协议、签名规则、第三方充值与下载接口。
+    link: /developer/api-integration
+  - title: 平台用户中心
+    details: 查看平台会员、余额、签到、邀请、订单和工单。
+    link: /user/
+  - title: 应用用户 Portal
+    details: 登录指定应用，查看会员与订单，管理账号并找回密码。
+    link: /portal/
+  - title: 系统管理
+    details: 配置平台用户、角色、接口权限、插件、支付和邮件服务。
+    link: /admin/
 ---
 
-## 文档范围
+## 按任务查阅
 
-本文档以当前代码实现为准，覆盖三条使用路径：
+| 任务 | 阅读入口 |
+| --- | --- |
+| 第一次运行 CipherGate | [安装、配置与初始化](/operations#首次安装) |
+| 更新现有平台 | [更新与备份恢复](/operations) |
+| 为应用客户端上传安装包 | [应用管理](/developer/application) |
+| 在应用之间复制或移动用户 | [用户迁移](/developer/user-transfer) |
+| 使用一组充值凭证授权多个应用 | [第三方凭证](/developer/credential) |
+| 排查登录或权限问题 | [登录指南](/quick-start/login)、[用户与权限](/admin/users-permissions) |
+| 变更数据库结构 | [数据库迁移规范](/database/README) |
 
-1. 开发者在后台创建应用、卡密和终端用户，配置插件与第三方凭证。
-2. 普通用户使用用户中心查看会员、余额、签到、邀请、订单和工单。
-3. 应用终端用户使用 Portal 登录、查看状态、充值、管理账号并找回密码。
+## 文档约定
 
-系统管理员还可在 [管理后台](/admin/) 配置权限、系统参数、会员等级、配额产品、插件和内容。
+平台账号、平台用户中心和应用用户 Portal 分别说明；操作前先确认账号范围与权限。命令中的示例域名和占位符需替换为自己的值。功能以所部署版本及配置为准，生产变更前请核对版本、备份和恢复条件。
