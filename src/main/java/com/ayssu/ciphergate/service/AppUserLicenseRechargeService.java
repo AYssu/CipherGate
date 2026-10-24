@@ -45,7 +45,8 @@ public class AppUserLicenseRechargeService {
                 .last("LIMIT 1 FOR UPDATE"));
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         if (key == null || !app.getId().equals(key.getAppId()) || Integer.valueOf(1).equals(key.getDeleted()) || key.getRedeemedAt() != null || !Integer.valueOf(1).equals(key.getStatus())
-                || key.getFirstUsedAt() != null || (key.getUseCount() != null && key.getUseCount() != 0)
+                || key.getFirstUsedAt() != null || key.getLastUsedAt() != null || Boolean.TRUE.equals(key.getIsOnline())
+                || (key.getUseCount() != null && key.getUseCount() != 0)
                 || key.getBindUserId() != null || StringUtils.hasText(key.getBindDeviceId())
                 || StringUtils.hasText(key.getBindIp())) {
             throw new IllegalArgumentException("卡密不存在、已使用或不可兑换");
@@ -91,7 +92,7 @@ public class AppUserLicenseRechargeService {
                 .eq(LicenseKey::getStatus, 1).isNull(LicenseKey::getRedeemedAt).isNull(LicenseKey::getFirstUsedAt)
                 .set(LicenseKey::getRedeemedAt, now).set(LicenseKey::getBindUserId, user.getId())
                 .set(LicenseKey::getStatus, 3).set(LicenseKey::getFirstUsedAt, now)
-                .set(LicenseKey::getLastUsedAt, now).set(LicenseKey::getExpiresAt, now)
+                .set(LicenseKey::getIsOnline, false).set(LicenseKey::getExpiresAt, now)
                 .set(LicenseKey::getUseCount, 1).set(LicenseKey::getUpdatedAt, now)) != 1) {
             throw new IllegalStateException("卡密状态已变化，请重新查询");
         }

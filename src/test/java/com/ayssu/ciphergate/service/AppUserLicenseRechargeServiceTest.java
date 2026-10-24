@@ -66,6 +66,8 @@ class AppUserLicenseRechargeServiceTest {
         card.setStatus(1); card.setRedeemedAt(LocalDateTime.now()); assertThrows(IllegalArgumentException.class,()->service.redeem(request,null));
         card.setRedeemedAt(null); card.setFirstUsedAt(LocalDateTime.now()); assertThrows(IllegalArgumentException.class,()->service.redeem(request,null));
         card.setFirstUsedAt(null); card.setBindUserId(100L); assertThrows(IllegalArgumentException.class,()->service.redeem(request,null));
+        card.setBindUserId(null); card.setLastUsedAt(LocalDateTime.now()); assertThrows(IllegalArgumentException.class,()->service.redeem(request,null));
+        card.setLastUsedAt(null); card.setIsOnline(true); assertThrows(IllegalArgumentException.class,()->service.redeem(request,null));
         verifyNoInteractions(ledger); verify(users,never()).update(isNull(),any());
     }
     @Test void missingCardOrUserAndChangedApplicationNeverCredit() {

@@ -79,6 +79,8 @@ class AppUserLicenseRechargeMysqlTest {
         assertThrows(IllegalArgumentException.class,()->service.redeem(request(cardId),null));
         assertEquals(before.plusDays(7),expiry());assertEquals(1,ledgerCount());
         assertNotNull(jdbc.queryForObject("SELECT redeemed_at FROM license_key WHERE id=?",LocalDateTime.class,cardId));
+        assertNull(jdbc.queryForObject("SELECT last_used_at FROM license_key WHERE id=?",LocalDateTime.class,cardId));
+        assertFalse(jdbc.queryForObject("SELECT is_online FROM license_key WHERE id=?",Boolean.class,cardId));
     }
     @Test void failedCardConsumptionRollsBackMembershipAndLedger() {
         var cards=spy(sessions.getMapper(LicenseKeyMapper.class));
