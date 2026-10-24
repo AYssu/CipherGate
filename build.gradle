@@ -79,7 +79,7 @@ dependencies {
     // Hutool 工具类（Excel 导出依赖 POI）
     implementation 'cn.hutool:hutool-all:5.8.40'
     implementation 'org.apache.poi:poi-ooxml:5.4.0'
-    implementation 'com.maxmind.geoip2:geoip2:4.3.1'
+    implementation 'com.maxmind.geoip2:geoip2:5.2.0'
     implementation 'org.lionsoul:ip2region:2.7.0'
 
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
