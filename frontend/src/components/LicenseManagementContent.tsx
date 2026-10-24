@@ -1185,7 +1185,7 @@ const LicenseManagementContent: React.FC = () => {
       link.click();
       URL.revokeObjectURL(url);
       message.success('模板下载成功');
-    } catch (error) {
+    } catch {
       message.error('模板下载失败');
     }
   };

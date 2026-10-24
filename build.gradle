@@ -1,12 +1,20 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.ayssu'
-version = '0.0.1-SNAPSHOT'
+version = providers.gradleProperty('releaseVersion').orElse(providers.environmentVariable('RELEASE_VERSION'))
+        .getOrElse('0.0.1-SNAPSHOT')
 description = 'CipherGate'
+
+springBoot {
+    buildInfo {
+        excludes = ['time']
+    }
+}
 
 java {
     toolchain {
@@ -40,6 +48,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-webclient'
@@ -88,5 +98,54 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'integration' }
+    // Default verification is self-contained; real database tests have an explicit required gate.
+    dependsOn ':plugins:example-function-plugin:test', ':plugins:rsa-crypto-plugin:test'
+}
+
+tasks.register('unitTest', Test) {
+    description = 'Runs backend unit and security tests without external services.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { excludeTags 'integration' }
+    dependsOn ':plugins:example-function-plugin:test', ':plugins:rsa-crypto-plugin:test'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs destructive tests against isolated MySQL test databases and a test Redis.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'integration' }
+    shouldRunAfter tasks.named('unitTest')
+    doFirst {
+        ['MIGRATION', 'CREDENTIAL', 'TRANSFER', 'BOOT'].each { suite ->
+            def prefix = "CIPHERGATE_${suite}_JDBC_"
+            def jdbcUrl = System.getenv(prefix + 'URL')
+            def database = "ciphergate_${suite.toLowerCase()}_test"
+            if (!jdbcUrl || !(jdbcUrl ==~ "jdbc:mysql://[^/]+/${database}(\\?.*)?")) {
+                throw new GradleException("${prefix}URL must target the isolated ${database} database")
+            }
+            if (!System.getenv(prefix + 'PASSWORD')) {
+                throw new GradleException("${prefix}PASSWORD must be explicitly set")
+            }
+        }
+    }
+}
+
+jacoco { toolVersion = '0.8.14' }
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('unitTest')
+    mustRunAfter tasks.named('test'), tasks.named('integrationTest')
+    executionData fileTree(layout.buildDirectory.dir('jacoco')) { include '*.exec' }
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('unitTest'), tasks.named('integrationTest'), tasks.named('jacocoTestReport')
 }

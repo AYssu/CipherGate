@@ -33,8 +33,10 @@ import {
   updateThirdPartyCredential,
   type ThirdPartyCredential,
   type ThirdPartyCredentialDTO,
+  type CredentialPage,
 } from '../services/thirdPartyCredentialService';
 import { getApplicationList, type Application } from '../services/applicationService';
+import type { ApiResponse } from '../types';
 import M5BottomSheet from './M5BottomSheet';
 
 const { Text, Title } = Typography;
@@ -43,6 +45,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [list, setList] = useState<ThirdPartyCredential[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,7 +63,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
 
   const fetchApps = async () => {
     try {
-      const res: any = await getApplicationList({ current: 1, size: 1000 });
+      const res = await getApplicationList({ current: 1, size: 1000 }) as unknown as ApiResponse<CredentialPage<Application>>;
       if (res.code === 200) {
         setApps(res.data?.records || []);
       }
@@ -72,7 +75,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   const fetchData = async (page = pagination.current, size = pagination.pageSize, query = filters) => {
     setLoading(true);
     try {
-      const res: any = await getThirdPartyCredentialList({
+      const res = await getThirdPartyCredentialList({
         current: page,
         size,
         ...query,
@@ -159,7 +162,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
     try {
       const v = await form.validateFields();
       const payload: ThirdPartyCredentialDTO = {
-        appId: v.appId,
+        appIds: v.appIds,
         name: v.name,
         allowedIps: v.allowedIps,
         dailyLimit: v.dailyLimit,
@@ -168,11 +171,19 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         status: v.status,
         remark: v.remark,
       };
-      const res: any = editingCredential
+      setSaving(true);
+      const res = editingCredential
         ? await updateThirdPartyCredential(editingCredential.id, payload)
         : await createThirdPartyCredential(payload);
       if (res.code === 200) {
         message.success(editingCredential ? '更新成功' : '创建成功');
+        const created = res.data;
+        const createdSecret = created?.apiSecret;
+        if (!editingCredential && createdSecret) {
+          setLatestSecret({ apiKey: created.apiKey, apiSecret: createdSecret });
+          setSecretVisible(true);
+          setRotatedSecretMap((prev) => ({ ...prev, [created.id]: createdSecret }));
+        }
         setModalVisible(false);
         setEditingCredential(null);
         form.resetFields();
@@ -180,15 +191,19 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
       } else {
         message.error(res.message || (editingCredential ? '更新失败' : '创建失败'));
       }
-    } catch {
-      // validation
+    } catch (error) {
+      if (!(error && typeof error === 'object' && 'errorFields' in error)) {
+        message.error('保存失败，请重试');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
   const onEdit = (row: ThirdPartyCredential) => {
     setEditingCredential(row);
     form.setFieldsValue({
-      appId: row.appId,
+      appIds: row.appIds?.length ? row.appIds : [row.appId],
       name: row.name,
       allowedIps: row.allowedIps,
       dailyLimit: row.dailyLimit,
@@ -201,7 +216,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   };
 
   const onDelete = async (id: number) => {
-    const res: any = await deleteThirdPartyCredential(id);
+    const res = await deleteThirdPartyCredential(id);
     if (res.code === 200) {
       message.success('删除成功');
       fetchData();
@@ -222,7 +237,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   };
 
   const onRotate = async (id: number) => {
-    const res: any = await rotateThirdPartyCredentialSecret(id);
+    const res = await rotateThirdPartyCredentialSecret(id);
     if (res.code === 200) {
       message.success('Secret已重置');
       const row = res.data as ThirdPartyCredential;
@@ -232,7 +247,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
       }
       setLatestSecret({
         apiKey: row.apiKey,
-        apiSecret: row.apiSecret,
+        apiSecret: row.apiSecret || '',
       });
       setSecretVisible(true);
       fetchData();
@@ -268,6 +283,24 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
     { type: 'divider' },
     { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除', onClick: () => confirmDelete(r.id) },
   ];
+
+  const boundAppIds = (row: ThirdPartyCredential) => row.appIds?.length ? row.appIds : [row.appId];
+  // 保留已绑定但不在当前应用列表中的项目，避免打开编辑表单后无意移除授权。
+  const applicationOptions = [
+    ...apps.map((app) => ({ label: `${app.appName} (#${app.id})`, value: app.id })),
+    ...[...new Set(editingCredential ? boundAppIds(editingCredential) : [])]
+      .filter((id) => !apps.some((app) => app.id === id))
+      .map((id) => ({ label: `应用 #${id}（不可用）`, value: id })),
+  ];
+  const renderBoundApps = (row: ThirdPartyCredential) => (
+    <Space size={[4, 4]} wrap>
+      {boundAppIds(row).map((id) => (
+        <Tag key={id} style={{ marginInlineEnd: 0 }}>
+          {apps.find((app) => app.id === id)?.appName || '应用'} #{id}
+        </Tag>
+      ))}
+    </Space>
+  );
 
   return (
     <Card styles={{ body: { padding: isMobile ? 12 : 24 } }}>
@@ -308,6 +341,10 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           </Space>
         )}
       </div>
+
+      <Alert type="info" showIcon style={{ marginBottom: 16 }}
+        message="同一组充值 Key 可授权多个应用"
+        description="每次请求只为 projectKey 指定应用的用户加时。调用额度由整组凭证共享；相同订单号在同一 Key 下仅处理一次。" />
 
       {/* 搜索和筛选 */}
       <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' } : { marginBottom: 16 }}>
@@ -403,6 +440,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
                       Key: {r.apiKey.substring(0, 16)}...
                     </Text>
                   )}
+                  <div style={{ marginTop: 6 }}>{renderBoundApps(r)}</div>
                   <div className="mgmt-mobile-card-meta" style={{ marginTop: 4 }}>
                     <Text type="secondary">日限: {r.dailyLimit ?? '-'}</Text>
                     <Text type="secondary">|</Text>
@@ -410,7 +448,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
                   </div>
                 </div>
                 <Dropdown menu={{ items: getCredentialMenuItems(r) }} trigger={['click']}>
-                  <Button type="text" size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
+                  <Button aria-label="更多操作" type="text" size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
                 </Dropdown>
               </div>
             </div>
@@ -429,7 +467,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           }}
           columns={[
             { title: 'ID', dataIndex: 'id', width: 80 },
-            { title: '应用ID', dataIndex: 'appId', width: 90 },
+            { title: '绑定应用', key: 'appIds', width: 240, render: (_, row) => renderBoundApps(row) },
             { title: '凭证名称', dataIndex: 'name', width: 180 },
             {
               title: 'API Key',
@@ -474,7 +512,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
               title: '操作', width: 90, fixed: 'right', align: 'center' as const,
               render: (_, r) => (
                 <Dropdown menu={{ items: getCredentialMenuItems(r) }} trigger={['click']}>
-                  <Button type="text" size="small" icon={<MoreOutlined />} />
+                  <Button aria-label="更多操作" type="text" size="small" icon={<MoreOutlined />} />
                 </Dropdown>
               ),
             },
@@ -498,7 +536,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           footer={
             <>
               <Button onClick={() => { setModalVisible(false); setEditingCredential(null); }} style={{ flex: 1, height: 44, borderRadius: 10 }}>取消</Button>
-              <Button type="primary" onClick={onCreate} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
+              <Button type="primary" loading={saving} onClick={onCreate} style={{ flex: 1, height: 44, borderRadius: 10 }}>确定</Button>
             </>
           }
         >
@@ -507,11 +545,15 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             layout="vertical"
             initialValues={{ status: 1 }}
           >
-            <Form.Item name="appId" label="绑定应用" rules={[{ required: true, message: '请选择应用' }]}>
+            <Form.Item name="appIds" label="授权应用" rules={[{ required: true, type: 'array', min: 1, max: 100, message: '请选择1至100个应用' }]}
+              extra="每次充值仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
               <Select
-                options={apps.map((a) => ({ label: `${a.appName} (#${a.id})`, value: a.id }))}
-                placeholder="请选择应用"
-                disabled={!!editingCredential}
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                maxTagCount="responsive"
+                options={applicationOptions}
+                placeholder="可搜索并选择多个应用"
               />
             </Form.Item>
             <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
@@ -520,15 +562,15 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
               <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
             </Form.Item>
-            <Space style={{ width: '100%' }} align="start">
+            <Space wrap style={{ width: '100%' }} align="start">
               <Form.Item name="dailyLimit" label="每日调用上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
               <Form.Item name="totalCallLimit" label="总调用上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
               <Form.Item name="totalDaysLimit" label="总消费天数上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
             </Space>
             <Form.Item name="status" label="状态">
@@ -542,7 +584,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="remark" label="备注">
               <Input.TextArea rows={3} maxLength={500} />
             </Form.Item>
-            <Text type="secondary">创建后会生成 API Key。API Secret 默认不展示，请通过"重置密钥"查看并复制。</Text>
+            <Text type="secondary">创建后会展示一次 API Key / Secret，请立即保存。编辑授权应用不会改变原密钥。</Text>
           </Form>
         </M5BottomSheet>
       ) : (
@@ -554,6 +596,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             setEditingCredential(null);
           }}
           onOk={onCreate}
+          confirmLoading={saving}
           width={720}
         >
           <Form
@@ -561,11 +604,15 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             layout="vertical"
             initialValues={{ status: 1 }}
           >
-            <Form.Item name="appId" label="绑定应用" rules={[{ required: true, message: '请选择应用' }]}>
+            <Form.Item name="appIds" label="授权应用" rules={[{ required: true, type: 'array', min: 1, max: 100, message: '请选择1至100个应用' }]}
+              extra="每次充值仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
               <Select
-                options={apps.map((a) => ({ label: `${a.appName} (#${a.id})`, value: a.id }))}
-                placeholder="请选择应用"
-                disabled={!!editingCredential}
+                mode="multiple"
+                showSearch
+                optionFilterProp="label"
+                maxTagCount="responsive"
+                options={applicationOptions}
+                placeholder="可搜索并选择多个应用"
               />
             </Form.Item>
             <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
@@ -574,15 +621,15 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
               <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
             </Form.Item>
-            <Space style={{ width: '100%' }} align="start">
+            <Space wrap style={{ width: '100%' }} align="start">
               <Form.Item name="dailyLimit" label="每日调用上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
               <Form.Item name="totalCallLimit" label="总调用上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
               <Form.Item name="totalDaysLimit" label="总消费天数上限">
-                <InputNumber min={1} style={{ width: 180 }} />
+                <InputNumber min={1} style={{ width: isMobile ? 120 : 180 }} />
               </Form.Item>
             </Space>
             <Form.Item name="status" label="状态">
@@ -596,12 +643,12 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="remark" label="备注">
               <Input.TextArea rows={3} maxLength={500} />
             </Form.Item>
-            <Text type="secondary">创建后会生成 API Key。API Secret 默认不展示，请通过"重置密钥"查看并复制。</Text>
+            <Text type="secondary">创建后会展示一次 API Key / Secret，请立即保存。编辑授权应用不会改变原密钥。</Text>
           </Form>
         </Modal>
       )}
       <Modal
-        title="已重置密钥（仅本次可见）"
+        title="充值密钥（请立即保存）"
         open={secretVisible}
         onCancel={() => setSecretVisible(false)}
         footer={[
@@ -615,7 +662,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           type="warning"
           showIcon
           message="请立即复制并妥善保存"
-          description="关闭弹窗后将不再展示明文 API Secret。"
+          description="刷新页面后无法再次查看明文 Secret。若未保存，需要重置密钥并更新调用方配置。"
         />
         <Divider style={{ margin: '16px 0' }} />
         <Space direction="vertical" style={{ width: '100%' }} size={14}>

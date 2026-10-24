@@ -10,14 +10,14 @@ const AdminOrderPage: React.FC = () => {
   const [orders, setOrders] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => { fetchOrders(); }, []);
-
   const fetchOrders = () => {
     fetch('/api/admin/payment/orders?page=1&size=50', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setOrders(data.data?.records || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
+
+  React.useEffect(() => { fetchOrders(); }, []);
 
   const handleGrant = async (orderId: number) => {
     const res = await fetch(`/api/admin/payment/grant?orderId=${orderId}`, { method: 'POST', credentials: 'include' });

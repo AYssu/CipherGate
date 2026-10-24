@@ -11,6 +11,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 
 @Configuration
 @EnableWebSecurity
@@ -20,10 +24,20 @@ public class PortalSecurityConfig {
     private final PortalJwtAuthenticationFilter portalJwtFilter;
 
     @Bean
+    public FilterRegistrationBean<PortalJwtAuthenticationFilter> portalJwtServletRegistration() {
+        var registration = new FilterRegistrationBean<>(portalJwtFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     @Order(1)
     public SecurityFilterChain portalFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/portal/**")
+            .securityMatcher(new AndRequestMatcher(
+                PathPatternRequestMatcher.withDefaults().matcher("/api/portal/**"),
+                new NegatedRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher("/api/portal/admin/**")),
+                new NegatedRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher("/api/portal/epay-config/**"))))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -35,7 +49,7 @@ public class PortalSecurityConfig {
                     "/api/portal/payment/notify",
                     "/api/portal/payment/return"
                 ).permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().hasRole("PORTAL_USER")
             )
             .addFilterBefore(portalJwtFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

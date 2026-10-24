@@ -10,6 +10,6 @@ public class DashboardOnlineDTO {
     @Schema(description = "近期活跃卡密数量（last_used_at 最近5分钟，兼容字段名；不代表实时在线）")
     private long cardOnlineCount;
 
-    @Schema(description = "当前在线终端用户数量（WS 会话在线）")
+    @Schema(description = "在线终端用户数量（WS 会话或 HTTP 最近5分钟活跃，按用户去重）")
     private long appUserOnlineCount;
 }

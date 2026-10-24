@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import com.ayssu.ciphergate.util.AuthUtils;
+import com.ayssu.ciphergate.util.SecurityUtils;
 
 @Slf4j
 @RestController
@@ -24,11 +26,13 @@ public class PortalEpayConfigController {
 
     private final ApplicationEpayConfigMapper epayConfigMapper;
     private final ApplicationMapper applicationMapper;
+    private final SecurityUtils securityUtils;
 
     @GetMapping("/{appId}")
     @RequirePermission("APP_DETAIL")
     @Operation(summary = "获取应用易支付配置")
     public Result<ApplicationEpayConfig> getConfig(@PathVariable Long appId) {
+        requireApplicationOwnerOrAdmin(appId);
         ApplicationEpayConfig config = epayConfigMapper.selectOne(
             new LambdaQueryWrapper<ApplicationEpayConfig>()
                 .eq(ApplicationEpayConfig::getAppId, appId)
@@ -40,6 +44,7 @@ public class PortalEpayConfigController {
     @RequirePermission("APP_UPDATE")
     @Operation(summary = "保存应用易支付配置")
     public Result<Void> saveConfig(@PathVariable Long appId, @RequestBody Map<String, String> body) {
+        requireApplicationOwnerOrAdmin(appId);
         ApplicationEpayConfig config = epayConfigMapper.selectOne(
             new LambdaQueryWrapper<ApplicationEpayConfig>()
                 .eq(ApplicationEpayConfig::getAppId, appId)
@@ -71,6 +76,10 @@ public class PortalEpayConfigController {
     @RequirePermission("CONFIG_UPDATE")
     @Operation(summary = "超级管理员开启/关闭应用购买功能")
     public Result<Void> togglePayment(@PathVariable Long appId, @RequestBody Map<String, Boolean> body) {
+        var operator = AuthUtils.getCurrentUser();
+        if (operator == null || !securityUtils.isSuperAdmin(operator.getId())) {
+            throw new SecurityException("仅超级管理员可开启或关闭应用购买功能");
+        }
         Boolean enabled = body.get("enabled");
         Application app = applicationMapper.selectById(appId);
         if (app == null) {
@@ -92,5 +101,15 @@ public class PortalEpayConfigController {
 
         log.info("应用购买功能状态变更: appId={}, enabled={}", appId, enabled);
         return Result.success(enabled ? "已开启" : "已关闭", null);
+    }
+
+    private void requireApplicationOwnerOrAdmin(Long appId) {
+        var operator = AuthUtils.getCurrentUser();
+        if (operator == null) throw new SecurityException("用户未登录");
+        Application app = applicationMapper.selectById(appId);
+        if (app == null) throw new IllegalArgumentException("应用不存在");
+        if (!operator.getId().equals(app.getOwnerId()) && !securityUtils.isAdmin(operator.getId())) {
+            throw new SecurityException("无权限访问此应用支付配置");
+        }
     }
 }

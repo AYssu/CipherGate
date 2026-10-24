@@ -1,15 +1,15 @@
 services:
   mysql:
-    image: mysql:8.0
+    # Existing deployments keep MySQL 8.0 unless an operator explicitly selects 8.4.
+    image: ${MYSQL_IMAGE:-mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b}
     container_name: ciphergate-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run python3 setup-env.py and keep existing .env when upgrading}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run python3 setup-env.py and keep existing .env when upgrading}
     command:
-      - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
       - --sort_buffer_size=4M
@@ -26,39 +26,42 @@ services:
       - --table_open_cache=384
       - --max_connections=300
     ports:
-      - "${MYSQL_PORT:-13306}:3306"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${MYSQL_PORT:-13306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h localhost -uroot --silent"]
       interval: 10s
       timeout: 5s
       retries: 20
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
     container_name: ciphergate-redis
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set an independent Redis password}
+    command: ["/bin/sh", "-c", 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
     ports:
-      - "${REDIS_PORT_HOST:-16379}:6379"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${REDIS_PORT_HOST:-16379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 3s
       retries: 20
 
   rabbitmq:
-    image: rabbitmq:3.12-management-alpine
+    image: rabbitmq:3.12-management-alpine@sha256:0b44fbcc3a4bf22d00090f1353127577dbe1fcb109c41669733a9d7ecf6c3a78
     container_name: ciphergate-rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-rabbitmq}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set an independent RabbitMQ password}
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_PORT:-5672}:5672"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_MGMT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -69,16 +72,16 @@ services:
       start_period: 30s
 
   minio:
-    image: minio/minio:latest
+    image: pgsty/silo:RELEASE.2026-10-18T00-00-00Z@sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7
     container_name: ciphergate-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Run python3 setup-env.py and keep existing .env when upgrading}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Run python3 setup-env.py and keep existing .env when upgrading}
     ports:
-      - "${MINIO_API_PORT:-19000}:9000"
-      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-19000}:9000"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-19001}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -88,7 +91,7 @@ services:
       retries: 20
 
   backend:
-    image: eclipse-temurin:17-jre-alpine
+    image: eclipse-temurin:17-jre-alpine@sha256:c4a33e6ddb738fe4be0a28a613ea0940cec42d25d7263c3e2238c43354cb19b0
     container_name: ciphergate-backend
     restart: unless-stopped
     working_dir: /app
@@ -108,35 +111,52 @@ services:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      CIPHERGATE_ADOPT_LEGACY_DATABASE: ${CIPHERGATE_ADOPT_LEGACY_DATABASE:-false}
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?Run python3 setup-env.py and keep existing .env when upgrading}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set an independent Redis password}
+      PORTAL_JWT_SECRET: ${PORTAL_JWT_SECRET:?Generate an independent signing key with setup-env.py}
+      APP_SESSION_COOKIE_SECURE: ${APP_SESSION_COOKIE_SECURE:-true}
+      APP_BACKEND_PUBLIC_BASE_URL: ${APP_BACKEND_PUBLIC_BASE_URL:-}
+      THIRD_PARTY_PUBLIC_BASE_URL: ${THIRD_PARTY_PUBLIC_BASE_URL:-}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-rabbitmq}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set an independent RabbitMQ password}
       MINIO_ENABLED: "true"
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Run python3 setup-env.py and keep existing .env when upgrading}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Run python3 setup-env.py and keep existing .env when upgrading}
       MINIO_BUCKET: ${MINIO_BUCKET}
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     volumes:
       - ./app/app.jar:/app/app.jar:ro
       - ./logs:/app/logs
 
   frontend:
-    image: nginx:alpine
+    image: nginx:stable-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951
     container_name: ciphergate-frontend
     restart: unless-stopped
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     environment:
       BACKEND_CONTAINER_PORT: 8080
     command: >

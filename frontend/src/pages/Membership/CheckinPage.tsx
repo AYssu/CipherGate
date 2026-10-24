@@ -15,13 +15,9 @@ const CheckinPage: React.FC = () => {
   const isMobile = !screens.md;
 
   const [status, setStatus] = React.useState<any>(null);
-  const [_loading, setLoading] = React.useState(true);
+  const [, setLoading] = React.useState(true);
   const [checkinLoading, setCheckinLoading] = React.useState(false);
   const [rewardResult, setRewardResult] = React.useState<any>(null);
-
-  React.useEffect(() => {
-    fetchStatus();
-  }, []);
 
   const fetchStatus = () => {
     fetch('/api/user/checkin/status', { credentials: 'include' })
@@ -32,6 +28,10 @@ const CheckinPage: React.FC = () => {
       })
       .catch(() => setLoading(false));
   };
+
+  React.useEffect(() => {
+    fetchStatus();
+  }, []);
 
   const handleCheckin = async () => {
     setCheckinLoading(true);

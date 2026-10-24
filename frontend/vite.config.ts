@@ -8,7 +8,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // 后端服务地址
+        target: process.env.CIPHERGATE_API_TARGET || 'http://localhost:8080', // 后端服务地址
         changeOrigin: true,
         // 后端接口路径包含 /api 前缀，所以不需要 rewrite
         // rewrite: (path) => path.replace(/^\/api/, '')

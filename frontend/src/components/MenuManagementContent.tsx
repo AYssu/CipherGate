@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -202,7 +202,7 @@ const MenuManagementContent: React.FC = () => {
     }));
   };
 
-  const allColumns = useMemo(() => [
+  const allColumns = [
     {
       title: '菜单名称',
       dataIndex: 'menuName',
@@ -306,7 +306,7 @@ const MenuManagementContent: React.FC = () => {
         );
       },
     },
-  ], [isMobile]);
+  ];
 
   const MOBILE_VISIBLE_KEYS = ['menuName', 'menuType', 'status', 'action'];
   const columns = isMobile

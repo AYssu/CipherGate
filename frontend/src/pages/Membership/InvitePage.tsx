@@ -14,16 +14,11 @@ const InvitePage: React.FC = () => {
   const [bindCode, setBindCode] = React.useState('');
   const [binding, setBinding] = React.useState(false);
 
-  React.useEffect(() => {
-    fetchStats();
-    fetchRecords();
-  }, []);
-
   const fetchStats = async () => {
     try {
       const res: any = await inviteApi.getInviteStats();
       if (res.success) setStats(res.data);
-    } catch {}
+    } catch { /* Request interceptor reports errors. */ }
   };
 
   const fetchRecords = async () => {
@@ -31,9 +26,14 @@ const InvitePage: React.FC = () => {
     try {
       const res: any = await inviteApi.getInviteRecords(1, 20);
       if (res.success) setRecords(res.data?.records || []);
-    } catch {}
+    } catch { /* Request interceptor reports errors. */ }
     setLoading(false);
   };
+
+  React.useEffect(() => {
+    fetchStats();
+    fetchRecords();
+  }, []);
 
   const copyInviteCode = () => {
     if (stats.inviteCode) {
@@ -56,7 +56,7 @@ const InvitePage: React.FC = () => {
         setBindCode('');
         fetchStats();
       }
-    } catch {}
+    } catch { /* Request interceptor reports errors. */ }
     setBinding(false);
   };
 

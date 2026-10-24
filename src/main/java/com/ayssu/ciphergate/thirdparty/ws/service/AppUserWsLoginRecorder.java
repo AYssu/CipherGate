@@ -12,7 +12,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 
 /**
- * WS 登录成功后写入：登录次数、最后登录时间/IP、最后登录设备标识。
+ * 账号登录成功后写入（WS 与 HTTP 共用计数逻辑）：登录次数、最后登录时间/IP、最后登录设备标识。
  */
 @Service
 @RequiredArgsConstructor
@@ -23,6 +23,17 @@ public class AppUserWsLoginRecorder {
 
     @Transactional(rollbackFor = Exception.class)
     public void recordSuccessfulLogin(Long appId, Long appUserId, String clientIp, String deviceId) {
+        updateLoginDetails(appId, appUserId, clientIp, deviceId);
+        accessEventService.recordAppUserWsLogin(appId, appUserId);
+    }
+
+    /** HTTP 流水由调用方在变量渲染成功后记录，不冒充 WS AUTH。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void recordSuccessfulHttpLogin(Long appId, Long appUserId, String clientIp, String deviceId) {
+        updateLoginDetails(appId, appUserId, clientIp, deviceId);
+    }
+
+    private void updateLoginDetails(Long appId, Long appUserId, String clientIp, String deviceId) {
         if (appUserId == null) {
             return;
         }
@@ -32,6 +43,7 @@ public class AppUserWsLoginRecorder {
 
         LambdaUpdateWrapper<AppUser> uw = new LambdaUpdateWrapper<AppUser>()
                 .eq(AppUser::getId, appUserId)
+                .eq(AppUser::getAppId, appId)
                 .setSql("login_count = COALESCE(login_count, 0) + 1")
                 .set(AppUser::getLastLoginAt, now)
                 .set(AppUser::getLastLoginIp, ip.isEmpty() ? null : ip)
@@ -40,6 +52,5 @@ public class AppUserWsLoginRecorder {
             uw.set(AppUser::getLastDeviceId, dev);
         }
         appUserMapper.update(null, uw);
-        accessEventService.recordAppUserWsLogin(appId, appUserId);
     }
 }

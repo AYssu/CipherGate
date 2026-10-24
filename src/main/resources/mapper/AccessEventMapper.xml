@@ -12,10 +12,17 @@
         </choose>
     </sql>
     <sql id="loginEvents">
-        e.event_type IN ('CARD_LOGIN', 'CARD_LOGIN_FREE')
+        e.event_type IN ('CARD_LOGIN', 'CARD_LOGIN_FREE', 'APP_USER_HTTP_LOGIN')
     </sql>
     <select id="selectLoginStats" resultType="com.ayssu.ciphergate.dto.DashboardAccessStatsDTO">
         SELECT
+            COALESCE(SUM(e.event_type = 'APP_USER_HTTP_LOGIN' AND e.created_at &gt;= #{todayStart}), 0) AS user_login_today,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'APP_USER_HTTP_LOGIN' AND e.ref_id &gt; 0
+                AND e.created_at &gt;= #{todayStart} THEN CONCAT(e.app_id, ':', e.ref_id) END) AS active_user_today,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'APP_USER_HTTP_LOGIN' AND e.ref_id &gt; 0
+                THEN CONCAT(e.app_id, ':', e.ref_id) END) AS active_user7d,
+            COUNT(DISTINCT CASE WHEN e.event_type = 'APP_USER_HTTP_LOGIN' AND e.ref_id &gt; 0
+                AND e.created_at &gt;= #{recentCutoff} THEN CONCAT(e.app_id, ':', e.ref_id) END) AS recent_user_count,
             COALESCE(SUM(e.event_type = 'CARD_LOGIN' AND e.created_at &gt;= #{todayStart}), 0) AS paid_card_login_today,
             COALESCE(SUM(e.event_type = 'CARD_LOGIN_FREE' AND e.created_at &gt;= #{todayStart}), 0) AS free_login_today,
             COUNT(DISTINCT CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0
@@ -45,8 +52,10 @@
     </select>
     <select id="selectRecentLogins" resultType="com.ayssu.ciphergate.dto.DashboardAccessRecordDTO">
         SELECT e.id, e.app_id, a.app_name AS app_name,
-            CASE WHEN e.event_type = 'CARD_LOGIN' THEN 'CARD' ELSE 'VISITOR' END AS identity_type,
+            CASE WHEN e.event_type = 'CARD_LOGIN' THEN 'CARD'
+                 WHEN e.event_type = 'APP_USER_HTTP_LOGIN' THEN 'USER' ELSE 'VISITOR' END AS identity_type,
             CASE WHEN e.event_type = 'CARD_LOGIN' AND e.ref_id &gt; 0 THEN CONCAT('card_', e.ref_id)
+                 WHEN e.event_type = 'APP_USER_HTTP_LOGIN' AND e.ref_id &gt; 0 THEN CONCAT('user_', e.ref_id)
                  WHEN e.event_type = 'CARD_LOGIN_FREE' AND e.device_hash IS NOT NULL
                     THEN CONCAT('visitor_', e.device_hash) END AS identity_id,
             e.device_hash, e.client_ip, e.created_at

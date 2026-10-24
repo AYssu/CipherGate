@@ -3,7 +3,6 @@ package com.ayssu.ciphergate.service;
 import com.ayssu.ciphergate.dto.DashboardAccessRecordDTO;
 import com.ayssu.ciphergate.dto.DashboardAccessStatsDTO;
 import com.ayssu.ciphergate.mapper.*;
-import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +22,7 @@ class DashboardAccessStatsTest {
     void setUp() {
         events = mock(AccessEventMapper.class);
         stats = new DashboardStatsService(mock(LicenseKeyMapper.class), mock(AppUserMapper.class), events,
-                mock(ActivityLogMapper.class), mock(AppUserWsPresenceRegistry.class));
+                mock(ActivityLogMapper.class), mock(AppUserPresenceService.class));
     }
 
     @Test

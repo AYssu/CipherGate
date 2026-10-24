@@ -107,7 +107,7 @@ const UserManagementContent: React.FC = () => {
   }, [keyword, roleFilter, statusFilter, users]);
 
   // 用户表格列定义
-  const allUserColumns = useMemo(() => [
+  const allUserColumns = [
     {
       title: '用户',
       key: 'user',
@@ -240,7 +240,7 @@ const UserManagementContent: React.FC = () => {
         );
       },
     },
-  ], [isMobile]);
+  ];
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);

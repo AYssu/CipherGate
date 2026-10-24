@@ -264,6 +264,21 @@ public class ApplicationController {
         return Result.success(applicationService.getEncryptionTemplate(pluginId));
     }
 
+    @GetMapping("/{id}/update-package/download")
+    @RequirePermission("APP_DETAIL")
+    @Operation(summary = "下载应用更新包")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.InputStreamResource> downloadUpdatePackage(
+            @PathVariable Long id) {
+        var download = applicationService.downloadUpdatePackage(id, getCurrentUser().getId());
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-store")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        org.springframework.http.ContentDisposition.attachment()
+                                .filename(download.filename(), java.nio.charset.StandardCharsets.UTF_8).build().toString())
+                .body(new org.springframework.core.io.InputStreamResource(download.stream()));
+    }
+
     @PostMapping(value = "/{id}/update-package", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @RequirePermission("APP_UPDATE")
     @ActivityLog(actionType = "UPDATE", actionTarget = "APPLICATION", description = "上传应用更新包到 MinIO")

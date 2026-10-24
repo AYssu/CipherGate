@@ -1,0 +1,32 @@
+# Only used by tests explicitly activating the test profile. Never use production data here.
+spring:
+  datasource:
+    url: ${CIPHERGATE_BOOT_JDBC_URL:jdbc:mysql://127.0.0.1:3306/ciphergate_boot_test?allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${CIPHERGATE_BOOT_JDBC_USER:root}
+    password: ${CIPHERGATE_BOOT_JDBC_PASSWORD:}
+  docker:
+    compose:
+      enabled: false
+  data:
+    redis:
+      host: ${CIPHERGATE_TEST_REDIS_HOST:127.0.0.1}
+      port: ${CIPHERGATE_TEST_REDIS_PORT:6379}
+      database: 15
+      password: ${CIPHERGATE_TEST_REDIS_PASSWORD:}
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+      direct:
+        auto-startup: false
+app:
+  database:
+    adopt-legacy: false
+  minio:
+    enabled: false
+portal:
+  jwt:
+    secret: ciphergate-automated-test-signing-key-only-123456789
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

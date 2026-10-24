@@ -23,6 +23,7 @@ import {
   Grid,
   Pagination,
   Alert,
+  Progress,
   type MenuProps,
 } from 'antd';
 import {
@@ -44,6 +45,8 @@ import {
   DatabaseOutlined,
   SafetyOutlined,
   UploadOutlined,
+  DownloadOutlined,
+  FileZipOutlined,
   SlidersOutlined,
   TeamOutlined,
   SyncOutlined,
@@ -114,6 +117,8 @@ const ApplicationManagementContent: React.FC = () => {
   }>>([]);
   const [selectedPluginId, setSelectedPluginId] = useState<string>('');
   const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
+  const [updatePackageProgress, setUpdatePackageProgress] = useState(0);
+  const [updatePackageName, setUpdatePackageName] = useState('');
   const [agentModalVisible, setAgentModalVisible] = useState(false);
   const [agentLoading, setAgentLoading] = useState(false);
   const [agentSaving, setAgentSaving] = useState(false);
@@ -224,13 +229,19 @@ const ApplicationManagementContent: React.FC = () => {
 
   const handleUploadUpdatePackage = async (file: File) => {
     if (!editingApp) return;
+    if (file.size > 512 * 1024 * 1024) {
+      message.warning('更新包不能超过 512MB，请压缩后重试');
+      return;
+    }
+    setUpdatePackageProgress(0);
+    setUpdatePackageName(file.name);
     setUpdatePackageUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res: any = await uploadApplicationUpdatePackage(editingApp.id, fd);
+      const res: any = await uploadApplicationUpdatePackage(editingApp.id, fd, setUpdatePackageProgress);
       if (res.code === 200 && res.data) {
-        message.success('更新包已上传到 MinIO');
+        message.success('更新包上传成功');
         setEditingApp({ ...editingApp, ...res.data });
         fetchApplications(pagination.current, pagination.pageSize);
       } else {
@@ -242,6 +253,39 @@ const ApplicationManagementContent: React.FC = () => {
       setUpdatePackageUploading(false);
     }
   };
+
+  const packageFilename = editingApp?.updateFileStorageKey?.split('/').pop()?.replace(/^[0-9a-f-]{36}_/i, '');
+  const updatePackageField = (
+    <Form.Item label="更新包">
+      <div style={{ border: '1px solid var(--ant-color-border, #d9d9d9)', borderRadius: 8, padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <FileZipOutlined style={{ fontSize: 24, marginTop: 4 }} />
+          <div style={{ display: 'grid', gap: 4, minWidth: 0, flex: 1 }}>
+            <Text strong style={{ overflowWrap: 'anywhere' }}>
+              {updatePackageUploading ? updatePackageName : packageFilename || '尚未上传更新包'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {!editingApp ? '先保存应用，再上传更新包。' : updatePackageUploading
+                ? updatePackageProgress >= 100 ? '文件已发送，正在保存，请稍候…' : '正在上传，请保持页面打开。'
+                : '单个文件最大 512MB；替换后将使用新的更新包。上传成功即生效。'}
+            </Text>
+          </div>
+        </div>
+        {updatePackageUploading && <Progress percent={updatePackageProgress} status="active" style={{ marginTop: 12 }} />}
+        <Space wrap style={{ marginTop: 12 }}>
+          <Upload maxCount={1} showUploadList={false} disabled={!editingApp || updatePackageUploading}
+            beforeUpload={(file) => { void handleUploadUpdatePackage(file as File); return false; }}>
+            <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp || updatePackageUploading}>
+              {updatePackageUploading ? '上传中' : packageFilename ? '替换更新包' : '上传更新包'}
+            </Button>
+          </Upload>
+          {packageFilename && <Button icon={<DownloadOutlined />} disabled={updatePackageUploading}
+            href={updatePackageUploading ? undefined : `/api/applications/${editingApp!.id}/update-package/download`}
+            download={packageFilename}>下载更新包</Button>}
+        </Space>
+      </div>
+    </Form.Item>
+  );
 
   // 提交表单
   const handleSubmit = async () => {
@@ -1371,39 +1415,7 @@ const ApplicationManagementContent: React.FC = () => {
               />
             </Form.Item>
 
-            <Form.Item
-              label="更新包"
-              tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
-            >
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                <Upload
-                  maxCount={1}
-                  showUploadList={false}
-                  disabled={!editingApp || updatePackageUploading}
-                  beforeUpload={(file) => {
-                    if (!editingApp) {
-                      message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
-                      return Upload.LIST_IGNORE;
-                    }
-                    void handleUploadUpdatePackage(file as File);
-                    return false;
-                  }}
-                >
-                  <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
-                    上传到 MinIO
-                  </Button>
-                </Upload>
-                {editingApp?.updateFileStorageKey ? (
-                  <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
-                    当前对象键：{editingApp.updateFileStorageKey}
-                  </Text>
-                ) : editingApp ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    尚未上传更新包
-                  </Text>
-                ) : null}
-              </Space>
-            </Form.Item>
+            {updatePackageField}
           </Form>
         </M5BottomSheet>
       ) : (
@@ -1636,39 +1648,7 @@ const ApplicationManagementContent: React.FC = () => {
               />
             </Form.Item>
 
-            <Form.Item
-              label="更新包"
-              tooltip="仅编辑已保存的应用时可上传至 MinIO（与插件同一桶）；单文件最大 512MB，新上传会替换旧对象。"
-            >
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                <Upload
-                  maxCount={1}
-                  showUploadList={false}
-                  disabled={!editingApp || updatePackageUploading}
-                  beforeUpload={(file) => {
-                    if (!editingApp) {
-                      message.warning('请先创建并保存应用后，再通过「编辑」上传更新包');
-                      return Upload.LIST_IGNORE;
-                    }
-                    void handleUploadUpdatePackage(file as File);
-                    return false;
-                  }}
-                >
-                  <Button icon={<UploadOutlined />} loading={updatePackageUploading} disabled={!editingApp}>
-                    上传到 MinIO
-                  </Button>
-                </Upload>
-                {editingApp?.updateFileStorageKey ? (
-                  <Text type="secondary" copyable style={{ fontSize: 12, wordBreak: 'break-all' as const }}>
-                    当前对象键：{editingApp.updateFileStorageKey}
-                  </Text>
-                ) : editingApp ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    尚未上传更新包
-                  </Text>
-                ) : null}
-              </Space>
-            </Form.Item>
+            {updatePackageField}
           </Form>
         </Modal>
       )}

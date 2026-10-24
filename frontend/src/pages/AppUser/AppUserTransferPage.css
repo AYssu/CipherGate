@@ -1,0 +1,86 @@
+/* 仅影响用户迁移页，沿用管理页面的主题、控件尺寸与移动卡片。 */
+.app-user-transfer .transfer-page-content { display: flex; flex-direction: column; gap: 24px; }
+.app-user-transfer .transfer-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.app-user-transfer .transfer-heading > div { min-width: 0; }
+.app-user-transfer .transfer-heading > button { flex-shrink: 0; }
+.app-user-transfer .transfer-heading h4,
+.app-user-transfer .transfer-heading h5 { margin-bottom: 6px !important; }
+.app-user-transfer .transfer-config {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--transfer-border);
+}
+.app-user-transfer .transfer-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+  margin: 20px 0 12px;
+}
+.app-user-transfer .transfer-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 240px;
+}
+.app-user-transfer .transfer-mode .ant-segmented { width: 200px; }
+.app-user-transfer .transfer-mode .ant-segmented-item {
+  border-radius: 4px;
+}
+.app-user-transfer .transfer-overwrite { min-width: 220px; padding-top: 1px; }
+.app-user-transfer .transfer-overwrite > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.app-user-transfer .transfer-rules .ant-collapse-header { padding: 8px 0 !important; }
+.app-user-transfer .transfer-rules .ant-collapse-content-box { padding: 0 0 8px !important; }
+.app-user-transfer .transfer-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.app-user-transfer .transfer-search-row { display: flex; align-items: center; gap: 8px; }
+.app-user-transfer .transfer-search-row > .ant-input-affix-wrapper { width: 320px; min-width: 0; }
+.app-user-transfer .transfer-search-row > button,
+.app-user-transfer .transfer-search-row > .ant-badge { flex-shrink: 0; }
+.app-user-transfer .transfer-active-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.app-user-transfer .transfer-active-filters .ant-tag { margin: 0; white-space: normal; overflow-wrap: anywhere; }
+.app-user-transfer .transfer-selection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin: 16px 0 12px;
+  border: 1px solid var(--transfer-selected-border);
+  border-radius: 6px;
+  background: var(--transfer-selected-bg);
+}
+.app-user-transfer .transfer-selection-bar > div { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.app-user-transfer .transfer-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.app-user-transfer .transfer-footer > button { flex-shrink: 0; }
+.transfer-filter-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 767px) {
+  .app-user-transfer .transfer-page-content { gap: 16px; }
+  .app-user-transfer .transfer-config .ant-col { margin-bottom: 0; }
+  .app-user-transfer .transfer-options { gap: 16px; margin-top: 16px; }
+  .app-user-transfer .transfer-mode { min-width: 0; width: 100%; flex-basis: 100%; align-items: stretch; }
+  .app-user-transfer .transfer-mode .ant-segmented { width: 100%; }
+  .app-user-transfer .transfer-overwrite { width: 100%; min-width: 0; }
+  .app-user-transfer .transfer-search-row > .ant-input-affix-wrapper { flex: 1; width: auto; }
+  .app-user-transfer .transfer-selection-bar { padding: 8px; }
+  .app-user-transfer .transfer-selection-bar > div { gap: 8px; }
+  .app-user-transfer .transfer-footer { flex-direction: column; align-items: stretch; gap: 12px; }
+  .app-user-transfer .transfer-footer > button { width: 100%; }
+}

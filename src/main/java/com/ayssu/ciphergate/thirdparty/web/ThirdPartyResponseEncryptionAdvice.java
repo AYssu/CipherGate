@@ -4,6 +4,8 @@ import com.ayssu.ciphergate.common.Result;
 import com.ayssu.ciphergate.thirdparty.auth.ThirdPartyHeaders;
 import com.ayssu.ciphergate.thirdparty.auth.ThirdPartySignatureVerifier;
 import com.ayssu.ciphergate.thirdparty.crypto.CryptoRuntimeService;
+import com.ayssu.ciphergate.thirdparty.crypto.AesDefaultCryptoPlugin;
+import com.ayssu.ciphergate.thirdparty.dto.UserLoginResponse;
 import com.ayssu.ciphergate.thirdparty.crypto.CryptoEncryptedPayload;
 import com.ayssu.ciphergate.thirdparty.dto.ThirdPartyEncryptedData;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -76,6 +78,12 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
             plainMap = new LinkedHashMap<>();
         }
         plainMap = normalizeTemporalFields(plainMap);
+        // 新账号接口的昵称、用户名及变量可能含 &/=，不能按 canonical 拆分成其他授权字段。
+        // 仅为默认 AES 的新响应启用 JSON 明文；卡密及其他加密插件的协议保持不变。
+        if (r.getData() instanceof UserLoginResponse
+                && (pluginId == null || pluginId.isBlank() || "aes-default".equals(pluginId))) {
+            plainMap.put(AesDefaultCryptoPlugin.PLAINTEXT_FORMAT_KEY, "json");
+        }
 
         CryptoEncryptedPayload payload = cryptoRuntimeService.encryptPayloadFromMap(pluginId, plainMap, encryptionConfig);
         ThirdPartyEncryptedData encryptedData = new ThirdPartyEncryptedData();

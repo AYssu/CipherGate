@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'antd';
 import { BgColorsOutlined } from '@ant-design/icons';
-import { useTheme, THEME_PRESETS } from '../theme';
+import { useTheme, THEME_PRESETS } from '../theme/context';
 
 const ThemeSwitcher: React.FC = () => {
   const { themeKey, setTheme } = useTheme();

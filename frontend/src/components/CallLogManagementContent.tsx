@@ -4,8 +4,27 @@ import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getThirdPartyRechargeLogList, type ThirdPartyRechargeLog } from '../services/callLogService';
 import { getApplicationList, type Application } from '../services/applicationService';
 import M5BottomSheet from './M5BottomSheet';
+import { getRechargeSignatureStatus } from '../utils/rechargeSignatureStatus';
+import type { ApiResponse } from '../types';
 
 const { Text, Title } = Typography;
+
+interface LogPage<T> {
+  records: T[];
+  current: number;
+  size: number;
+  total: number;
+}
+
+const SignatureTag: React.FC<{ log: ThirdPartyRechargeLog; compact?: boolean }> = ({ log, compact }) => {
+  const signature = getRechargeSignatureStatus(log);
+  return (
+    <Tag color={signature.color} title={signature.explanation}
+      style={compact ? { margin: 0, fontSize: 10, padding: '0 4px' } : undefined}>
+      {compact ? '签名' : ''}{signature.text}
+    </Tag>
+  );
+};
 
 const CallLogManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -22,7 +41,7 @@ const CallLogManagementContent: React.FC = () => {
 
   const fetchApps = async () => {
     try {
-      const res: any = await getApplicationList({ current: 1, size: 1000 });
+      const res = await getApplicationList({ current: 1, size: 1000 }) as unknown as ApiResponse<LogPage<Application>>;
       if (res.code === 200) {
         setApps(res.data?.records || []);
       }
@@ -34,11 +53,11 @@ const CallLogManagementContent: React.FC = () => {
   const fetchData = async (page = pagination.current, size = pagination.pageSize, query = filters) => {
     setLoading(true);
     try {
-      const res: any = await getThirdPartyRechargeLogList({
+      const res = await getThirdPartyRechargeLogList({
         current: page,
         size,
         ...query,
-      });
+      }) as unknown as ApiResponse<LogPage<ThirdPartyRechargeLog>>;
       if (res.code === 200 && res.data) {
         setList(res.data.records || []);
         setPagination({
@@ -315,9 +334,7 @@ const CallLogManagementContent: React.FC = () => {
                     <Tag color={item.status === 1 ? 'success' : 'error'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>
                       {item.status === 1 ? '成功' : '失败'}
                     </Tag>
-                    <Tag color={item.signValid === 1 ? 'blue' : 'default'} style={{ margin: 0, fontSize: 10, padding: '0 4px' }}>
-                      签名{item.signValid === 1 ? '通过' : '未通过'}
-                    </Tag>
+                    <SignatureTag log={item} compact />
                     <Text type="secondary" style={{ fontSize: 11 }}>
                       {formatDateTime(item.createdAt)}
                     </Text>
@@ -388,7 +405,7 @@ const CallLogManagementContent: React.FC = () => {
               title: '签名',
               dataIndex: 'signValid',
               width: 90,
-              render: (v?: number) => <Tag color={v === 1 ? 'blue' : 'default'}>{v === 1 ? '通过' : '未通过'}</Tag>,
+              render: (_: number | undefined, record: ThirdPartyRechargeLog) => <SignatureTag log={record} />,
             },
             {
               title: '前后到期',

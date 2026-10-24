@@ -26,6 +26,7 @@ import com.ayssu.ciphergate.mapper.AppUserTrialMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.UserMapper;
 import com.ayssu.ciphergate.service.AppUserService;
+import com.ayssu.ciphergate.service.AppUserPresenceService;
 import com.ayssu.ciphergate.service.GeoIpService;
 import com.ayssu.ciphergate.service.SystemMessageService;
 import com.ayssu.ciphergate.service.UserMembershipService;
@@ -60,6 +61,7 @@ import java.util.List;
 public class AppUserServiceImpl implements AppUserService {
     
     private final AppUserMapper appUserMapper;
+    private final AppUserPresenceService appUserPresenceService;
     private final AppUserBindingMapper appUserBindingMapper;
     private final AppUserTrialMapper appUserTrialMapper;
     private final ApplicationMapper applicationMapper;
@@ -117,6 +119,10 @@ public class AppUserServiceImpl implements AppUserService {
             }
         }
 
+        if (queryDTO.getOnline() != null) {
+            appUserPresenceService.applyOnlineFilter(wrapper, queryDTO.getOnline(), LocalDateTime.now());
+        }
+
         // WS 在线状态：基于内存 registry 的在线 userId 集合过滤（单机）
         if (queryDTO.getWsOnline() != null) {
             List<Long> onlineIds = appUserWsPresenceRegistry.listOnlineAppUserIds();
@@ -141,9 +147,10 @@ public class AppUserServiceImpl implements AppUserService {
                 operatorId, result.getTotal(), result.getRecords() == null ? 0 : result.getRecords().size());
         
         // 填充关联信息
-        result.getRecords().forEach(this::fillRelatedInfo);
+        result.getRecords().forEach(user -> fillRelatedInfo(user, false));
+        appUserPresenceService.enrich(result.getRecords(), LocalDateTime.now());
         // 默认列表：在线优先（在线排前），组内保持原有排序（创建时间倒序）
-        result.getRecords().sort((a, b) -> Boolean.compare(Boolean.TRUE.equals(b.getWsOnline()), Boolean.TRUE.equals(a.getWsOnline())));
+        result.getRecords().sort((a, b) -> Boolean.compare(Boolean.TRUE.equals(b.getOnline()), Boolean.TRUE.equals(a.getOnline())));
         
         return result;
     }
@@ -673,6 +680,10 @@ public class AppUserServiceImpl implements AppUserService {
      * 填充关联信息
      */
     private void fillRelatedInfo(AppUser appUser) {
+        fillRelatedInfo(appUser, true);
+    }
+
+    private void fillRelatedInfo(AppUser appUser, boolean includeHttpPresence) {
         // 填充应用名称
         if (appUser.getAppId() != null) {
             Application application = applicationMapper.selectById(appUser.getAppId());
@@ -721,6 +732,7 @@ public class AppUserServiceImpl implements AppUserService {
         enrichMemberStatus(appUser);
         enrichTrialStatus(appUser);
         enrichWsPresence(appUser);
+        if (includeHttpPresence) appUserPresenceService.enrich(List.of(appUser), LocalDateTime.now());
     }
 
     private String formatRegion(String country, String province, String city) {

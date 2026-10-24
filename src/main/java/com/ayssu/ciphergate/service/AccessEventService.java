@@ -52,6 +52,11 @@ public class AccessEventService {
         insert(AccessEventTypes.APP_USER_WS_LOGIN, appId, appUserId, null, null);
     }
 
+    public LoginIdentity recordAppUserHttpLogin(Long appId, Long userId, String deviceId, String clientIp) {
+        insert(AccessEventTypes.APP_USER_HTTP_LOGIN, appId, userId, deviceHash(appId, deviceId), clientIp);
+        return new LoginIdentity("USER", "user_" + userId);
+    }
+
     static String deviceHash(Long appId, String deviceId) {
         if (appId == null || !StringUtils.hasText(deviceId)) {
             return null;

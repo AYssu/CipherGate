@@ -41,8 +41,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/login", "/error", "/webjars/**",
                                 "/api/config/init/status",
+                                "/actuator/health/liveness",
+                                "/actuator/health/readiness",
                                 "/api/config/init",
                                 "/api/config/public/site-info",
+                                "/api/config/public/build-info",
                                 "/api/config/public/oauth2-login",
                                 "/api/config/public/invite-status",
                                 "/api/test",

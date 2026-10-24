@@ -126,6 +126,14 @@ public class AppUser implements Serializable {
     @TableField(exist = false)
     private Integer bindingCount;
 
+    /** 展示用综合在线：WS 在线或 HTTP 最近 5 分钟成功登录，不作为授权依据。 */
+    @TableField(exist = false)
+    private Boolean online;
+
+    /** HTTP 近期活跃，不表示持续连接，不累计 WS 时长。 */
+    @TableField(exist = false)
+    private Boolean httpOnline;
+
     /** 当前是否有 WS 会话在线（非数据库字段） */
     @TableField(exist = false)
     private Boolean wsOnline;

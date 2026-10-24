@@ -32,15 +32,6 @@ const UserMembershipPage: React.FC = () => {
   const [form] = Form.useForm();
   const [inviteEnabled, setInviteEnabled] = React.useState(true);
 
-  React.useEffect(() => {
-    fetchUsers();
-    fetchLevels();
-    fetch('/api/config/public/invite-status', { credentials: 'include' })
-      .then(r => r.json())
-      .then(res => setInviteEnabled(res?.data?.enabled !== false))
-      .catch(() => {});
-  }, []);
-
   const fetchUsers = () => {
     setLoading(true);
     fetch('/api/membership/users', { credentials: 'include' })
@@ -55,6 +46,15 @@ const UserMembershipPage: React.FC = () => {
       .then(data => { if (data.success) setLevels(data.data || []); })
       .catch(() => {});
   };
+
+  React.useEffect(() => {
+    fetchUsers();
+    fetchLevels();
+    fetch('/api/config/public/invite-status', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => setInviteEnabled(res?.data?.enabled !== false))
+      .catch(() => {});
+  }, []);
 
   const openDetail = (record: any) => {
     setEditingUser(record);

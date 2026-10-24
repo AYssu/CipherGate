@@ -674,7 +674,7 @@ const Home: React.FC = () => {
         appUserLoginForm.resetFields();
         window.location.href = '/portal/dashboard';
       }
-    } catch (err: any) {
+    } catch {
       loadCaptcha();
     } finally {
       setAppUserLoading(false);

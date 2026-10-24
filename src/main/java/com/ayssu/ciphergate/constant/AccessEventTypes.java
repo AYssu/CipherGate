@@ -16,6 +16,9 @@ public final class AccessEventTypes {
      */
     public static final String CARD_LOGIN_FREE = "CARD_LOGIN_FREE";
 
+    /** 终端用户 HTTP 账号密码登录成功（不代表 WS 在线） */
+    public static final String APP_USER_HTTP_LOGIN = "APP_USER_HTTP_LOGIN";
+
     /** 终端用户 WS 账号密码鉴权成功（每次 AUTH 成功 +1） */
     public static final String APP_USER_WS_LOGIN = "APP_USER_WS_LOGIN";
 }

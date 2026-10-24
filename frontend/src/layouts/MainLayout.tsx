@@ -129,7 +129,7 @@ const MainLayout: React.FC = () => {
         const result = await docApi.getDocMenu();
         const data = (result as any).data || [];
         setDocMenuData(data);
-      } catch (error) {
+      } catch {
         // 文档菜单获取失败静默处理
       }
     };
@@ -376,6 +376,7 @@ const MainLayout: React.FC = () => {
       app_list_page: '/applications/list',
       license_management: '/applications/licenses',
       app_user_management: '/applications/users',
+      app_user_transfer: '/applications/user-transfer',
       app_variable_management: '/applications/variables',
       plugin_list_page: '/plugins/list',
       function_plugin_list_page: '/plugins/function',
@@ -441,6 +442,7 @@ const MainLayout: React.FC = () => {
         app_list_page: '/applications/list',
         license_management: '/applications/licenses',
         app_user_management: '/applications/users',
+        app_user_transfer: '/applications/user-transfer',
         app_variable_management: '/applications/variables',
       };
       return appRouteMap[childKey] || `/applications/${childKey}`;

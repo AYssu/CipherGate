@@ -9,6 +9,7 @@ import com.ayssu.ciphergate.entity.ThirdPartyRechargeLog;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.ThirdPartyCredentialMapper;
+import com.ayssu.ciphergate.mapper.ThirdPartyCredentialAppMapper;
 import com.ayssu.ciphergate.mapper.ThirdPartyRechargeLogMapper;
 import com.ayssu.ciphergate.service.ActivityLogService;
 import com.ayssu.ciphergate.service.SystemMessageService;
@@ -52,6 +53,7 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
     private static final String SUCCESS = "SUCCESS";
 
     private final ThirdPartyCredentialMapper credentialMapper;
+    private final ThirdPartyCredentialAppMapper credentialAppMapper;
     private final ThirdPartyRechargeLogMapper rechargeLogMapper;
     private final AppUserMapper appUserMapper;
     private final ApplicationMapper applicationMapper;
@@ -98,7 +100,7 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
                 return fail(logRow, "BAD_PROJECT_KEY", "projectKey解析失败");
             }
             logRow.setAppId(appId);
-            if (!appId.equals(credential.getAppId())) {
+            if (!credentialAppMapper.isAppBound(credential.getId(), appId)) {
                 return fail(logRow, "APP_DENIED", "无权限操作该应用");
             }
 

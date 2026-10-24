@@ -18,20 +18,21 @@ import java.util.Map;
 @Component
 public class PortalJwtUtil {
 
-    @Value("${portal.jwt.secret: CipherGatePortalJwtSecret2026!@#$%^&*()_+AbCdEfGhIjKlMnOpQrStUvWxYz}")
-    private String secret;
+    private final SecretKey signingKey;
+    private final long expirationMs;
 
-    @Value("${portal.jwt.expiration:86400000}")
-    private long expirationMs;
-
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            byte[] padded = new byte[32];
-            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
-            keyBytes = padded;
+    public PortalJwtUtil(@Value("${portal.jwt.secret:}") String secret,
+                         @Value("${portal.jwt.expiration:86400000}") long expirationMs) {
+        if (secret == null || secret.isBlank()
+                || secret.getBytes(StandardCharsets.UTF_8).length < 32
+                || secret.strip().equals("CipherGatePortalJwtSecret2026!@#$%^&*()_+AbCdEfGhIjKlMnOpQrStUvWxYz")) {
+            throw new IllegalArgumentException("PORTAL_JWT_SECRET must be an independent secret of at least 32 UTF-8 bytes; the historical default is forbidden");
         }
-        return Keys.hmacShaKeyFor(keyBytes);
+        if (expirationMs <= 0) {
+            throw new IllegalArgumentException("portal.jwt.expiration must be positive");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
     }
 
     public String generateToken(Long appUserId, Long appId, String email, String nickname) {
@@ -48,13 +49,13 @@ public class PortalJwtUtil {
                 .subject(String.valueOf(appUserId))
                 .issuedAt(now)
                 .expiration(expiry)
-                .signWith(getSigningKey())
+                .signWith(signingKey)
                 .compact();
     }
 
     public Claims parseToken(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

@@ -14,14 +14,14 @@ const QuotaProductPage: React.FC = () => {
   const [editing, setEditing] = React.useState<any>(null);
   const [form] = Form.useForm();
 
-  React.useEffect(() => { fetchProducts(); }, []);
-
   const fetchProducts = () => {
     fetch('/api/quota-products', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setProducts(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
+
+  React.useEffect(() => { fetchProducts(); }, []);
 
   const handleSave = async () => {
     const values = await form.validateFields();

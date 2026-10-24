@@ -6,6 +6,11 @@ import lombok.Data;
 @Data
 @Schema(description = "成功登录活跃统计，无需心跳。自然日按服务器时区，设备按应用隔离去重；不代表实时在线或真实人数。")
 public class DashboardAccessStatsDTO {
+    @Schema(description = "今日 HTTP 账号密码成功登录次数（不包含 WS AUTH）")
+    private long userLoginToday;
+    private long activeUserToday;
+    private long activeUser7d;
+    private long recentUserCount;
     private long paidCardLoginToday;
     private long freeLoginToday;
     private long activeCardToday;

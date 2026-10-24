@@ -1,6 +1,22 @@
 spring:
   application:
     name: CipherGate
+  profiles:
+    default: dev
+  # 数据库结构统一由 Flyway 管理，禁止混用 Spring SQL/Session 自动建表。
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    baseline-version: 1
+    clean-disabled: true
+    validate-on-migrate: true
+    validate-migration-naming: true
+  sql:
+    init:
+      mode: never
+  session:
+    jdbc:
+      initialize-schema: never
   devtools:
     restart:
       enabled: false
@@ -10,7 +26,7 @@ spring:
       port: ${REDIS_PORT:6379}
       database: ${REDIS_DB:0}
       timeout: ${REDIS_TIMEOUT:3s}
-      password: redis_MTXHTx
+      password: ${REDIS_PASSWORD:}
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -22,7 +38,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:ciphergate}
-    password: ${SPRING_DATASOURCE_PASSWORD:Qy5S3SBfnRwdKxRD}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   servlet:
@@ -36,7 +52,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     db-config:
       id-type: auto
@@ -71,6 +87,9 @@ springdoc:
     display-request-duration: true
 
 app:
+  database:
+    # 仅旧库首次接入时开启；先备份，结构检查通过后才登记 V1，不重放初始化数据。
+    adopt-legacy: ${CIPHERGATE_ADOPT_LEGACY_DATABASE:false}
   session:
     # 选填：会话 Cookie 域名（如 .ayssu.com）。不配置则使用当前请求主机，避免与线上域名不匹配。
     cookie-domain: ${APP_SESSION_COOKIE_DOMAIN:}
@@ -91,11 +110,28 @@ app:
   minio:
     enabled: ${MINIO_ENABLED:true}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-    access-key: ${MINIO_ACCESS_KEY:minio_RcWTQn}
-    secret-key: ${MINIO_SECRET_KEY:minio_WfY3PE}
+    access-key: ${MINIO_ACCESS_KEY:}
+    secret-key: ${MINIO_SECRET_KEY:}
     bucket: ${MINIO_BUCKET:ciphergate-plugins}
 
 portal:
   jwt:
-    secret: ${PORTAL_JWT_SECRET:CipherGatePortalJwtSecret2026!@#$%^&*()_+AbCdEfGhIjKlMnOpQrStUvWxYz}
+    secret: ${PORTAL_JWT_SECRET:}
     expiration: ${PORTAL_JWT_EXPIRATION:86400000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db,redis
+  info:
+    env:
+      enabled: false

@@ -1,0 +1,28 @@
+title = "CipherGate secret scanning"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated outputs and dependencies; source and examples remain scanned"
+paths = [
+  '''(^|/)(node_modules|build|dist|deploy-bundle|\.git|\.gradle|\.vitepress/cache|\.vitepress/dist)/''',
+  '''(^|/)ciphergate-deploy\.zip$''',
+]
+
+[[rules]]
+id = "private-key"
+[[rules.allowlists]]
+description = "RSA parser strips PEM delimiters; this expression contains no key material"
+condition = "AND"
+paths = ['''^plugins/rsa-crypto-plugin/src/main/java/com/ciphergate/plugin/rsa/RsaCryptoPlugin\.java$''']
+regexTarget = "match"
+regexes = ['''-----BEGIN (RSA )?PRIVATE KEY-----", ""\)''']
+
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Public AES key fixture confined to the protocol regression test"
+condition = "AND"
+paths = ['''^src/test/java/com/ayssu/ciphergate/thirdparty/controller/ThirdPartyUserProtocolTest\.java$''']
+regexTarget = "secret"
+regexes = ['''^0123456789abcdef$''']

@@ -30,6 +30,7 @@ import java.util.Map;
 public class AesDefaultCryptoPlugin implements CryptoPluginEncryptor {
 
     private static final String PLUGIN_ID = "aes-default";
+    public static final String PLAINTEXT_FORMAT_KEY = "_cgPlaintextFormat";
     private static final String DEFAULTS_RESOURCE = "aes-default.defaults.json";
 
     @Override
@@ -51,12 +52,26 @@ public class AesDefaultCryptoPlugin implements CryptoPluginEncryptor {
             return Map.of();
         }
 
+        // HTTP 用户密码可能包含 &、=、空格等字符。新增 JSON 明文输入，保留旧 canonical 协议。
+        // 不改变算法、密钥来源或旧 canonical 客户端的响应编码。
+        if (canonical.stripLeading().startsWith("{")) {
+            return new LinkedHashMap<>(JSONUtil.parseObj(canonical));
+        }
         return parseCanonical(canonical);
     }
 
     @Override
     public String encryptFromMap(Map<String, Object> plain) {
-        String canonical = buildCanonical(plain);
+        String canonical;
+        if (plain != null && "json".equals(plain.get(PLAINTEXT_FORMAT_KEY))) {
+            Map<String, Object> business = new LinkedHashMap<>(plain);
+            business.remove(PLAINTEXT_FORMAT_KEY);
+            business.remove("encryptionConfig");
+            business.remove("pluginConfig");
+            canonical = JSONUtil.toJsonStr(business);
+        } else {
+            canonical = buildCanonical(plain);
+        }
         if (!StringUtils.hasText(canonical)) {
             return "";
         }
@@ -156,7 +171,7 @@ public class AesDefaultCryptoPlugin implements CryptoPluginEncryptor {
             if (v == null) {
                 continue;
             }
-            if ("data".equals(k) || "encryptionConfig".equals(k) || "pluginConfig".equals(k)) {
+            if ("data".equals(k) || "encryptionConfig".equals(k) || "pluginConfig".equals(k) || PLAINTEXT_FORMAT_KEY.equals(k)) {
                 continue;
             }
             sb.append(k).append("=").append(v).append("&");

@@ -71,4 +71,8 @@ public interface ApplicationService {
      * 上传应用更新包到 MinIO，并写入 {@code update_file_storage_key}（覆盖旧对象）。
      */
     Application uploadUpdatePackage(Long id, MultipartFile file, Long userId);
+
+    record UpdatePackageDownload(String filename, java.io.InputStream stream) {}
+
+    UpdatePackageDownload downloadUpdatePackage(Long id, Long userId);
 }

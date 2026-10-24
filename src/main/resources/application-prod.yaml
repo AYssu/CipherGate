@@ -2,3 +2,12 @@ spring:
   docker:
     compose:
       enabled: false
+
+mybatis-plus:
+  configuration:
+    # 正式环境禁止输出 SQL、参数及结果行，避免泄露业务数据。
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  pattern:
+    level: "%5p [requestId:%X{requestId:-}]"

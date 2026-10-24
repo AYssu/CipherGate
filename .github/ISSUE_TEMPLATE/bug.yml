@@ -1,0 +1,33 @@
+name: 问题反馈
+description: 提供复现步骤，帮助定位缺陷。
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 请先搜索已有 Issue。安全漏洞请按 SECURITY.md 私下报告，日志务必脱敏。
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: v1.2.3 / commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境与部署方式
+      description: 操作系统、Java/Node、数据库版本、Docker/源码运行、反向代理。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 提供最小步骤、预期结果和实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志或截图
+      description: 删除令牌、密码、个人信息及数据库连接凭据。

@@ -1,0 +1,37 @@
+name: Dependency graph
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependencies-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    name: Submit trusted Gradle dependency snapshot
+    # This job never runs on fork PRs or arbitrary dispatch branches.
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # The pinned action disables Gradle dependency verification for its injected
+      # graph plugin during snapshot extraction only. Test and release builds use
+      # the repository checksum metadata in strict mode; no artifact is published here.
+      - uses: gradle/actions/dependency-submission@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          dependency-graph: generate-and-submit

@@ -179,9 +179,7 @@ subKey32 = HKDF-SHA256(
 
 ## 9. 数据库变更（已有环境）
 
-若库表早于「安全分级」字段，请执行：
+数据库结构统一由 Flyway 管理。空库自动执行首次安装基线，后续启动只执行尚未应用的版本迁移。
 
-- `src/main/resources/sql/alter_app_variable_security_tier.sql`
-- `src/main/resources/sql/alter_app_user_last_device_id.sql`（终端用户 `last_device_id`）
-- `src/main/resources/sql/alter_app_user_member_expires_at.sql`（终端用户 `member_expires_at` 会员到期）
-
+从旧版升级时，先备份，再按项目 `docs/database/README.md` 完成一次旧库接入；
+若结构核验报告缺少安全分级、设备或会员字段，应先在备份副本中核对差异，不要直接标记迁移完成。

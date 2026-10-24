@@ -83,6 +83,30 @@ class LoginAccessSqlTest(unittest.TestCase):
         self.add("CARD_LOGIN_FREE", 1, 0, "old", "2026-09-30 23:59:59")
         self.add("CARD_LOGIN_FREE", 1, 0, "next-day", "2026-10-08 00:00:00")
 
+    def test_http_user_stats_are_separate_from_cards_visitors_and_ws(self):
+        today = "2026-10-07 11:59:00"
+        self.add("APP_USER_HTTP_LOGIN", 1, 7, "U", today)
+        self.add("APP_USER_HTTP_LOGIN", 1, 7, "U", today)
+        self.add("APP_USER_HTTP_LOGIN", 2, 7, "U", today)
+        self.add("APP_USER_HTTP_LOGIN", 3, 99, "U", today)
+        row = self.query("selectLoginStats")[0]
+        self.assertEqual(3, row["user_login_today"])
+        self.assertEqual(2, row["active_user_today"])
+        self.assertEqual(2, row["active_user7d"])
+        self.assertEqual(2, row["recent_user_count"])
+        self.assertEqual(5, row["paid_card_login_today"])
+        self.assertEqual(4, row["free_login_today"])
+        self.assertEqual(5, row["active_device_today"])
+        self.values["limit"] = 50
+        users = [r for r in self.query("selectRecentLogins") if r["identity_type"] == "USER"]
+        self.assertEqual(3, len(users))
+        self.assertTrue(all(r["identity_id"] == "user_7" for r in users))
+        self.assertTrue(all(r["app_id"] in (1, 2) for r in users))
+
+    def test_http_user_shared_device_does_not_inflate_device_count(self):
+        self.add("APP_USER_HTTP_LOGIN", 1, 7, "A", "2026-10-07 11:59:00")
+        self.assertEqual(3, self.query("selectLoginStats")[0]["active_device_today"])
+
     def tearDown(self):
         self.db.close()
 

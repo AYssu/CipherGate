@@ -37,7 +37,10 @@ const PortalLayout: React.FC = () => {
   const isMobile = !screens.md;
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(() => {
+    const email = localStorage.getItem('portal_email') || '';
+    return email.split('@')[0] || email;
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('portal_token');
@@ -45,8 +48,6 @@ const PortalLayout: React.FC = () => {
       navigate('/portal/login');
       return;
     }
-    const email = localStorage.getItem('portal_email') || '';
-    setDisplayName(email.split('@')[0] || email);
     // 获取用户名
     fetch('/api/portal/settings/profile', {
       headers: { Authorization: `Bearer ${token}` }

@@ -39,15 +39,15 @@ public class AppUserWsAuthService {
     }
 
     /**
-     * WS 登录：identifier 支持「用户名」或「邮箱」。
+     * HTTP / WS 共用登录校验：identifier 支持「用户名」或「邮箱」。
      * 终端协议字段名仍为 username（兼容旧客户端）。
      */
     public AppUser loginAppUser(Long appId, String identifier, String password) {
         if (appId == null) {
-            throw new RuntimeException("appId required");
+            throw new IllegalArgumentException("appId required");
         }
         if (!StringUtils.hasText(identifier) || !StringUtils.hasText(password)) {
-            throw new RuntimeException("username/password required");
+            throw new IllegalArgumentException("username/password required");
         }
 
         String raw = identifier.trim();
@@ -62,14 +62,14 @@ public class AppUserWsAuthService {
 
         List<AppUser> users = appUserMapper.selectList(q);
         if (users == null || users.isEmpty()) {
-            throw new RuntimeException("bad credentials");
+            throw new IllegalArgumentException("bad credentials");
         }
         if (users.size() > 1) {
-            throw new RuntimeException("ambiguous identifier");
+            throw new IllegalArgumentException("ambiguous identifier");
         }
         AppUser u = users.get(0);
-        if (!BCrypt.checkpw(password, u.getPassword())) {
-            throw new RuntimeException("bad credentials");
+        if (!StringUtils.hasText(u.getPassword()) || !BCrypt.checkpw(password, u.getPassword())) {
+            throw new IllegalArgumentException("bad credentials");
         }
         return u;
     }

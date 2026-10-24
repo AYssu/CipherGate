@@ -20,7 +20,9 @@ const columns: ColumnsType<DashboardAccessRecord> = [
   {
     title: '登录类型', dataIndex: 'identityType', width: 110,
     render: (type: DashboardAccessRecord['identityType']) =>
-      <Tag color={type === 'CARD' ? 'blue' : 'green'}>{type === 'CARD' ? '卡密' : '免费访客'}</Tag>,
+      <Tag color={type === 'CARD' ? 'blue' : type === 'USER' ? 'purple' : 'green'}>
+        {type === 'CARD' ? '卡密' : type === 'USER' ? '用户账号' : '免费访客'}
+      </Tag>,
   },
   {
     title: '统计身份', dataIndex: 'identityId', width: 265,
@@ -103,6 +105,8 @@ export default function LoginAccessPanel({ isMobile }: { isMobile: boolean }) {
       </Col>)}
     </Row>
     {stats && <Space size={[16, 8]} wrap style={{ marginBottom: 16 }}>
+      <Text>HTTP 用户登录：{(stats.userLoginToday ?? 0).toLocaleString()} 次 / 今日活跃 {(stats.activeUserToday ?? 0).toLocaleString()} 个账号</Text>
+      <Text>HTTP 用户活跃：近 7 日 {(stats.activeUser7d ?? 0).toLocaleString()} 个 / 最近 5 分钟 {stats.recentUserCount ?? 0} 个</Text>
       <Text>今日卡密登录：{stats.paidCardLoginToday.toLocaleString()} 次</Text>
       <Text>7 日活跃：{stats.activeCard7d.toLocaleString()} 张卡密 / {stats.activeVisitor7d.toLocaleString()} 个免费访客 / {stats.activeDevice7d.toLocaleString()} 台设备</Text>
       <Text type="secondary">最近 5 分钟登录：{stats.recentCardCount} 张卡密 / {stats.recentVisitorCount} 个免费访客</Text>

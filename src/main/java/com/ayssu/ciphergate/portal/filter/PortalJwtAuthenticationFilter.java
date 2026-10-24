@@ -28,6 +28,16 @@ public class PortalJwtAuthenticationFilter extends OncePerRequestFilter {
     private final PortalJwtUtil jwtUtil;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // The bean can also be registered as a servlet filter by Boot. Portal credentials
+        // must never authenticate administrator or third-party API requests.
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return !path.startsWith("/api/portal/") || path.startsWith("/api/portal/admin/")
+                || path.equals("/api/portal/admin") || path.startsWith("/api/portal/epay-config/")
+                || path.equals("/api/portal/epay-config");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {

@@ -28,6 +28,7 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
 
   // 简化状态：mounted 控制是否渲染，shouldAnimate 控制动画方向
   const [mounted, setMounted] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
   const [shouldAnimate, setShouldAnimate] = useState(false);
 
   const openedAtRef = useRef(0);
@@ -35,7 +36,13 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  // Mount synchronously when opening; effects only schedule animation frames.
+  if (open !== wasOpen || (open && !mounted)) {
+    setWasOpen(open);
+    if (open) { setMounted(true); setShouldAnimate(false); }
+  }
 
   // open 变化时控制挂载和动画
   useEffect(() => {
@@ -51,7 +58,6 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
         animateTimerRef.current = null;
       }
       openedAtRef.current = Date.now();
-      setMounted(true);
       // 下一帧触发动画：先渲染初始位置(translateY(100%))，再切换到目标位置
       animateTimerRef.current = setTimeout(() => {
         animateTimerRef.current = null;
@@ -62,7 +68,6 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
     } else if (mounted) {
       // 关闭：先播放退场动画，动画结束后再卸载
       const gen = generationRef.current;
-      setShouldAnimate(false);
       closeTimerRef.current = setTimeout(() => {
         closeTimerRef.current = null;
         // 如果期间又打开了，不卸载
@@ -163,7 +168,7 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
     flexDirection: 'column',
     overflow: 'hidden',
     paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-    transform: shouldAnimate ? 'translateY(0)' : 'translateY(100%)',
+    transform: open && shouldAnimate ? 'translateY(0)' : 'translateY(100%)',
     transition: 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
     willChange: 'transform',
   };
@@ -176,7 +181,7 @@ const M5BottomSheet: React.FC<M5BottomSheetProps> = ({
     bottom: 0,
     background: 'rgba(0,0,0,0.45)',
     zIndex: 999,
-    opacity: shouldAnimate ? 1 : 0,
+    opacity: open && shouldAnimate ? 1 : 0,
     transition: 'opacity 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
     willChange: 'opacity',
   };

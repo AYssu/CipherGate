@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Typography, Form, Input, Button, message, Space, Row, Col, Tag } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, SendOutlined, SafetyOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { portalSettingsApi } from '../services/portalSettingsService';
@@ -16,17 +16,13 @@ const PortalSettingsPage: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
-
-  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const res: any = await portalSettingsApi.getProfile();
       if (res?.data) {
@@ -37,7 +33,11 @@ const PortalSettingsPage: React.FC = () => {
     } catch {
       // ignore
     }
-  };
+  }, [profileForm]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const handleUpdateNickname = async (values: any) => {
     setLoading(true);

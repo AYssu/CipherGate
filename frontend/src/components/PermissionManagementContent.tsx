@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -164,7 +164,7 @@ const PermissionManagementContent: React.FC = () => {
       : <Tag color="error">禁用</Tag>;
   };
 
-  const allColumns = useMemo(() => [
+  const allColumns = [
     {
       title: '权限名称',
       dataIndex: 'permissionName',
@@ -262,7 +262,7 @@ const PermissionManagementContent: React.FC = () => {
         );
       },
     },
-  ], [isMobile]);
+  ];
 
   const MOBILE_VISIBLE_KEYS = ['permissionName', 'resourceType', 'status', 'action'];
   const columns = isMobile

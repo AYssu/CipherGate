@@ -1,0 +1,194 @@
+name: Checks
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Exact commit to validate (release only)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests and MySQL migrations (${{ matrix.mysql }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['8.0', '8.4']
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci-only-password"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=3s --health-retries=12
+    env:
+      CIPHERGATE_MIGRATION_JDBC_URL: jdbc:mysql://127.0.0.1:3306/ciphergate_migration_test?allowPublicKeyRetrieval=true&useSSL=false
+      CIPHERGATE_CREDENTIAL_JDBC_URL: jdbc:mysql://127.0.0.1:3306/ciphergate_credential_test?allowPublicKeyRetrieval=true&useSSL=false
+      CIPHERGATE_TRANSFER_JDBC_URL: jdbc:mysql://127.0.0.1:3306/ciphergate_transfer_test?allowPublicKeyRetrieval=true&useSSL=false
+      CIPHERGATE_BOOT_JDBC_URL: jdbc:mysql://127.0.0.1:3306/ciphergate_boot_test?allowPublicKeyRetrieval=true&useSSL=false
+      CIPHERGATE_MIGRATION_JDBC_PASSWORD: ci-only-password
+      CIPHERGATE_CREDENTIAL_JDBC_PASSWORD: ci-only-password
+      CIPHERGATE_TRANSFER_JDBC_PASSWORD: ci-only-password
+      CIPHERGATE_BOOT_JDBC_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/wrapper-validation@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - name: Create isolated integration databases
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          for database in migration credential transfer boot; do
+            docker exec -e MYSQL_PWD=ci-only-password "$MYSQL_CONTAINER" mysql -uroot -e "CREATE DATABASE ciphergate_${database}_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          done
+      - name: Unit tests, required integration tests, and coverage
+        run: ./gradlew unitTest integrationTest jacocoTestReport --no-daemon
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: backend-test-reports-mysql-${{ matrix.mysql }}
+          path: |
+            build/reports/tests/
+            build/test-results/
+            build/reports/jacoco/
+          retention-days: 14
+
+  frontend:
+    name: Frontend lint, tests, browser tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: frontend-browser-reports
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
+
+  docs:
+    name: Documentation build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  security:
+    name: Dependency audit and secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Review newly introduced vulnerable dependencies
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          license-check: false
+          comment-summary-in-pr: never
+      - name: Verify deployment tooling
+        run: |
+          python3 -m unittest discover -s scripts/tests
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Audit dependency lockfiles
+        run: |
+          npm --prefix frontend audit --audit-level=high
+          npm --prefix docs audit --audit-level=high
+      - name: Install pinned secret scanner
+        run: |
+          curl --fail --silent --show-error --location https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum --check
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+      - name: Scan current source and pull request commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          /tmp/gitleaks dir --redact --no-banner --config .github/gitleaks.toml .
+          if [[ -n "$BASE_SHA" && -n "$HEAD_SHA" ]]; then
+            /tmp/gitleaks git --redact --no-banner --config .github/gitleaks.toml --log-opts="$BASE_SHA..$HEAD_SHA" .
+          fi
+
+  pr-checks:
+    name: Check summary
+    if: always()
+    needs: [backend, frontend, docs, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every check to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ['RESULTS'])
+          failed = [name for name, job in results.items() if job['result'] != 'success']
+          if failed:
+              raise SystemExit('Required checks did not pass: ' + ', '.join(failed))
+          PY

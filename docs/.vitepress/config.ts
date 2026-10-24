@@ -74,6 +74,8 @@ export default defineConfig({
           { text: '概览', link: '/admin/' },
           { text: '用户与权限', link: '/admin/users-permissions' },
           { text: '系统配置', link: '/admin/system' },
+          { text: '数据库升级', link: '/database/README' },
+          { text: '部署与备份恢复', link: '/operations' },
           { text: '会员与配额运营', link: '/admin/membership-operation' },
           { text: '插件管理', link: '/admin/plugins' },
           { text: '内容与运营', link: '/admin/content' },

@@ -22,6 +22,10 @@ export interface AppUser {
   creatorType?: 'SELF' | 'AGENT';
   agentDisplayName?: string;
   bindingCount?: number;
+  /** 展示用在线状态：WS 连接或 HTTP 最近 5 分钟活跃 */
+  online?: boolean;
+  /** HTTP 最近 5 分钟成功登录，不代表持续连接 */
+  httpOnline?: boolean;
   /** 当前是否有第三方 WS 会话（服务端内存，多机未聚合） */
   wsOnline?: boolean;
   wsSessionCount?: number;
@@ -68,7 +72,9 @@ export interface AppUserQueryDTO {
   banned?: boolean;
   /** ACTIVE=未到期，EXPIRED=已到期，NONE=未开通 */
   memberStatus?: 'ACTIVE' | 'EXPIRED' | 'NONE';
-  /** true=在线，false=离线（单机内存） */
+  /** 综合状态：WS 在线或 HTTP 最近 5 分钟活跃 */
+  online?: boolean;
+  /** 仅 WS 状态，兼容旧调用方 */
   wsOnline?: boolean;
   current?: number;
   size?: number;

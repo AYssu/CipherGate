@@ -8,10 +8,12 @@ import com.ayssu.ciphergate.entity.ThirdPartyCredential;
 import com.ayssu.ciphergate.entity.ThirdPartyRechargeLog;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.mapper.ThirdPartyCredentialMapper;
+import com.ayssu.ciphergate.mapper.ThirdPartyCredentialAppMapper;
 import com.ayssu.ciphergate.mapper.ThirdPartyRechargeLogMapper;
 import com.ayssu.ciphergate.service.ThirdPartyCredentialService;
 import com.ayssu.ciphergate.util.SecurityUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,9 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +35,7 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
     private static final String ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
     private final ThirdPartyCredentialMapper credentialMapper;
+    private final ThirdPartyCredentialAppMapper credentialAppMapper;
     private final ThirdPartyRechargeLogMapper rechargeLogMapper;
     private final ApplicationMapper applicationMapper;
     private final SecurityUtils securityUtils;
@@ -49,18 +55,33 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
                 .orderByDesc(ThirdPartyCredential::getCreatedAt);
         if (queryDTO.getAppId() != null) {
             ensureAppPermission(queryDTO.getAppId(), operatorId);
-            qw.eq(ThirdPartyCredential::getAppId, queryDTO.getAppId());
-        } else if (!securityUtils.isAdmin(operatorId)) {
-            List<Long> appIds = listOwnedAppIds(operatorId);
-            if (appIds.isEmpty()) {
-                qw.apply("1=0");
-            } else {
-                qw.in(ThirdPartyCredential::getAppId, appIds);
-            }
+            qw.apply("""
+                (EXISTS (SELECT 1 FROM third_party_credential_app b
+                    WHERE b.credential_id = third_party_credential.id AND b.app_id = {0})
+                 OR (app_id = {0} AND NOT EXISTS (SELECT 1 FROM third_party_credential_app b
+                    WHERE b.credential_id = third_party_credential.id)))
+                """, queryDTO.getAppId());
+        }
+        // 共享凭证必须拥有所有绑定应用的权限，不能因拥有其中一个应用而泄露或重置整组密钥。
+        if (!securityUtils.isAdmin(operatorId)) {
+            qw.apply("""
+                ((EXISTS (SELECT 1 FROM third_party_credential_app b WHERE b.credential_id = third_party_credential.id)
+                  AND NOT EXISTS (SELECT 1 FROM third_party_credential_app b LEFT JOIN application a ON a.id = b.app_id
+                    WHERE b.credential_id = third_party_credential.id
+                      AND (a.id IS NULL OR a.deleted <> 0 OR a.owner_id IS NULL OR a.owner_id <> {0})))
+                 OR (NOT EXISTS (SELECT 1 FROM third_party_credential_app b WHERE b.credential_id = third_party_credential.id)
+                  AND EXISTS (SELECT 1 FROM application a WHERE a.id = third_party_credential.app_id
+                    AND a.deleted = 0 AND a.owner_id = {0})))
+                """, operatorId);
         }
         Page<ThirdPartyCredential> out = credentialMapper.selectPage(page, qw);
-        if (out.getRecords() != null) {
+        if (out.getRecords() != null && !out.getRecords().isEmpty()) {
+            Map<Long, List<Long>> bindings = credentialAppMapper.selectBindings(
+                    out.getRecords().stream().map(ThirdPartyCredential::getId).toList()).stream()
+                    .collect(Collectors.groupingBy(ThirdPartyCredentialAppMapper.Binding::getCredentialId,
+                            Collectors.mapping(ThirdPartyCredentialAppMapper.Binding::getAppId, Collectors.toList())));
             for (ThirdPartyCredential record : out.getRecords()) {
+                record.setAppIds(bindings.getOrDefault(record.getId(), List.of()));
                 maskSecret(record);
             }
         }
@@ -69,27 +90,55 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
 
     @Override
     public ThirdPartyCredential getCredential(Long id, Long operatorId) {
-        ThirdPartyCredential row = credentialMapper.selectById(id);
-        if (row == null || row.getDeleted() != null && row.getDeleted() == 1) {
-            throw new RuntimeException("凭证不存在");
-        }
-        ensureAppPermission(row.getAppId(), operatorId);
+        ThirdPartyCredential row = loadAuthorizedCredential(id, operatorId, false);
         maskSecret(row);
         return row;
+    }
+
+    private ThirdPartyCredential loadAuthorizedCredential(Long id, Long operatorId, boolean lock) {
+        ThirdPartyCredential row = lock ? credentialMapper.selectForUpdate(id) : credentialMapper.selectById(id);
+        if (row == null || Integer.valueOf(1).equals(row.getDeleted())) {
+            throw new RuntimeException("凭证不存在");
+        }
+        List<Long> appIds = credentialAppMapper.selectAppIds(id);
+        if (appIds.isEmpty()) {
+            throw new RuntimeException("凭证未绑定应用");
+        }
+        // 管理员可修复包含已删除应用的授权集合；普通所有者须拥有所有有效应用。
+        if (!securityUtils.isAdmin(operatorId)) {
+            for (Long appId : appIds) {
+                ensureAppPermission(appId, operatorId);
+            }
+        }
+        row.setAppIds(appIds);
+        return row;
+    }
+
+    private List<Long> resolveAppIds(ThirdPartyCredentialDTO dto) {
+        List<Long> ids = dto.getAppIds() != null ? dto.getAppIds()
+                : dto.getAppId() == null ? List.of() : List.of(dto.getAppId());
+        if (ids.isEmpty() || ids.size() > 100 || ids.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new RuntimeException("请选择1至100个有效应用");
+        }
+        if (dto.getAppIds() != null && dto.getAppId() != null && !ids.contains(dto.getAppId())) {
+            throw new RuntimeException("appId必须属于appIds授权集合");
+        }
+        return List.copyOf(new LinkedHashSet<>(ids));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThirdPartyCredential createCredential(ThirdPartyCredentialDTO dto, Long operatorId) {
-        if (dto.getAppId() == null) {
-            throw new RuntimeException("appId不能为空");
-        }
+        List<Long> appIds = resolveAppIds(dto);
         if (!StringUtils.hasText(dto.getName())) {
             throw new RuntimeException("凭证名称不能为空");
         }
-        ensureAppPermission(dto.getAppId(), operatorId);
+        for (Long appId : appIds) {
+            ensureAppPermission(appId, operatorId);
+        }
         ThirdPartyCredential row = new ThirdPartyCredential();
-        row.setAppId(dto.getAppId());
+        row.setAppId(appIds.get(0));
+        row.setAppIds(appIds);
         row.setName(dto.getName().trim());
         row.setApiKey("tpk_" + randomText(24));
         row.setApiSecret("tps_" + randomText(32));
@@ -107,20 +156,29 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
         row.setUpdatedAt(LocalDateTime.now());
         row.setDeleted(0);
         credentialMapper.insert(row);
-        maskSecret(row);
+        credentialAppMapper.insertBindings(row.getId(), appIds);
+        // 新 Secret 仅在创建和主动轮换时返回一次；列表/详情/普通编辑不返回。
+
         return row;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThirdPartyCredential updateCredential(Long id, ThirdPartyCredentialDTO dto, Long operatorId) {
-        ThirdPartyCredential row = getCredential(id, operatorId);
-        if (StringUtils.hasText(dto.getName())) {
-            row.setName(dto.getName().trim());
+        ThirdPartyCredential row = loadAuthorizedCredential(id, operatorId, true);
+        // 不传绑定字段保持原授权。旧版表单只回传原 appId 时，不截断已配置的多应用集合。
+        boolean replaceBindings = dto.getAppIds() != null
+                || (dto.getAppId() != null && !dto.getAppId().equals(row.getAppId()));
+        if (replaceBindings) {
+            List<Long> appIds = resolveAppIds(dto);
+            for (Long appId : appIds) {
+                ensureAppPermission(appId, operatorId);
+            }
+            row.setAppId(appIds.get(0));
+            row.setAppIds(appIds);
         }
-        if (dto.getStatus() != null) {
-            row.setStatus(dto.getStatus());
-        }
+        if (StringUtils.hasText(dto.getName())) row.setName(dto.getName().trim());
+        if (dto.getStatus() != null) row.setStatus(dto.getStatus());
         row.setAllowedIps(normalizeIps(dto.getAllowedIps()));
         row.setDailyLimit(dto.getDailyLimit());
         row.setTotalCallLimit(dto.getTotalCallLimit());
@@ -128,7 +186,23 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
         row.setExpiresAt(dto.getExpiresAt());
         row.setRemark(dto.getRemark());
         row.setUpdatedAt(LocalDateTime.now());
-        credentialMapper.updateById(row);
+        // 明确只写配置列：不把 Secret 或并发累加的消费计数写回，也允许清除限额/IP/到期时间。
+        credentialMapper.update(null, new LambdaUpdateWrapper<ThirdPartyCredential>()
+                .eq(ThirdPartyCredential::getId, id)
+                .set(ThirdPartyCredential::getAppId, row.getAppId())
+                .set(ThirdPartyCredential::getName, row.getName())
+                .set(ThirdPartyCredential::getStatus, row.getStatus())
+                .set(ThirdPartyCredential::getAllowedIps, row.getAllowedIps())
+                .set(ThirdPartyCredential::getDailyLimit, row.getDailyLimit())
+                .set(ThirdPartyCredential::getTotalCallLimit, row.getTotalCallLimit())
+                .set(ThirdPartyCredential::getTotalDaysLimit, row.getTotalDaysLimit())
+                .set(ThirdPartyCredential::getExpiresAt, row.getExpiresAt())
+                .set(ThirdPartyCredential::getRemark, row.getRemark())
+                .set(ThirdPartyCredential::getUpdatedAt, row.getUpdatedAt()));
+        if (replaceBindings) {
+            credentialAppMapper.deleteBindings(id);
+            credentialAppMapper.insertBindings(id, row.getAppIds());
+        }
         maskSecret(row);
         return row;
     }
@@ -136,19 +210,21 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteCredential(Long id, Long operatorId) {
-        ThirdPartyCredential row = getCredential(id, operatorId);
-        row.setDeleted(1);
-        row.setUpdatedAt(LocalDateTime.now());
-        credentialMapper.updateById(row);
+        loadAuthorizedCredential(id, operatorId, true);
+        credentialMapper.deleteById(id);
+        credentialAppMapper.deleteBindings(id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ThirdPartyCredential rotateSecret(Long id, Long operatorId) {
-        ThirdPartyCredential row = getCredential(id, operatorId);
+        ThirdPartyCredential row = loadAuthorizedCredential(id, operatorId, true);
         row.setApiSecret("tps_" + randomText(32));
         row.setUpdatedAt(LocalDateTime.now());
-        credentialMapper.updateById(row);
+        credentialMapper.update(null, new LambdaUpdateWrapper<ThirdPartyCredential>()
+                .eq(ThirdPartyCredential::getId, id)
+                .set(ThirdPartyCredential::getApiSecret, row.getApiSecret())
+                .set(ThirdPartyCredential::getUpdatedAt, row.getUpdatedAt()));
         return row;
     }
 

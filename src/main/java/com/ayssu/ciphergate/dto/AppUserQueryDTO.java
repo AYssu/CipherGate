@@ -40,6 +40,9 @@ public class AppUserQueryDTO {
     @Schema(description = "会员状态：ACTIVE/EXPIRED/NONE")
     private String memberStatus;
 
+    @Schema(description = "综合在线状态：WS 在线或 HTTP 最近 5 分钟成功登录")
+    private Boolean online;
+
     @Schema(description = "WS 在线状态：true=在线，false=离线（单机内存）")
     private Boolean wsOnline;
     

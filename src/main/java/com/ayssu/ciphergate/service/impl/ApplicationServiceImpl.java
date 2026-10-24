@@ -545,6 +545,18 @@ public class ApplicationServiceImpl implements ApplicationService {
         return applicationMapper.selectById(id);
     }
 
+    @Override
+    public UpdatePackageDownload downloadUpdatePackage(Long id, Long userId) {
+        Application app = getApplicationById(id, userId);
+        String key = app.getUpdateFileStorageKey();
+        if (!StringUtils.hasText(key) || !key.startsWith("app-updates/" + id + "/")) {
+            throw new IllegalArgumentException("该应用暂无可下载的更新包");
+        }
+        String filename = key.substring(key.lastIndexOf('/') + 1)
+                .replaceFirst("^[0-9a-fA-F-]{36}_", "");
+        return new UpdatePackageDownload(filename, minioObjectService.download(minioProperties.getBucket(), key));
+    }
+
     private static String sanitizeUpdateFilename(String original) {
         if (!StringUtils.hasText(original)) {
             return "package.bin";

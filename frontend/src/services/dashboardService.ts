@@ -30,6 +30,10 @@ export interface DashboardTrendPoint {
 }
 
 export interface DashboardAccessStats {
+  userLoginToday: number;
+  activeUserToday: number;
+  activeUser7d: number;
+  recentUserCount: number;
   paidCardLoginToday: number;
   freeLoginToday: number;
   activeCardToday: number;
@@ -47,7 +51,7 @@ export interface DashboardAccessRecord {
   id: number;
   appId: number;
   appName?: string;
-  identityType: 'CARD' | 'VISITOR';
+  identityType: 'CARD' | 'VISITOR' | 'USER';
   identityId?: string;
   deviceHash?: string;
   clientIp?: string;

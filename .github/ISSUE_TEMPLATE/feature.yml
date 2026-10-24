@@ -1,0 +1,21 @@
+name: 功能建议
+description: 说明需要解决的问题和验收目标。
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景与问题
+      description: 谁在什么场景下遇到什么困难？
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望行为与验收方式
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案与兼容性影响

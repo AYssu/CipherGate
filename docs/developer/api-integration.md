@@ -31,7 +31,7 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 
 服务端把请求头和原始请求体交给应用绑定的加密插件。默认 `aes-default` 使用 AES/ECB/PKCS5Padding：
 
-1. 业务明文按 key 字典序拼成 `key=value&key2=value2`。
+1. 原有业务明文按 key 字典序拼成 `key=value&key2=value2`；新版默认插件也接受 JSON 对象明文，账号密码登录建议使用 JSON，避免密码中的 `&` 等字符被拆分。
 2. 使用应用 `encryptionConfig` 中的 AES 密钥加密。
 3. 请求体 JSON 根级 `data` 字段保存 HEX 密文。
 4. 响应的 `data` 同样返回 HEX 密文。
@@ -43,6 +43,7 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 | 接口 | 用途 |
 | --- | --- |
 | `POST /api/v1/card/login` | 卡密登录、首次激活和设备绑定 |
+| `POST /api/v1/user/login` | 用户名或邮箱 + 密码登录、账号设备绑定，不依赖 WS |
 | `POST /api/v1/card/rebind` | 卡密换绑设备，可能按应用配置扣时 |
 | `POST /api/v1/app/announcement` | 仅获取应用公告和版本 |
 | `POST /api/v1/app/update-check` | 检查版本、公告、更新说明和下载凭据 |
@@ -67,6 +68,88 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 统计身份仅用于数据展示和去重，**不能用作卡密、心跳 token、用户登录凭证或付费授权**。只调用登录接口也能在首页查看登录次数、活跃卡密、免费访客和设备数据。没有客户端心跳时只能判断近期登录活跃，不能证明持续在线。原有 `online` 响应字段保留兼容口径：卡密按最近使用时间估计，免费模式仍返回 `false`。
 
 
+## HTTP 账号密码登录
+
+`POST /api/v1/user/login` 登录的是当前应用的**终端用户**，不是管理后台用户，也不是 GitHub 等 OAuth 登录。应用由 `X-App-Key` 确定，请求不能通过传入 `appId` 切换应用。
+
+### 请求字段（加密前）
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `username` | 是 | 用户名或邮箱，去除首尾空白后最多 255 字符；与 WS 共用账号校验 |
+| `password` | 是 | 用户原始密码，最多 256 字符；不 trim、不预先做 MD5/SHA 摘要 |
+| `deviceId` | 是 | 稳定设备标识，去除首尾空白后最多 255 字符 |
+| `deviceName` | 否 | 设备名称，最多 100 字符 |
+| `deviceOs` | 否 | 设备系统，最多 50 字符 |
+
+以下是**加密前的示例**，不能直接作为正式请求体发送：
+
+```json
+{
+  "username": "alice",
+  "password": "example&password=with spaces",
+  "deviceId": "device-001",
+  "deviceName": "Desktop",
+  "deviceOs": "Linux"
+}
+```
+
+使用 `aes-default` 时，把上述 JSON 的 UTF-8 字节用应用配置的 AES 密钥加密为 HEX；算法仍是 AES/ECB/PKCS5Padding。实际 HTTP 请求体仅发送：
+
+```json
+{"data":"加密后的HEX字符串"}
+```
+
+**不要在密文旁边再放明文密码。** 随后按实际发送的整个 body 字节计算 SHA-256，再生成公共请求头中的 HMAC 签名；签名路径必须是 `/api/v1/user/login`。每次请求更换 nonce，毫秒时间戳需与服务器相差不超过 15 秒。
+
+JSON 明文是新版默认插件的兼容扩展，新账号登录的成功响应也采用 JSON 明文，避免昵称或变量中的 `&` 被误解析成授权字段。原有卡密接口的 canonical 明文和响应编码未改变；应用选择其他加密插件时，遵循该插件的协议，不强制改为默认 AES，也不采用 WS 的 AES-GCM 握手。
+
+### 授权与设备规则
+
+- 用户名/邮箱与密码必须匹配当前应用的未删除用户；密码在服务端按已有 BCrypt 规则验证。
+- 收费应用必须有尚未到期的会员，未开通或已过期返回 `MEMBER_EXPIRED`。
+- 免费应用仍然校验账号密码和设备，但不强制要求会员。匿名免费访客继续使用原来的 `/api/v1/card/login`，不需要迁移成账号。
+- 与 WS 共用 `ACCOUNT` 设备绑定：被封禁设备返回 `DEVICE_BANNED`；同一用户设备已有不兼容的卡密绑定返回 `DEVICE_CONFLICT`。软删除记录按既有规则检查并恢复，不能绕过设备封禁。
+- 成功后累计账号登录次数、更新最后登录信息，并记录 HTTP 用户访问流水；不建立或踢出 WS 会话。
+
+### 响应字段（解密后）
+
+外层结构、响应加密和 `X-Resp-Timestamp` / `X-Resp-Nonce` / `X-Resp-Signature` 与卡密接口一致。外层 `data` 是 `{ "data": "HEX密文", "pluginId": "aes-default" }`，客户端需验签并解密其中的密文。
+
+| 字段 | 说明 |
+| --- | --- |
+| `appId`、`userId` | 当前应用及终端用户 ID |
+| `username`、`nickname` | 用户名、昵称，不返回密码/密码哈希或应用密钥 |
+| `memberRequired` | 是否要求有效会员；免费应用为 `false` |
+| `expiresAt` | 用户实际会员到期时间，epoch **毫秒**；没有会员时为空，不虚构永久到期时间 |
+| `available` | 收费应用会员剩余**秒数**；免费应用为空，不能因此判定登录失败 |
+| `loginCount`、`lastLoginAt` | 包含本次成功登录的累计次数、最后登录时间（epoch 毫秒） |
+| `bindingCount` | 当前用户未删除的设备绑定数量 |
+| `variables` | 启用变量组成的 JSON **字符串**，与卡密响应一致，支持用户上下文模板 |
+| `online` | 成功登录为 `true`，表示 HTTP 近期活跃（5 分钟），不表示 WS 连接或持续在线 |
+| `token` | 空值；不签发心跳 token、Portal JWT 或后台登录凭证 |
+| `identityType`、`identityId` | `USER`、`user_` + 用户 ID，仅用于统计展示和去重 |
+
+新账号接口在默认 AES 下的成功响应解密后是 **JSON 对象**，数字和布尔值保留类型，`variables` 仍是 JSON 字符串；空字段可能为 `null` 或被省略。这与旧卡密的 `key=value&...` 明文不同，但 AES 算法、密钥来源、HEX 密文与外层封装不变。业务失败时仍沿用公共的空加密载荷，通过外层 `code` / `message` 判断。`identityId` 不是后续接口的身份凭证，不能用它绕过账号或会员验证。
+
+### 错误与统计
+
+| 业务 `code` | 含义 |
+| --- | --- |
+| `400` | 必填字段缺失或超长 |
+| `401` | 用户名/邮箱或密码错误（统一提示，避免泄露账号是否存在） |
+| `403` | 应用停用、会员过期、设备封禁或绑定冲突 |
+| `429` | 登录尝试过频：同应用同来源 IP 每分钟最多 120 次，同来源同账号每分钟最多 20 次 |
+| `500` | 服务暂不可用，不返回内部异常或敏感参数 |
+
+控制器业务结果沿用卡密接口的 `Result`，应同时检查 `success` 与 `code`，不能仅看 HTTP 状态。签名缺失、过期、重放等会在鉴权过滤器直接返回 HTTP 401/403 等错误；未通过过滤器的响应不属于登录成功的加密结构。
+
+首页「登录与访客统计」增加 HTTP 用户登录次数、今日/7 日活跃用户与最近 5 分钟用户数，并区分 `USER` / `CARD` / `VISITOR`。同一账号重复登录累计次数，活跃用户按应用及用户 ID 去重；HTTP 登录计入综合在线用户（5 分钟窗口），同一用户同时有 WS 和 HTTP 活跃仅计一次；不增加 WS 会话数或连续在线时长。
+
+::: warning 一次性校验不是持续在线授权
+本接口只证明登录这一时刻的账号、会员和设备校验通过。客户端没有心跳时，服务端无法确认其是否仍在运行，也无法主动让离线客户端立刻感知会员到期或封禁；需要持续在线与主动断开能力时，仍应接入 WS。
+:::
+
 ## WebSocket 登录
 
 `AUTH` 载荷经 AES-GCM 解密后必须包含 `appKey`、`appSig`、`username`、`password`、`ts`、`nonce`、`seq`、`deviceId`，并可包含 `deviceName` 和 `deviceOs`。
@@ -86,3 +169,11 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 ## 公共错误
 
 `THIRD_PARTY_AUTH_MISSING`、`THIRD_PARTY_AUTH_BAD_TIMESTAMP`、`THIRD_PARTY_AUTH_EXPIRED`、`THIRD_PARTY_AUTH_REPLAY`、`APP_DISABLED`、`THIRD_PARTY_AUTH_BAD_SIGNATURE` 和 `DECRYPT_EMPTY` 是接入阶段最常见的错误。服务端启用的接口可从 `/doc.html` 查看完整 Schema；该入口仅管理员可访问。
+
+### HTTP 用户近期在线与客户端兼容
+
+- 用户列表的 `online` 为 WS 在线或 HTTP 最近 5 分钟成功登录；`httpOnline` 仅表示后者，`wsOnline` 仍只表示真实 WS 会话。
+- 使用 `online=true/false` 筛选综合状态，旧 `wsOnline` 筛选保留原语义。列表状态在后续查询/刷新时更新，历史登录响应不会自动改变。
+- HTTP 窗口为 `(当前时间 - 5 分钟, 当前时间]`；再次成功登录刷新窗口，失败请求、普通查询不续期。应用停用/删除、付费会员过期或存在已封禁设备绑定时不再显示 HTTP 近期在线。
+- 在线统计按用户去重；HTTP 活跃不是连接，不产生在线时长，不签发心跳 token，不顶掉 WS。
+- 新客户端应读取布尔 `online`，同时兼容旧服务器的 `false`，不能以 `online` 决定认证成功与否。旧 core-fs / SeaAlpha HTTP 用户客户端拒绝 `online=true`，须先更新客户端解析再切换后端。

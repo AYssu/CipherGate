@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
+  Tooltip,
   Space,
   Button,
   Table,
@@ -152,7 +153,7 @@ const AppUserManagementContent: React.FC = () => {
     filters.nickname,
     filters.banned,
     filters.memberStatus,
-    filters.wsOnline,
+    filters.online,
   ].filter((v) => v !== undefined && v !== null && v !== '').length;
 
   // 获取应用列表
@@ -212,7 +213,7 @@ const AppUserManagementContent: React.FC = () => {
       banned: filters.banned,
       memberStatus: filters.memberStatus,
       expiresFilter: filters.memberStatus === 'ACTIVE' ? 'not_expired' : filters.memberStatus === 'EXPIRED' ? 'expired' : undefined,
-      wsOnline: filters.wsOnline,
+      online: filters.online,
     });
   };
 
@@ -275,10 +276,10 @@ const AppUserManagementContent: React.FC = () => {
       delete next.memberStatus;
     }
 
-    if (v.wsOnline === true || v.wsOnline === false) {
-      next.wsOnline = v.wsOnline;
+    if (v.online === true || v.online === false) {
+      next.online = v.online;
     } else {
-      delete next.wsOnline;
+      delete next.online;
     }
 
     setFilters(next);
@@ -297,7 +298,7 @@ const AppUserManagementContent: React.FC = () => {
     delete next.nickname;
     delete next.banned;
     delete next.memberStatus;
-    delete next.wsOnline;
+    delete next.online;
     setFilters(next);
     fetchUsers(1, pagination.pageSize, next);
   };
@@ -320,7 +321,7 @@ const AppUserManagementContent: React.FC = () => {
       fetchUsers(pagination.current, pagination.pageSize, filters);
     }, 10000);
     return () => window.clearInterval(timer);
-  }, [pagination.current, pagination.pageSize, filters]);
+  }, [pagination, filters]);
 
   // 打开创建/编辑弹窗
   const handleOpenModal = (user?: AppUser) => {
@@ -1122,22 +1123,26 @@ const AppUserManagementContent: React.FC = () => {
       },
     },
     {
-      title: 'WS在线',
-      dataIndex: 'wsOnline',
-      key: 'wsOnline',
-      width: 88,
+      title: '在线状态',
+      dataIndex: 'online',
+      key: 'online',
+      width: 120,
       align: 'center' as const,
       render: (online: boolean | undefined, record: AppUser) => (
         <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
-          <Tag color={online ? 'success' : 'default'}>{online ? '在线' : '离线'}</Tag>
-          {online && record.wsSessionCount != null && record.wsSessionCount > 1 ? (
+          <Tooltip title="WS 为实时连接；HTTP 为最近 5 分钟成功登录，不累计在线时长">
+            <Tag color={(online ?? record.wsOnline) ? 'success' : 'default'}>
+              {record.wsOnline ? 'WS 在线' : record.httpOnline ? 'HTTP 近期在线' : '离线'}
+            </Tag>
+          </Tooltip>
+          {record.wsOnline && record.wsSessionCount != null && record.wsSessionCount > 1 ? (
             <Text type="secondary">{record.wsSessionCount} 会话</Text>
           ) : null}
         </Space>
       ),
     },
     {
-      title: '在线时长',
+      title: 'WS 在线时长',
       dataIndex: 'wsOnlineSeconds',
       key: 'wsOnlineSeconds',
       width: 140,
@@ -1298,7 +1303,7 @@ const AppUserManagementContent: React.FC = () => {
     },
   ];
 
-  const MOBILE_VISIBLE_KEYS = ['username', 'member', 'wsOnline', 'action'];
+  const MOBILE_VISIBLE_KEYS = ['username', 'member', 'online', 'action'];
   const displayColumns = isMobile
     ? columns.filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string))
     : columns;
@@ -1308,7 +1313,7 @@ const AppUserManagementContent: React.FC = () => {
     const initial = getUserInitial(record);
 
     // 状态颜色
-    const statusColor = record.isBanned ? '#ff4d4f' : record.wsOnline ? '#52c41a' : '#d9d9d9';
+    const statusColor = record.isBanned ? '#ff4d4f' : (record.online ?? record.wsOnline) ? '#52c41a' : '#d9d9d9';
 
     return (
       <div
@@ -1339,7 +1344,7 @@ const AppUserManagementContent: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Text strong ellipsis style={{ fontSize: 14, maxWidth: 120 }}>{record.username}</Text>
               {record.isBanned && <Tag color="red" className="appuser-mobile-tag">封禁</Tag>}
-              {record.wsOnline && <Tag color="success" className="appuser-mobile-tag">在线</Tag>}
+              {(record.online ?? record.wsOnline) && <Tag color="success" className="appuser-mobile-tag">{record.wsOnline ? 'WS 在线' : 'HTTP 近期在线'}</Tag>}
               {record.appName && <Tag color="blue" className="appuser-mobile-tag">{record.appName}</Tag>}
             </div>
           </div>
@@ -1451,7 +1456,7 @@ const AppUserManagementContent: React.FC = () => {
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item label="在线状态" name="wsOnline">
+                      <Form.Item label="在线状态" name="online">
                         <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
                       </Form.Item>
                     </Col>
@@ -1510,7 +1515,7 @@ const AppUserManagementContent: React.FC = () => {
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item label="在线状态" name="wsOnline">
+                          <Form.Item label="在线状态" name="online">
                             <Select allowClear placeholder="在线状态" options={[{ label: '在线', value: true }, { label: '离线', value: false }]} />
                           </Form.Item>
                         </Col>

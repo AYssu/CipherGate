@@ -1,40 +1,56 @@
+# Local development only. Ports are loopback-only and match application-dev.yaml.
 services:
   mysql:
-    image: 'mysql:latest'
-    container_name: local-mysql
-    command: ["--skip-name-resolve"]
+    image: mysql:8.4@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69
     environment:
-      - 'MYSQL_DATABASE=ciphergate'
-      - 'MYSQL_PASSWORD=Qy5S3SBfnRwdKxRD'
-      - 'MYSQL_ROOT_PASSWORD=super_axUobn34U'
-      - 'MYSQL_USER=ciphergate'
-    ports:
-      - '13306:3306'
-
+      MYSQL_DATABASE: ciphergate
+      MYSQL_USER: ciphergate
+      MYSQL_PASSWORD: ciphergate_local_only
+      MYSQL_ROOT_PASSWORD: ciphergate_local_root_only
+    ports: ["127.0.0.1:13306:3306"]
+    volumes: ["dev_mysql:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h localhost -uroot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
   redis:
-    image: 'redis:7-alpine'
-    container_name: local-redis
-    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "redis_MTXHTx" ]
-    ports:
-      - '16379:6379'
-
+    image: redis:7-alpine@sha256:57e4255cc971b1c8d6f8a6ca283ac01bc3ecdd914273ef6bfaede87aaecd6541
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "ciphergate_local_redis_only"]
+    ports: ["127.0.0.1:16379:6379"]
+    volumes: ["dev_redis:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=ciphergate_local_redis_only redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
   rabbitmq:
-    image: 'rabbitmq:3-management'
-    container_name: local-rabbitmq
+    image: rabbitmq:3.12-management-alpine@sha256:0b44fbcc3a4bf22d00090f1353127577dbe1fcb109c41669733a9d7ecf6c3a78
     environment:
-      - 'RABBITMQ_DEFAULT_USER=rabbitmq'
-      - 'RABBITMQ_DEFAULT_PASS=rabbitmq'
-    ports:
-      - '5672:5672'
-      - '15672:15672'
-
+      RABBITMQ_DEFAULT_USER: ciphergate
+      RABBITMQ_DEFAULT_PASS: ciphergate_local_rabbit_only
+    ports: ["127.0.0.1:15673:5672", "127.0.0.1:15672:15672"]
+    volumes: ["dev_rabbitmq:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
   minio:
-    image: 'minio/minio:latest'
-    container_name: local-minio
+    image: pgsty/silo:RELEASE.2026-10-18T00-00-00Z@sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7
     environment:
-      - 'MINIO_ROOT_USER=minio_RcWTQn'
-      - 'MINIO_ROOT_PASSWORD=minio_WfY3PE'
+      MINIO_ROOT_USER: ciphergate-local
+      MINIO_ROOT_PASSWORD: ciphergate_local_minio_only
     command: server /data --console-address ":9001"
-    ports:
-      - '19000:9000'
-      - '19001:9001'
+    ports: ["127.0.0.1:19000:9000", "127.0.0.1:19001:9001"]
+    volumes: ["dev_minio:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  dev_mysql:
+  dev_redis:
+  dev_rabbitmq:
+  dev_minio:

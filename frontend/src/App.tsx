@@ -3,7 +3,8 @@ import { ConfigProvider, Empty } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
-import { ThemeProvider, useTheme } from './theme';
+import { ThemeProvider } from './theme';
+import { useTheme } from './theme/context';
 import '@uiw/react-md-editor/markdown-editor.css';
 import './App.css';
 

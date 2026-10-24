@@ -1,3 +1,4 @@
+-- CipherGate 首次安装基线。发布后保持不变，后续变更新增 V2__xxx.sql。
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -394,6 +395,8 @@ CREATE TABLE IF NOT EXISTS application (
     -- 卡密解绑扣时（解绑设备或解绑 IP 时，从卡密 expires_at 扣减）
     unbind_time_deduct_mode VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT '解绑扣时模式: NONE=不扣, PERCENT=按剩余时长百分比, HOURS=固定扣小时',
     unbind_time_deduct_value DECIMAL(10, 2) NULL COMMENT '扣时数值: PERCENT 为 0-100；HOURS 为小时数(可小数)',
+    portal_payment_enabled BOOLEAN DEFAULT FALSE,
+    portal_return_url VARCHAR(500),
     unbind_cooldown_hours INT NOT NULL DEFAULT 0 COMMENT '解绑冷却时间（小时）；0=不限制，仅影响三方换绑',
     
     -- 审计字段
@@ -1150,6 +1153,14 @@ CREATE TABLE IF NOT EXISTS third_party_credential (
     INDEX idx_tp_credential_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='三方加时调用凭证';
 
+-- 三方充值凭证支持多个应用。旧凭证没有关联记录时仍使用原 app_id；不重置 Key/Secret。
+CREATE TABLE IF NOT EXISTS third_party_credential_app (
+    credential_id BIGINT NOT NULL COMMENT '三方充值凭证ID',
+    app_id BIGINT NOT NULL COMMENT '授权应用ID',
+    PRIMARY KEY (credential_id, app_id),
+    INDEX idx_tp_credential_app_lookup (app_id, credential_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='三方充值凭证授权应用';
+
 -- 三方加时调用日志
 CREATE TABLE IF NOT EXISTS third_party_recharge_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
@@ -1752,3 +1763,173 @@ FROM roles r, menus m
 WHERE r.role_code = 'SUPER_ADMIN'
 AND m.menu_code = 'ANNOUNCEMENT_MANAGEMENT'
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 门户表（原独立升级脚本，合入首次安装基线）
+-- 终端用户门户系统数据库迁移
+
+-- 1. 门户支付订单表
+CREATE TABLE IF NOT EXISTS portal_payment_order (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_no VARCHAR(64) NOT NULL UNIQUE,
+    app_user_id BIGINT NOT NULL,
+    app_id BIGINT NOT NULL,
+    plan_id BIGINT,
+    plan_name VARCHAR(100),
+    duration_days INT,
+    amount_fen BIGINT NOT NULL,
+    payment_channel VARCHAR(20) DEFAULT 'alipay',
+    trade_no VARCHAR(100),
+    pay_url VARCHAR(500),
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '0=待支付 1=已支付 2=已关闭 3=已退款',
+    paid_at DATETIME,
+    notify_received BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_app_user (app_user_id),
+    INDEX idx_app (app_id),
+    INDEX idx_order_no (order_no),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. 应用级易支付配置
+CREATE TABLE IF NOT EXISTS application_epay_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    app_id BIGINT NOT NULL,
+    epay_url VARCHAR(255),
+    epay_pid VARCHAR(100),
+    epay_key VARCHAR(255),
+    notify_url VARCHAR(500),
+    return_url VARCHAR(500),
+    enabled BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_app_epay (app_id),
+    INDEX idx_app (app_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. 门户定价方案（应用创建者配置）
+CREATE TABLE IF NOT EXISTS portal_pricing_plan (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    app_id BIGINT NOT NULL,
+    plan_name VARCHAR(100) NOT NULL,
+    plan_type VARCHAR(20) NOT NULL COMMENT 'DAY/PERMANENT',
+    duration_days INT,
+    price_fen BIGINT NOT NULL,
+    sort_order INT DEFAULT 0,
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_app (app_id),
+    INDEX idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. 门户登录日志
+CREATE TABLE IF NOT EXISTS portal_login_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    app_user_id BIGINT NOT NULL,
+    app_id BIGINT NOT NULL,
+    login_ip VARCHAR(50),
+    ip_region VARCHAR(200),
+    user_agent VARCHAR(500),
+    device_info VARCHAR(200),
+    login_type VARCHAR(20) DEFAULT 'PASSWORD',
+    status VARCHAR(20) DEFAULT 'SUCCESS',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_app_user (app_user_id),
+    INDEX idx_app (app_id),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. 门户验证码记录
+CREATE TABLE IF NOT EXISTS portal_verify_code (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    purpose VARCHAR(30) NOT NULL COMMENT 'LOGIN/RECOVERY/EMAIL_CHANGE',
+    used BOOLEAN DEFAULT FALSE,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email_purpose (email, purpose),
+    INDEX idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- 成功执行的批次才提交；唯一 request_id 阻止重复请求，失败时随事务回滚。
+CREATE TABLE IF NOT EXISTS app_user_transfer_batch (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    request_id CHAR(36) NOT NULL,
+    operator_id BIGINT NOT NULL,
+    source_app_id BIGINT NOT NULL,
+    target_app_id BIGINT NOT NULL,
+    mode VARCHAR(8) NOT NULL,
+    force_overwrite BOOLEAN NOT NULL DEFAULT FALSE,
+    create_count INT NOT NULL,
+    overwrite_count INT NOT NULL,
+    skip_count INT NOT NULL,
+    selected_ids JSON NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY uk_transfer_request (request_id),
+    INDEX idx_transfer_operator (operator_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='终端用户迁移批次（幂等与审计）';
+
+-- 独立的高级用户迁移菜单。沿用角色授权，实际操作额外校验双应用所有权。
+INSERT INTO permissions (permission_name, permission_code, resource_type, resource_path, http_method, description, status)
+VALUES ('迁移/复制终端用户', 'APP_USER_TRANSFER', 'API', '/api/app-user-transfers/**', NULL, '仅源和目标应用所有者或管理员可操作', 1)
+ON DUPLICATE KEY UPDATE permission_code=VALUES(permission_code);
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN', 'USER') AND p.permission_code='APP_USER_TRANSFER'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('用户迁移', 'APP_USER_TRANSFER', (SELECT id FROM (SELECT id FROM menus WHERE menu_code='APP_MANAGEMENT') AS tmp),
+2, '/applications/user-transfer', 'AppUserTransfer', 'tool', 8, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE menu_code=VALUES(menu_code);
+
+INSERT INTO role_menus (role_id, menu_id)
+SELECT r.id, m.id FROM roles r, menus m
+WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN', 'USER') AND m.menu_code='APP_USER_TRANSFER'
+ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
+
+-- 将会员和工单管理从系统管理移到独立的顶级菜单
+
+-- 创建会员管理顶级菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('会员管理', 'MEMBERSHIP_MANAGEMENT', 0, 1, '/membership', NULL, 'crown', 3, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE path = '/membership', icon = 'crown', sort_order = 3;
+
+-- 创建运营管理顶级菜单
+INSERT INTO menus (menu_name, menu_code, parent_id, menu_type, path, component, icon, sort_order, visible, status, created_at, updated_at)
+VALUES ('运营管理', 'OPERATION_MANAGEMENT', 0, 1, '/operation', NULL, 'file-text', 4, 1, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE path = '/operation', icon = 'file-text', sort_order = 4;
+
+-- 移动会员等级管理到会员管理下
+UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'MEMBERSHIP_MANAGEMENT' LIMIT 1) AS tmp), path = '/membership/levels', sort_order = 1
+WHERE menu_code = 'MEMBERSHIP_LEVEL_MANAGEMENT';
+
+-- 移动用户会员管理到会员管理下
+UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'MEMBERSHIP_MANAGEMENT' LIMIT 1) AS tmp), path = '/membership/users', sort_order = 2
+WHERE menu_code = 'USER_MEMBERSHIP_MANAGEMENT';
+
+-- 移动额度商品管理到会员管理下
+UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'MEMBERSHIP_MANAGEMENT' LIMIT 1) AS tmp), path = '/membership/products', sort_order = 3
+WHERE menu_code = 'QUOTA_PRODUCT_MANAGEMENT';
+
+-- 移动订单管理到运营管理下
+UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'OPERATION_MANAGEMENT' LIMIT 1) AS tmp), path = '/operation/orders', sort_order = 1
+WHERE menu_code = 'ORDER_MANAGEMENT';
+
+-- 移动工单管理到运营管理下
+UPDATE menus SET parent_id = (SELECT id FROM (SELECT id FROM menus WHERE menu_code = 'OPERATION_MANAGEMENT' LIMIT 1) AS tmp), path = '/operation/tickets', sort_order = 2
+WHERE menu_code = 'TICKET_MANAGEMENT';
+
+-- 修复文档管理菜单路径：/docs/categories -> /admin/docs/categories
+-- 原因：nginx 将 /docs/ 映射到静态文档，前端路由需要使用 /admin/docs/
+
+UPDATE menus SET path = '/admin/docs/categories' WHERE menu_code = 'DOC_MANAGEMENT_ADMIN' AND path = '/docs/categories';
+
+CREATE UNIQUE INDEX SPRING_SESSION_IX1 ON SPRING_SESSION (SESSION_ID);
+CREATE INDEX SPRING_SESSION_IX2 ON SPRING_SESSION (EXPIRY_TIME);
+CREATE INDEX SPRING_SESSION_IX3 ON SPRING_SESSION (PRINCIPAL_NAME);

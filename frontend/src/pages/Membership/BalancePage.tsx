@@ -18,12 +18,6 @@ const BalancePage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = React.useState<any>(null);
   const [purchaseVisible, setPurchaseVisible] = React.useState(false);
 
-  React.useEffect(() => {
-    fetchBalance();
-    fetchTransactions();
-    fetchProducts();
-  }, []);
-
   const fetchBalance = () => {
     fetch('/api/user/membership/balance', { credentials: 'include' })
       .then(res => res.json())
@@ -43,6 +37,12 @@ const BalancePage: React.FC = () => {
       .then(res => res.json())
       .then(data => { if (data.success) setProducts(data.data || []); });
   };
+
+  React.useEffect(() => {
+    fetchBalance();
+    fetchTransactions();
+    fetchProducts();
+  }, []);
 
   const handleRecharge = async () => {
     if (!rechargeAmount || rechargeAmount <= 0) {

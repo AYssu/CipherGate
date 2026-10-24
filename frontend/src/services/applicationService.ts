@@ -167,6 +167,12 @@ export const listEncryptionPlugins = () => {
 };
 
 /** 上传应用更新包到 MinIO（multipart，字段名 file） */
-export const uploadApplicationUpdatePackage = (id: number, formData: FormData) => {
-  return request.post(`/applications/${id}/update-package`, formData);
+export const uploadApplicationUpdatePackage = (id: number, formData: FormData, onProgress?: (percent: number) => void) => {
+  // 更新包最大 512MB，上传不能沿用普通接口的 10 秒超时。
+  return request.post(`/applications/${id}/update-package`, formData, {
+    timeout: 30 * 60 * 1000,
+    onUploadProgress: (event) => {
+      if (event.total) onProgress?.(Math.min(100, Math.round(event.loaded * 100 / event.total)));
+    },
+  });
 };

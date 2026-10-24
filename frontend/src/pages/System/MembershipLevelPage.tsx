@@ -14,14 +14,14 @@ const MembershipLevelPage: React.FC = () => {
   const [editing, setEditing] = React.useState<any>(null);
   const [form] = Form.useForm();
 
-  React.useEffect(() => { fetchLevels(); }, []);
-
   const fetchLevels = () => {
     fetch('/api/membership/levels', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setLevels(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
+
+  React.useEffect(() => { fetchLevels(); }, []);
 
   const handleSave = async () => {
     const values = await form.validateFields();

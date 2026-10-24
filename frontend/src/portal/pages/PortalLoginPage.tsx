@@ -54,7 +54,7 @@ const PortalLoginPage: React.FC = () => {
         message.success('登录成功');
         navigate('/portal/dashboard');
       }
-    } catch (err: any) {
+    } catch {
       loadCaptcha();
     } finally {
       setLoading(false);

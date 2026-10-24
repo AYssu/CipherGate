@@ -139,7 +139,7 @@ CipherGate/
 
 - Docker & Docker Compose
 - Java 17+ (仅本地开发)
-- Node.js 20+ (仅本地开发)
+- Node.js 22.22.0、Python 3.12+ (源码构建)
 
 ### 方式一：本地开发
 
@@ -161,7 +161,7 @@ docker compose -f compose.yaml up -d
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -171,16 +171,16 @@ npm run dev
 
 **1) 下载部署包**
 
-从 [GitHub Releases](https://github.com/AYssu/CipherGate/releases) 下载 `deploy-bundle.zip`。
+从 [GitHub Releases](https://github.com/AYssu/CipherGate/releases) 下载 `ciphergate-deploy.zip`。
 
 **2) 解压并配置**
 
 ```bash
-unzip deploy-bundle.zip -d deploy-bundle
+unzip ciphergate-deploy.zip -d deploy-bundle
 cd deploy-bundle
 ```
 
-编辑 `.env` 文件，修改默认密码和端口配置。
+运行 `python3 setup-env.py` 为本次安装生成独立 `.env`，再编辑域名和端口，并执行 `python3 setup-env.py --check`。已有服务器升级必须保留原 `.env`，不要重新生成凭证。
 
 **3) 启动服务**
 
@@ -189,6 +189,10 @@ docker compose -f docker-compose.server.yml up -d
 ```
 
 服务启动后，访问 `http://localhost:<FRONTEND_PORT>` 进入管理后台。
+
+数据库结构由 Flyway 自动迁移：空库自动初始化，后续只执行新增版本。
+**从旧版升级时，必须先备份并按 [数据库升级说明](docs/database/README.md) 完成一次旧库接入。**
+不要直接重放历史 `init.sql`，也不要启用 `baseline-on-migrate` 绕过核验。
 
 ---
 
@@ -240,7 +244,7 @@ frontend → backend → mysql
 
 ### 环境变量
 
-部署包中的 `.env` 文件包含所有可配置项：
+部署包只带空凭证模板 `.env.example`；完整参数以该模板为准。安装时生成私有 `.env`。以下仅说明主要参数，不能直接作为生产配置：
 
 ```bash
 # 数据库配置
@@ -251,11 +255,13 @@ MYSQL_PASSWORD=your_password
 MYSQL_PORT=3306
 
 # Redis 配置
-REDIS_PORT_HOST=6379
+REDIS_PORT_HOST=16379
+REDIS_PASSWORD=<独立强密码>
+PORTAL_JWT_SECRET=<至少32字节随机密钥>
 
 # RabbitMQ 配置
-RABBITMQ_USERNAME=rabbitmq
-RABBITMQ_PASSWORD=rabbitmq
+RABBITMQ_USERNAME=ciphergate
+RABBITMQ_PASSWORD=<独立强密码>
 RABBITMQ_PORT=5672
 RABBITMQ_MGMT_PORT=15672
 
@@ -359,7 +365,7 @@ docker compose -f compose.yaml up -d
 ./gradlew bootRun
 
 # 4. 启动前端（可选）
-cd frontend && npm install && npm run dev
+cd frontend && npm ci && npm run dev
 ```
 
 ### 构建部署包
@@ -372,7 +378,11 @@ cd frontend && npm install && npm run dev
 deploy-server.bat
 ```
 
-构建完成后，会在项目根目录生成 `ciphergate-deploy.zip`。
+构建完成后生成 `ciphergate-deploy.zip`、SHA256 校验和及逐文件清单。Linux/Windows 入口共用 Python 打包器，发布包不包含真实凭证。
+
+完整安装、升级、备份恢复、日志排障见 [运维说明](docs/operations.md)；数据库变更见 [Flyway 迁移规范](docs/database/README.md)。
+
+PR 检查包含后端单元/真实 MySQL 集成测试、插件测试、前端 lint/类型/单元/浏览器测试、文档构建、密钥及依赖检查。主分支推送只验证，发布通过版本标签触发。
 
 ### 插件开发
 
@@ -387,7 +397,7 @@ deploy-server.bat
 
 ## 贡献
 
-欢迎提交 Issue / PR。
+欢迎提交 Issue / PR。环境准备、测试和审查规范见 [CONTRIBUTING.md](CONTRIBUTING.md)，漏洞报告见 [SECURITY.md](SECURITY.md)。
 
 建议在变更说明中包含：
 - 功能范围
@@ -399,4 +409,4 @@ deploy-server.bat
 
 ## 许可证
 
-开源项目，具体许可证请查看仓库根目录的 LICENSE 文件。
+许可证尚待维护者确定，当前仓库没有 LICENSE，不应假定采用 MIT 或 Apache 授权。

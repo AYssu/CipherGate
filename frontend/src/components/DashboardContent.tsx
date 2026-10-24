@@ -5,6 +5,7 @@ import {
   Col,
   Avatar,
   Typography,
+  Tooltip,
   Space,
   Statistic,
   Button,
@@ -549,7 +550,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <Card loading={loadingOverview} className={isMobile ? 'dashboard-stat-tile-sm' : ''}>
-            <Statistic title="在线用户" value={onlineStats?.appUserOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#fa8c16' }} suffix="人" />
+            <Statistic title={<Tooltip title="WS 实时在线或 HTTP 最近 5 分钟成功登录，同一用户只计一次">在线用户</Tooltip>} value={onlineStats?.appUserOnlineCount ?? 0} formatter={statFormatter} valueStyle={{ color: '#fa8c16' }} suffix="人" />
           </Card>
         </Col>
         <Col xs={12} sm={12} lg={6}>

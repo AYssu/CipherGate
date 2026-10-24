@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  pr-checks:
+    name: PR checks
+    if: always()
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require the complete check suite
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: test "$RESULT" = success

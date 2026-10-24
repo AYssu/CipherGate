@@ -1,15 +1,23 @@
-mybatis-plus:
-  configuration:
-    # 生产环境关闭 SQL 控制台输出（默认配置为 StdOutImpl）
-    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
-
-logging:
-  level:
-    root: INFO
-    # 调试模块及调试链路在生产环境降噪
-    com.ayssu.ciphergate.controller.DebugController: WARN
-    com.ayssu.ciphergate.thirdparty.ws: INFO
+# 仅本机开发；生产必须显式启用 prod 并设置独立凭据。
 spring:
-  docker:
-    compose:
-      enabled: false
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:13306/ciphergate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:ciphergate}
+    password: ${SPRING_DATASOURCE_PASSWORD:ciphergate_local_only}
+  data:
+    redis:
+      port: ${REDIS_PORT:16379}
+      password: ${REDIS_PASSWORD:ciphergate_local_redis_only}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:15673}
+    username: ${RABBITMQ_USERNAME:ciphergate}
+    password: ${RABBITMQ_PASSWORD:ciphergate_local_rabbit_only}
+app:
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:19000}
+    access-key: ${MINIO_ACCESS_KEY:ciphergate-local}
+    secret-key: ${MINIO_SECRET_KEY:ciphergate_local_minio_only}
+portal:
+  jwt:
+    secret: ${PORTAL_JWT_SECRET:local-development-only-change-for-production-2026}

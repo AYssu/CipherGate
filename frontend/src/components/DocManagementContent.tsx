@@ -695,7 +695,7 @@ const DocManagementContent: React.FC = () => {
                         a.click();
                         document.body.removeChild(a);
                         window.URL.revokeObjectURL(url);
-                      } catch (err) {
+                      } catch {
                         message.error('下载失败');
                       }
                     }}

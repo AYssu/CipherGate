@@ -16,7 +16,6 @@ import com.ayssu.ciphergate.mapper.AccessEventMapper;
 import com.ayssu.ciphergate.mapper.ActivityLogMapper;
 import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.mapper.LicenseKeyMapper;
-import com.ayssu.ciphergate.thirdparty.ws.service.AppUserWsPresenceRegistry;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -39,7 +37,7 @@ public class DashboardStatsService {
     private final AppUserMapper appUserMapper;
     private final AccessEventMapper accessEventMapper;
     private final ActivityLogMapper activityLogMapper;
-    private final AppUserWsPresenceRegistry appUserWsPresenceRegistry;
+    private final AppUserPresenceService appUserPresenceService;
 
     public DashboardTodayStatsDTO getTodayStats(List<Long> ownedAppIds, boolean includePlatformLogin) {
         LocalDate today = LocalDate.now();
@@ -131,15 +129,11 @@ public class DashboardStatsService {
                 .isNotNull(LicenseKey::getLastUsedAt)
                 .gt(LicenseKey::getLastUsedAt, onlineCutoff)));
 
-        Collection<Long> onlineIds = appUserWsPresenceRegistry.listOnlineAppUserIds();
-        if (onlineIds == null || onlineIds.isEmpty()) {
-            dto.setAppUserOnlineCount(0);
-        } else {
-            dto.setAppUserOnlineCount(appUserMapper.selectCount(new LambdaQueryWrapper<AppUser>()
-                    .in(AppUser::getId, onlineIds)
-                    .in(AppUser::getAppId, ownedAppIds)
-                    .eq(AppUser::getDeleted, 0)));
-        }
+        var users = new LambdaQueryWrapper<AppUser>()
+                .in(AppUser::getAppId, ownedAppIds).eq(AppUser::getDeleted, 0);
+        appUserPresenceService.applyOnlineFilter(users, true, LocalDateTime.now());
+        // OR 条件直接查询用户表，同一个用户同时有 WS / HTTP 活跃也只计一次。
+        dto.setAppUserOnlineCount(appUserMapper.selectCount(users));
         return dto;
     }
 

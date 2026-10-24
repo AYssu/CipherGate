@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -111,7 +111,7 @@ const RoleManagementContent: React.FC = () => {
   };
 
   // 角色表格列定义
-  const allRoleColumns = useMemo(() => [
+  const allRoleColumns = [
     {
       title: '角色名称',
       dataIndex: 'roleName',
@@ -206,7 +206,7 @@ const RoleManagementContent: React.FC = () => {
         );
       },
     },
-  ], [isMobile]);
+  ];
 
   const MOBILE_VISIBLE_KEYS = ['roleName', 'roleCode', 'actions'];
   const roleColumns = isMobile

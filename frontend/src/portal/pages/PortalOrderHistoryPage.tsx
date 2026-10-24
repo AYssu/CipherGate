@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Typography, Table, Tag, message } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import { portalPaymentApi } from '../services/portalPaymentService';
@@ -19,6 +19,18 @@ const PortalOrderHistoryPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
 
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res: any = await portalPaymentApi.getOrders(page, 20);
+      setOrders(res?.data || []);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
   useEffect(() => {
     // 处理同步跳转参数（支付网关带回的）
     const tradeStatus = searchParams.get('trade_status');
@@ -36,19 +48,7 @@ const PortalOrderHistoryPage: React.FC = () => {
     }
 
     loadOrders();
-  }, [page]);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      const res: any = await portalPaymentApi.getOrders(page, 20);
-      setOrders(res?.data || []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadOrders, searchParams]);
 
   const columns = [
     { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', ellipsis: true },

@@ -17,6 +17,7 @@ import ThirdPartyCredentialManagementPage from '../pages/Application/ThirdPartyC
 import CallLogManagementPage from '../pages/Application/CallLogManagementPage';
 import LicenseManagementPage from '../pages/License/LicenseManagementPage';
 import AppUserManagementPage from '../pages/AppUser/AppUserManagementPage';
+import AppUserTransferPage from '../pages/AppUser/AppUserTransferPage';
 import AppVariableManagementPage from '../pages/AppVariable/AppVariableManagementPage';
 import PluginManagementPage from '../pages/Plugin/PluginManagementPage';
 import FunctionPluginManagementPage from '../pages/Plugin/FunctionPluginManagementPage';
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
           { path: 'list', element: <ApplicationManagementPage /> },
           { path: 'licenses', element: <LicenseManagementPage /> },
           { path: 'users', element: <AppUserManagementPage /> },
+          { path: 'user-transfer', element: <AppUserTransferPage /> },
           { path: 'variables', element: <AppVariableManagementPage /> },
           { path: 'credentials', element: <ThirdPartyCredentialManagementPage /> },
           { path: 'call-logs', element: <CallLogManagementPage /> },
