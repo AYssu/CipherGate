@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, message, Grid, Typography } from 'antd';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   MailOutlined,
   LockOutlined,
@@ -43,22 +43,22 @@ const T = {
 };
 
 /* ── 动画变体 ── */
-const fadeIn = {
+const fadeIn: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] } },
 };
 
-const stagger = {
+const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.06 } },
 };
 
-const panelSlideLeft = {
+const panelSlideLeft: Variants = {
   enter: { x: '100%', opacity: 0 },
   center: { x: 0, opacity: 1, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] } },
   exit: { x: '100%', opacity: 0, transition: { duration: 0.4 } },
 };
 
-const panelSlideRight = {
+const panelSlideRight: Variants = {
   enter: { x: '-100%', opacity: 0 },
   center: { x: 0, opacity: 1, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] } },
   exit: { x: '-100%', opacity: 0, transition: { duration: 0.4 } },

@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'jacoco'
-    id 'org.springframework.boot' version '4.0.3'
+    id 'org.springframework.boot' version '4.1.1'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -41,9 +41,9 @@ configurations {
 }
 
 repositories {
-    // 备用镜像（国内网络更稳），mavenCentral 兜底
-    maven { url 'https://maven.aliyun.com/repository/public' }
+    // Resolve official metadata first; retain the mirror as a fallback.
     mavenCentral()
+    maven { url 'https://maven.aliyun.com/repository/public' }
 }
 
 dependencyManagement {
@@ -79,17 +79,17 @@ dependencies {
     // Hutool 工具类（Excel 导出依赖 POI）
     implementation 'cn.hutool:hutool-all:5.8.40'
     implementation 'org.apache.poi:poi-ooxml:5.4.0'
-    implementation 'com.maxmind.geoip2:geoip2:4.3.1'
-    implementation 'org.lionsoul:ip2region:2.7.0'
+    implementation 'com.maxmind.geoip2:geoip2:5.2.0'
+    implementation 'org.lionsoul:ip2region:3.3.7'
 
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     //implementation 'com.alibaba.fastjson2:fastjson2:2.0.43'
     // Source: https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
-    implementation "com.alibaba.fastjson2:fastjson2:2.0.61"
+    implementation "com.alibaba.fastjson2:fastjson2:2.0.66"
 
     implementation 'org.pf4j:pf4j:3.14.1'
     implementation project(':ciphergate-plugin-api')
-    implementation 'io.minio:minio:8.6.0'
+    implementation 'io.minio:minio:9.0.3'
 
     // JWT for portal authentication
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
