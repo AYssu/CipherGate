@@ -89,7 +89,7 @@ dependencies {
 
     implementation 'org.pf4j:pf4j:3.14.1'
     implementation project(':ciphergate-plugin-api')
-    implementation 'io.minio:minio:8.6.0'
+    implementation 'io.minio:minio:9.0.3'
 
     // JWT for portal authentication
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
