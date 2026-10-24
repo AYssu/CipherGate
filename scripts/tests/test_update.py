@@ -155,6 +155,73 @@ class UpdateTest(unittest.TestCase):
             self.assertFalse((directory / ".ciphergate-update.lock").exists())
             self.assertEqual(json.loads((backup / "runtime.json").read_text())["services"]["backend"]["image"], "sha256:pinned")
 
+    def test_failed_update_automatically_recovers_only_when_database_schema_is_unchanged(self):
+        for schema_changed in [False, True]:
+            with self.subTest(schema_changed=schema_changed), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary) / "installation"
+                directory.mkdir()
+                config = {".env": "FRONTEND_PORT=5173", "docker-compose.server.yml": "operator compose",
+                          "frontend/nginx.conf": "operator nginx"}
+                for name, body in {**config, "build-info.json": '{"version":"1.0.0"}',
+                                   "app/app.jar": "old jar", "frontend/dist/index.html": "old frontend"}.items():
+                    path = directory / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(body)
+                archive = Path(temporary) / "new.zip"
+                with zipfile.ZipFile(archive, "w") as output:
+                    output.writestr("app/app.jar", "new jar")
+                    output.writestr("build-info.json", '{"version":"2.0.0"}')
+                    output.writestr("frontend/dist/index.html", "new frontend")
+                events = []
+                def fake_call(command, folder, capture=False):
+                    events.append(command)
+                    if "inspect" in command:
+                        service = command[-1]
+                        mounts = ({"/app/app.jar": directory / "app/app.jar"} if service == "backend" else
+                                  {"/usr/share/nginx/html": directory / "frontend/dist", "/usr/share/nginx/docs": directory / "docs"})
+                        return json.dumps([{"State": {"Running": True}, "Image": "sha256:pinned",
+                            "Config": {"Env": ["KEEP=private"]},
+                            "Mounts": [{"Destination": key, "Source": str(value)} for key, value in mounts.items()]}])
+                    if "ps" in command:
+                        return command[-1]
+                    return ""
+                def fake_backup(path):
+                    path.write_text("database snapshot")
+                schemas = ["before-stop", "schema-at-backup", "migrated" if schema_changed else "schema-at-backup"]
+                message = "remain stopped" if schema_changed else "previous application restored"
+                with patch.object(update.tooling, "verify_artifact"), \
+                     patch.object(update.tooling, "smoke", side_effect=[RuntimeError("new version readiness failed"), None]) as smoke, \
+                     patch.object(update, "fingerprint", side_effect=schemas), \
+                     patch.object(update, "call", side_effect=fake_call), \
+                     patch.object(update.operations, "backup", side_effect=fake_backup), \
+                     patch.object(update, "restore_files", wraps=update.restore_files) as restore:
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        update.update(archive, directory)
+                backups = list((directory / "backups").iterdir())
+                self.assertEqual(len(backups), 1)
+                backup = backups[0]
+                self.assertTrue((backup / "database.sql.gz").exists())
+                self.assertEqual(json.loads((backup / "update.json").read_text())["schemaBefore"], "schema-at-backup")
+                self.assertEqual((backup / "files/app/app.jar").read_text(), "old jar")
+                self.assertFalse((directory / ".ciphergate-update.lock").exists())
+                for name, body in config.items():
+                    self.assertEqual((directory / name).read_text(), body)
+                self.assertEqual(sum("stop" in event for event in events), 2)
+                if schema_changed:
+                    restore.assert_not_called()
+                    self.assertEqual(sum("up" in event for event in events), 1)
+                    self.assertEqual(events[-1][-3:], ["stop", "frontend", "backend"])
+                    self.assertEqual((directory / "app/app.jar").read_text(), "new jar")
+                    self.assertEqual((directory / "frontend/dist/index.html").read_text(), "new frontend")
+                    self.assertEqual(smoke.call_count, 1)
+                else:
+                    restore.assert_called_once()
+                    self.assertEqual(sum("up" in event for event in events), 2)
+                    self.assertEqual((directory / "app/app.jar").read_text(), "old jar")
+                    self.assertEqual((directory / "frontend/dist/index.html").read_text(), "old frontend")
+                    self.assertEqual(smoke.call_count, 2)
+                    self.assertEqual(smoke.call_args.args, ("http://127.0.0.1:5173", "1.0.0"))
+
     def test_lock_refuses_concurrent_operations_and_releases_after_failure(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
