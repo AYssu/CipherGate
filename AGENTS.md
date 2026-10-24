@@ -56,6 +56,15 @@ cd frontend && npm run lint
 - **CI**: fork-safe PR checks cover backend/frontend/plugins/docs; releases require tags, then package on Linux and Windows; both deploy scripts use `scripts/project.py`
 - **Plugin system**: PF4J; plugins declare `Plugin-Class` in manifest, depend on `ciphergate-plugin-api`
 
+## Development and approval workflow
+
+- Start new features and fixes on a dedicated branch based on the current remote `master`; do not commit or push changes directly to `master`.
+- Implement the complete change, add relevant regression tests, and update affected documentation. Use new Flyway migrations for schema changes; never edit an applied migration.
+- Run the relevant local checks, push the branch, and open a PR with the behavior, validation results, and any migration or rollback implications.
+- Wait for required CI checks and builds to pass. Resolve failures on the PR branch before requesting review.
+- After checks pass, report the PR and wait for the user's explicit approval to merge that PR. A request to develop a feature or create a PR does not authorize merging, administrator bypass, release creation, or production deployment.
+- Release publication and production deployment require their own explicit user authorization. Preserve existing production configuration and create verified backups before an authorized deployment.
+
 ## Watch out
 
 - Root `package.json` is only for `caveman-installer` — not the frontend. Frontend is `frontend/package.json`.

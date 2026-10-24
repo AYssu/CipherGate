@@ -146,3 +146,52 @@ test('application registration keeps animated mode transitions and static feedba
   await expect(page.getByPlaceholder('myname_01', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+for (const succeeds of [true, false]) test(`license redemption ${succeeds ? 'confirms beneficiary and refreshes membership' : 'keeps card available after rejection'}`, async ({ page }) => {
+  const submitted: unknown[] = [];
+  await mockApi(page, async (route, path) => {
+    if (path === '/public/app-user/self/query-expire') {
+      await route.fulfill({ json: envelope({ emailMasked: 'al***@example.test', memberActive: false, remainingSeconds: 0 }) }); return true;
+    }
+    if (path === '/public/app-user/self/redeem-license') {
+      submitted.push(route.request().postDataJSON());
+      await route.fulfill({ json: succeeds ? envelope({ emailMasked: 'al***@example.test', keyCodeMasked: 'ABCD****WXYZ',
+        memberExpiresAt: '2035-01-08T12:00:00', remainingSeconds: 604800, memberActive: true }) : { success: false, code: 400, message: '卡密已兑换，请勿重复充值' } }); return true;
+    }
+    return false;
+  });
+  await page.goto('/app-user?id=10');
+  await page.getByLabel('邮箱', { exact: true }).fill('alice@example.test');
+  await page.getByRole('button', { name: /查\s*询/ }).click();
+  await expect(page.getByText('未开通会员', { exact: true })).toBeVisible();
+  await page.getByLabel('充值邮箱', { exact: true }).fill('Alice@example.test');
+  await page.getByLabel('充值卡密', { exact: true }).fill('ABCD1234WXYZ');
+  await page.getByRole('button', { name: /兑换充值/ }).click();
+  let dialog=page.getByRole('dialog', { name: '确认卡密充值' });
+  await expect(dialog.getByText('alice@example.test', { exact: true })).toBeVisible();
+  expect(submitted).toHaveLength(0);
+  await dialog.getByRole('button', { name: /取\s*消/ }).click();
+  expect(submitted).toHaveLength(0);
+  await page.getByRole('button', { name: /兑换充值/ }).click();
+  dialog=page.getByRole('dialog', { name: '确认卡密充值' });
+  await dialog.getByRole('button', { name: '确认充值', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(submitted).toEqual([{ appId: 10, email: 'alice@example.test', keyCode: 'ABCD1234WXYZ' }]);
+  if (succeeds) {
+    await expect(page.getByText('卡密充值成功', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('充值卡密', { exact: true })).toHaveValue('');
+    await expect(page.getByText('未开通会员', { exact: true })).not.toBeVisible();
+    await expect(page.getByText('有效', { exact: true })).toBeVisible();
+  } else {
+    await expect(page.getByText('卡密充值失败', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('充值卡密', { exact: true })).toHaveValue('ABCD1234WXYZ');
+    await expect(page.getByText('未开通会员', { exact: true })).toBeVisible();
+  }
+});
+
+test('license redemption cannot submit without a valid application link', async ({ page }) => {
+  await mockApi(page, async () => false);
+  await page.goto('/app-user');
+  await expect(page.getByRole('button', { name: /兑换充值/ })).toBeDisabled();
+  await expect(page.getByLabel('充值邮箱', { exact: true })).toBeDisabled();
+});

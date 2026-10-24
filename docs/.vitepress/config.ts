@@ -100,7 +100,7 @@ export default defineConfig({
         text: '自助服务',
         items: [
           { text: '卡密激活', link: '/self-service/license' },
-          { text: '终端用户查询', link: '/self-service/app-user' },
+          { text: '用户查询与卡密充值', link: '/self-service/app-user' },
         ]
       },
     ],

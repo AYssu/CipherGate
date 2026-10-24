@@ -15,6 +15,9 @@ public class PublicLicenseQueryResponse {
     @Schema(description = "状态: 1=未使用, 2=使用中, 3=已到期, 4=已禁用", example = "2")
     private Integer status;
 
+    @Schema(description = "已兑换为用户会员的时间；有值时卡密不能再使用")
+    private LocalDateTime redeemedAt;
+
     @Schema(description = "到期时间；永久卡为空")
     private LocalDateTime expiresAt;
 

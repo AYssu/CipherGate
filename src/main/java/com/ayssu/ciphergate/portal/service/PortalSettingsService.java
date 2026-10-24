@@ -5,6 +5,7 @@ import com.ayssu.ciphergate.mapper.AppUserMapper;
 import com.ayssu.ciphergate.portal.entity.PortalVerifyCode;
 import com.ayssu.ciphergate.portal.mapper.PortalVerifyCodeMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,9 @@ public class PortalSettingsService {
         }
         user.setNickname(nickname);
         user.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(user);
+        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+            .eq(AppUser::getId, user.getId()).set(user.getNickname() != null, AppUser::getNickname, user.getNickname())
+            .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 
     public void changePassword(Long appUserId, String oldPassword, String newPassword) {
@@ -60,7 +63,9 @@ public class PortalSettingsService {
 
         user.setPassword(ENCODER.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(user);
+        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+            .eq(AppUser::getId, user.getId()).set(AppUser::getPassword, user.getPassword())
+            .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 
     public void changeEmail(Long appUserId, String currentPassword, String newEmail, String verifyCode) {
@@ -112,6 +117,8 @@ public class PortalSettingsService {
         // 4. 更新邮箱
         user.setEmail(newEmail);
         user.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(user);
+        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+            .eq(AppUser::getId, user.getId()).set(user.getEmail() != null, AppUser::getEmail, user.getEmail())
+            .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 }

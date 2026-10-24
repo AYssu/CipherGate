@@ -17,12 +17,20 @@ public class ThirdPartyUserRateLimitService {
     private final StringRedisTemplate redisTemplate;
 
     public void checkBeforeLogin(Long appId, String ip, String username) {
+        checkAttempt("cg:tp:user:rate:", appId, ip, username, 120, 20);
+    }
+
+    public void checkBeforeRedemption(Long appId, String ip, String email) {
+        checkAttempt("cg:public:user:redeem:", appId, ip, email, 30, 10);
+    }
+
+    private void checkAttempt(String namespace, Long appId, String ip, String username, int ipLimit, int accountLimit) {
         long bucket = Instant.now().getEpochSecond() / 60;
         String source = digest(ip == null ? "unknown-ip" : ip.trim());
-        String prefix = "cg:tp:user:rate:" + appId + ":" + source + ":";
-        check(prefix + bucket, 120);
+        String prefix = namespace + appId + ":" + source + ":";
+        check(prefix + bucket, ipLimit);
         String account = username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
-        check(prefix + digest(account) + ":" + bucket, 20);
+        check(prefix + digest(account) + ":" + bucket, accountLimit);
     }
 
     private void check(String key, int limit) {

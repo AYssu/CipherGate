@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import AppUserLicenseRechargeForm from '../components/AppUserLicenseRechargeForm';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Layout,
@@ -146,7 +147,7 @@ const AppUserSelfServicePage: React.FC = () => {
                 用户自助管理
               </Title>
               <Paragraph style={{ marginTop: 8, marginBottom: 0, color: '#6b7280', fontSize: 13 }}>
-                输入注册邮箱，查询当前账号会员到期时间。
+                查询会员到期时间，或使用卡密为账号充值会员时长。
               </Paragraph>
             </div>
             {!appId && (
@@ -159,23 +160,22 @@ const AppUserSelfServicePage: React.FC = () => {
             )}
           </Space>
 
-          <Form form={form} layout="vertical" requiredMark="optional" onFinish={() => void doQuery()}>
-            <Form.Item
-              name="email"
-              label="邮箱"
-              rules={[
-                { required: true, message: '请输入邮箱' },
-                { type: 'email', message: '邮箱格式不正确' },
-              ]}
-            >
+          <Form name="membership-query" form={form} layout="vertical" requiredMark="optional" onFinish={() => void doQuery()}>
+            <Form.Item label="邮箱">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Form.Item name="email" noStyle rules={[
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '邮箱格式不正确' },
+                ]}>
                 <Input
                   size="middle"
+                  aria-label="邮箱"
                   prefix={<MailOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
                   placeholder="请输入注册邮箱"
                   disabled={!appId}
                   style={{ flex: 1, minWidth: 0 }}
                 />
+                </Form.Item>
                 <Button
                   type="primary"
                   size="middle"
@@ -190,6 +190,8 @@ const AppUserSelfServicePage: React.FC = () => {
               </div>
             </Form.Item>
           </Form>
+
+          <AppUserLicenseRechargeForm appId={appId} onSuccess={setData} />
 
           {data && (
             <Descriptions

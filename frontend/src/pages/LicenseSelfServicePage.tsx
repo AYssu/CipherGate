@@ -354,7 +354,7 @@ const LicenseSelfServicePage: React.FC = () => {
                 <Descriptions.Item label="卡密">
                   <Text style={{ fontFamily: 'Consolas, Monaco, monospace' }}>{data.keyCodeMasked}</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="状态">{statusTag(data.status)}</Descriptions.Item>
+                <Descriptions.Item label="状态">{data.redeemedAt ? <Tag color="purple">已兑换为用户会员</Tag> : statusTag(data.status)}</Descriptions.Item>
                 <Descriptions.Item label="到期时间">
                   {data.remainingSeconds < 0 ? (
                     <Tag color="green">永久</Tag>

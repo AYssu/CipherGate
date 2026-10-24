@@ -337,7 +337,7 @@ public class AppUserServiceImpl implements AppUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AppUser updateAppUser(Long id, AppUserDTO dto, Long operatorId) {
-        AppUser appUser = appUserMapper.selectById(id);
+        AppUser appUser = appUserMapper.selectForUpdate(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
@@ -439,7 +439,7 @@ public class AppUserServiceImpl implements AppUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(Long id, String newPassword, Long operatorId) {
-        AppUser appUser = appUserMapper.selectById(id);
+        AppUser appUser = appUserMapper.selectForUpdate(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
@@ -801,7 +801,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (days < 1) {
             throw new RuntimeException("延长天数至少为 1");
         }
-        AppUser appUser = appUserMapper.selectById(id);
+        AppUser appUser = appUserMapper.selectForUpdate(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
@@ -826,7 +826,7 @@ public class AppUserServiceImpl implements AppUserService {
         if (body == null || !StringUtils.hasText(body.getUnit())) {
             throw new RuntimeException("单位不能为空");
         }
-        AppUser appUser = appUserMapper.selectById(id);
+        AppUser appUser = appUserMapper.selectForUpdate(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
@@ -919,7 +919,7 @@ public class AppUserServiceImpl implements AppUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AppUser setMemberExpiresAt(Long id, LocalDateTime memberExpiresAt, Long operatorId) {
-        AppUser appUser = appUserMapper.selectById(id);
+        AppUser appUser = appUserMapper.selectForUpdate(id);
         if (appUser == null || appUser.getDeleted() == 1) {
             throw new RuntimeException("用户不存在");
         }
@@ -952,7 +952,7 @@ public class AppUserServiceImpl implements AppUserService {
                 continue;
             }
             try {
-                AppUser appUser = appUserMapper.selectById(id);
+                AppUser appUser = appUserMapper.selectForUpdate(id);
                 if (appUser == null || appUser.getDeleted() == 1) {
                     result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
                     continue;
@@ -971,7 +971,7 @@ public class AppUserServiceImpl implements AppUserService {
                 String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
                 String uname = null;
                 try {
-                    AppUser u = appUserMapper.selectById(id);
+                    AppUser u = appUserMapper.selectForUpdate(id);
                     uname = u != null ? u.getUsername() : null;
                 } catch (Exception ignored) {
                     // ignore
@@ -1012,7 +1012,7 @@ public class AppUserServiceImpl implements AppUserService {
                 continue;
             }
             try {
-                AppUser appUser = appUserMapper.selectById(id);
+                AppUser appUser = appUserMapper.selectForUpdate(id);
                 if (appUser == null || appUser.getDeleted() == 1) {
                     result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
                     continue;
@@ -1041,7 +1041,7 @@ public class AppUserServiceImpl implements AppUserService {
                 String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
                 String uname = null;
                 try {
-                    AppUser u = appUserMapper.selectById(id);
+                    AppUser u = appUserMapper.selectForUpdate(id);
                     uname = u != null ? u.getUsername() : null;
                 } catch (Exception ignored) {
                 }
@@ -1074,7 +1074,7 @@ public class AppUserServiceImpl implements AppUserService {
         for (Long id : idSet) {
             if (id == null) continue;
             try {
-                AppUser appUser = appUserMapper.selectById(id);
+                AppUser appUser = appUserMapper.selectForUpdate(id);
                 if (appUser == null || appUser.getDeleted() == 1) {
                     result.getFailures().add(new AppUserBatchExtendMemberFailItem(id, null, "用户不存在"));
                     continue;
@@ -1094,7 +1094,7 @@ public class AppUserServiceImpl implements AppUserService {
                 String reason = e.getMessage() != null ? e.getMessage() : "操作失败";
                 String uname = null;
                 try {
-                    AppUser u = appUserMapper.selectById(id);
+                    AppUser u = appUserMapper.selectForUpdate(id);
                     uname = u != null ? u.getUsername() : null;
                 } catch (Exception ignored) {
                 }
@@ -1216,7 +1216,7 @@ public class AppUserServiceImpl implements AppUserService {
                 .eq(AppUser::getAppId, dto.getAppId())
                 .eq(AppUser::getDeleted, 0)
                 .gt(AppUser::getMemberExpiresAt, now)
-                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt));
+                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt).last("FOR UPDATE"));
 
         AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
         result.setFailures(new ArrayList<>());
@@ -1259,7 +1259,7 @@ public class AppUserServiceImpl implements AppUserService {
                 .eq(AppUser::getAppId, dto.getAppId())
                 .eq(AppUser::getDeleted, 0)
                 .gt(AppUser::getMemberExpiresAt, now)
-                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt));
+                .select(AppUser::getId, AppUser::getUsername, AppUser::getMemberExpiresAt).last("FOR UPDATE"));
 
         AppUserBatchExtendMemberResultDTO result = new AppUserBatchExtendMemberResultDTO();
         result.setFailures(new ArrayList<>());

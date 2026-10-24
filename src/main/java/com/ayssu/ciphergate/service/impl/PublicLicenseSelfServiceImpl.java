@@ -36,6 +36,7 @@ public class PublicLicenseSelfServiceImpl implements PublicLicenseSelfService {
         PublicLicenseQueryResponse resp = new PublicLicenseQueryResponse();
         resp.setKeyCodeMasked(maskKeyCode(key.getKeyCode()));
         resp.setStatus(key.getStatus());
+        resp.setRedeemedAt(key.getRedeemedAt());
         resp.setExpiresAt(key.getExpiresAt());
         resp.setBoundDevice(StringUtils.hasText(key.getBindDeviceId()));
         resp.setBoundIp(StringUtils.hasText(key.getBindIp()));
@@ -58,6 +59,9 @@ public class PublicLicenseSelfServiceImpl implements PublicLicenseSelfService {
         }
         LicenseKey key = findKey(req.getAppId(), req.getKeyCode());
         Application app = applicationMapper.selectById(req.getAppId());
+        if (key.getRedeemedAt() != null) {
+            throw new IllegalStateException("卡密已兑换为用户会员，不能解绑或继续使用");
+        }
         ensureUnbindQuota(key);
 
         boolean hasDev = StringUtils.hasText(key.getBindDeviceId());

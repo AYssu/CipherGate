@@ -1299,7 +1299,7 @@ const LicenseManagementContent: React.FC = () => {
       key: 'status',
       width: 100,
       align: 'center' as const,
-      render: (status: number) => getStatusBadge(status),
+      render: (status: number, record: LicenseKey) => record.redeemedAt ? <Tag color="purple">已兑换</Tag> : getStatusBadge(status),
     },
     {
       title: '在线',
@@ -1665,7 +1665,7 @@ const LicenseManagementContent: React.FC = () => {
       3: { text: '已到期', color: 'error', border: '#ff4d4f' },
       4: { text: '已禁用', color: 'error', border: '#ff4d4f' },
     };
-    const statusInfo = statusMap[record.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
+    const statusInfo = record.redeemedAt ? { text: '已兑换', color: 'purple', border: '#722ed1' } : statusMap[record.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
 
     let typeLabel = getKeyTypeLabel(record.keyType);
     if (record.keyType === 'CUSTOM' && record.durationValue && record.durationUnit) {

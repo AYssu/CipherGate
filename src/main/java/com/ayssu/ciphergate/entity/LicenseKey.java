@@ -86,6 +86,9 @@ public class LicenseKey implements Serializable {
      * 绑定的终端用户ID
      */
     private Long bindUserId;
+
+    /** 已兑换为终端用户会员的时间；不可通过卡密编辑或重置状态清除。 */
+    private LocalDateTime redeemedAt;
     
     /**
      * 首次使用时间
