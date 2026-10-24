@@ -52,6 +52,17 @@ class ThirdPartyUserRateLimitServiceTest {
     }
 
     @Test
+    void redemptionUsesIndependentCountersAndStricterLimits() {
+        when(values.increment(anyString())).thenReturn(1L);
+        limiter.checkBeforeRedemption(1L, "192.0.2.1", "alice@example.test");
+        var keys = ArgumentCaptor.forClass(String.class);
+        verify(values, times(2)).increment(keys.capture());
+        assertTrue(keys.getAllValues().stream().allMatch(key -> key.startsWith("cg:public:user:redeem:1:") && !key.contains("alice")));
+        when(values.increment(anyString())).thenReturn(31L);
+        assertThrows(ThirdPartyUserLoginException.class, () -> limiter.checkBeforeRedemption(1L, "192.0.2.1", "other"));
+    }
+
+    @Test
     void redisFailureDoesNotSilentlyBypassRateLimit() {
         when(values.increment(anyString())).thenThrow(new IllegalStateException("unavailable"));
         assertThrows(IllegalStateException.class,

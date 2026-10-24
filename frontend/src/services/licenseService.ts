@@ -19,6 +19,7 @@ export interface LicenseKey {
   bindIp?: string;
   bindIpRegion?: string;
   bindUserId?: number;
+  redeemedAt?: string;
   firstUsedAt?: string;
   lastUsedAt?: string;
   expiresAt?: string;

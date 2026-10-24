@@ -52,7 +52,7 @@ public class OpenTrialServiceImpl implements OpenTrialService {
                 .eq(AppUser::getAppId, appId)
                 .eq(AppUser::getEmail, email)
                 .eq(AppUser::getDeleted, 0)
-                .last("limit 1"));
+                .last("limit 1 FOR UPDATE"));
         if (appUser == null) {
             throw new IllegalArgumentException("用户不存在");
         }

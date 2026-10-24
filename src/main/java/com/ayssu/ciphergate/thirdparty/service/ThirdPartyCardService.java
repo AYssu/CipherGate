@@ -80,9 +80,12 @@ public class ThirdPartyCardService {
                 .eq(LicenseKey::getAppId, appId)
                 .eq(LicenseKey::getKeyCode, cardCode)
                 .eq(LicenseKey::getDeleted, 0)
-                .last("limit 1"));
+                .last("limit 1 FOR UPDATE"));
         if (key == null) {
             throw new RuntimeException("卡密不存在");
+        }
+        if (key.getRedeemedAt() != null) {
+            throw new RuntimeException("卡密已兑换为用户会员，不能继续使用");
         }
         licenseKeyService.syncExpiredStatusIfNeeded(key);
         if (key.getStatus() != null && key.getStatus() == 4) {
@@ -243,9 +246,12 @@ public class ThirdPartyCardService {
                 .eq(LicenseKey::getAppId, appId)
                 .eq(LicenseKey::getKeyCode, cardCode)
                 .eq(LicenseKey::getDeleted, 0)
-                .last("limit 1"));
+                .last("limit 1 FOR UPDATE"));
         if (key == null) {
             throw new RuntimeException("卡密不存在");
+        }
+        if (key.getRedeemedAt() != null) {
+            throw new RuntimeException("卡密已兑换为用户会员，不能继续使用");
         }
         licenseKeyService.syncExpiredStatusIfNeeded(key);
         if (key.getStatus() != null && key.getStatus() == 4) {

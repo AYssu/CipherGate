@@ -218,7 +218,7 @@ public class PortalPaymentService {
     }
 
     private void extendMembership(PortalPaymentOrder order) {
-        AppUser appUser = appUserMapper.selectById(order.getAppUserId());
+        AppUser appUser = appUserMapper.selectForUpdate(order.getAppUserId());
         if (appUser == null) return;
 
         LocalDateTime baseTime = appUser.getMemberExpiresAt() != null

@@ -3,6 +3,7 @@ import request from '../utils/request';
 export interface PublicLicenseQueryResponse {
   keyCodeMasked: string;
   status: number;
+  redeemedAt?: string;
   expiresAt?: string;
   remainingSeconds: number;
   boundDevice: boolean;

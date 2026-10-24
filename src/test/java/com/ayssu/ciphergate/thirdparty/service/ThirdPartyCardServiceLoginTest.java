@@ -123,6 +123,21 @@ class ThirdPartyCardServiceLoginTest {
         verifyNoInteractions(events, heartbeat);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void redeemedCardCannotLoginOrRebindAfterStatusReset() {
+        preparePaidCard();
+        LicenseKey key = cards.selectOne(new LambdaQueryWrapper<LicenseKey>());
+        key.setStatus(1); key.setExpiresAt(null); key.setRedeemedAt(LocalDateTime.now());
+        assertTrue(assertThrows(RuntimeException.class, () -> service.login(1L, request, "192.0.2.1"))
+                .getMessage().contains("已兑换"));
+        var rebind = new com.ayssu.ciphergate.thirdparty.dto.CardRebindRequest();
+        rebind.setCardCode(request.getCardCode()); rebind.setDeviceId("other-device");
+        assertTrue(assertThrows(RuntimeException.class, () -> service.rebindDevice(1L, rebind))
+                .getMessage().contains("已兑换"));
+        verifyNoInteractions(heartbeat, events);
+    }
+
     @SuppressWarnings("unchecked")
     private void preparePaidCard() {
         app.setBusinessModel(1);

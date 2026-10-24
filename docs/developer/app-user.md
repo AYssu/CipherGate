@@ -41,3 +41,26 @@ HTTP 成功登录会更新用户登录次数、最后登录信息和设备绑定
 在「应用管理 → 用户迁移」中，将选定账号复制或迁移到其他应用。操作需要 `APP_USER_TRANSFER` 权限，并同时具备源、目标应用的所有者或管理员权限。
 
 迁移前必须预检查并显式确认；会员到期时间按源账号替换，不累加时长。设备封禁和已领取试用限制按规则保留，订单、卡密和历史流水不跨应用搬运。步骤、冲突规则和管理接口见 [用户迁移与复制](/developer/user-transfer)。
+
+## 卡密充值会员
+
+用户可在 `/app-user?id=应用ID` 使用同应用未使用时长卡充值会员，步骤和支持范围见[用户自助](/self-service/app-user)。卡密管理列表将已经兑换的卡密标为「已兑换」。
+
+自有客户端可通过 HTTPS 调用公开接口：
+
+```http
+POST /api/public/app-user/self/redeem-license
+Content-Type: application/json
+
+{"appId": 1, "email": "user@example.com", "keyCode": "用户持有的卡密"}
+```
+
+请求不使用平台管理员会话或三方凭证；卡密本身授予一次兑换权限，调用方应在提交前展示并确认目标邮箱。返回标准 `Result`，`data` 包含 `emailMasked`、`keyCodeMasked`、`beforeExpiresAt`、`memberExpiresAt`、`remainingSeconds` 和 `memberActive`。错误通过 `success=false` 和业务 `code` 表达，不能只判断 HTTP 200。接口按应用、IP 和目标邮箱分别限流，与账号登录独立计数；Redis 不可用时拒绝兑换。
+
+卡密锁、用户锁、会员更新、卡密消耗和充值记录位于同一数据库事务；重复提交或并发兑换同一卡密只会成功一次，不同卡密为同一用户充值会顺序累加。充值流水只保存脱敏卡密，唯一约束保留永久的一次性兑换记录。
+
+### 数据库升级与回退
+
+本功能新增 Flyway `V2__app_user_license_recharge.sql`：为卡密新增 `redeemed_at`，并建立独立充值流水表；保留 V1 和既有业务数据。通过正常应用启动执行一次，不需手工导入 SQL。
+
+执行 V2 后迁移历史发生变化，更新脚本会阻止直接自动回退。应先在隔离环境评估旧代码兼容性和已发生的兑换，不能仅替换旧 JAR、清除兑换标记或删除流水以恢复卡密；否则可能重复发放额度。按[数据库规范](/database/README)和[部署运维](/operations)处理。

@@ -15,6 +15,7 @@ import com.ayssu.ciphergate.portal.util.PortalJwtUtil;
 import com.ayssu.ciphergate.service.GeoIpService;
 import com.ayssu.ciphergate.service.mail.SystemSmtpMailService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -281,7 +282,9 @@ public class PortalAuthService {
         // 更新密码
         appUser.setPassword(ENCODER.encode(request.getNewPassword()));
         appUser.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(appUser);
+        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+            .eq(AppUser::getId, appUser.getId()).set(AppUser::getPassword, appUser.getPassword())
+            .set(AppUser::getUpdatedAt, appUser.getUpdatedAt()));
     }
 
     public void sendEmailVerifyCode(String email) {

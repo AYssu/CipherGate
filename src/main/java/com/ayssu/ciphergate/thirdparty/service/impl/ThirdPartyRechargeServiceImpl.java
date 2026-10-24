@@ -185,7 +185,7 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
 
             // 核心数据库写入放在独立事务中；异常会回滚，随后由外层写失败日志并释放 Redis。
             SuccessData successData = new TransactionTemplate(transactionManager).execute(status -> {
-                AppUser currentUser = appUserMapper.selectById(appUser.getId());
+                AppUser currentUser = appUserMapper.selectForUpdate(appUser.getId());
                 if (currentUser == null) {
                     throw new IllegalStateException("目标用户已不存在");
                 }
