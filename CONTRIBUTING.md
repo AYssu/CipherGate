@@ -93,6 +93,8 @@ python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 - “平台更新”指 CipherGate 发布包更新，“应用更新包”指上传到平台供客户端分发的软件文件。
 - 修改配置、命令或流程时，同步检查 README、相关专题文档及发布包内独立运维说明。
 
+具体版本约束、暂缓升级原因及验收要求见 [依赖维护与兼容性](docs/dependency-upgrades.md)。
+
 ## Pull Request
 
 1. 从最新默认分支创建功能分支，完成变更及相关检查。
