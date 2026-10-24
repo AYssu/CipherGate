@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.lionsoul.ip2region.xdb.Searcher;
+import org.lionsoul.ip2region.xdb.Header;
+import org.lionsoul.ip2region.xdb.Version;
+import org.lionsoul.ip2region.xdb.LongByteArray;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -23,8 +26,14 @@ public class Ip2RegionService {
     private final MinioObjectService minioObjectService;
     private final MinioProperties minioProperties;
 
-    @Getter
-    private volatile Searcher searcher;
+    private record LoadedDatabase(Searcher searcher, int version) {}
+
+    private volatile LoadedDatabase database;
+
+    public Searcher getSearcher() {
+        LoadedDatabase current = database;
+        return current == null ? null : current.searcher();
+    }
     @Getter
     private volatile boolean ready;
     @Getter
@@ -60,11 +69,11 @@ public class Ip2RegionService {
         }
         
         try (InputStream in = minioObjectService.download(minioProperties.getBucket(), dbPath)) {
-            // Read all bytes into memory
-            byte[] contentBuff = toByteArray(in);
-            
-            // Create searcher from buffer
-            searcher = Searcher.newWithBuffer(contentBuff);
+            LongByteArray contentBuff = Searcher.loadContentFromInputStream(in);
+            Header header = Searcher.loadHeaderFromBuffer(contentBuff);
+            Searcher.verify(header, contentBuff.length());
+            Searcher searcher = Searcher.newWithBuffer(Version.fromHeader(header), contentBuff);
+            database = new LoadedDatabase(searcher, header.version);
             ready = true;
             log.info("ip2region searcher loaded from MinIO: bucket={}, key={}", minioProperties.getBucket(), dbPath);
         } catch (Exception e) {
@@ -74,19 +83,22 @@ public class Ip2RegionService {
     }
 
     public Ip2RegionResult resolve(String ip) {
-        if (!ready || !StringUtils.hasText(ip) || searcher == null) {
+        LoadedDatabase current = database;
+        if (!ready || !StringUtils.hasText(ip) || current == null) {
             return null;
         }
         try {
-            String result = searcher.search(ip);
-            // Format: "country|region|province|city|isp"
+            String result = current.searcher().search(ip);
+            // Standard XDB v2: country|region|province|city|isp; v3: country|province|city|isp|code.
             String[] parts = result.split("\\|", -1);
             if (parts.length >= 5) {
                 String country = parts[0];
-                String region = parts[1];
-                String province = parts[2];
-                String city = parts[3];
-                String isp = parts[4];
+                // XDB v2 retains the legacy region column; v3 replaces it with a country code.
+                boolean legacy = current.version() == 2;
+                String region = legacy ? parts[1] : "";
+                String province = parts[legacy ? 2 : 1];
+                String city = parts[legacy ? 3 : 2];
+                String isp = parts[legacy ? 4 : 3];
                 return new Ip2RegionResult(ip, country, region, province, city, isp);
             }
         } catch (Exception e) {
@@ -96,23 +108,14 @@ public class Ip2RegionService {
     }
 
     private void closeSearcher() {
+        LoadedDatabase previous = database;
+        database = null;
         try {
-            if (searcher != null) {
-                searcher.close();
+            if (previous != null) {
+                previous.searcher().close();
             }
         } catch (Exception ignored) {
         }
-        searcher = null;
-    }
-
-    private byte[] toByteArray(InputStream in) throws Exception {
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) != -1) {
-            out.write(buf, 0, n);
-        }
-        return out.toByteArray();
     }
 
     public record Ip2RegionResult(String ip, String country, String region, String province, String city, String isp) {

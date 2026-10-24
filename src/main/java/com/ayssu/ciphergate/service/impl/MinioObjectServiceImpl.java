@@ -11,7 +11,7 @@ import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
-import io.minio.http.Method;
+import io.minio.Http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -43,7 +43,7 @@ public class MinioObjectServiceImpl implements MinioObjectService {
                 minioClient.putObject(PutObjectArgs.builder()
                         .bucket(minioProperties.getBucket())
                         .object(objectKey)
-                        .stream(stream, file.getSize(), -1)
+                        .stream(stream, file.getSize(), -1L)
                         .contentType("application/java-archive")
                         .build());
             }
@@ -70,7 +70,7 @@ public class MinioObjectServiceImpl implements MinioObjectService {
                 minioClient.putObject(PutObjectArgs.builder()
                         .bucket(minioProperties.getBucket())
                         .object(objectKey)
-                        .stream(stream, file.getSize(), -1)
+                        .stream(stream, file.getSize(), -1L)
                         .contentType(ct)
                         .build());
             }
@@ -167,7 +167,7 @@ public class MinioObjectServiceImpl implements MinioObjectService {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioProperties.getBucket())
                     .object(objectKey)
-                    .stream(stream, size, -1)
+                    .stream(stream, size, -1L)
                     .contentType(contentType)
                     .build());
         } catch (Exception e) {
