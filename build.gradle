@@ -85,7 +85,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     //implementation 'com.alibaba.fastjson2:fastjson2:2.0.43'
     // Source: https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
-    implementation "com.alibaba.fastjson2:fastjson2:2.0.61"
+    implementation "com.alibaba.fastjson2:fastjson2:2.0.66"
 
     implementation 'org.pf4j:pf4j:3.14.1'
     implementation project(':ciphergate-plugin-api')
