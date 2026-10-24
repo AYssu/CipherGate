@@ -1,6 +1,8 @@
 # 第三方 API 对接
 
-第三方接口以 `/api/v1` 为前缀，要求 HTTPS、HMAC-SHA256 签名、时间戳/nonce 防重放，并按应用配置进行报文加密。
+应用客户端接口以 `/api/v1` 为前缀，使用应用 AppKey/AppSecret 完成 HMAC-SHA256 签名、时间戳/nonce 防重放，并按应用配置加密报文。生产接入应使用 HTTPS。
+
+以下公共请求头适用于卡密、账号登录、公告、更新检查和变量查询。更新包下载使用短时 ticket；[第三方充值凭证](/developer/credential#充值接口与签名)使用请求体中的 API Key/Secret 签名，二者不使用这些公共请求头。
 
 ## 公共请求头
 
@@ -47,14 +49,14 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 | `POST /api/v1/card/rebind` | 卡密换绑设备，可能按应用配置扣时 |
 | `POST /api/v1/app/announcement` | 仅获取应用公告和版本 |
 | `POST /api/v1/app/update-check` | 检查版本、公告、更新说明和下载凭据 |
-| `POST /api/v1/app/update-download` | 使用一次性 ticket 下载更新包 |
+| `GET /api/v1/app/update-package?ticket=…` | 使用短时 ticket 下载更新包，不使用公共签名头 |
 | `POST /api/v1/app/variables` | 查询应用已启用变量 |
 
 卡密登录解密后的字段包括 `cardCode`、`deviceId`、可选 `ip` 和 `appUserId`；响应包含卡密状态、绑定数、在线状态、到期时间和 `variables`。
 
 ### 仅登录客户端与免费访客
 
-登录成功后新增两个兼容字段，旧客户端可以忽略，不改变原请求格式和卡密授权判断：
+登录成功响应包含两个兼容字段，旧客户端可以忽略，不改变原请求格式和卡密授权判断：
 
 | 响应字段 | 卡密模式 | 免费模式 |
 | --- | --- | --- |
@@ -67,6 +69,38 @@ X-Signature = HMAC-SHA256(appSecret, signString)
 
 统计身份仅用于数据展示和去重，**不能用作卡密、心跳 token、用户登录凭证或付费授权**。只调用登录接口也能在首页查看登录次数、活跃卡密、免费访客和设备数据。没有客户端心跳时只能判断近期登录活跃，不能证明持续在线。原有 `online` 响应字段保留兼容口径：卡密按最近使用时间估计，免费模式仍返回 `false`。
 
+## 更新检查与下载
+
+先在 [应用管理](/developer/application#版本、公告与更新包)设置当前版本、最低版本、更新说明并上传更新包，再调用 `POST /api/v1/app/update-check`。解密后的请求字段 `version` 是客户端版本字符串。
+
+| 响应字段 | 说明 |
+| --- | --- |
+| `isLatestVersion` | 客户端是否与当前版本一致；无法按三段数字比较时也按已对齐处理 |
+| `clientVersion`、`currentVersion`、`minVersion` | 客户端版本、当前版本和最低版本 |
+| `versionRangeChecked` | 本次是否按三段数字版本执行区间检查 |
+| `notice` | 已对齐时返回应用公告 |
+| `updateNotice`、`updateDownloadUrl` | 客户端落后当前版本时返回更新说明及可用的临时下载地址 |
+
+版本为 `x.x.x` 三段数字时，服务端检查闭区间 `[minVersion, currentVersion]`；已配置为合法版本的上下界分别生效。低于最低版本或高于当前版本会返回业务失败，不能把失败响应当作带下载地址的更新提示。版本未提供或不满足三段数字格式时，不执行该区间比较，按已对齐返回公告。
+
+取得 `updateDownloadUrl` 后直接发起 GET：
+
+```text
+GET /api/v1/app/update-package?ticket=<检查更新返回的票据>
+```
+
+- ticket 默认 **5 分钟**有效，绑定应用并使用其 AppSecret 验签；有效期内可重复使用，**不是一次性票据**。
+- 下载不需要 `X-App-Key` / `X-Signature`，响应是安装包字节流，不是加密 JSON。不要将下载地址或 ticket 写入公开日志。
+- 没有上传文件或对象不存在时，更新检查的下载地址为空。票据无效、过期、应用停用或流量额度不足可导致下载 HTTP 403；文件不存在返回 404。
+- 下载由 CipherGate 后端中转，地址不指向公开对象桶。该接口会检查并计入应用及所有者的流量额度。
+
+临时地址优先使用 `THIRD_PARTY_PUBLIC_BASE_URL`；未设置时按后端收到的请求推断。HTTPS 反向代理可能以 HTTP 回源，不能仅靠开放 443 端口保证地址正确。部署时在私有 `.env` 设置实际公开地址，并确认 Compose 将变量传入后端后重建后端服务：
+
+```dotenv
+THIRD_PARTY_PUBLIC_BASE_URL=https://your-domain.example
+```
+
+该配置指定下载地址的公开源站，不提供证书或 HTTPS 监听。客户端如果只接受 HTTPS，应核对接口实际返回的 `updateDownloadUrl` 及公网证书；后台已登录用户的更新包下载使用另一条 [管理接口](/developer/application#上传与后台下载)。
 
 ## HTTP 账号密码登录
 
@@ -144,7 +178,7 @@ JSON 明文是新版默认插件的兼容扩展，新账号登录的成功响应
 
 控制器业务结果沿用卡密接口的 `Result`，应同时检查 `success` 与 `code`，不能仅看 HTTP 状态。签名缺失、过期、重放等会在鉴权过滤器直接返回 HTTP 401/403 等错误；未通过过滤器的响应不属于登录成功的加密结构。
 
-首页「登录与访客统计」增加 HTTP 用户登录次数、今日/7 日活跃用户与最近 5 分钟用户数，并区分 `USER` / `CARD` / `VISITOR`。同一账号重复登录累计次数，活跃用户按应用及用户 ID 去重；HTTP 登录计入综合在线用户（5 分钟窗口），同一用户同时有 WS 和 HTTP 活跃仅计一次；不增加 WS 会话数或连续在线时长。
+首页「登录与访客统计」展示 HTTP 用户登录次数、今日/7 日活跃用户与最近 5 分钟用户数，并区分 `USER` / `CARD` / `VISITOR`。同一账号重复登录累计次数，活跃用户按应用及用户 ID 去重；HTTP 登录计入综合在线用户（5 分钟窗口），同一用户同时有 WS 和 HTTP 活跃仅计一次；不增加 WS 会话数或连续在线时长。
 
 ::: warning 一次性校验不是持续在线授权
 本接口只证明登录这一时刻的账号、会员和设备校验通过。客户端没有心跳时，服务端无法确认其是否仍在运行，也无法主动让离线客户端立刻感知会员到期或封禁；需要持续在线与主动断开能力时，仍应接入 WS。

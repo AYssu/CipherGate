@@ -1,6 +1,6 @@
 # 应用用户 Portal
 
-Portal 面向应用终端用户，入口为 `/portal/`。账号、会员、订单和设备数据都属于登录时选择的应用。
+Portal 面向应用终端用户，登录入口为 `/portal/login`。账号、会员、订单和设备数据都属于登录时选择的应用。
 
 ## 登录流程
 
@@ -14,7 +14,7 @@ Portal 面向应用终端用户，入口为 `/portal/`。账号、会员、订�
 | --- | --- | --- |
 | 控制台 | `/portal/dashboard` | 登录统计、登录趋势、IP 分布和登录历史 |
 | 会员信息 | `/portal/membership` | 应用内会员状态和到期时间 |
-| 充值 | `/portal/recharge` | 选择应用配额产品并支付 |
+| 充值 | `/portal/recharge` | 选择应用会员方案并支付 |
 | 订单记录 | `/portal/orders` | 查看当前应用订单 |
 | 账号设置 | `/portal/settings` | 修改昵称、密码和邮箱 |
 | 密码找回 | `/portal/recovery` | 通过邮箱验证码重置应用密码 |

@@ -1,6 +1,6 @@
 ## 升级前
 
-- 下载 `SHA256SUMS` 和对应产物，执行 `sha256sum --check SHA256SUMS` 校验。
+- 下载 `SHA256SUMS` 和对应产物，执行 `sha256sum --ignore-missing --check SHA256SUMS`，确认所下载产物显示 `OK`。
 - 备份 MySQL 数据库、当前应用包、`.env` 和持久化卷，保留上一版镜像标签。
 - 阅读部署包中的 `DATABASE-UPGRADE.md`。旧库首次接入 Flyway 需按文档核验并显式启用；不要删除历史表、开启自动 baseline 或重跑历史 SQL。
 - 阅读自动生成的变更记录，确认本次数据库迁移是否支持回退。MySQL DDL 不能保证事务回滚。
