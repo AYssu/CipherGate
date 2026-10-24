@@ -4,41 +4,64 @@
 
 ## 首次安装
 
-校验发布包附带的 SHA256，解压到固定目录。每套安装独立生成密码：
+先安装并启动 Docker（含 Compose v2）以及 Python 3.12+。从 Releases 下载完整 `ciphergate-deploy.zip` 和 `SHA256SUMS`，对照发布页校验完整包的 SHA256，再解压到固定目录。Windows 使用 `py -3` 代替 `python3`；Docker Desktop 使用 Linux containers。
+
+在解压目录运行：
 
 ```bash
-python3 setup-env.py
-python3 setup-env.py --check
-# 编辑 .env 中的域名、端口等设置后再检查
-python3 setup-env.py --check
-docker compose -f docker-compose.server.yml config --quiet
-docker compose -f docker-compose.server.yml up -d --wait --wait-timeout 300
+# 本机体验：自动生成独立密码、HTTP Cookie 设置，启动全部六个服务
+python3 install.py
+
+# 正式域名：首次安装时改用这一条（提前准备 DNS、HTTPS 证书和反向代理）
+python3 install.py --public-url https://auth.example.com
 ```
 
-源码目录使用 `python3 scripts/setup-env.py --output .env`。生成器拒绝覆盖已有文件。`.env` 含凭证，权限应为 600，独立安全备份，不提交 Git、不随发布包分发。公开模板只有 `.env.example`。首次安装 MySQL 默认使用模板中的 8.4；已有安装遵循下文的版本约束。
+两条命令选择其一。脚本校验包内文件清单、检查 Docker 访问权限，为本次安装生成权限 600 的 `.env`，等待数据库及应用健康，然后核对前后端版本。失败返回非零状态，保留配置和数据供排查、重试；不会清空卷。已有 `.env` 永不覆盖，`--public-url` 不会隐式修改已有配置。首次启动需要下载镜像，耗时取决于网络；支持 Docker 镜像平台还取决于各固定镜像的架构。
 
-默认所有宿主机端口只监听回环地址。同机 host 网络的雷池可以回源 `127.0.0.1:<FRONTEND_PORT>`。远程反向代理需明确设置可达地址并在防火墙限制源地址。生产入口使用 HTTPS；`APP_SESSION_COOKIE_SECURE=true` 需要 HTTPS，纯 HTTP 本地调试才设为 false。
+默认端口全部只监听本机：前端 `http://127.0.0.1:5173`。远程服务器可以先建立 `ssh -L 5173:127.0.0.1:5173 用户@服务器`，再在自己电脑访问该地址。正式上线由同机反向代理把 HTTPS 域名回源到 `127.0.0.1:5173`。脚本不申请证书、不修改 DNS、防火墙或宿主机软件。跨机代理需明确配置绑定地址并限制来源。公开 URL 会同时用于后端和第三方下载地址，HTTPS 自动启用 Secure Cookie；只支持 HTTP 的本机体验配置为 false。
 
-后端读取 prod profile 的环境变量，缺失必需凭证直接报错。Redis 同时配置服务端和后端密码。MySQL、Redis 的健康探针就绪后后端启动，后端 readiness 就绪后前端启动。MinIO 使用固定版本 `pgsty/silo` 镜像，原有对象卷和 S3 接口不变，需保留原始访问密钥及卷。
+需要自定义端口时，先运行 `python3 setup-env.py`，编辑 `.env` 后 `python3 setup-env.py --check`，再运行安装脚本。注意手工生成器默认 `APP_SESSION_COOKIE_SECURE=true`；仅使用 HTTP 的环境必须显式改成 false，并填写两个公开地址。源码目录入口是 `python3 scripts/install.py --directory deploy-bundle`（先构建发布包）。
+
+服务启动不代表第三方账号已配置。打开首页完成一次初始化：创建**自己的 GitHub OAuth App**，填写 Client ID、Client Secret，回调地址为 `https://你的域名/api/login/oauth2/code/github`，前端跳转地址为 `https://你的域名/dashboard`；本机体验改用对应 HTTP 地址。页面自动按当前域名预填这两个地址。首位 GitHub 登录用户成为超级管理员，部署者应先完成初始化及首登，再开放外部访问。邮件、支付等可选集成仍需填写自己的服务配置。
+
+`.env` 含凭证，独立安全备份，不提交 Git、不随发布包分发。公开模板只有 `.env.example`。首次安装 MySQL 使用模板中的 8.4；后端由 Flyway 初始化空库。MinIO 使用固定 `pgsty/silo` 镜像及独立对象卷。
 
 ## 已有服务器升级
 
-1. 保存旧发布包、原 `.env`、当前镜像版本和 Compose 项目名，先做数据库和对象备份。运行 `docker compose -f docker-compose.server.yml config --images` 保存镜像列表；旧版没有此参数时使用 `docker inspect`。确认备份可在隔离环境恢复。
-2. 保留原来的部署目录、Compose 项目名、数据卷、数据库账号密码、MinIO 密钥；发布包不提供 `.env`，不会替换它。历史仓库里的 `.env.server` 已撤出版本管理，本机副本为 `.env.server.local`，不会自动上传或替换服务器配置。
-3. 对照 `.env.example` 添加缺失变量：`REDIS_PASSWORD`、足够强的 `PORTAL_JWT_SECRET`、绑定地址及 HTTPS Cookie 设置。已启用 Redis 密码则保留原值；新启用密码需同时重建 Redis 与后端。更换 JWT 密钥会让现有 Portal 登录失效。
-4. **MySQL 大版本不随应用升级。** 新模板是 8.4，既有 8.0 安装保持 `MYSQL_IMAGE` 为原 8.0 镜像；未设变量的 Compose 回退仍为 8.0。禁止将新模板直接盖到旧配置后在原数据卷启动 8.4。数据库大版本升级另做备份、隔离恢复与官方升级兼容性检查。
-5. 首次接入 Flyway 按 `DATABASE-UPGRADE.md`（源码 `docs/database/README.md`）操作。旧库只有完整核验通过才能显式接入；不能重放 init.sql 或跳过校验。接入完成删除临时接入开关。
-6. 替换应用、前端、插件及 Compose 配置后执行以下命令。JAR 是挂载文件，单纯 `up -d` 可能不重启既有容器，因此升级显式重建应用：
+将新完整包放在部署目录以外，不要覆盖解压到线上目录。在当前安装目录执行：
 
 ```bash
-python3 setup-env.py --check
-docker compose -f docker-compose.server.yml config --quiet
-docker compose -f docker-compose.server.yml up -d --wait --wait-timeout 300 mysql redis rabbitmq minio
-docker compose -f docker-compose.server.yml up -d --force-recreate --wait --wait-timeout 300 backend frontend
-docker compose -f docker-compose.server.yml ps
+python3 update.py /path/to/new/ciphergate-deploy.zip
 ```
 
-在源码目录可运行 `python3 scripts/project.py smoke http://127.0.0.1:<FRONTEND_PORT> --version <版本号>`；发布目录可手工检查 `/health/ready` 返回 UP、`/api/config/init/status` 返回 JSON、`/build-info.json` 与发布版本一致。用实际账号验证登录、关键查询和更新包下载。旧数据、原凭证已暴露时需要协调轮换；移出 Git 不会删除历史副本，也不会自动更改服务器密码。
+旧安装没有更新脚本时，把新包解压到**另一目录**，从新包执行：
+
+```bash
+python3 /tmp/new-release/update.py /path/to/new/ciphergate-deploy.zip --directory /srv/CipherGate
+```
+
+脚本先核对 ZIP 文件清单、校验和及 JAR，再确认运行容器挂载对应的安装目录。它保留原 `.env`、Compose、Nginx 配置、数据卷和当前运行镜像；更新 JAR、前端、文档、官方插件和运维工具，保留其他插件。官方旧插件只有内容仍与旧清单一致时才清理。不会拉取新镜像，也不会重建 MySQL、Redis、RabbitMQ、MinIO。配置/基础设施升级需单独评审，不能直接拿新模板覆盖旧安装。
+
+更新会短暂停止前后端写入，将旧应用、配置快照、运行镜像/环境及数据库导出保存到 `backups/<时间>-update/`，随后重建 backend/frontend 并检查 readiness 和前后端版本。备份可能含密钥，只允许管理员读取，需另存到安全存储。数据库导出不包含 MinIO 对象；对象仍需独立备份。更新日志会输出备份目录。
+
+使用自定义 Compose 项目或多个配置文件时，必须传入**原来的整套启动参数**（包含 base 文件），例如：
+
+```bash
+python3 update.py /tmp/ciphergate-deploy.zip --project-name ciphergate \
+  --compose-file docker-compose.server.yml --compose-file /srv/runtime.override.json
+```
+
+脚本不自动接管外部数据库、非标准挂载或缺失 Flyway 历史的旧安装；这些情况会在替换应用前停止并提示。旧库首次接入必须先按 `DATABASE-UPGRADE.md` 核验并显式接入，不能重放 `init.sql` 或绕过校验。旧版新增 `REDIS_PASSWORD`、`PORTAL_JWT_SECRET` 等配置也应单独完成兼容迁移；脚本不会替你轮换密钥或修改现有 Redis。
+
+**MySQL 大版本不随应用升级。** 新模板是 8.4，既有 8.0 安装保持原镜像和数据卷。数据库大版本升级另做备份、隔离恢复与兼容性核验。
+
+更新失败时：数据库迁移历史未变，会自动恢复旧应用并重启；迁移历史改变或无法核验时，停止应用并保留现场，要求按下文数据库恢复流程处理，不自动恢复 SQL。更新完成后仍需用实际账号验证登录、充值、上传和下载等业务。
+
+手工触发同样的健康检查：
+
+```bash
+python3 release_tools.py smoke http://127.0.0.1:5173 --version 版本号
+```
 
 ## 数据库备份与恢复
 
@@ -63,7 +86,13 @@ MinIO 另行使用 S3 客户端向独立存储同步对象并验证下载；配�
 
 ## 回滚
 
-数据库尚未迁移时，恢复旧包及原镜像并重建 backend/frontend。数据库已迁移时，先在隔离环境确认旧代码兼容新 schema；不兼容则使用升级前 SQL、对象和配置一起恢复。Flyway 不自动执行破坏性的向下迁移。涉及充值等业务写入时先停止入口并制定数据对账方案，避免直接恢复备份丢失升级后的业务。
+数据库尚未迁移时，可直接使用升级日志中的备份目录：
+
+```bash
+python3 update.py rollback --backup backups/时间-update
+```
+
+脚本使用备份记录的项目及 Compose 参数，核验迁移历史后恢复旧文件、原镜像并重建 backend/frontend。数据库已迁移时，先在隔离环境确认旧代码兼容新 schema；不兼容则使用升级前 SQL、对象和配置一起恢复。Flyway 不自动执行破坏性的向下迁移。涉及充值等业务写入时先停止入口并制定数据对账方案，避免直接恢复备份丢失升级后的业务。
 
 ## 日志和真实 IP
 

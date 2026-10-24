@@ -1330,8 +1330,8 @@ const Home: React.FC = () => {
             form={initForm}
             layout="vertical"
             initialValues={{
-              redirectUri: 'http://localhost:8080/login/oauth2/code/github',
-              frontendUrl: 'http://localhost:5173/dashboard',
+              redirectUri: `${window.location.origin}/api/login/oauth2/code/github`,
+              frontendUrl: `${window.location.origin}/dashboard`,
             }}
           >
             <Form.Item label={<span style={{ color: C.textMuted }}>GitHub OAuth2 Client ID</span>} name="clientId" rules={[{ required: true, message: '请输入 Client ID' }]}>
@@ -1340,7 +1340,7 @@ const Home: React.FC = () => {
             <Form.Item label={<span style={{ color: C.textMuted }}>GitHub OAuth2 Client Secret</span>} name="clientSecret" rules={[{ required: true, message: '请输入 Client Secret' }]}>
               <Input.Password placeholder="请输入 GitHub OAuth2 Client Secret" size="large" style={{ background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }} />
             </Form.Item>
-            <Form.Item label={<span style={{ color: C.textMuted }}>Redirect URI</span>} name="redirectUri" rules={[{ required: true, message: '请输入 Redirect URI' }]} tooltip="GitHub 回调地址，必须是后端地址">
+            <Form.Item label={<span style={{ color: C.textMuted }}>Redirect URI</span>} name="redirectUri" rules={[{ required: true, message: '请输入 Redirect URI' }]} tooltip="填写当前站点的 /api/login/oauth2/code/github，并与 GitHub OAuth App 的回调地址保持一致">
               <Input placeholder="请输入 Redirect URI" size="large" style={{ background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }} />
             </Form.Item>
             <Form.Item label={<span style={{ color: C.textMuted }}>前端地址</span>} name="frontendUrl" rules={[{ required: true, message: '请输入前端地址' }]} tooltip="登录成功后重定向的前端地址">

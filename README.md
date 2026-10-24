@@ -4,7 +4,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-6db33f?style=flat-square)
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61dafb?style=flat-square)
 ![Database](https://img.shields.io/badge/Stack-MySQL%20%7C%20Redis%20%7C%20MinIO-4c8eda?style=flat-square)
-![License](https://img.shields.io/badge/License-Open%20Source-orange?style=flat-square)
+![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange?style=flat-square)
 
 企业级统一鉴权与安全接入平台，面向 SaaS、客户端软件和第三方生态，提供标准化的接入与安全中台能力。
 
@@ -180,19 +180,20 @@ unzip ciphergate-deploy.zip -d deploy-bundle
 cd deploy-bundle
 ```
 
-运行 `python3 setup-env.py` 为本次安装生成独立 `.env`，再编辑域名和端口，并执行 `python3 setup-env.py --check`。已有服务器升级必须保留原 `.env`，不要重新生成凭证。
-
-**3) 启动服务**
+安装发布包只需要 Docker（含 Compose v2）和 Python 3.12+，无需 Java、Node 或 Gradle。
 
 ```bash
-docker compose -f docker-compose.server.yml up -d
+# 自动生成此安装独立的 .env、启动服务并检查健康/版本
+python3 install.py
+# 有 HTTPS 域名及反向代理时，首次安装改用：
+# python3 install.py --public-url https://auth.example.com
 ```
 
-服务启动后，访问 `http://localhost:<FRONTEND_PORT>` 进入管理后台。
+默认通过本机 `http://127.0.0.1:5173` 访问；服务器可使用 SSH 隧道或自己的 HTTPS 反向代理。脚本不替你申请证书、改 DNS 或开放端口，已有 `.env` 永不覆盖。Windows 使用 `py -3 install.py`。
 
-数据库结构由 Flyway 自动迁移：空库自动初始化，后续只执行新增版本。
-**从旧版升级时，必须先备份并按 [数据库升级说明](docs/database/README.md) 完成一次旧库接入。**
-不要直接重放历史 `init.sql`，也不要启用 `baseline-on-migrate` 绕过核验。
+打开首页，填写**自己的 GitHub OAuth App** 配置，按页面预填的当前域名设置回调地址；首位 GitHub 登录用户成为超级管理员。部署者先完成初始化和首登，再开放站点。支付、邮件等集成仍需自己的服务配置。
+
+空库由 Flyway 自动初始化，后续只执行新增迁移。**旧库首次接入**必须先备份并按 [数据库升级说明](docs/database/README.md) 核验，不能重放历史 `init.sql`。
 
 ---
 
@@ -222,21 +223,19 @@ frontend → backend → mysql
 
 ---
 
-## 增量更新
+## 更新与回退
 
-当只需要更新部分组件时，无需下载全量包：
+下载新版完整包，放到部署目录以外，在当前部署目录执行：
 
-### 仅更新后端
+```bash
+python3 update.py /path/to/ciphergate-deploy.zip
+# 如需回退，使用更新时输出的备份目录（迁移历史未变时）
+python3 update.py rollback --backup backups/时间-update
+```
 
-1. 下载 `app.jar`
-2. 替换服务器 `app/app.jar`
-3. 执行：`docker compose -f docker-compose.server.yml up -d backend`
+更新自动校验、备份旧应用和数据库、替换应用并重建前后端、检查健康及版本；保留原 `.env`、Compose、Nginx、镜像及持久化数据。数据库迁移后不会盲目回退旧程序或自动覆盖数据库。不要把新包直接覆盖解压到线上目录，也不要只替换 JAR 后执行 `up -d`，挂载文件更新未必触发容器重启。
 
-### 仅更新前端
-
-1. 下载 `frontend-dist.zip`
-2. 覆盖服务器 `frontend/dist` 目录
-3. 执行：`docker compose -f docker-compose.server.yml up -d frontend`
+旧安装尚无脚本、使用自定义 Compose overrides、数据库已迁移等情况，见 [完整运维说明](docs/operations.md)。单独的 `app.jar`、`frontend-dist.zip` 保留供人工维护使用；推荐完整包更新以核对前后端版本。
 
 ---
 
@@ -409,4 +408,6 @@ PR 检查包含后端单元/真实 MySQL 集成测试、插件测试、前端 li
 
 ## 许可证
 
-许可证尚待维护者确定，当前仓库没有 LICENSE，不应假定采用 MIT 或 Apache 授权。
+本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE)，允许许可证规定范围内的非商业使用、修改和分发。商业用途需另行联系 [AYssu](https://github.com/AYssu) 获取授权；具体允许用途以许可证原文为准。
+
+分发时须保留 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。第三方依赖继续遵循各自许可证。

@@ -16,6 +16,18 @@ springBoot {
     }
 }
 
+allprojects {
+    tasks.withType(Jar).configureEach {
+        from(rootProject.file('LICENSE')) { into 'META-INF' }
+        from(rootProject.file('NOTICE')) { into 'META-INF' }
+    }
+}
+
+tasks.named('bootJar') {
+    // bootRun keeps local defaults; distributed JARs contain only public configuration.
+    exclude '**/application-dev.yaml'
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)

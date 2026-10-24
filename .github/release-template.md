@@ -7,21 +7,21 @@
 
 ## 首次部署
 
-1. 解压 `ciphergate-deploy.zip`，运行 `python3 setup-env.py` 生成此安装实例独立的 `.env`，配置域名。不要覆盖已有部署的 `.env`。
-2. 执行 `docker compose --env-file .env -f docker-compose.server.yml config --quiet`。
-3. 执行 `docker compose --env-file .env -f docker-compose.server.yml up -d`。
-4. 执行 `docker compose -f docker-compose.server.yml ps`，检查健康状态及后端迁移日志，并验证登录、应用列表和更新包下载。
+1. 校验完整包后解压到固定目录，安装 Docker Compose v2 和 Python 3.12+。
+2. 执行 `python3 install.py`；正式 HTTPS 入口首次使用 `python3 install.py --public-url https://你的域名`，证书和反向代理需自己配置。
+3. 脚本生成独立 `.env`、启动六个服务并检查前后端版本。已有 `.env` 不覆盖，默认仅本机端口可访问。
+4. 打开首页配置自己的 GitHub OAuth App；首位 GitHub 登录用户为超级管理员。支付、邮件等可选集成需要自己的配置。
 
 ## 更新已有部署
 
-1. 解压到新目录，保留线上 `.env`、持久化数据及自定义 Nginx 配置。
-2. 后端更新替换 `app/app.jar`；前端更新替换 `frontend/dist`；同步本次所需插件和 Compose 配置。
-3. 执行 `docker compose --env-file .env -f docker-compose.server.yml up -d --force-recreate backend frontend`。仅覆盖静态文件不会触发容器自动重建。
-4. 检查 `docker compose -f docker-compose.server.yml logs --tail=200 backend frontend`，确认迁移成功，再验证 `/health/ready`、登录、核心业务和文件上传下载。
+1. 将新包下载到另一目录，不要直接覆盖解压到线上目录。
+2. 在现有部署目录执行 `python3 update.py /path/ciphergate-deploy.zip`；自定义项目/Compose overrides 必须传入原参数，见包内 `OPERATIONS.md`。
+3. 脚本保留原 `.env`、Compose、Nginx、基础设施镜像和卷，自动备份应用与数据库、重建前后端并检查版本。
+4. 旧版没有脚本时，从另一个目录解压的新包执行 `python3 /tmp/new-release/update.py /tmp/ciphergate-deploy.zip --directory /srv/CipherGate`。旧库首次接入 Flyway 仍需先按数据库文档完成核验。
 
 ## 回退
 
-立即停止有问题版本，保留失败日志。无数据库变更且兼容时恢复上一版应用包并重建容器；涉及不兼容迁移时，按维护窗口恢复已验证的数据库备份及匹配版本应用。不要直接执行 `flyway clean` 或删除迁移历史。部署包只包含 `.env.example`，不会分发通用凭据。
+执行 `python3 update.py rollback --backup backups/时间-update`。迁移历史未变时可恢复旧应用；迁移历史改变或无法核验时保留现场、停止应用，按 `OPERATIONS.md` 明确恢复数据库后再回退，不自动覆盖 SQL。不要执行 `flyway clean`、删除迁移历史或删除持久化卷。
 
 ## 构建产物
 
@@ -29,4 +29,6 @@
 - `app.jar`：后端更新包。
 - `frontend-dist.zip`、`docs-dist.zip`：前端及文档。
 - 插件 JAR、`SHA256SUMS`：插件更新和完整性校验。
+- `LICENSE`、`NOTICE`：PolyForm Noncommercial 1.0.0 许可原文和版权声明；完整包、前端及文档分包、项目 JAR 均携带许可。
+- 发布包不携带 `.env`、开发配置或开发环境默认凭据；首次部署由 `install.py` 调用生成器在安装主机生成独立凭据。商业用途需另行联系作者取得授权。
 - Linux 和 Windows 打包均通过后才发布；运行记录保留各平台产物及测试报告。

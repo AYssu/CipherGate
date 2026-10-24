@@ -75,4 +75,8 @@ python -m unittest discover -s scripts/tests
 
 ## 许可证
 
-仓库许可证尚需维护者确认。请勿假定项目采用 MIT、Apache 或其他许可证；涉及使用和再分发授权的问题，请先联系维护者。
+本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE)，允许许可证规定范围内的非商业使用、修改和分发。商业用途需另行联系 [AYssu](https://github.com/AYssu) 获取授权；具体允许用途以许可证原文为准。
+
+分发时须保留 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。第三方依赖继续遵循各自许可证。
+
+提交贡献时，请确保你有权提交这些内容，并同意按本项目许可证分发你的贡献；第三方代码须保留其原有许可和声明。

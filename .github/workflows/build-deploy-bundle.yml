@@ -90,6 +90,9 @@ jobs:
         run: |
           python scripts/project.py verify-artifact ciphergate-deploy.zip
           python .github/scripts/prepare-release.py
+      - name: Exercise fresh install, update, and rollback on isolated Linux runner
+        if: runner.os == 'Linux'
+        run: python3 scripts/release-smoke.py ciphergate-deploy.zip --isolated-ci
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-${{ matrix.os }}
