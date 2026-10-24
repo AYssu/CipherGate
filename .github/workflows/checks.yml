@@ -206,7 +206,7 @@ jobs:
   pr-checks:
     name: Check summary
     if: always()
-    needs: [backend, frontend, docs, security]
+    needs: [backend, frontend, docs, security, deployment]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

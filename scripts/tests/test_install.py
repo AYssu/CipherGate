@@ -112,6 +112,18 @@ class InstallTest(unittest.TestCase):
             self.assertEqual(command[command.index("--project-name") + 1], "isolated")
             self.assertEqual(smoke_calls[0][0], ("http://127.0.0.1:5173", "1.2.3"))
 
+    def test_smoke_url_respects_specific_interfaces_and_ipv6(self):
+        for address, expected in {
+                "192.0.2.10": "http://192.0.2.10:8088",
+                "0.0.0.0": "http://127.0.0.1:8088",
+                "::": "http://[::1]:8088",
+                "::1": "http://[::1]:8088",
+                "2001:db8::1": "http://[2001:db8::1]:8088",
+        }.items():
+            with self.subTest(address=address):
+                self.assertEqual(install.smoke_url({"FRONTEND_BIND_ADDRESS": address,
+                                                    "FRONTEND_PORT": "8088"}), expected)
+
     def test_compose_failure_retains_configuration_and_does_not_cleanup_data(self):
         import subprocess
         with tempfile.TemporaryDirectory() as folder:

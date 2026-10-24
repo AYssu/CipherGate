@@ -51,6 +51,8 @@ python3 update.py /tmp/ciphergate-deploy.zip --project-name ciphergate \
   --compose-file docker-compose.server.yml --compose-file /srv/runtime.override.json
 ```
 
+同一目录的更新和回退互斥；若进程异常退出留下 `.ciphergate-update.lock`，先确认没有仍在运行的更新进程，再手工移除该锁。不要在更新过程中另行修改配置或运行数据库 DDL。
+
 脚本不自动接管外部数据库、非标准挂载或缺失 Flyway 历史的旧安装；这些情况会在替换应用前停止并提示。旧库首次接入必须先按 `DATABASE-UPGRADE.md` 核验并显式接入，不能重放 `init.sql` 或绕过校验。旧版新增 `REDIS_PASSWORD`、`PORTAL_JWT_SECRET` 等配置也应单独完成兼容迁移；脚本不会替你轮换密钥或修改现有 Redis。
 
 **MySQL 大版本不随应用升级。** 新模板是 8.4，既有 8.0 安装保持原镜像和数据卷。数据库大版本升级另做备份、隔离恢复与兼容性核验。
@@ -78,6 +80,14 @@ python3 operations.py backup backups/before-upgrade.sql.gz
 ```bash
 docker compose -f docker-compose.server.yml stop backend frontend
 python3 operations.py restore backups/before-upgrade.sql.gz --confirm-database ciphergate
+```
+
+自定义项目/多 Compose 文件的独立备份恢复也要使用原参数，参数放在子命令前：
+
+```bash
+python3 operations.py --project-name ciphergate \
+  --compose-file docker-compose.server.yml --compose-file /srv/runtime.override.json \
+  restore backups/时间-update/database.sql.gz --confirm-database ciphergate
 ```
 
 恢复前校验 SHA256、gzip 完整性和明确目标库名。导入 SQL 非原子，失败后保持应用停止并排查，必要时重建隔离目标后重试。恢复到空库避免旧备份不存在的新表残留；全库备份包含 DROP/CREATE，不可当增量补丁使用。恢复后核对关键表行数、Flyway 历史及业务读取，再启动应用。

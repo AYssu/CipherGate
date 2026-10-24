@@ -201,14 +201,14 @@ python3 install.py
 
 生产环境包含以下服务：
 
-| 服务 | 说明 | 默认端口 |
+| 服务 | 说明 | 默认宿主机端口 |
 |------|------|----------|
 | **frontend** | Nginx 前端服务 | 5173 |
 | **backend** | Java 后端服务 | 8080 |
-| **mysql** | MySQL 数据库 | 3306 |
-| **redis** | Redis 缓存与会话存储 | 6379 |
-| **rabbitmq** | RabbitMQ 消息队列 | 5672 |
-| **minio** | MinIO 对象存储 | 9000 |
+| **mysql** | MySQL 数据库 | 13306 |
+| **redis** | Redis 缓存与会话存储 | 16379 |
+| **rabbitmq** | RabbitMQ 消息队列 | 15673（管理界面 15672） |
+| **minio** | MinIO 对象存储 | 19000（控制台 19001） |
 
 所有端口均可通过 `.env` 文件自定义。
 

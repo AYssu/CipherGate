@@ -88,6 +88,14 @@ def prepare_environment(directory, public_url=None):
     return values
 
 
+def smoke_url(values):
+    address = values.get("FRONTEND_BIND_ADDRESS", "127.0.0.1")
+    address = {"0.0.0.0": "127.0.0.1", "::": "::1"}.get(address, address)
+    if ":" in address and not address.startswith("["):
+        address = "[" + address + "]"
+    return "http://" + address + ":" + values["FRONTEND_PORT"]
+
+
 def run(command, directory, capture=False):
     result = subprocess.run(command, cwd=directory, check=True, text=True,
                             stdout=subprocess.PIPE if capture else None)
@@ -126,11 +134,13 @@ def install(directory, public_url=None, compose_files=(), project_name=None, wai
         command += ["-f", str(file)]
     configuration = json.loads(run(command + ["config", "--format", "json"], directory, True))
     ensure_container_ownership(configuration, directory)
+    # Own the bind-mount directory before Docker creates it as root.
+    (directory / "logs").mkdir(mode=0o700, exist_ok=True)
     run(command + ["up", "-d", "--wait", "--wait-timeout", str(wait_timeout)], directory)
     tools_file = "release_tools.py" if (Path(__file__).parent / "release_tools.py").exists() else "project.py"
     release = load_tool("ciphergate_release", tools_file)
     info = json.loads((directory / "build-info.json").read_text(encoding="utf-8"))
-    local_url = "http://127.0.0.1:" + values["FRONTEND_PORT"]
+    local_url = smoke_url(values)
     release.smoke(local_url, info["version"], attempts=5, delay=2)
     print("Installation ready:", public_url or values.get("APP_BACKEND_PUBLIC_BASE_URL") or local_url)
     print("First use: create your own GitHub OAuth App, then complete the site initialization form.")
