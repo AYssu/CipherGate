@@ -47,7 +47,7 @@ public class PortalSettingsService {
         user.setNickname(nickname);
         user.setUpdatedAt(LocalDateTime.now());
         appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
-            .eq(AppUser::getId, user.getId()).set(AppUser::getNickname, user.getNickname())
+            .eq(AppUser::getId, user.getId()).set(user.getNickname() != null, AppUser::getNickname, user.getNickname())
             .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 
@@ -118,7 +118,7 @@ public class PortalSettingsService {
         user.setEmail(newEmail);
         user.setUpdatedAt(LocalDateTime.now());
         appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
-            .eq(AppUser::getId, user.getId()).set(AppUser::getEmail, user.getEmail())
+            .eq(AppUser::getId, user.getId()).set(user.getEmail() != null, AppUser::getEmail, user.getEmail())
             .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 }

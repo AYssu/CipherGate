@@ -66,7 +66,7 @@ export default function AppUserLicenseRechargeForm({ appId, onSuccess }: Props) 
       {success && <Alert showIcon type="success" message="卡密充值成功" description={
         `${success.emailMasked} 已到账，到期时间：${new Date(success.memberExpiresAt!).toLocaleString('zh-CN')}。卡密 ${success.keyCodeMasked} 已兑换。`
       } />}
-      {error && <Alert showIcon type="error" message="卡密充值失败" description={error} />}
+      {error && <Alert showIcon type="error" message="卡密充值失败" description={`${error}。如遇网络中断或超时，请先查询会员状态；重复提交同一卡密不会重复加时。`} />}
       <Modal title="确认卡密充值" open={pending !== null} okText="确认充值" cancelText="取消"
         confirmLoading={submitting} closable={!submitting} maskClosable={!submitting}
         cancelButtonProps={{ disabled: submitting }} onCancel={() => { if (!submitting) setPending(null); }}

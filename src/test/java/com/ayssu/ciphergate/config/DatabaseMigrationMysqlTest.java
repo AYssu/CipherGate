@@ -301,7 +301,7 @@ class DatabaseMigrationMysqlTest {
     void failedMigrationStopsLaterVersions() throws Exception {
         DatabaseMigrationConfig.migrate(flyway(), false);
         Files.writeString(migrations.resolve("V999__failure.sql"), "INSERT INTO missing_table VALUES(1);");
-        Files.writeString(migrations.resolve("V3__must_not_run.sql"), "CREATE TABLE migration_test_marker(id INT);");
+        Files.writeString(migrations.resolve("V1000__must_not_run.sql"), "CREATE TABLE migration_test_marker(id INT);");
         assertThrows(RuntimeException.class, () -> DatabaseMigrationConfig.migrate(flyway(), false));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.tables "
                 + "WHERE table_schema=DATABASE() AND table_name='migration_test_marker'", Integer.class));
