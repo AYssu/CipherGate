@@ -32,6 +32,6 @@ jobs:
       # The pinned action disables Gradle dependency verification for its injected
       # graph plugin during snapshot extraction only. Test and release builds use
       # the repository checksum metadata in strict mode; no artifact is published here.
-      - uses: gradle/actions/dependency-submission@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - uses: gradle/actions/dependency-submission@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           dependency-graph: generate-and-submit
