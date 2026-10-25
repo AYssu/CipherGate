@@ -1,0 +1,44 @@
+.public-service { --public-ink: #20324a; min-height: 100vh; min-height: 100dvh; background: #f2f5fa; color: var(--public-ink); font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; display: flex; flex-direction: column; }
+.public-service *, .public-service *::before, .public-service *::after { box-sizing: border-box; }
+.public-service-header { width: min(1120px, 100%); padding: 24px 32px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.public-service-header a { color: #395572; }
+.public-service-header .public-service-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 700; color: var(--public-ink); letter-spacing: -.5px; }
+.public-service-brand img { width: 32px; height: 32px; }
+.public-service-main { width: min(1120px, 100%); margin: auto; padding: 48px 32px 64px; display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); gap: 72px; align-items: start; }
+.public-service-intro { padding-top: 30px; }
+.public-service-intro h1 { font-size: clamp(28px, 3.2vw, 40px); font-weight: 650; line-height: 1.3; letter-spacing: -1px; margin: 0 0 20px; }
+.public-service-intro p { color: #53677f; line-height: 1.9; font-size: 16px; max-width: 30em; margin: 0; }
+.public-service-help { margin-top: 36px; padding-left: 18px; border-left: 3px solid #b6c9e8; color: #53677f; line-height: 1.8; }
+.public-service-panel { min-width: 0; background: #fff; padding: 32px; border: 1px solid #dce4ef; border-radius: 14px; box-shadow: 0 12px 32px #20324a08; overflow-wrap: anywhere; }
+.public-service-panel .ant-form-item-label > label { font-weight: 600; }
+.public-service-panel .ant-input, .public-service-panel .ant-input-affix-wrapper, .public-service-panel .ant-select { font-size: 16px; }
+.public-service-panel .ant-descriptions { margin-top: 24px; }
+.public-service-panel .ant-descriptions-item-content { overflow-wrap: anywhere; }
+.public-service-panel .ant-alert { margin-bottom: 20px; }
+.public-service-footer { padding: 20px; text-align: center; font-size: 12px; color: #63758a; }
+.public-service a:focus-visible, .public-service button:focus-visible { outline: 3px solid #2459b8; outline-offset: 4px; }
+.public-service-row { display: flex; gap: 10px; align-items: start; }
+.public-service-row > .ant-form-item { flex: 1; min-width: 0; margin-bottom: 0; }
+.public-service-captcha { padding: 0; width: 120px; height: 44px; flex-shrink: 0; border: 1px solid #bac8d9; border-radius: 8px; background: #f2f5fa; cursor: pointer; overflow: hidden; color: #395572; }
+.public-service-captcha img { width: 100%; height: 100%; object-fit: contain; }
+.public-service-actions { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+.public-service-section { margin: 0 0 20px; font-size: 20px; font-weight: 600; }
+.public-service-note { color: #53677f; line-height: 1.8; margin: 0 0 24px; }
+@media (max-width: 767px) {
+ .public-service-header { padding: 18px 20px; }
+ .public-service-header .public-service-brand { font-size: 19px; }
+ .public-service-main { padding: 16px 16px 32px; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+ .public-service-intro { padding: 0 4px; }
+ .public-service-intro h1 { font-size: 28px; margin-bottom: 10px; }
+ .public-service-intro p { font-size: 14px; }
+ .public-service-help { margin-top: 16px; font-size: 13px; }
+ .public-service-panel { padding: 24px 20px; border-radius: 12px; }
+ .public-service-panel .ant-descriptions-item-label { width: 96px !important; }
+ .public-service-panel .ant-steps { margin-bottom: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .public-service *, .public-service *::before, .public-service *::after { animation: none !important; transition: none !important; } }
+
+.public-service a { color: #2459b8; text-decoration: none; }
+.public-service a:hover { text-decoration: underline; }
+.public-service-intro h1 { font-family: inherit; color: var(--public-ink); }
+@media (max-width: 767px) { .public-service-panel section[aria-label="卡密充值"] > form > .ant-btn { width: 100%; } }

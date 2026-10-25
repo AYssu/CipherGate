@@ -124,26 +124,21 @@ test('first-run OAuth defaults use the visited site origin and submit through th
 });
 
 
-test('application registration keeps animated mode transitions and static feedback working', async ({ page }) => {
+test('application registration validates fields and links to the shared login flow', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await mockApi(page, async (route, path) => {
-    if (path === '/portal/auth/captcha') {
-      await route.fulfill({ json: envelope({ captchaId: 'registration-captcha', image: '' }) });
-      return true;
-    }
+    if (path === '/portal/auth/captcha') { await route.fulfill({ json: envelope({ captchaId: 'registration-captcha', image: '' }) }); return true; }
     return false;
   });
   await page.goto('/register?id=1');
-  await expect(page.getByText('创建应用账户', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '创建应用账户', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '发送验证码', exact: true }).click();
   await expect(page.getByText('请先填写用户名与有效邮箱', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '已有账号？登录', exact: true }).click();
-  await expect(page.getByText('应用用户登录', { exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder('输入验证码', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '还没有账号？注册', exact: true }).click();
-  await expect(page.getByText('创建应用账户', { exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder('myname_01', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '已有账号？登录', exact: true }).click();
+  await expect(page).toHaveURL(/\/portal\/login$/);
+  await expect(page.getByRole('heading', { name: '应用用户登录', exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder('验证码', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
