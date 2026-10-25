@@ -1,3 +1,4 @@
+import type { Ticket, TicketMessage } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Badge, Grid, Dropdown, Checkbox } from 'antd';
 import { UserOutlined, RobotOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined, MoreOutlined } from '@ant-design/icons';
@@ -16,11 +17,11 @@ const MenuPopup: React.FC<{ items: MenuProps['items'] }> = ({ items }) => (
 const AdminTicketPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [tickets, setTickets] = React.useState<any[]>([]);
+  const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [detailVisible, setDetailVisible] = React.useState(false);
-  const [selectedTicket, setSelectedTicket] = React.useState<any>(null);
-  const [messages, setMessages] = React.useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
+  const [messages, setMessages] = React.useState<TicketMessage[]>([]);
   const [newMessage, setNewMessage] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('all');
   const [counts, setCounts] = React.useState<Record<number, number>>({});
@@ -40,13 +41,13 @@ const AdminTicketPage: React.FC = () => {
         const all = data.data?.records || [];
         setTickets(all);
         const c: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
-        all.forEach((t: any) => { if (c[t.status] !== undefined) c[t.status]++; });
+        all.forEach((t: Ticket) => { if (c[t.status] !== undefined) c[t.status]++; });
         setCounts(c);
       }
     } finally { setLoading(false); }
   };
 
-  const viewDetail = async (ticket: any) => {
+  const viewDetail = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     const res = await fetch(`/api/admin/tickets/${ticket.ticketNo}`, { credentials: 'include' });
     const data = await res.json();
@@ -54,7 +55,7 @@ const AdminTicketPage: React.FC = () => {
   };
 
   const sendReply = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedTicket) return;
     await fetch(`/api/admin/tickets/${selectedTicket.ticketNo}/messages`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -122,7 +123,7 @@ const AdminTicketPage: React.FC = () => {
     return tickets.filter(t => t.status === status);
   };
 
-  const getActionMenuItems = (record: any): MenuProps['items'] => {
+  const getActionMenuItems = (record: Ticket): MenuProps['items'] => {
     const items: MenuProps['items'] = [
       { key: 'view', icon: <MessageOutlined />, label: record.status === 0 ? '接单处理' : record.status === 2 ? '查看回复' : '查看', onClick: () => viewDetail(record) },
     ];
@@ -148,7 +149,7 @@ const AdminTicketPage: React.FC = () => {
     ] : []),
     {
       title: '操作', key: 'action', width: isMobile ? 60 : 180,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: Ticket) => {
         if (isMobile) {
           return (
             <MenuPopup items={getActionMenuItems(record)} />
@@ -245,7 +246,7 @@ const AdminTicketPage: React.FC = () => {
             <List
               dataSource={messages}
               style={{ maxHeight: 400, overflow: 'auto' }}
-              renderItem={(msg: any) => (
+              renderItem={(msg: TicketMessage) => (
                 <List.Item style={{ padding: '8px 0' }}>
                   <List.Item.Meta
                     avatar={
@@ -324,13 +325,13 @@ const AdminTicketPage: React.FC = () => {
             <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
               <Space size={16}>
                 <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
-                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
+                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority ?? -1]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority ?? -1]?.text}</Tag></Text>
               </Space>
             </div>
             <List
               dataSource={messages}
               style={{ maxHeight: 400, overflow: 'auto' }}
-              renderItem={(msg: any) => (
+              renderItem={(msg: TicketMessage) => (
                 <List.Item style={{ padding: '8px 0' }}>
                   <List.Item.Meta
                     avatar={

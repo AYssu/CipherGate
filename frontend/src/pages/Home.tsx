@@ -15,7 +15,8 @@ import {
 } from '@ant-design/icons';
 import { systemApi } from '../services';
 import safeIcon from '../assets/icons/safe.svg';
-import portalRequest from '../portal/services/portalRequest';
+import { portalAuthApi } from '../portal/services/portalAuthService';
+import type { PortalAppInfo } from '../portal/services/types';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -516,7 +517,8 @@ const Home: React.FC = () => {
   const [captchaUrl, setCaptchaUrl] = useState('');
   const [captchaId, setCaptchaId] = useState('');
   const [tempToken, setTempToken] = useState('');
-  const [appList, setAppList] = useState<any[]>([]);
+  const [selectAppPending, setSelectAppPending] = useState<number | null>(null);
+  const [appList, setAppList] = useState<PortalAppInfo[]>([]);
   const [selectAppVisible, setSelectAppVisible] = useState(false);
 
   // ── Init check
@@ -539,7 +541,7 @@ const Home: React.FC = () => {
 
   const checkSystemInit = async () => {
     try {
-      const response: any = await systemApi.checkInitStatus();
+      const response = await systemApi.checkInitStatus();
       const initialized = response?.data?.initialized;
       if (response?.success && initialized === false) {
         setInitModalVisible(true);
@@ -567,7 +569,7 @@ const Home: React.FC = () => {
     try {
       const values = await initForm.validateFields();
       setLoading(true);
-      const response: any = await systemApi.initializeSystem({
+      const response = await systemApi.initializeSystem({
         clientId: values.clientId,
         clientSecret: values.clientSecret,
         redirectUri: values.redirectUri,
@@ -580,8 +582,8 @@ const Home: React.FC = () => {
       } else {
         message.error(response?.message || '初始化失败');
       }
-    } catch (error: any) {
-      if (error.errorFields) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'errorFields' in error) {
         message.error('请填写所有必填项');
       } else {
         message.error('初始化失败，请稍后重试');
@@ -593,7 +595,7 @@ const Home: React.FC = () => {
 
   const handleGithubLogin = async () => {
     try {
-      const response: any = await systemApi.getPublicOAuth2Login();
+      const response = await systemApi.getPublicOAuth2Login();
       const url = response?.data?.oauth2AuthorizationUrl as string | undefined;
       if (url) {
         window.location.href = url;
@@ -609,7 +611,7 @@ const Home: React.FC = () => {
     try {
       const values = await passwordLoginForm.validateFields();
       setPasswordLoginLoading(true);
-      const response: any = await systemApi.passwordLogin({
+      const response = await systemApi.passwordLogin({
         login: values.login,
         password: values.password,
       });
@@ -621,8 +623,8 @@ const Home: React.FC = () => {
       } else {
         message.error(response?.message || '登录失败');
       }
-    } catch (error: any) {
-      if (error.errorFields) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'errorFields' in error) {
         message.error('请填写所有必填项');
       }
     } finally {
@@ -631,8 +633,10 @@ const Home: React.FC = () => {
   };
 
   const loadCaptcha = useCallback(async () => {
+    setCaptchaId('');
+    appUserLoginForm.setFieldValue('captchaCode', '');
     try {
-      const res: any = await portalRequest.get('/auth/captcha');
+      const res = await portalAuthApi.getCaptcha();
       if (res?.data) {
         setCaptchaUrl(res.data.image);
         setCaptchaId(res.data.captchaId);
@@ -640,7 +644,7 @@ const Home: React.FC = () => {
     } catch {
       // ignore
     }
-  }, []);
+  }, [appUserLoginForm]);
 
   const handleAppUserLogin = () => {
     setAppUserModalVisible(true);
@@ -651,7 +655,7 @@ const Home: React.FC = () => {
     try {
       const values = await appUserLoginForm.validateFields();
       setAppUserLoading(true);
-      const res: any = await portalRequest.post('/auth/login', {
+      const res = await portalAuthApi.login( {
         email: values.email,
         password: values.password,
         captchaCode: values.captchaCode,
@@ -682,19 +686,21 @@ const Home: React.FC = () => {
   };
 
   const handleSelectApp = async (appId: number) => {
+    if (selectAppPending !== null) return;
+    setSelectAppPending(appId);
     try {
       localStorage.setItem('portal_token', tempToken);
-      localStorage.setItem('portal_app_id', String(appId));
-      const res: any = await portalRequest.post(`/auth/select-app?appId=${appId}`);
-      if (res?.data?.token) {
-        localStorage.setItem('portal_token', res.data.token);
+      const res = await portalAuthApi.selectApp(appId);
+      if (res?.data) {
+        localStorage.setItem('portal_token', res.data);
+        localStorage.setItem('portal_app_id', String(appId));
       }
       message.success('登录成功');
       setSelectAppVisible(false);
       window.location.href = '/portal/dashboard';
     } catch {
-      // ignore
-    }
+      // Request errors are shown by the shared portal client.
+    } finally { setSelectAppPending(null); }
   };
 
   return (
@@ -979,8 +985,8 @@ const Home: React.FC = () => {
 
           {/* ASCII Gate animation */}
           <div style={styles.gateContainer}>
-            <pre style={{ ...styles.gateLeft } as any} className="home-gate-left">{gateLeft}</pre>
-            <pre style={{ ...styles.gateRight } as any} className="home-gate-right">{gateRight}</pre>
+            <pre style={{ ...styles.gateLeft } as React.CSSProperties} className="home-gate-left">{gateLeft}</pre>
+            <pre style={{ ...styles.gateRight } as React.CSSProperties} className="home-gate-right">{gateRight}</pre>
           </div>
 
           <div style={styles.heroContent} className="home-hero-content">
@@ -1007,6 +1013,7 @@ const Home: React.FC = () => {
                 style={styles.btnPrimary}
                 icon={<UserOutlined />}
                 onClick={handleAppUserLogin}
+                aria-label="应用用户登录"
               >
                 <span className="btn-app-text-mobile">应用</span>
                 <span className="btn-app-text-desktop">应用用户登录</span>
@@ -1398,8 +1405,9 @@ const Home: React.FC = () => {
                 style={{ background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }}
               />
             </Form.Item>
-            <Form.Item name="captchaCode" rules={[{ required: true, message: '请输入验证码' }]}>
+            <Form.Item>
               <div style={{ position: 'relative' }}>
+                <Form.Item name="captchaCode" noStyle rules={[{ required: true, message: '请输入验证码' }]}>
                 <Input
                   prefix={<KeyOutlined style={{ color: C.textDim }} />}
                   placeholder="验证码"
@@ -1407,10 +1415,12 @@ const Home: React.FC = () => {
                   className="captcha-input"
                   style={{ background: C.slate, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8 }}
                 />
-                <div
+                </Form.Item>
+                <button type="button" aria-label="刷新图形验证码"
                   onClick={loadCaptcha}
                   style={{
                     position: 'absolute',
+                    border: 'none',
                     right: 6,
                     top: 1,
                     bottom: 1,
@@ -1425,8 +1435,8 @@ const Home: React.FC = () => {
                     zIndex: 1,
                   }}
                 >
-                  {captchaUrl && <img src={captchaUrl} alt="验证码" style={{ height: 32, width: '100%', display: 'block', borderRadius: '0 6px 6px 0' }} />}
-                </div>
+                  {captchaUrl ? <img src={captchaUrl} alt="验证码" style={{ height: 32, width: '100%', display: 'block', borderRadius: '0 6px 6px 0' }} /> : '点击刷新'}
+                </button>
               </div>
             </Form.Item>
             <Form.Item style={{ marginBottom: 12 }}>
@@ -1434,6 +1444,7 @@ const Home: React.FC = () => {
                 type="primary"
                 htmlType="submit"
                 loading={appUserLoading}
+                disabled={!captchaId}
                 block
                 size="large"
                 style={{ height: 44, fontWeight: 600, borderRadius: 8, background: C.emerald, border: 'none', color: C.midnight }}
@@ -1475,12 +1486,15 @@ const Home: React.FC = () => {
             </Text>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {appList.map((app: any) => (
+            {appList.map((app) => (
               <Button
                 key={app.appId}
                 size="large"
                 icon={<SafetyCertificateOutlined />}
                 onClick={() => handleSelectApp(app.appId)}
+                aria-label={`进入${app.appName || `应用 #${app.appId}`}`}
+                disabled={selectAppPending !== null}
+                loading={selectAppPending === app.appId}
                 style={{
                   height: 52, textAlign: 'left', borderRadius: 10,
                   border: `1px solid ${C.border}`, fontSize: 15,

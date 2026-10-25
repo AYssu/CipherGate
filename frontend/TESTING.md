@@ -21,11 +21,15 @@ Linux CI 安装浏览器时使用 `npx playwright install --with-deps chromium`�
 
 浏览器失败时，`test-results/` 保留截图、视频和 trace；`playwright-report/` 为 HTML 报告。执行 `npx playwright show-report` 查看。CI 保留这些报告。
 
-## 逐步减少历史类型欠账
+## 类型契约与零豁免
 
-项目原有大量 `any`。`eslint-legacy-any.json` 只记录现存 `@typescript-eslint/no-explicit-any`，没有关闭该规则；其他规则不存在豁免。匹配包含文件、源代码行摘要及该行内的出现位置，并限制重复次数，因此新增、复制或修改这些声明都会失败。
+`eslint-legacy-any.json` 当前为 `{}`。历史显式 `any` 已清理，所有 ESLint 规则保持启用，没有类型豁免。`npm run lint` 与 `npm run lint:raw` 都必须通过；不得扩大基线、关闭规则或添加忽略注释来容纳新问题。
 
-基线只应缩减。修复历史 `any` 后，按 lint 给出的键删除相应基线项，不要重新生成基线来容纳新错误。`npm run lint:raw` 展示全部历史欠账，预期仍会报错；PR 检查使用 `npm run lint`。
+- 服务层按后端DTO声明输入和返回值，HTTP业务结果统一为 `ApiResponse<T>`。由于拦截器返回业务信封，Axios调用使用第二个返回值泛型，例如 `request.get<unknown, ApiResponse<User>>('/user/info')`；不要把 `AxiosResponse` 的嵌套 `data` 当成后端响应。
+- 终端用户门户契约位于 `src/portal/services/types.ts`；平台会员、订单、工单和JSON配置契约位于 `src/services/contracts.ts`，已有业务服务继续导出自己的DTO。
+- 动态JSON使用递归 `JsonValue` / `JsonObject`，读取未知字段前检查实际类型。异常使用 `unknown` 并通过 `getErrorMessage` 或显式类型保护处理；不得通过双重断言伪造对象结构。
+- 表单值与接口DTO存在差异时分别建模，例如开关组件使用布尔值，提交时转换为后端整数状态。更新接口确实允许部分字段时使用 `Partial<DTO>`，不能把必需字段随意改成可选以绕过检查。
+- 浏览器回归覆盖公开页面、邮箱验证后查询关联应用、卡密动作状态、临时票据换正式会话及首页登录。修改认证或响应契约时，同时验证桌面和移动端流程。
 
 ## 文档依赖
 

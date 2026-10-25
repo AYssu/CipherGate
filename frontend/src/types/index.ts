@@ -1,5 +1,5 @@
 // 通用API响应类型（匹配后端Result类）
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number;
   message: string;
   data: T;

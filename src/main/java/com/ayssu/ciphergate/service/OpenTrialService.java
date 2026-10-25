@@ -8,9 +8,9 @@ public interface OpenTrialService {
 
     TrialApplyResult applyTrial(OpenTrialRequest request, String ipAddress, String userAgent);
 
-    TrialExpireResult queryTrialExpireAt(Long appId, String email);
+    TrialExpireResult queryTrialExpireAt(Long appId, String email, String password);
 
-    record TrialApplyResult(Long appId, Long userId, String email, Integer trialDays, LocalDateTime expiresAt) {}
+    record TrialApplyResult(Long appId, Integer trialDays, LocalDateTime expiresAt) {}
 
-    record TrialExpireResult(Long appId, Long userId, String email, LocalDateTime expiresAt) {}
+    record TrialExpireResult(Long appId, LocalDateTime expiresAt) {}
 }

@@ -39,6 +39,7 @@ public class PublicAppUserSelfController {
     private final PublicAppUserSelfService publicAppUserSelfService;
     private final AppUserLicenseRechargeService rechargeService;
     private final ThirdPartyUserRateLimitService rateLimiter;
+    private final com.ayssu.ciphergate.service.PublicChallengeService challenges;
 
     @ExceptionHandler({MethodArgumentNotValidException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
     public ResponseEntity<Result<Void>> invalidRequest() {
@@ -60,6 +61,8 @@ public class PublicAppUserSelfController {
             return Result.badRequest(e.getMessage());
         } catch (org.springframework.dao.DuplicateKeyException e) {
             return Result.badRequest("卡密已兑换，请勿重复充值");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             // Never log the card, email, SQL parameters, or exception message.
             log.error("License redemption failed: errorType={}", e.getClass().getSimpleName());
@@ -69,13 +72,16 @@ public class PublicAppUserSelfController {
 
     @PostMapping("/query-expire")
     @Operation(summary = "按邮箱查询会员到期时间")
-    public Result<PublicAppUserExpireQueryResponse> queryExpire(@Valid @RequestBody PublicAppUserExpireQueryRequest body) {
+    public Result<PublicAppUserExpireQueryResponse> queryExpire(@Valid @RequestBody PublicAppUserExpireQueryRequest body, HttpServletRequest http) {
+        challenges.verify("app-user-query", IpUtil.getIpAddr(http), body.getAppId() + ":" + body.getEmail().trim().toLowerCase(java.util.Locale.ROOT), body);
         try {
             return Result.success(publicAppUserSelfService.queryExpire(body));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.badRequest(e.getMessage());
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("公开终端用户到期查询异常", e);
+            log.error("公开终端用户到期查询异常: errorType={}", e.getClass().getSimpleName());
             return Result.error("查询失败，请稍后重试");
         }
     }

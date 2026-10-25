@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { ConfigProvider, Empty } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { RouterProvider } from 'react-router-dom';
@@ -28,7 +28,7 @@ const ThemedApp: React.FC = () => {
       theme={themeConfig}
       renderEmpty={() => <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
     >
-      <RouterProvider router={router} />
+      <Suspense fallback={<div role="status" style={{ padding: 32, textAlign: 'center' }}>正在加载页面…</div>}><RouterProvider router={router} /></Suspense>
     </ConfigProvider>
   );
 };

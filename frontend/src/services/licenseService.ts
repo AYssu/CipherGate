@@ -1,3 +1,6 @@
+import type { ApiResponse } from './apiResponse';
+import type { PageResult } from './contracts';
+import type { JsonObject } from './contracts';
 import request from '../utils/request';
 
 export interface LicenseKey {
@@ -37,7 +40,7 @@ export interface LicenseKey {
   isOnline: boolean;
   remark?: string;
   coreData?: string;
-  metadata?: Record<string, any>;
+  metadata?: JsonObject;
   status: number;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +63,7 @@ export interface LicenseKeyQuery {
 }
 
 export interface LicenseKeyDTO {
+  keyCode?: string;
   id?: number;
   appId: number;
   keyType: string;
@@ -74,7 +78,7 @@ export interface LicenseKeyDTO {
   ipCheckEnabled?: boolean;
   remark?: string;
   coreData?: string;
-  metadata?: Record<string, any>;
+  metadata?: JsonObject;
   bindDeviceId?: string | null;
   bindIp?: string | null;
 }
@@ -137,6 +141,7 @@ export interface LicenseBatchSetUseTimeDTO extends LicenseBatchOperateDTO {
 }
 
 export interface LicenseBatchCreateDTO {
+  durationUnit?: string;
   appId: number;
   batchName: string;
   keyType: string;
@@ -154,95 +159,95 @@ export interface LicenseBatchCreateDTO {
  * 获取卡密列表
  */
 export const getLicenseList = (params: LicenseKeyQuery) => {
-  return request.get('/licenses', { params });
+  return request.get<unknown, ApiResponse<PageResult<LicenseKey>>>('/licenses', { params });
 };
 
 /**
  * 获取卡密详情
  */
 export const getLicenseById = (id: number) => {
-  return request.get(`/licenses/${id}`);
+  return request.get<unknown, ApiResponse<LicenseKey>>(`/licenses/${id}`);
 };
 
 /**
  * 创建卡密
  */
 export const createLicense = (data: LicenseKeyDTO) => {
-  return request.post('/licenses', data);
+  return request.post<unknown, ApiResponse<LicenseKey>>('/licenses', data);
 };
 
 /**
  * 批量生成卡密
  */
 export const batchCreateLicenses = (data: LicenseBatchCreateDTO) => {
-  return request.post('/licenses/batch', data);
+  return request.post<unknown, ApiResponse<LicenseKey[]>>('/licenses/batch', data);
 };
 
 /** 批量加时（仅已激活卡密） */
 export const batchAddLicenseTime = (data: LicenseBatchAddTimeDTO) => {
-  return request.post('/licenses/batch-add-time', data);
+  return request.post<unknown, ApiResponse<LicenseBatchAddTimeResult>>('/licenses/batch-add-time', data);
 };
 
 /** 批量扣时（仅已激活卡密） */
 export const batchSubtractLicenseTime = (data: LicenseBatchAddTimeDTO) => {
-  return request.post('/licenses/batch-subtract-time', data);
+  return request.post<unknown, ApiResponse<LicenseBatchAddTimeResult>>('/licenses/batch-subtract-time', data);
 };
 
 export const batchUpdateLicenseStatus = (data: LicenseBatchStatusDTO) => {
-  return request.post('/licenses/batch-status', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-status', data);
 };
 
 export const batchUnbindLicenses = (data: LicenseBatchUnbindDTO) => {
-  return request.post('/licenses/batch-unbind', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-unbind', data);
 };
 
 export const batchSetLicenseUseLimit = (data: LicenseBatchSetUseLimitDTO) => {
-  return request.post('/licenses/batch-use-limit', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-use-limit', data);
 };
 
 export const batchSetLicenseUnbindLimit = (data: LicenseBatchSetUnbindLimitDTO) => {
-  return request.post('/licenses/batch-unbind-limit', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-unbind-limit', data);
 };
 
 export const batchSetLicenseUseTime = (data: LicenseBatchSetUseTimeDTO) => {
-  return request.post('/licenses/batch-use-time', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-use-time', data);
 };
 
 export const batchDeleteLicenses = (data: LicenseBatchOperateDTO) => {
-  return request.post('/licenses/batch-delete', data);
+  return request.post<unknown, ApiResponse<LicenseBatchOperateResult>>('/licenses/batch-delete', data);
 };
 
 /**
  * 更新卡密
  */
-export const updateLicense = (id: number, data: LicenseKeyDTO) => {
-  return request.put(`/licenses/${id}`, data);
+export const updateLicense = (id: number, data: Partial<LicenseKeyDTO>) => {
+  return request.put<unknown, ApiResponse<LicenseKey>>(`/licenses/${id}`, data);
 };
 
 /**
  * 删除卡密
  */
 export const deleteLicense = (id: number) => {
-  return request.delete(`/licenses/${id}`);
+  return request.delete<unknown, ApiResponse<string>>(`/licenses/${id}`);
 };
 
 /**
  * 更新卡密状态
  */
 export const updateLicenseStatus = (id: number, status: number) => {
-  return request.put(`/licenses/${id}/status`, null, {
+  return request.put<unknown, ApiResponse<string>>(`/licenses/${id}/status`, null, {
     params: { status }
   });
 };
 
 /** 解绑设备（清空绑定，下次卡密登录可绑新设备） */
 export const unbindLicenseDevice = (id: number) => {
-  return request.post(`/licenses/${id}/unbind-device`);
+  return request.post<unknown, ApiResponse<LicenseKey>>(`/licenses/${id}/unbind-device`);
 };
 
 /** 解绑 IP */
 export const unbindLicenseIp = (id: number) => {
-  return request.post(`/licenses/${id}/unbind-ip`);
+  return request.post<unknown, ApiResponse<LicenseKey>>(`/licenses/${id}/unbind-ip`);
 };
 
 /**
@@ -277,7 +282,7 @@ export const importLicenses = (file: File, appId: number) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('appId', String(appId));
-  return request.post<LicenseImportResult>('/licenses/import', formData, {
+  return request.post<unknown, ApiResponse<LicenseImportResult>>('/licenses/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };

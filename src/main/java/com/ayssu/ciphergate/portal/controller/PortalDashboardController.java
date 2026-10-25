@@ -46,8 +46,8 @@ public class PortalDashboardController {
             @RequestParam(defaultValue = "20") int size) {
         Long userId = getCurrentUserId();
         if (userId == null) return Result.error(401, "未登录");
-        List<PortalLoginLog> logs = dashboardService.getLoginHistory(userId, page, size);
-        return Result.success(logs);
+        try { return Result.success(dashboardService.getLoginHistory(userId, page, size)); }
+        catch (IllegalArgumentException e) { return Result.badRequest(e.getMessage()); }
     }
 
     @GetMapping("/devices")

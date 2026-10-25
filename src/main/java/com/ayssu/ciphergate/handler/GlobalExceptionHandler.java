@@ -30,6 +30,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.forbidden(msg));
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Result<Void>> handleStatus(org.springframework.web.server.ResponseStatusException e) {
+        return ResponseEntity.status(e.getStatusCode()).body(Result.error(e.getStatusCode().value(),
+                e.getReason() == null ? "请求失败" : e.getReason()));
+    }
+
+    @ExceptionHandler({org.springframework.web.bind.MethodArgumentNotValidException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            jakarta.validation.ConstraintViolationException.class})
+    public ResponseEntity<Result<Void>> invalidRequest(Exception e) {
+        // Validation messages can contain rejected passwords, OTPs or card numbers.
+        return ResponseEntity.badRequest().body(Result.badRequest("请求参数无效，请检查输入"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Void>> handleException(Exception e) {
         log.error("未处理异常", e);

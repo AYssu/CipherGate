@@ -38,7 +38,7 @@ public class AppUserRegisterVerificationService {
     private final AppUserMapper appUserMapper;
     private final AppUserRegisterOtpRedisService otpRedisService;
     private final SystemSmtpMailService systemSmtpMailService;
-    private final StringRedisTemplate redisTemplate;
+    private final PublicAbuseGuard abuseGuard;
     private final UserMembershipService userMembershipService;
 
     public void sendRegisterEmailVerificationCode(Long appId, String emailRaw, String clientIp) {
@@ -57,7 +57,9 @@ public class AppUserRegisterVerificationService {
             throw new IllegalStateException("邮件服务未启用或未完整配置，请联系管理员");
         }
 
-        checkIpSendLimit(clientIp);
+        abuseGuard.check("register-mail-ip", clientIp, 20, Duration.ofHours(1));
+        abuseGuard.check("register-mail-recipient", email, 5, Duration.ofHours(1));
+        abuseGuard.check("all-mail", "global", 1000, Duration.ofHours(1));
 
         Application app = applicationMapper.selectById(appId);
         if (app == null) {
@@ -67,7 +69,7 @@ public class AppUserRegisterVerificationService {
             throw new IllegalStateException("应用暂不可注册");
         }
 
-        if (otpRedisService.isInSendCooldown(appId, email)) {
+        if (!otpRedisService.reserveSend(appId, email)) {
             throw new IllegalStateException("发送过于频繁，请 60 秒后再试");
         }
 
@@ -90,8 +92,7 @@ public class AppUserRegisterVerificationService {
 
         systemSmtpMailService.sendPlainText(email, subject, body);
         otpRedisService.saveOtp(appId, email, code);
-        otpRedisService.markSendCooldown(appId, email);
-        log.info("应用用户注册验证码已发送: appId={}, email={}", appId, email);
+        log.info("应用用户注册验证码已发送: appId={}", appId);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -99,6 +100,7 @@ public class AppUserRegisterVerificationService {
         if (appId == null || appId <= 0) {
             throw new IllegalArgumentException("应用无效");
         }
+        com.ayssu.ciphergate.util.PasswordPolicy.validate(password);
         String username = normalizeAndValidateUsername(usernameRaw);
         String email = normalizeEmail(emailRaw);
         if (email.length() > 100) {
@@ -117,10 +119,6 @@ public class AppUserRegisterVerificationService {
             throw new IllegalStateException("终端用户注册额度不足，请联系应用管理员升级会员");
         }
 
-        if (!otpRedisService.matchesOtp(appId, email, emailCode)) {
-            throw new IllegalArgumentException("验证码无效或已过期");
-        }
-
         LambdaQueryWrapper<AppUser> dupEmail = new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getAppId, appId)
                 .eq(AppUser::getEmail, email)
@@ -137,6 +135,10 @@ public class AppUserRegisterVerificationService {
             throw new IllegalStateException("该用户名已被占用");
         }
 
+        if (!otpRedisService.matchesOtp(appId, email, emailCode)) {
+            throw new IllegalArgumentException("验证码无效或已过期");
+        }
+
         AppUser row = new AppUser();
         row.setAppId(appId);
         row.setUsername(username);
@@ -149,26 +151,12 @@ public class AppUserRegisterVerificationService {
         row.setCreatedAt(now);
         row.setUpdatedAt(now);
         appUserMapper.insert(row);
-        otpRedisService.removeOtp(appId, email);
         userMembershipService.consumeUserRegisterQuota(app.getOwnerId(), 1);
         log.info("应用用户自助注册成功: appId={}, userId={}, username={}", appId, row.getId(), username);
     }
 
-    private void checkIpSendLimit(String clientIp) {
-        if (!StringUtils.hasText(clientIp)) {
-            return;
-        }
-        String key = IP_RL_PREFIX + clientIp;
-        Long n = redisTemplate.opsForValue().increment(key);
-        if (n != null && n == 1L) {
-            redisTemplate.expire(key, Duration.ofHours(1));
-        }
-        if (n != null && n > IP_SEND_MAX_PER_HOUR) {
-            throw new IllegalStateException("请求过于频繁，请稍后再试");
-        }
-    }
-
     private static String normalizeEmail(String raw) {
+        if (!StringUtils.hasText(raw)) throw new IllegalArgumentException("邮箱不能为空");
         return raw.trim().toLowerCase(Locale.ROOT);
     }
 

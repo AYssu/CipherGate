@@ -1,3 +1,4 @@
+import { usePublicChallenge } from '../components/usePublicChallenge';
 import PublicServiceLayout from '../components/PublicServiceLayout';
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -65,7 +66,9 @@ const LicenseSelfServicePage: React.FC = () => {
     return Number.isSafeInteger(n) && n > 0 ? n : null;
   }, [appIdRaw]);
 
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<{ keyCode: string }>();
+  const challenge = usePublicChallenge('license-query', '查询验证码');
+  const unbindChallenge = usePublicChallenge('license-unbind', '解绑验证码');
   const [loading, setLoading] = useState(false);
   const [unbindLoading, setUnbindLoading] = useState(false);
   const [data, setData] = useState<PublicLicenseQueryResponse | null>(null);
@@ -83,12 +86,13 @@ const LicenseSelfServicePage: React.FC = () => {
     } catch {
       return;
     }
-    const keyCode = (form.getFieldValue('keyCode') as string).trim().toUpperCase();
+    const verification = challenge.get(); if (!verification) return;
+    const keyCode = form.getFieldValue('keyCode').trim().toUpperCase();
     setData(null);
     setQueriedKey('');
     setLoading(true);
     try {
-      const res: any = await queryLicenseRemaining(appId, keyCode);
+      const res = await queryLicenseRemaining(appId, keyCode, verification);
       if (res.code === 200 && res.data && keyCode === (form.getFieldValue('keyCode') as string)?.trim().toUpperCase()) {
         setData(res.data);
         setQueriedKey(keyCode);
@@ -96,7 +100,7 @@ const LicenseSelfServicePage: React.FC = () => {
     } catch {
       /* interceptor already shows */
     } finally {
-      setLoading(false);
+      setLoading(false); void challenge.refresh();
     }
   };
 
@@ -109,6 +113,7 @@ const LicenseSelfServicePage: React.FC = () => {
       message.warning('请先查询当前卡密');
       return;
     }
+    const verification = unbindChallenge.get(); if (!verification) return;
     Modal.confirm({
       title: '解绑卡密',
       content: (
@@ -127,16 +132,17 @@ const LicenseSelfServicePage: React.FC = () => {
       onOk: async () => {
         setUnbindLoading(true);
         try {
-          const res: any = await unbindLicense({
+          const res = await unbindLicense({
+            ...verification,
             appId,
             keyCode,
           });
           if (res.code === 200) {
             message.success('解绑成功');
-            await doQuery();
+            setData(null); setQueriedKey('');
           }
         } finally {
-          setUnbindLoading(false);
+          setUnbindLoading(false); void unbindChallenge.refresh();
         }
       },
     });
@@ -165,6 +171,8 @@ const LicenseSelfServicePage: React.FC = () => {
               </div>
             </Form.Item>
 
+            {challenge.fields}
+            {data && unbindChallenge.fields}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -10, marginBottom: 8 }}>
               <Button
                 type="link"

@@ -101,7 +101,7 @@ class DatabaseMigrationMysqlTest {
         contextRunner.run(context -> {
             assertNull(context.getStartupFailure());
             assertNotNull(context.getBean(Flyway.class));
-            assertEquals(2, historyCount());
+            assertEquals(3, historyCount());
             try (var connection = dataSource.getConnection()) {
                 LegacyDatabaseVerifier.verify(connection);
             }
@@ -109,7 +109,7 @@ class DatabaseMigrationMysqlTest {
         jdbc.update("UPDATE menus SET menu_name='自定义名称',sort_order=99 WHERE menu_code='APP_MANAGEMENT'");
         jdbc.update("DELETE FROM role_permissions");
         contextRunner.run(context -> assertNull(context.getStartupFailure()));
-        assertEquals(2, historyCount());
+        assertEquals(3, historyCount());
         assertEquals("自定义名称", jdbc.queryForObject("SELECT menu_name FROM menus WHERE menu_code='APP_MANAGEMENT'", String.class));
         assertEquals(99, jdbc.queryForObject("SELECT sort_order FROM menus WHERE menu_code='APP_MANAGEMENT'", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM role_permissions", Integer.class));
@@ -123,13 +123,13 @@ class DatabaseMigrationMysqlTest {
         jdbc.update("INSERT INTO app_user(id,app_id,username,email,member_expires_at) VALUES (9000,9000,'existing','existing@example.test','2035-01-01')");
         jdbc.update("INSERT INTO license_key(id,app_id,owner_id,key_code,key_type,duration_value) VALUES (9000,9000,9000,'EXISTINGCARD','DAY',7)");
         var users = jdbc.queryForList("SELECT * FROM app_user WHERE id=9000");
-        assertEquals(1, flyway().migrate().migrationsExecuted);
+        assertEquals(2, flyway().migrate().migrationsExecuted);
         assertEquals(users, jdbc.queryForList("SELECT * FROM app_user WHERE id=9000"));
         assertEquals(1, jdbc.queryForObject("SELECT status FROM license_key WHERE id=9000", Integer.class));
         assertNull(jdbc.queryForObject("SELECT redeemed_at FROM license_key WHERE id=9000", Object.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM app_user_license_recharge", Integer.class));
         assertEquals(0, flyway().migrate().migrationsExecuted);
-        assertEquals(2, historyCount());
+        assertEquals(3, historyCount());
     }
 
     @Test
@@ -151,14 +151,14 @@ class DatabaseMigrationMysqlTest {
         Files.writeString(migrations.resolve("V999__test_change.sql"),
                 "CREATE TABLE migration_test_marker(id INT PRIMARY KEY); INSERT INTO migration_test_marker VALUES(1);");
         DatabaseMigrationConfig.migrate(flyway(), true);
-        assertEquals(3, historyCount());
+        assertEquals(4, historyCount());
         assertEquals("BASELINE", jdbc.queryForObject("SELECT type FROM flyway_schema_history WHERE version='1'", String.class));
         assertEquals("保留旧库设置", jdbc.queryForObject("SELECT menu_name FROM menus WHERE menu_code='APP_MANAGEMENT'", String.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM role_permissions", Integer.class));
         assertEquals("preserved-user", jdbc.queryForObject("SELECT login FROM users WHERE github_id=987654321", String.class));
         assertEquals("preserved-secret", jdbc.queryForObject("SELECT api_secret FROM third_party_credential WHERE api_key='preserved-key'", String.class));
         DatabaseMigrationConfig.migrate(flyway(), false);
-        assertEquals(3, historyCount());
+        assertEquals(4, historyCount());
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM migration_test_marker", Integer.class));
     }
 
@@ -182,14 +182,14 @@ class DatabaseMigrationMysqlTest {
         var preservedRows = jdbc.queryForList("SELECT * FROM plugin_module ORDER BY id");
         jdbc.update("UPDATE menus SET menu_name='保留历史索引接入设置' WHERE menu_code='PLUGIN_MANAGEMENT'");
         DatabaseMigrationConfig.migrate(flyway(), true);
-        assertEquals(2, historyCount());
+        assertEquals(3, historyCount());
         assertEquals("BASELINE", jdbc.queryForObject("SELECT type FROM flyway_schema_history WHERE version='1'", String.class));
         assertEquals("0\tplugin_id,plugin_version,deleted,deleted_at", pluginVersionIndex());
         assertEquals(preservedRows, jdbc.queryForList("SELECT * FROM plugin_module ORDER BY id"));
         assertEquals("保留历史索引接入设置", jdbc.queryForObject(
                 "SELECT menu_name FROM menus WHERE menu_code='PLUGIN_MANAGEMENT'", String.class));
         DatabaseMigrationConfig.migrate(flyway(), false);
-        assertEquals(2, historyCount());
+        assertEquals(3, historyCount());
         assertEquals(preservedRows, jdbc.queryForList("SELECT * FROM plugin_module ORDER BY id"));
         assertEquals("0\tplugin_id,plugin_version,deleted,deleted_at", pluginVersionIndex());
     }
@@ -294,7 +294,7 @@ class DatabaseMigrationMysqlTest {
         DatabaseMigrationConfig.migrate(flyway(), false);
         Files.writeString(migrations.resolve("V999__test_change.sql"), "CREATE TABLE migration_test_marker(id BIGINT);");
         assertThrows(RuntimeException.class, () -> DatabaseMigrationConfig.migrate(flyway(), false));
-        assertEquals(3, historyCount());
+        assertEquals(4, historyCount());
     }
 
     @Test

@@ -46,7 +46,7 @@ const AnnouncementManagementContent: React.FC = () => {
     setLoading(true);
     try {
       const result = await announcementApi.getAnnouncements();
-      setAnnouncements((result as any).data || []);
+      setAnnouncements(result.data || []);
     } catch (error) {
       console.error('获取公告列表失败:', error);
     } finally {

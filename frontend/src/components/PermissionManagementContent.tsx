@@ -42,7 +42,7 @@ const PermissionManagementContent: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [resourceTypes, setResourceTypes] = useState<string[]>([]);
   const [httpMethods, setHttpMethods] = useState<string[]>([]);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Omit<Permission, 'id' | 'status'> & { status: boolean }>();
 
   useEffect(() => {
     fetchPermissions();
@@ -54,7 +54,7 @@ const PermissionManagementContent: React.FC = () => {
     setLoading(true);
     try {
       const result = await permissionApi.getPermissions();
-      setPermissions((result as any).data || []);
+      setPermissions(result.data || []);
     } catch (error) {
       console.error('获取权限列表失败:', error);
     } finally {
@@ -65,7 +65,7 @@ const PermissionManagementContent: React.FC = () => {
   const fetchResourceTypes = async () => {
     try {
       const result = await permissionApi.getResourceTypes();
-      setResourceTypes((result as any).data || []);
+      setResourceTypes(result.data || []);
     } catch (error) {
       console.error('获取资源类型失败:', error);
     }
@@ -74,7 +74,7 @@ const PermissionManagementContent: React.FC = () => {
   const fetchHttpMethods = async () => {
     try {
       const result = await permissionApi.getHttpMethods();
-      setHttpMethods((result as any).data || []);
+      setHttpMethods(result.data || []);
     } catch (error) {
       console.error('获取HTTP方法失败:', error);
     }
@@ -216,7 +216,7 @@ const PermissionManagementContent: React.FC = () => {
       title: '操作',
       key: 'action',
       width: isMobile ? 80 : 150,
-      render: (_: any, record: Permission) => {
+      render: (_: unknown, record: Permission) => {
         if (isMobile) {
           return (
             <Dropdown

@@ -59,6 +59,8 @@ export default defineConfig({
           { text: '第三方凭证', link: '/developer/credential' },
           { text: '调用日志', link: '/developer/call-log' },
           { text: '第三方 API 对接', link: '/developer/api-integration' },
+          { text: '公开入口与认证安全', link: '/developer/public-security' },
+          { text: '运行时依赖安全', link: '/developer/dependency-security' },
         ]
       },
       {

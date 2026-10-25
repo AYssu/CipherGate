@@ -30,6 +30,8 @@ export interface ChunkedUploadOptions {
 }
 
 const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+const CHUNK_TIMEOUT_MS = 5 * 60 * 1000;
+const COMPLETE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const chunkedUploadService = {
   async initUpload(objectKey: string, totalSize: number, chunkSize?: number): Promise<InitUploadResponse> {
@@ -49,13 +51,14 @@ export const chunkedUploadService = {
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: CHUNK_TIMEOUT_MS,
       }
     );
     return response.data;
   },
 
   async completeUpload(uploadId: string): Promise<void> {
-    await request.post('/upload/complete', { uploadId });
+    await request.post('/upload/complete', { uploadId }, { timeout: COMPLETE_TIMEOUT_MS });
   },
 
   async getUploadInfo(uploadId: string): Promise<UploadInfo> {
@@ -72,13 +75,13 @@ export const chunkedUploadService = {
     
     // 初始化上传
     const initResponse = await this.initUpload(objectKey, file.size, chunkSize);
-    const { uploadId, totalChunks } = initResponse;
+    const { uploadId, totalChunks, chunkSize: negotiatedChunkSize } = initResponse;
     
     try {
       // 分片上传
       for (let chunkNumber = 1; chunkNumber <= totalChunks; chunkNumber++) {
-        const start = (chunkNumber - 1) * chunkSize;
-        const end = Math.min(start + chunkSize, file.size);
+        const start = (chunkNumber - 1) * negotiatedChunkSize;
+        const end = Math.min(start + negotiatedChunkSize, file.size);
         const chunk = file.slice(start, end);
         
         await this.uploadChunk(uploadId, chunkNumber, chunk);
@@ -94,7 +97,7 @@ export const chunkedUploadService = {
       // 完成上传
       await this.completeUpload(uploadId);
       
-      return objectKey;
+      return initResponse.objectKey;
     } catch (error) {
       // 上传失败，取消上传
       try {

@@ -108,7 +108,7 @@ class AppUserLicenseRechargeMysqlTest {
         var stale=mapper.selectById(userId);
         service.redeem(request(cardId),null);
         doReturn(stale).when(mapper).selectById(userId);
-        var profile=new com.ayssu.ciphergate.portal.service.PortalSettingsService(mapper,mock(com.ayssu.ciphergate.portal.mapper.PortalVerifyCodeMapper.class));
+        var profile=new com.ayssu.ciphergate.portal.service.PortalSettingsService(mapper,mock(com.ayssu.ciphergate.portal.mapper.PortalVerifyCodeMapper.class),mock(com.ayssu.ciphergate.portal.service.PortalOtpService.class),mock(PublicAbuseGuard.class));
         profile.updateNickname(userId,"Updated profile");
         assertEquals(before.plusDays(7),expiry());
         assertEquals("Updated profile",jdbc.queryForObject("SELECT nickname FROM app_user WHERE id=?",String.class,userId));

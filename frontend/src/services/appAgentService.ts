@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface AppAgentDTO {
@@ -21,20 +22,20 @@ export interface AgentBindUserDTO {
 }
 
 export const listAppAgents = (appId: number) =>
-  request.get(`/applications/${appId}/agents`);
+  request.get<unknown, ApiResponse<AppAgentDTO[]>>(`/applications/${appId}/agents`);
 
 export const createAppAgent = (appId: number, data: AppAgentDTO) =>
-  request.post(`/applications/${appId}/agents`, data);
+  request.post<unknown, ApiResponse<AppAgentDTO>>(`/applications/${appId}/agents`, data);
 
 export const updateAppAgent = (appId: number, agentId: number, data: AppAgentDTO) =>
-  request.put(`/applications/${appId}/agents/${agentId}`, data);
+  request.put<unknown, ApiResponse<AppAgentDTO>>(`/applications/${appId}/agents/${agentId}`, data);
 
 export const updateAppAgentPermissions = (appId: number, agentId: number, permissions: string[]) =>
-  request.put(`/applications/${appId}/agents/${agentId}/permissions`, permissions);
+  request.put<unknown, ApiResponse<string>>(`/applications/${appId}/agents/${agentId}/permissions`, permissions);
 
 export const updateAppAgentQuotas = (appId: number, agentId: number, quotas: Record<string, number>) =>
-  request.put(`/applications/${appId}/agents/${agentId}/quotas`, quotas);
+  request.put<unknown, ApiResponse<string>>(`/applications/${appId}/agents/${agentId}/quotas`, quotas);
 
 export const lookupAppAgentBindUser = (appId: number, githubId: string) =>
-  request.get(`/applications/${appId}/agents/lookup-user`, { params: { githubId } });
+  request.get<unknown, ApiResponse<AgentBindUserDTO>>(`/applications/${appId}/agents/lookup-user`, { params: { githubId } });
 

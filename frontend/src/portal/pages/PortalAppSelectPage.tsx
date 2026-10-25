@@ -1,3 +1,4 @@
+import type { PortalAppInfo } from '../services/types';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
@@ -9,20 +10,13 @@ import { portalAuthApi } from '../services/portalAuthService';
 
 const { Text } = Typography;
 
-interface AppInfo {
-  appId: number;
-  appName: string;
-  memberActive?: boolean;
-  memberExpiresAt?: string;
-}
-
 const PortalAppSelectPage: React.FC = () => {
   const navigate = useNavigate();
   const [pending, setPending] = useState<number | null>(null);
-  let apps: AppInfo[] = [];
+  let apps: PortalAppInfo[] = [];
   try {
     const saved: unknown = JSON.parse(localStorage.getItem('portal_apps') || '[]');
-    if (Array.isArray(saved)) apps = saved.filter((item): item is AppInfo => !!item && typeof item === 'object' && Number.isSafeInteger(item.appId) && item.appId > 0 && typeof item.appName === 'string');
+    if (Array.isArray(saved)) apps = saved.filter((item): item is PortalAppInfo => !!item && typeof item === 'object' && Number.isSafeInteger(item.appId) && item.appId > 0 && typeof item.appName === 'string');
   } catch { /* An expired or damaged local session can be recovered by logging in. */ }
   const tempToken = localStorage.getItem('portal_temp_token');
 
@@ -31,7 +25,7 @@ const PortalAppSelectPage: React.FC = () => {
     setPending(appId);
     try {
       localStorage.setItem('portal_token', tempToken || '');
-      const res: any = await portalAuthApi.selectApp(appId);
+      const res = await portalAuthApi.selectApp(appId);
       if (res?.data) {
         localStorage.setItem('portal_token', res.data);
         localStorage.setItem('portal_app_id', String(appId));

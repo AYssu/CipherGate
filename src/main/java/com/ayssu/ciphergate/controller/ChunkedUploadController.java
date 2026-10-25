@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/upload")
 @RequiredArgsConstructor
-@Tag(name = "分片上传", description = "支持大文件分片上传和断点续传")
+@Tag(name = "分片上传", description = "文档附件分片上传；会话限当前进程，重启后需重新上传")
 public class ChunkedUploadController {
 
     private final ChunkedUploadService chunkedUploadService;
@@ -27,6 +27,10 @@ public class ChunkedUploadController {
         try {
             ChunkedUploadService.InitUploadResponse response = chunkedUploadService.initUpload(request);
             return Result.success("上传会话创建成功", response);
+        } catch (SecurityException e) {
+            return Result.error(403, "无权限访问上传会话");
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
         } catch (Exception e) {
             log.error("初始化分片上传失败", e);
             return Result.error("初始化上传失败: " + e.getMessage());
@@ -45,6 +49,10 @@ public class ChunkedUploadController {
                 new ChunkedUploadService.UploadChunkRequest(uploadId, chunkNumber, file);
             ChunkedUploadService.UploadChunkResponse response = chunkedUploadService.uploadChunk(request);
             return Result.success("分片上传成功", response);
+        } catch (SecurityException e) {
+            return Result.error(403, "无权限访问上传会话");
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
         } catch (Exception e) {
             log.error("分片上传失败: uploadId={}, chunkNumber={}", uploadId, chunkNumber, e);
             return Result.error("分片上传失败: " + e.getMessage());
@@ -58,6 +66,10 @@ public class ChunkedUploadController {
         try {
             chunkedUploadService.completeUpload(request);
             return Result.success("文件上传完成", null);
+        } catch (SecurityException e) {
+            return Result.error(403, "无权限访问上传会话");
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
         } catch (Exception e) {
             log.error("完成上传失败: uploadId={}", request.uploadId(), e);
             return Result.error("完成上传失败: " + e.getMessage());
@@ -74,6 +86,10 @@ public class ChunkedUploadController {
                 return Result.error("上传会话不存在或已过期");
             }
             return Result.success(info);
+        } catch (SecurityException e) {
+            return Result.error(403, "无权限访问上传会话");
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
         } catch (Exception e) {
             log.error("查询上传进度失败: uploadId={}", uploadId, e);
             return Result.error("查询失败: " + e.getMessage());
@@ -87,6 +103,10 @@ public class ChunkedUploadController {
         try {
             chunkedUploadService.abortUpload(uploadId);
             return Result.success("上传已取消", null);
+        } catch (SecurityException e) {
+            return Result.error(403, "无权限访问上传会话");
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
         } catch (Exception e) {
             log.error("取消上传失败: uploadId={}", uploadId, e);
             return Result.error("取消失败: " + e.getMessage());

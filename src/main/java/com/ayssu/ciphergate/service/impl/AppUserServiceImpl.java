@@ -312,6 +312,7 @@ public class AppUserServiceImpl implements AppUserService {
         
         // 使用 Hutool BCrypt 加密密码
         if (StringUtils.hasText(dto.getPassword())) {
+            com.ayssu.ciphergate.util.PasswordPolicy.validate(dto.getPassword());
             appUser.setPassword(BCrypt.hashpw(dto.getPassword()));
         }
         
@@ -448,6 +449,7 @@ public class AppUserServiceImpl implements AppUserService {
         ensureAppUserRecordPermission(appUser, operatorId, AgentPermissionCodes.APP_USER_UPDATE, "无权限操作此用户");
         
         // 使用 Hutool BCrypt 加密并更新密码
+        com.ayssu.ciphergate.util.PasswordPolicy.validate(newPassword);
         appUser.setPassword(BCrypt.hashpw(newPassword));
         appUser.setUpdatedAt(LocalDateTime.now());
         appUserMapper.updateById(appUser);

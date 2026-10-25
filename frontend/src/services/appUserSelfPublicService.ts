@@ -1,4 +1,6 @@
 import request from '../utils/request';
+import type { Challenge } from '../components/usePublicChallenge';
+import type { ApiResponse } from './apiResponse';
 
 export interface PublicAppUserExpireQueryResponse {
   emailMasked: string;
@@ -7,8 +9,8 @@ export interface PublicAppUserExpireQueryResponse {
   memberActive: boolean;
 }
 
-export function queryAppUserExpire(appId: number, email: string) {
-  return request.post('/public/app-user/self/query-expire', { appId, email });
+export function queryAppUserExpire(appId: number, email: string, password: string, challenge: Challenge) {
+  return request.post<unknown, ApiResponse<PublicAppUserExpireQueryResponse>>('/public/app-user/self/query-expire', { appId, email, password, ...challenge });
 }
 
 export interface AppUserLicenseRechargeResponse extends PublicAppUserExpireQueryResponse {

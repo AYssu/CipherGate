@@ -20,6 +20,8 @@ public class PortalSettingsService {
 
     private final AppUserMapper appUserMapper;
     private final PortalVerifyCodeMapper verifyCodeMapper;
+    private final PortalOtpService otpService;
+    private final com.ayssu.ciphergate.service.PublicAbuseGuard abuseGuard;
 
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
 
@@ -51,8 +53,11 @@ public class PortalSettingsService {
             .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void changePassword(Long appUserId, String oldPassword, String newPassword) {
-        AppUser user = appUserMapper.selectById(appUserId);
+        com.ayssu.ciphergate.util.PasswordPolicy.validate(newPassword);
+        abuseGuard.check("portal-password-change", appUserId.toString(), 10, java.time.Duration.ofMinutes(15));
+        AppUser user = appUserMapper.selectForUpdate(appUserId);
         if (user == null) {
             throw new IllegalArgumentException("用户不存在");
         }
@@ -63,13 +68,17 @@ public class PortalSettingsService {
 
         user.setPassword(ENCODER.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+        int changed = appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
             .eq(AppUser::getId, user.getId()).set(AppUser::getPassword, user.getPassword())
             .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
+        if (changed != 1) throw new IllegalStateException("密码更新失败，请重试");
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void changeEmail(Long appUserId, String currentPassword, String newEmail, String verifyCode) {
-        AppUser user = appUserMapper.selectById(appUserId);
+        newEmail = PortalAuthService.normalizeEmail(newEmail);
+        abuseGuard.check("portal-email-change", appUserId.toString(), 10, java.time.Duration.ofMinutes(15));
+        AppUser user = appUserMapper.selectForUpdate(appUserId);
         if (user == null) {
             throw new IllegalArgumentException("用户不存在");
         }
@@ -78,28 +87,6 @@ public class PortalSettingsService {
         if (user.getPassword() == null || !ENCODER.matches(currentPassword, user.getPassword())) {
             throw new IllegalArgumentException("当前密码错误");
         }
-
-        // 2. 校验新邮箱验证码
-        PortalVerifyCode code = verifyCodeMapper.selectOne(
-            new LambdaQueryWrapper<PortalVerifyCode>()
-                .eq(PortalVerifyCode::getEmail, newEmail)
-                .eq(PortalVerifyCode::getPurpose, "EMAIL_CHANGE")
-                .eq(PortalVerifyCode::getUsed, false)
-                .orderByDesc(PortalVerifyCode::getId)
-                .last("LIMIT 1")
-        );
-
-        if (code == null || code.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("验证码无效或已过期");
-        }
-
-        if (!code.getCode().equals(verifyCode)) {
-            throw new IllegalArgumentException("验证码错误");
-        }
-
-        // 标记已使用
-        code.setUsed(true);
-        verifyCodeMapper.updateById(code);
 
         // 3. 检查新邮箱是否已被其他用户在同一应用中使用
         Long count = appUserMapper.selectCount(
@@ -114,11 +101,14 @@ public class PortalSettingsService {
             throw new IllegalArgumentException("该邮箱已被其他用户使用");
         }
 
+        otpService.verify(newEmail, PortalOtpService.emailChangePurpose(user), verifyCode, true);
+
         // 4. 更新邮箱
         user.setEmail(newEmail);
         user.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
+        int changed = appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
             .eq(AppUser::getId, user.getId()).set(user.getEmail() != null, AppUser::getEmail, user.getEmail())
             .set(AppUser::getUpdatedAt, user.getUpdatedAt()));
+        if (changed != 1) throw new IllegalStateException("邮箱更新失败，请重试");
     }
 }

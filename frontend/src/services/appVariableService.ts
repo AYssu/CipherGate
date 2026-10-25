@@ -1,4 +1,5 @@
 import request from '../utils/request';
+import type { ApiResponse, PageResult } from './apiResponse';
 
 export type VariableType = 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON' | 'ARRAY';
 
@@ -18,7 +19,7 @@ export interface AppVariable {
   enabled?: boolean;
   version?: string;
   tags?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdBy?: number;
   updatedBy?: number;
   createdAt?: string;
@@ -53,7 +54,7 @@ export interface AppVariableDTO {
   enabled?: boolean;
   version?: string;
   tags?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   changeReason?: string;
 }
 
@@ -76,70 +77,70 @@ export interface AppVariableHistory {
  * 分页查询变量
  */
 export const getVariableList = (params: AppVariableQuery) => {
-  return request.get('/app-variables', { params });
+  return request.get<unknown, ApiResponse<PageResult<AppVariable>>>('/app-variables', { params });
 };
 
 /**
  * 变量详情
  */
 export const getVariableById = (id: number) => {
-  return request.get(`/app-variables/${id}`);
+  return request.get<unknown, ApiResponse<AppVariable>>(`/app-variables/${id}`);
 };
 
 /**
  * 根据名称查询变量
  */
 export const getVariableByName = (appId: number, variableName: string) => {
-  return request.get('/app-variables/by-name', { params: { appId, variableName } });
+  return request.get<unknown, ApiResponse<AppVariable>>('/app-variables/by-name', { params: { appId, variableName } });
 };
 
 /**
  * 创建变量
  */
 export const createVariable = (data: AppVariableDTO) => {
-  return request.post('/app-variables', data);
+  return request.post<unknown, ApiResponse<AppVariable>>('/app-variables', data);
 };
 
 /**
  * 更新变量
  */
 export const updateVariable = (id: number, data: AppVariableDTO) => {
-  return request.put(`/app-variables/${id}`, data);
+  return request.put<unknown, ApiResponse<AppVariable>>(`/app-variables/${id}`, data);
 };
 
 /**
  * 删除变量
  */
 export const deleteVariable = (id: number) => {
-  return request.delete(`/app-variables/${id}`);
+  return request.delete<unknown, ApiResponse<null>>(`/app-variables/${id}`);
 };
 
 /**
  * 批量删除变量
  */
 export const batchDeleteVariables = (ids: number[]) => {
-  return request.delete('/app-variables/batch', { data: ids });
+  return request.delete<unknown, ApiResponse<null>>('/app-variables/batch', { data: ids });
 };
 
 /**
  * 复制变量
  */
 export const copyVariable = (id: number, newVariableName: string) => {
-  return request.post(`/app-variables/${id}/copy`, { newVariableName });
+  return request.post<unknown, ApiResponse<AppVariable>>(`/app-variables/${id}/copy`, { newVariableName });
 };
 
 /**
  * 获取变量历史记录
  */
 export const getVariableHistory = (id: number, current = 1, size = 10) => {
-  return request.get(`/app-variables/${id}/history`, { params: { current, size } });
+  return request.get<unknown, ApiResponse<PageResult<AppVariableHistory>>>(`/app-variables/${id}/history`, { params: { current, size } });
 };
 
 /**
  * 导出应用变量配置
  */
 export const exportAppVariables = (appId: number, params?: { format?: string }) => {
-  return request.get(`/app-variables/app/${appId}/export`, { params });
+  return request.get<unknown, ApiResponse<string>>(`/app-variables/app/${appId}/export`, { params });
 };
 
 /**
@@ -150,13 +151,13 @@ export const importAppVariables = (
   configData: string,
   params?: { format?: string }
 ) => {
-  return request.post(`/app-variables/app/${appId}/import`, { configData }, { params });
+  return request.post<unknown, ApiResponse<null>>(`/app-variables/app/${appId}/import`, { configData }, { params });
 };
 
 /**
  * 验证变量值
  */
 export const validateVariableValue = (id: number, value: string) => {
-  return request.post(`/app-variables/${id}/validate`, { value });
+  return request.post<unknown, ApiResponse<boolean>>(`/app-variables/${id}/validate`, { value });
 };
 

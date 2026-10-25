@@ -1,3 +1,4 @@
+import type { PortalMembershipInfo } from '../services/types';
 import React, { useEffect, useState } from 'react';
 import { Card, Typography, Descriptions, Tag, Button, Space, Row, Col, Statistic } from 'antd';
 import { CrownOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
@@ -7,7 +8,7 @@ import { portalMembershipApi } from '../services/portalMembershipService';
 const { Title } = Typography;
 
 const PortalMembershipPage: React.FC = () => {
-  const [info, setInfo] = useState<any>(null);
+  const [info, setInfo] = useState<PortalMembershipInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -17,7 +18,7 @@ const PortalMembershipPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const res: any = await portalMembershipApi.getInfo();
+      const res = await portalMembershipApi.getInfo();
       setInfo(res?.data);
     } catch {
       // ignore

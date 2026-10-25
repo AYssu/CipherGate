@@ -1,3 +1,4 @@
+import type { BalanceTransaction, QuotaProduct } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, Grid } from 'antd';
 import { WalletOutlined, CrownOutlined } from '@ant-design/icons';
@@ -10,12 +11,12 @@ const BalancePage: React.FC = () => {
   const isMobile = !screens.md;
 
   const [balance, setBalance] = React.useState(0);
-  const [transactions, setTransactions] = React.useState<any[]>([]);
+  const [transactions, setTransactions] = React.useState<BalanceTransaction[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [rechargeVisible, setRechargeVisible] = React.useState(false);
   const [rechargeAmount, setRechargeAmount] = React.useState<number>(10);
-  const [products, setProducts] = React.useState<any[]>([]);
-  const [selectedProduct, setSelectedProduct] = React.useState<any>(null);
+  const [products, setProducts] = React.useState<QuotaProduct[]>([]);
+  const [selectedProduct, setSelectedProduct] = React.useState<QuotaProduct | null>(null);
   const [purchaseVisible, setPurchaseVisible] = React.useState(false);
 
   const fetchBalance = () => {

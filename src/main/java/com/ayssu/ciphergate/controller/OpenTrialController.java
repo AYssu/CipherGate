@@ -27,11 +27,13 @@ import com.ayssu.ciphergate.util.IpUtil;
 public class OpenTrialController {
 
     private final OpenTrialService openTrialService;
+    private final com.ayssu.ciphergate.service.PublicChallengeService challenges;
 
     @PostMapping("/trial")
     @Operation(summary = "申请试用", description = "当应用开启试用时，按 email + pid 为指定终端用户发放 1 天试用，且一个用户仅可申请一次")
     public Result<OpenTrialService.TrialApplyResult> applyTrial(@Valid @RequestBody OpenTrialRequest request,
                                                                 HttpServletRequest httpRequest) {
+        challenges.verify("trial-apply", IpUtil.getIpAddr(httpRequest), request.getPid() + ":" + request.getEmail().trim().toLowerCase(java.util.Locale.ROOT), request);
         try {
             OpenTrialService.TrialApplyResult result = openTrialService.applyTrial(
                     request,
@@ -43,8 +45,10 @@ public class OpenTrialController {
             return Result.badRequest(e.getMessage());
         } catch (IllegalStateException e) {
             return Result.error(409, e.getMessage());
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("开放试用接口异常, pid={}, email={}", request.getPid(), request.getEmail(), e);
+            log.error("开放试用接口异常: errorType={}", e.getClass().getSimpleName());
             return Result.error("试用申请失败，请稍后重试");
         }
     }
@@ -52,17 +56,20 @@ public class OpenTrialController {
     @PostMapping("/trial/expires-at")
     @Operation(summary = "查询到期时间", description = "按 email + 应用id 查询该终端用户当前会员到期时间")
     public Result<OpenTrialService.TrialExpireResult> queryTrialExpireAt(
-            @Valid @RequestBody OpenTrialExpireQueryRequest request) {
+            @Valid @RequestBody OpenTrialExpireQueryRequest request, HttpServletRequest http) {
+        challenges.verify("trial-query", IpUtil.getIpAddr(http), request.getAppId() + ":" + request.getEmail().trim().toLowerCase(java.util.Locale.ROOT), request);
         try {
             OpenTrialService.TrialExpireResult result = openTrialService.queryTrialExpireAt(
                     request.getAppId(),
-                    request.getEmail()
+                    request.getEmail(), request.getPassword()
             );
             return Result.success("查询成功", result);
         } catch (IllegalArgumentException e) {
             return Result.badRequest(e.getMessage());
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("开放试用到期时间查询异常, appId={}, email={}", request.getAppId(), request.getEmail(), e);
+            log.error("开放试用到期时间查询异常: errorType={}", e.getClass().getSimpleName());
             return Result.error("查询失败，请稍后重试");
         }
     }

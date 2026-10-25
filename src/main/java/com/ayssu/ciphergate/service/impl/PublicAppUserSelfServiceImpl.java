@@ -32,9 +32,7 @@ public class PublicAppUserSelfServiceImpl implements PublicAppUserSelfService {
                 .eq(AppUser::getAppId, req.getAppId())
                 .eq(AppUser::getEmail, email)
                 .eq(AppUser::getDeleted, 0));
-        if (user == null) {
-            throw new IllegalArgumentException("用户不存在");
-        }
+        com.ayssu.ciphergate.util.PublicUserCredentials.verify(user, req.getPassword());
 
         LocalDateTime exp = user.getMemberExpiresAt();
         long remain = calcRemainingSeconds(exp);

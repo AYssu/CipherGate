@@ -26,6 +26,8 @@ import java.util.Map;
 public class PortalJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final PortalJwtUtil jwtUtil;
+    private final com.ayssu.ciphergate.mapper.AppUserMapper users;
+    private final com.ayssu.ciphergate.mapper.ApplicationMapper applications;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -55,21 +57,34 @@ public class PortalJwtAuthenticationFilter extends OncePerRequestFilter {
                     String email = claims.get("email", String.class);
                     String nickname = claims.get("nickname", String.class);
 
+                    boolean selection = "SELECT_APP".equals(claims.get("purpose"));
+                    if (!selection) {
+                        var user = users.selectById(appUserId);
+                        var app = appId == null ? null : applications.selectById(appId);
+                        if (!"SESSION".equals(claims.get("purpose")) || user == null || appId == null || appId <= 0
+                                || Integer.valueOf(1).equals(user.getDeleted()) || (app != null && Integer.valueOf(1).equals(app.getDeleted()))
+                                || !appId.equals(user.getAppId()) || app == null || !Integer.valueOf(1).equals(app.getStatus())
+                                || !jwtUtil.credentialStamp(user).equals(claims.get("credential", String.class))) {
+                            throw new IllegalArgumentException("Portal identity is no longer active");
+                        }
+                    }
                     Map<String, Object> principal = new HashMap<>();
                     principal.put("id", appUserId);
                     principal.put("appId", appId);
                     principal.put("email", email);
                     principal.put("nickname", nickname);
+                    principal.put("grants", claims.get("grants"));
+                    principal.put("purpose", claims.get("purpose"));
 
                     UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                             principal, null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_PORTAL_USER"))
+                            Collections.singletonList(new SimpleGrantedAuthority(selection ? "ROLE_PORTAL_SELECT" : "ROLE_PORTAL_USER"))
                         );
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } catch (Exception e) {
-                    log.warn("Portal JWT parse error: {}", e.getMessage());
+                    log.debug("Portal JWT authentication rejected");
                 }
             }
         }

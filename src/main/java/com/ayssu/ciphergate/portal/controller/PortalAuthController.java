@@ -30,8 +30,8 @@ public class PortalAuthController {
 
     @GetMapping("/captcha")
     @Operation(summary = "获取图形验证码")
-    public Result<Map<String, Object>> getCaptcha() throws IOException {
-        Map<String, Object> captcha = portalAuthService.generateCaptcha();
+    public Result<Map<String, Object>> getCaptcha(HttpServletRequest request) throws IOException {
+        Map<String, Object> captcha = portalAuthService.generateCaptcha(resolveClientIp(request));
         return Result.success(captcha);
     }
 
@@ -60,7 +60,7 @@ public class PortalAuthController {
                 return Result.error(401, "未登录");
             }
             String clientIp = resolveClientIp(httpRequest);
-            String token = portalAuthService.selectApp(appId, email, clientIp);
+            String token = portalAuthService.selectApp(appId, email, getGrants(), clientIp);
             return Result.success("选择成功", token);
         } catch (IllegalArgumentException e) {
             return Result.badRequest(e.getMessage());
@@ -75,21 +75,22 @@ public class PortalAuthController {
             if (email == null || email.isBlank()) {
                 return Result.badRequest("邮箱不能为空");
             }
-            portalAuthService.sendRecoveryCode(email, resolveClientIp(request));
+            portalAuthService.sendRecoveryCode(email, resolveClientIp(request), body.get("captchaId"), body.get("captchaCode"));
             return Result.success("验证码已发送", null);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.badRequest(e.getMessage());
         }
     }
 
-    @GetMapping("/recovery/apps")
+    @PostMapping("/recovery/apps")
     @Operation(summary = "根据邮箱查询关联的应用列表（密码找回用）")
-    public Result<List<Map<String, Object>>> getRecoveryApps(@RequestParam String email) {
+    public Result<List<Map<String, Object>>> getRecoveryApps(@RequestBody Map<String, String> body, HttpServletRequest request) {
         try {
+            String email = body.get("email");
             if (email == null || email.isBlank()) {
                 return Result.badRequest("邮箱不能为空");
             }
-            return Result.success(portalAuthService.getAppsByEmail(email));
+            return Result.success(portalAuthService.getAppsByEmail(email, body.get("verifyCode"), resolveClientIp(request)));
         } catch (IllegalArgumentException e) {
             return Result.badRequest(e.getMessage());
         }
@@ -97,9 +98,9 @@ public class PortalAuthController {
 
     @PostMapping("/recovery/reset-password")
     @Operation(summary = "重置密码")
-    public Result<Void> resetPassword(@Valid @RequestBody PortalPasswordRecoveryRequest request) {
+    public Result<Void> resetPassword(@Valid @RequestBody PortalPasswordRecoveryRequest request, HttpServletRequest httpRequest) {
         try {
-            portalAuthService.resetPassword(request);
+            portalAuthService.resetPassword(request, resolveClientIp(httpRequest));
             return Result.success("密码重置成功", null);
         } catch (IllegalArgumentException e) {
             return Result.badRequest(e.getMessage());
@@ -108,15 +109,16 @@ public class PortalAuthController {
 
     @PostMapping("/verify-email-code")
     @Operation(summary = "发送邮箱验证码（设置页面用）")
-    public Result<Void> sendEmailVerifyCode(@RequestBody java.util.Map<String, String> body) {
+    public Result<Void> sendEmailVerifyCode(@RequestBody java.util.Map<String, String> body, HttpServletRequest request) {
         try {
             String email = body.get("email");
             if (email == null || email.isBlank()) {
                 return Result.badRequest("邮箱不能为空");
             }
-            portalAuthService.sendEmailVerifyCode(email);
+            if (getCurrentUserId() == null || getCurrentAppId() == null || getCurrentAppId() <= 0) return Result.error(401, "请先登录");
+            portalAuthService.sendEmailVerifyCode(getCurrentUserId(), email, resolveClientIp(request));
             return Result.success("验证码已发送", null);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.badRequest(e.getMessage());
         }
     }
@@ -164,6 +166,12 @@ public class PortalAuthController {
             return (Map<String, Object>) auth.getPrincipal();
         }
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, ?> getGrants() {
+        Map<String, Object> p = getPrincipal();
+        return p != null && p.get("grants") instanceof Map ? (Map<String, ?>) p.get("grants") : Map.of();
     }
 
     private static String getCurrentEmail() {

@@ -46,6 +46,12 @@ repositories {
     maven { url 'https://maven.aliyun.com/repository/public' }
 }
 
+// Security patch overrides keep Boot's coordinated families aligned until its next BOM refresh.
+ext['tomcat.version'] = '11.0.27'
+ext['jackson-bom.version'] = '3.1.8'
+ext['jackson-2-bom.version'] = '2.21.8'
+ext['rabbit-amqp-client.version'] = '5.37.0'
+
 dependencyManagement {
     imports {
         mavenBom "com.baomidou:mybatis-plus-bom:3.5.15"
@@ -53,6 +59,11 @@ dependencyManagement {
 }
 
 dependencies {
+    constraints {
+        implementation('org.bouncycastle:bcprov-jdk18on:1.86') {
+            because 'Patch known certificate name-constraint and ASN.1 nesting-depth advisories'
+        }
+    }
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
@@ -160,4 +171,18 @@ tasks.named('jacocoTestReport') {
 
 tasks.named('check') {
     dependsOn tasks.named('unitTest'), tasks.named('integrationTest'), tasks.named('jacocoTestReport')
+}
+
+// Export the resolved runtime graph, not declarations or only newly added dependencies.
+tasks.register('runtimeDependencyInventory') {
+    group = 'verification'
+    doLast {
+        def coordinates = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts
+                .collect { it.moduleVersion.id }.findAll { it.group && it.version && it.group != project.group }
+                .collect { [package: [ecosystem: 'Maven', name: "${it.group}:${it.name}".toString()], version: it.version] }
+                .unique().sort { a, b -> a.package.name <=> b.package.name }
+        def destination = layout.buildDirectory.file('reports/security/runtime-dependencies.json').get().asFile
+        destination.parentFile.mkdirs()
+        destination.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(coordinates)) + '\n'
+    }
 }

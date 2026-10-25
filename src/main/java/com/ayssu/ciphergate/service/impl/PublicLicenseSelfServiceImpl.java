@@ -96,8 +96,8 @@ public class PublicLicenseSelfServiceImpl implements PublicLicenseSelfService {
         if ((unbindDevice && hasDev) || (unbindIp && hasIp)) {
             licenseKeyMapper.update(null, uw);
         }
-        log.info("公开卡密解绑: appId={}, keyId={}, keyCode={}, unbindDevice={}, unbindIp={}, unbindCount->{}",
-                req.getAppId(), key.getId(), key.getKeyCode(), unbindDevice, unbindIp, nextUsed);
+        log.info("公开卡密解绑: appId={}, keyId={}, unbindDevice={}, unbindIp={}, unbindCount->{}",
+                req.getAppId(), key.getId(), unbindDevice, unbindIp, nextUsed);
     }
 
     private LicenseKey findKey(Long appId, String keyCodeRaw) {

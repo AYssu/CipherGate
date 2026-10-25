@@ -20,7 +20,7 @@ class AppUserLicenseRechargeControllerTest {
     String body="{\"appId\":10,\"email\":\"alice@example.test\",\"keyCode\":\"SECRET-CARD\"}";
     @BeforeEach void setup() {
         service=mock(AppUserLicenseRechargeService.class);rate=mock(ThirdPartyUserRateLimitService.class);
-        mvc=MockMvcBuilders.standaloneSetup(new PublicAppUserSelfController(mock(PublicAppUserSelfService.class),service,rate))
+        mvc=MockMvcBuilders.standaloneSetup(new PublicAppUserSelfController(mock(PublicAppUserSelfService.class),service,rate,mock(PublicChallengeService.class)))
             .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
     @Test void anonymousHolderCanRedeemAndOnlyReceivesMaskedIdentifiers() throws Exception {

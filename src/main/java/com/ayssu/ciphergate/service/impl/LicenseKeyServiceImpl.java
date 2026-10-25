@@ -81,8 +81,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
     public Page<LicenseKey> getLicenseKeyPage(LicenseKeyQueryDTO queryDTO, Long operatorId) {
         Page<LicenseKey> page = IdPageQuery.page(queryDTO.getCurrent(), queryDTO.getSize());
         LocalDateTime onlineCutoff = LocalDateTime.now().minusMinutes(5);
-        log.info("卡密列表查询开始: operatorId={}, appId={}, keyType={}, status={}, batchId={}, keyCode={}",
-                operatorId, queryDTO.getAppId(), queryDTO.getKeyType(), queryDTO.getStatus(), queryDTO.getBatchId(), queryDTO.getKeyCode());
+        log.info("卡密列表查询开始: operatorId={}, appId={}, keyType={}, status={}, batchId={}",
+                operatorId, queryDTO.getAppId(), queryDTO.getKeyType(), queryDTO.getStatus(), queryDTO.getBatchId());
         
         LambdaQueryWrapper<LicenseKey> wrapper = new LambdaQueryWrapper<>();
         applyApplicationScopeForLicenseQuery(wrapper, queryDTO, operatorId);
@@ -244,8 +244,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         licenseKeyMapper.insert(licenseKey);
         userMembershipService.consumeLicenseQuota(quotaOwnerId, 1);
         
-        log.info("创建卡密成功: keyCode={}, appId={}, userId={}", 
-                licenseKey.getKeyCode(), dto.getAppId(), userId);
+        log.info("创建卡密成功: keyId={}, appId={}, userId={}",
+                licenseKey.getId(), dto.getAppId(), userId);
         
         return licenseKey;
     }
@@ -356,7 +356,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
             userMembershipService.consumeLicenseQuota(quotaOwnerId, count);
         }
         
-        log.info("批量生成卡密成功: batchId={}, count={}, appId={}, userId={}", 
+        log.info("批量生成卡密成功: batchId={}, count={}, appId={}, userId={}",
                 batch.getId(), dto.getTotalCount(), dto.getAppId(), userId);
         
         return licenseKeys;
@@ -470,8 +470,8 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
         // 软删除
         licenseKeyMapper.deleteById(id);
         
-        log.info("删除卡密成功: id={}, keyCode={}, userId={}", 
-                id, licenseKey.getKeyCode(), userId);
+        log.info("删除卡密成功: id={}, userId={}",
+                id, userId);
     }
 
     @Override
@@ -1373,7 +1373,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 .set(LicenseKey::getUpdatedAt, now));
         licenseKey.setBindDeviceId(null);
         licenseKey.setUpdatedAt(now);
-        log.info("卡密解绑设备: id={}, keyCode={}, operatorId={}", id, licenseKey.getKeyCode(), operatorId);
+        log.info("卡密解绑设备: id={}, operatorId={}", id, operatorId);
         fillRelatedInfo(licenseKey);
         return licenseKey;
     }
@@ -1399,7 +1399,7 @@ public class LicenseKeyServiceImpl implements LicenseKeyService {
                 .set(LicenseKey::getUpdatedAt, now));
         licenseKey.setBindIp(null);
         licenseKey.setUpdatedAt(now);
-        log.info("卡密解绑IP: id={}, keyCode={}, operatorId={}", id, licenseKey.getKeyCode(), operatorId);
+        log.info("卡密解绑IP: id={}, operatorId={}", id, operatorId);
         fillRelatedInfo(licenseKey);
         return licenseKey;
     }

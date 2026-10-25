@@ -91,11 +91,15 @@ public class PortalPaymentService {
     }
 
     public List<PortalPaymentOrder> getOrders(Long appUserId, int page, int size) {
+        if (page < 1 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("页码必须大于0，每页数量须为1～100");
+        }
+        long offset = Math.multiplyExact((long) page - 1L, size);
         return orderMapper.selectList(
             new LambdaQueryWrapper<PortalPaymentOrder>()
                 .eq(PortalPaymentOrder::getAppUserId, appUserId)
                 .orderByDesc(PortalPaymentOrder::getCreatedAt)
-                .last("LIMIT " + size + " OFFSET " + (page - 1) * size)
+                .last("LIMIT " + size + " OFFSET " + offset)
         );
     }
 

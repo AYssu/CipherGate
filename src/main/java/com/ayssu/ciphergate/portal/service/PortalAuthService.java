@@ -48,14 +48,16 @@ public class PortalAuthService {
     private final StringRedisTemplate redisTemplate;
     private final GeoIpService geoIpService;
     private final SystemSmtpMailService mailService;
+    private final com.ayssu.ciphergate.service.PublicAbuseGuard abuseGuard;
+    private final PortalOtpService otpService;
+    private final PortalRecoveryDispatcher recoveryDispatcher;
 
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
+    private static final String DUMMY_HASH = ENCODER.encode("dummy-password-for-timing-only");
     private static final String CAPTCHA_PREFIX = "portal:captcha:";
-    private static final String LOGIN_FAIL_PREFIX = "portal:login:fail:";
-    private static final String IP_FAIL_PREFIX = "portal:login:fail:ip:";
-    private static final String CAPTCHA_RATE_PREFIX = "portal:captcha:rate:";
 
-    public Map<String, Object> generateCaptcha() throws IOException {
+    public Map<String, Object> generateCaptcha(String clientIp) throws IOException {
+        abuseGuard.check("portal-captcha", clientIp, 30, java.time.Duration.ofMinutes(5));
         LineCaptcha captcha = CaptchaUtil.createLineCaptcha(120, 40, 4, 80);
         String code = captcha.getCode();
         String captchaId = UUID.randomUUID().toString().replace("-", "");
@@ -74,28 +76,14 @@ public class PortalAuthService {
     }
 
     public PortalLoginResponse login(PortalLoginRequest request, String clientIp) {
-        // 验证码校验
-        String cachedCode = redisTemplate.opsForValue().get(CAPTCHA_PREFIX + request.getCaptchaId());
-        if (cachedCode == null) {
-            throw new IllegalArgumentException("验证码已过期，请重新获取");
-        }
-        if (!cachedCode.equalsIgnoreCase(request.getCaptchaCode())) {
-            throw new IllegalArgumentException("验证码错误");
-        }
-        redisTemplate.delete(CAPTCHA_PREFIX + request.getCaptchaId());
-
-        // IP 限流
-        String ipKey = IP_FAIL_PREFIX + clientIp;
-        String ipFailCount = redisTemplate.opsForValue().get(ipKey);
-        if (ipFailCount != null && Integer.parseInt(ipFailCount) >= 10) {
-            throw new IllegalArgumentException("登录尝试次数过多，请15分钟后重试");
-        }
-
-        // 账号限流
-        String accountKey = LOGIN_FAIL_PREFIX + request.getEmail();
-        String accountFailCount = redisTemplate.opsForValue().get(accountKey);
-        if (accountFailCount != null && Integer.parseInt(accountFailCount) >= 5) {
-            throw new IllegalArgumentException("该邮箱登录尝试次数过多，请15分钟后重试");
+        request.setEmail(normalizeEmail(request.getEmail()));
+        if (request.getPassword() == null || request.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
+            throw new IllegalArgumentException("邮箱或密码错误");
+        abuseGuard.check("portal-login-ip", clientIp, 60, java.time.Duration.ofMinutes(15));
+        abuseGuard.check("portal-login-account", request.getEmail(), 20, java.time.Duration.ofMinutes(15));
+        String cachedCode = redisTemplate.opsForValue().getAndDelete(CAPTCHA_PREFIX + request.getCaptchaId());
+        if (cachedCode == null || !cachedCode.equalsIgnoreCase(request.getCaptchaCode())) {
+            throw new IllegalArgumentException("验证码错误或已过期，请重新获取");
         }
 
         // 查询该邮箱绑定的所有应用用户
@@ -106,28 +94,22 @@ public class PortalAuthService {
         );
 
         if (appUsers.isEmpty()) {
-            recordFailure(accountKey, ipKey);
+            ENCODER.matches(request.getPassword(), DUMMY_HASH);
             throw new IllegalArgumentException("邮箱或密码错误");
         }
 
-        // 填充应用名称
+        // Each application has its own credential. Never grant sibling accounts just because email matches.
+        appUsers = appUsers.stream().filter(user -> matchesPassword(request.getPassword(), user.getPassword()))
+            .filter(this::activeApplication).toList();
+        if (appUsers.isEmpty()) {
+            throw new IllegalArgumentException("邮箱或密码错误");
+        }
         populateAppNames(appUsers);
-
-        // 校验密码（使用第一个用户的密码）
-        AppUser firstUser = appUsers.get(0);
-        if (firstUser.getPassword() == null || !ENCODER.matches(request.getPassword(), firstUser.getPassword())) {
-            recordFailure(accountKey, ipKey);
-            throw new IllegalArgumentException("邮箱或密码错误");
-        }
-
-        // 清除失败记录
-        redisTemplate.delete(accountKey);
-        redisTemplate.delete(ipKey);
 
         // 如果只有一个应用，直接返回 JWT
         if (appUsers.size() == 1) {
             AppUser user = appUsers.get(0);
-            String token = jwtUtil.generateToken(user.getId(), user.getAppId(), user.getEmail(), user.getNickname());
+            String token = jwtUtil.generateSessionToken(user);
             recordLoginLog(user.getId(), user.getAppId(), clientIp, "SUCCESS");
 
             List<PortalAppInfo> apps = List.of(PortalAppInfo.builder()
@@ -155,8 +137,8 @@ public class PortalAuthService {
                 .build());
         }
 
-        // 生成一个临时 token（仅包含 email，不含 appId）
-        String tempToken = jwtUtil.generateToken(appUsers.get(0).getId(), 0L, request.getEmail(), "");
+        // Short selection ticket contains only accounts whose individual password matched.
+        String tempToken = jwtUtil.generateSelectionToken(request.getEmail(), appUsers);
 
         return PortalLoginResponse.builder()
             .token(tempToken)
@@ -165,7 +147,7 @@ public class PortalAuthService {
             .build();
     }
 
-    public String selectApp(Long appId, String email, String clientIp) {
+    public String selectApp(Long appId, String email, Map<String, ?> grants, String clientIp) {
         AppUser appUser = appUserMapper.selectOne(
             new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getAppId, appId)
@@ -173,16 +155,20 @@ public class PortalAuthService {
                 .eq(AppUser::getDeleted, 0)
         );
 
-        if (appUser == null) {
-            throw new IllegalArgumentException("该应用无此用户");
+        if (appUser == null || !activeApplication(appUser) || grants == null
+                || !jwtUtil.credentialStamp(appUser).equals(grants.get(appUser.getId().toString()))) {
+            throw new IllegalArgumentException("未验证该应用的登录凭据，请重新登录");
         }
 
-        String token = jwtUtil.generateToken(appUser.getId(), appUser.getAppId(), appUser.getEmail(), appUser.getNickname());
+        String token = jwtUtil.generateSessionToken(appUser);
         recordLoginLog(appUser.getId(), appUser.getAppId(), clientIp, "SUCCESS");
         return token;
     }
 
-    public List<Map<String, Object>> getAppsByEmail(String email) {
+    public List<Map<String, Object>> getAppsByEmail(String email, String code, String clientIp) {
+        email = normalizeEmail(email);
+        abuseGuard.check("portal-recovery-verify-ip", clientIp, 30, java.time.Duration.ofMinutes(15));
+        otpService.verify(email, "RECOVERY", code, false);
         List<AppUser> appUsers = appUserMapper.selectList(
             new LambdaQueryWrapper<AppUser>()
                 .eq(AppUser::getEmail, email)
@@ -203,118 +189,55 @@ public class PortalAuthService {
         }).collect(Collectors.toList());
     }
 
-    public void sendRecoveryCode(String email, String clientIp) {
-        List<AppUser> appUsers = appUserMapper.selectList(
-            new LambdaQueryWrapper<AppUser>()
-                .eq(AppUser::getEmail, email)
-                .eq(AppUser::getDeleted, 0)
-        );
-
-        if (appUsers.isEmpty()) {
-            throw new IllegalArgumentException("该邮箱未注册");
-        }
-
-        // 防刷：60秒内不能重复发送
-        String rateKey = CAPTCHA_RATE_PREFIX + "recovery:" + email;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) {
-            throw new IllegalStateException("发送过于频繁，请60秒后重试");
-        }
-
-        String code = String.valueOf((int) (Math.random() * 900000 + 100000));
-
-        PortalVerifyCode verifyCode = new PortalVerifyCode();
-        verifyCode.setEmail(email);
-        verifyCode.setCode(code);
-        verifyCode.setPurpose("RECOVERY");
-        verifyCode.setUsed(false);
-        verifyCode.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-        verifyCodeMapper.insert(verifyCode);
-
-        redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
-
-        log.info("密码重置验证码: email={}, code={}", email, code);
-
-        if (mailService.isMailEnabledAndConfigured()) {
-            try {
-                mailService.sendPlainText(email, "密码重置验证码",
-                        "您的验证码是: " + code + "\n有效期 5 分钟，请勿泄露给他人。");
-            } catch (Exception e) {
-                log.warn("密码重置验证码邮件发送失败: email={}, err={}", email, e.getMessage());
-            }
-        }
+    public void sendRecoveryCode(String email, String clientIp, String captchaId, String captchaCode) {
+        email = normalizeEmail(email);
+        abuseGuard.check("portal-mail-ip", clientIp, 10, java.time.Duration.ofHours(1));
+        abuseGuard.check("all-mail", "global", 1000, java.time.Duration.ofHours(1));
+        String expected = redisTemplate.opsForValue().getAndDelete(CAPTCHA_PREFIX + captchaId);
+        if (expected == null || !expected.equalsIgnoreCase(captchaCode)) throw new IllegalArgumentException("验证码错误或已过期，请重新获取");
+        otpService.claimSend(email, "RECOVERY");
+        recoveryDispatcher.dispatch(email);
     }
 
-    public void resetPassword(PortalPasswordRecoveryRequest request) {
-        // 查找验证码
-        PortalVerifyCode verifyCode = verifyCodeMapper.selectOne(
-            new LambdaQueryWrapper<PortalVerifyCode>()
-                .eq(PortalVerifyCode::getEmail, request.getEmail())
-                .eq(PortalVerifyCode::getPurpose, "RECOVERY")
-                .eq(PortalVerifyCode::getUsed, false)
-                .orderByDesc(PortalVerifyCode::getId)
-                .last("LIMIT 1")
-        );
-
-        if (verifyCode == null || verifyCode.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("验证码无效或已过期");
-        }
-
-        if (!verifyCode.getCode().equals(request.getVerifyCode())) {
-            throw new IllegalArgumentException("验证码错误");
-        }
-
-        // 标记已使用
-        verifyCode.setUsed(true);
-        verifyCodeMapper.updateById(verifyCode);
-
-        // 查找对应应用的用户
-        AppUser appUser = appUserMapper.selectOne(
-            new LambdaQueryWrapper<AppUser>()
-                .eq(AppUser::getAppId, request.getAppId())
-                .eq(AppUser::getEmail, request.getEmail())
-                .eq(AppUser::getDeleted, 0)
-        );
-
-        if (appUser == null) {
-            throw new IllegalArgumentException("该应用无此用户");
-        }
-
-        // 更新密码
-        appUser.setPassword(ENCODER.encode(request.getNewPassword()));
-        appUser.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>()
-            .eq(AppUser::getId, appUser.getId()).set(AppUser::getPassword, appUser.getPassword())
-            .set(AppUser::getUpdatedAt, appUser.getUpdatedAt()));
+    @org.springframework.transaction.annotation.Transactional
+    public void resetPassword(PortalPasswordRecoveryRequest request, String clientIp) {
+        request.setEmail(normalizeEmail(request.getEmail()));
+        abuseGuard.check("portal-reset-ip", clientIp, 30, java.time.Duration.ofMinutes(15));
+        abuseGuard.check("portal-reset-email", request.getEmail(), 12, java.time.Duration.ofMinutes(15));
+        com.ayssu.ciphergate.util.PasswordPolicy.validate(request.getNewPassword());
+        AppUser user = appUserMapper.selectOne(new LambdaQueryWrapper<AppUser>()
+            .eq(AppUser::getAppId, request.getAppId()).eq(AppUser::getEmail, request.getEmail()).eq(AppUser::getDeleted, 0).last("FOR UPDATE"));
+        if (user == null) throw new IllegalArgumentException("验证码无效或已过期");
+        otpService.verify(request.getEmail(), "RECOVERY", request.getVerifyCode(), true);
+        int changed = appUserMapper.update(null, new LambdaUpdateWrapper<AppUser>().eq(AppUser::getId, user.getId())
+            .set(AppUser::getPassword, ENCODER.encode(request.getNewPassword())).set(AppUser::getUpdatedAt, LocalDateTime.now()));
+        if (changed != 1) throw new IllegalStateException("密码更新失败，请重试");
     }
 
-    public void sendEmailVerifyCode(String email) {
-        String rateKey = CAPTCHA_RATE_PREFIX + "email:" + email;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateKey))) {
-            throw new IllegalStateException("发送过于频繁，请60秒后重试");
-        }
+    public void sendEmailVerifyCode(Long userId, String email, String clientIp) {
+        email = normalizeEmail(email);
+        AppUser user = appUserMapper.selectById(userId);
+        if (user == null) throw new IllegalArgumentException("用户不存在");
+        abuseGuard.check("portal-mail-ip", clientIp, 10, java.time.Duration.ofHours(1));
+        abuseGuard.check("portal-mail-user", userId.toString(), 10, java.time.Duration.ofHours(1));
+        abuseGuard.check("all-mail", "global", 1000, java.time.Duration.ofHours(1));
+        String purpose = PortalOtpService.emailChangePurpose(user);
+        otpService.claimSend(email, purpose);
+        otpService.send(email, purpose);
+    }
 
-        String code = String.valueOf((int) (Math.random() * 900000 + 100000));
+    static String normalizeEmail(String email) {
+        return email == null ? "" : email.strip().toLowerCase(java.util.Locale.ROOT);
+    }
 
-        PortalVerifyCode verifyCode = new PortalVerifyCode();
-        verifyCode.setEmail(email);
-        verifyCode.setCode(code);
-        verifyCode.setPurpose("EMAIL_CHANGE");
-        verifyCode.setUsed(false);
-        verifyCode.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-        verifyCodeMapper.insert(verifyCode);
+    private boolean matchesPassword(String supplied, String stored) {
+        try { return ENCODER.matches(supplied, stored == null ? DUMMY_HASH : stored) && stored != null; }
+        catch (IllegalArgumentException invalidLegacyHash) { ENCODER.matches(supplied, DUMMY_HASH); return false; }
+    }
 
-        redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
-
-        log.info("邮箱验证码: email={}, code={}", email, code);
-
-        if (mailService.isMailEnabledAndConfigured()) {
-            try {
-                mailService.sendPlainText(email, "邮箱验证码",
-                        "您的验证码是: " + code + "\n有效期 5 分钟，请勿泄露给他人。");
-            } catch (Exception e) {
-                log.warn("邮箱验证码邮件发送失败: email={}, err={}", email, e.getMessage());
-            }
-        }
+    private boolean activeApplication(AppUser user) {
+        Application app = applicationMapper.selectById(user.getAppId());
+        return app != null && !Integer.valueOf(1).equals(app.getDeleted()) && !Integer.valueOf(1).equals(user.getDeleted()) && Integer.valueOf(1).equals(app.getStatus());
     }
 
     private void populateAppNames(List<AppUser> appUsers) {
@@ -325,13 +248,6 @@ public class PortalAuthService {
         for (AppUser user : appUsers) {
             user.setAppName(nameMap.getOrDefault(user.getAppId(), "未知应用"));
         }
-    }
-
-    private void recordFailure(String accountKey, String ipKey) {
-        redisTemplate.opsForValue().increment(accountKey);
-        redisTemplate.expire(accountKey, 15, TimeUnit.MINUTES);
-        redisTemplate.opsForValue().increment(ipKey);
-        redisTemplate.expire(ipKey, 15, TimeUnit.MINUTES);
     }
 
     private void recordLoginLog(Long appUserId, Long appId, String clientIp, String status) {

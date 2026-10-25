@@ -55,8 +55,8 @@ public class PortalPaymentController {
             @RequestParam(defaultValue = "20") int size) {
         Long userId = getCurrentUserId();
         if (userId == null) return Result.error(401, "未登录");
-        List<PortalPaymentOrder> orders = paymentService.getOrders(userId, page, size);
-        return Result.success(orders);
+        try { return Result.success(paymentService.getOrders(userId, page, size)); }
+        catch (IllegalArgumentException e) { return Result.badRequest(e.getMessage()); }
     }
 
     @RequestMapping(value = "/notify", method = {RequestMethod.GET, RequestMethod.POST})

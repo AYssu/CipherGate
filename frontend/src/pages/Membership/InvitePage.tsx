@@ -1,3 +1,4 @@
+import type { InviteStats, InviteRecord } from '../../services/contracts';
 import React from 'react';
 import { Card, Typography, Table, Button, Input, message, Space, Statistic, Row, Col, Grid, Tag, Alert, Progress } from 'antd';
 import { CopyOutlined, CheckCircleOutlined } from '@ant-design/icons';
@@ -8,15 +9,15 @@ const { Text } = Typography;
 const InvitePage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [stats, setStats] = React.useState<any>({});
-  const [records, setRecords] = React.useState<any[]>([]);
+  const [stats, setStats] = React.useState<InviteStats>({});
+  const [records, setRecords] = React.useState<InviteRecord[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [bindCode, setBindCode] = React.useState('');
   const [binding, setBinding] = React.useState(false);
 
   const fetchStats = async () => {
     try {
-      const res: any = await inviteApi.getInviteStats();
+      const res = await inviteApi.getInviteStats();
       if (res.success) setStats(res.data);
     } catch { /* Request interceptor reports errors. */ }
   };
@@ -24,7 +25,7 @@ const InvitePage: React.FC = () => {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const res: any = await inviteApi.getInviteRecords(1, 20);
+      const res = await inviteApi.getInviteRecords(1, 20);
       if (res.success) setRecords(res.data?.records || []);
     } catch { /* Request interceptor reports errors. */ }
     setLoading(false);
@@ -50,7 +51,7 @@ const InvitePage: React.FC = () => {
     }
     setBinding(true);
     try {
-      const res: any = await inviteApi.bindInviteCode(bindCode.trim());
+      const res = await inviteApi.bindInviteCode(bindCode.trim());
       if (res.success) {
         message.success('邀请码绑定成功！邀请人已获得奖励');
         setBindCode('');
@@ -103,7 +104,7 @@ const InvitePage: React.FC = () => {
           </Card>
         ) : (
           <>
-            <Card title="邀请有奖" extra={<Text type="secondary">每邀请1位新用户，获得 ¥{(stats.rewardAmount / 100 || 3).toFixed(2)} 余额奖励</Text>}>
+            <Card title="邀请有奖" extra={<Text type="secondary">每邀请1位新用户，获得 ¥{((stats.rewardAmount ?? 300) / 100 || 3).toFixed(2)} 余额奖励</Text>}>
           <div style={{ marginBottom: 16, padding: '12px 16px', background: '#fafafa', borderRadius: 6 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>
               使用方式：将下方邀请链接分享给好友，好友注册后即视为成功邀请。

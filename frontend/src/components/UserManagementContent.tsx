@@ -42,9 +42,9 @@ const UserManagementContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<User & { roleIds: number[] }>();
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [passwordForm] = Form.useForm();
+  const [passwordForm] = Form.useForm<{ password: string; confirmPassword: string }>();
   const [resettingPassword, setResettingPassword] = useState(false);
 
   const [keyword, setKeyword] = useState('');
@@ -56,7 +56,7 @@ const UserManagementContent: React.FC = () => {
     setLoading(true);
     try {
       const result = await userApi.getUsers();
-      setUsers((result as any).data || []);
+      setUsers(result.data || []);
     } catch (error) {
       console.error('获取用户列表失败:', error);
     } finally {
@@ -68,7 +68,7 @@ const UserManagementContent: React.FC = () => {
   const fetchRoles = async () => {
     try {
       const result = await roleApi.getRoles();
-      setRoles((result as any).data || []);
+      setRoles(result.data || []);
     } catch (error) {
       console.error('获取角色列表失败:', error);
     }
@@ -292,16 +292,16 @@ const UserManagementContent: React.FC = () => {
       const values = await passwordForm.validateFields();
       setResettingPassword(true);
       const result = await userApi.resetPassword(editingUser!.id, values.password);
-      if ((result as any).success) {
+      if (result.success) {
         message.success('密码重置成功');
         setPasswordModalVisible(false);
         setEditingUser(null);
         passwordForm.resetFields();
       } else {
-        message.error((result as any).message || '密码重置失败');
+        message.error(result.message || '密码重置失败');
       }
-    } catch (error: any) {
-      if (!error?.errorFields) {
+    } catch (error: unknown) {
+      if (!(error && typeof error === 'object' && 'errorFields' in error)) {
         console.error('重置密码失败:', error);
       }
     } finally {

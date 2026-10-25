@@ -10,8 +10,10 @@ import lombok.Data;
 public class PasswordLoginRequest {
 
     @NotBlank(message = "用户名不能为空")
+    @jakarta.validation.constraints.Size(max = 100)
     private String login;
 
     @NotBlank(message = "密码不能为空")
+    @jakarta.validation.constraints.Size(max = 100)
     private String password;
 }

@@ -44,7 +44,9 @@ public class PasswordLoginController {
     private final UserService userService;
     private final ActivityLogService activityLogService;
     private final LoginRateLimiter loginRateLimiter;
+    private final com.ayssu.ciphergate.service.PublicAbuseGuard abuseGuard;
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
+    private static final String DUMMY_PASSWORD = ENCODER.encode("unavailable-admin-account");
 
     /**
      * 密码登录（使用 GitHub 账号名 + 密码）
@@ -56,10 +58,11 @@ public class PasswordLoginController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) throws IOException {
 
-        log.info("密码登录尝试: login={}", request.getLogin());
+        abuseGuard.check("admin-login-ip", getClientIpAddress(httpRequest), 60, java.time.Duration.ofMinutes(15));
+        String normalizedLogin = request.getLogin().trim().toLowerCase(java.util.Locale.ROOT);
 
         // 限流检查：账号级别
-        String accountKey = "account:" + request.getLogin();
+        String accountKey = "account:" + normalizedLogin;
         long accountLockSeconds = loginRateLimiter.getLockRemainingSeconds(accountKey);
         if (accountLockSeconds > 0) {
             log.warn("密码登录被限流: login={}, 剩余锁定{}秒", request.getLogin(), accountLockSeconds);
@@ -75,26 +78,16 @@ public class PasswordLoginController {
         }
 
         // 查找用户
-        User user = userService.findByLogin(request.getLogin());
-        if (user == null) {
-            loginRateLimiter.recordFailure(accountKey);
-            loginRateLimiter.recordFailure(ipKey);
-            log.warn("密码登录失败: 用户不存在 login={}", request.getLogin());
-            return Result.error(401, "用户名或密码错误");
+        User user = userService.findByLogin(normalizedLogin);
+        String hash = user != null && user.getPassword() != null ? user.getPassword() : DUMMY_PASSWORD;
+        boolean matches = false;
+        if (request.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 72) {
+            try { matches = ENCODER.matches(request.getPassword(), hash); }
+            catch (IllegalArgumentException ignored) { /* malformed legacy hash is never a credential */ }
         }
-
-        // 校验密码
-        if (user.getPassword() == null) {
+        if (user == null || user.getPassword() == null || user.getPassword().isBlank() || !matches) {
             loginRateLimiter.recordFailure(accountKey);
             loginRateLimiter.recordFailure(ipKey);
-            log.warn("密码登录失败: 用户未设置密码 login={}", request.getLogin());
-            return Result.error(401, "该账号未设置密码，请使用 GitHub 登录后设置密码");
-        }
-
-        if (!ENCODER.matches(request.getPassword(), user.getPassword())) {
-            loginRateLimiter.recordFailure(accountKey);
-            loginRateLimiter.recordFailure(ipKey);
-            log.warn("密码登录失败: 密码错误 login={}", request.getLogin());
             return Result.error(401, "用户名或密码错误");
         }
 
@@ -121,6 +114,7 @@ public class PasswordLoginController {
                 new UsernamePasswordAuthenticationToken(fullUser, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
+        if (httpRequest.getSession(false) != null) httpRequest.changeSessionId();
         // 存入 Session
         // "user" 供业务层读取用户信息
         // "passwordAuth" 供 ActiveUserSessionFilter 在下次请求时恢复 SecurityContext
@@ -133,7 +127,7 @@ public class PasswordLoginController {
 
         // 登录成功，清除失败记录
         loginRateLimiter.clearFailures(accountKey);
-        loginRateLimiter.clearFailures(ipKey);
+        // Successful accounts must not erase failures from other accounts sharing this IP.
 
         // 记录登录日志
         try {
@@ -174,6 +168,7 @@ public class PasswordLoginController {
             return Result.error(401, "未登录");
         }
 
+        com.ayssu.ciphergate.util.PasswordPolicy.validate(request.getNewPassword());
         user.setPassword(ENCODER.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
         userService.updateById(user);
