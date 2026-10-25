@@ -87,3 +87,28 @@ test('damaged application selection storage offers login recovery', async ({ pag
   await expect(page.getByText('登录信息已失效', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: '请重新登录后选择应用' })).toBeVisible();
 });
+
+test('application selection uses the temporary session and blocks duplicate submissions', async ({ page }) => {
+  await mock(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('portal_temp_token', 'temporary-session');
+    localStorage.setItem('portal_apps', JSON.stringify([{ appId: 12, appName: '应用甲' }, { appId: 13, appName: '应用乙' }]));
+  });
+  let finish: (() => Promise<void>) | undefined;
+  let attempts = 0;
+  await page.route('**/api/portal/auth/select-app?appId=12', async route => {
+    attempts++;
+    expect(route.request().headers().authorization).toBe('Bearer temporary-session');
+    finish = () => route.fulfill({ json: envelope('selected-session') });
+  });
+  await page.goto('/portal/select-app');
+  await page.getByRole('button', { name: '进入应用甲', exact: true }).click();
+  await expect(page.getByRole('button', { name: '进入应用乙', exact: true })).toBeDisabled();
+  await expect.poll(() => finish !== undefined).toBe(true);
+  await finish!();
+  await expect(page).toHaveURL(/\/portal\/dashboard$/);
+  expect(attempts).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem('portal_token'))).toBe('selected-session');
+  expect(await page.evaluate(() => localStorage.getItem('portal_app_id'))).toBe('12');
+  expect(await page.evaluate(() => localStorage.getItem('portal_temp_token'))).toBeNull();
+});
