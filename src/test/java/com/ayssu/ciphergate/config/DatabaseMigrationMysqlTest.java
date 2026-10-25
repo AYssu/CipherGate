@@ -102,9 +102,12 @@ class DatabaseMigrationMysqlTest {
             assertNull(context.getStartupFailure());
             assertNotNull(context.getBean(Flyway.class));
             assertEquals(3, historyCount());
-            try (var connection = dataSource.getConnection()) {
-                LegacyDatabaseVerifier.verify(connection);
-            }
+            // LegacyDatabaseVerifier deliberately validates only a pre-Flyway V1 database.
+            // A freshly migrated database must instead match the latest additive migration.
+            assertEquals(254L, jdbc.queryForObject("SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns "
+                    + "WHERE table_schema=DATABASE() AND table_name='portal_verify_code' AND column_name='email'", Long.class));
+            assertEquals(80L, jdbc.queryForObject("SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns "
+                    + "WHERE table_schema=DATABASE() AND table_name='portal_verify_code' AND column_name='purpose'", Long.class));
         });
         jdbc.update("UPDATE menus SET menu_name='自定义名称',sort_order=99 WHERE menu_code='APP_MANAGEMENT'");
         jdbc.update("DELETE FROM role_permissions");
