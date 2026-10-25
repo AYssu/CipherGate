@@ -143,8 +143,6 @@
   "src/layouts/MainLayout.tsx:@typescript-eslint/no-explicit-any:f47f3ab729462bcfb4b17e5eafb539b406cff8424b6b5ad183d556134ecfdde7": 1,
   "src/layouts/MainLayout.tsx:@typescript-eslint/no-explicit-any:f798a4ba76b01fed94a3d2d6dfb1c8ef10912f86e040d3cde25a7b829d2024ba": 1,
   "src/layouts/MainLayout.tsx:@typescript-eslint/no-explicit-any:f845ba96aeff1ed33215d7fe04c298905ef10931f8b78d4f13e84ffc3a2e06af": 1,
-  "src/pages/AppUserRegisterPage.tsx:@typescript-eslint/no-explicit-any:5d16e94463360e8cc7aefaf69884646e71714b07df6bcfd7b5c23f68996693b0": 1,
-  "src/pages/AppUserRegisterPage.tsx:@typescript-eslint/no-explicit-any:e11710307935556adc76d477c089164e70a41322050d897796bc6ac3ad67cf13": 1,
   "src/pages/AppUserSelfServicePage.tsx:@typescript-eslint/no-explicit-any:6cfe4411e9c619c1a6ec09e95de293875fc6bdf01e7f940af8e4332d3812205b": 1,
   "src/pages/Home.tsx:@typescript-eslint/no-explicit-any:16158d5b7130470e6d76dcb423afd083cce3e50bd4e5e4b68463b250af5ee6cb": 1,
   "src/pages/Home.tsx:@typescript-eslint/no-explicit-any:5d16e94463360e8cc7aefaf69884646e71714b07df6bcfd7b5c23f68996693b0": 1,

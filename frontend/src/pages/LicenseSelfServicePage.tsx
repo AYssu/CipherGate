@@ -1,9 +1,8 @@
+import PublicServiceLayout from '../components/PublicServiceLayout';
 import React, { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Layout,
   Typography,
-  Card,
   Form,
   Input,
   Button,
@@ -16,7 +15,6 @@ import {
   Modal,
 } from 'antd';
 import {
-  ArrowLeftOutlined,
   KeyOutlined,
   DisconnectOutlined,
   SearchOutlined,
@@ -27,8 +25,7 @@ import {
   type PublicLicenseQueryResponse,
 } from '../services/licenseSelfServicePublicService';
 
-const { Header, Content, Footer } = Layout;
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 const formatRemaining = (sec: number) => {
   if (sec < 0) return '永久';
@@ -61,12 +58,11 @@ const statusTag = (status?: number) => {
 const LicenseSelfServicePage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isNarrow = screens.md === false;
-  const cardMaxWidth = screens.md === false ? 520 : screens.lg === true ? 760 : 680;
   const [searchParams] = useSearchParams();
   const appIdRaw = searchParams.get('id');
   const appId = useMemo(() => {
     const n = Number(appIdRaw);
-    return Number.isFinite(n) && n > 0 ? n : null;
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
   }, [appIdRaw]);
 
   const [form] = Form.useForm();
@@ -74,7 +70,8 @@ const LicenseSelfServicePage: React.FC = () => {
   const [unbindLoading, setUnbindLoading] = useState(false);
   const [data, setData] = useState<PublicLicenseQueryResponse | null>(null);
 
-  const keyCode = (form.getFieldValue('keyCode') as string | undefined)?.trim()?.toUpperCase();
+  const keyCode = Form.useWatch('keyCode', form)?.trim()?.toUpperCase();
+  const [queriedKey, setQueriedKey] = useState('');
 
   const doQuery = async () => {
     if (!appId) {
@@ -87,11 +84,14 @@ const LicenseSelfServicePage: React.FC = () => {
       return;
     }
     const keyCode = (form.getFieldValue('keyCode') as string).trim().toUpperCase();
+    setData(null);
+    setQueriedKey('');
     setLoading(true);
     try {
       const res: any = await queryLicenseRemaining(appId, keyCode);
-      if (res.code === 200 && res.data) {
+      if (res.code === 200 && res.data && keyCode === (form.getFieldValue('keyCode') as string)?.trim().toUpperCase()) {
         setData(res.data);
+        setQueriedKey(keyCode);
       }
     } catch {
       /* interceptor already shows */
@@ -105,8 +105,8 @@ const LicenseSelfServicePage: React.FC = () => {
       message.error('当前链接无效或已过期');
       return;
     }
-    if (!keyCode) {
-      message.warning('请先输入卡密');
+    if (!keyCode || !data || keyCode !== queriedKey) {
+      message.warning('请先查询当前卡密');
       return;
     }
     Modal.confirm({
@@ -143,131 +143,7 @@ const LicenseSelfServicePage: React.FC = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#fff' }}>
-      <Header
-        style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          borderBottom: '1px solid #f0f0f0',
-          position: 'fixed',
-          width: '100%',
-          zIndex: 1000,
-          backdropFilter: 'blur(10px)',
-          padding: 0,
-          height: 64,
-          lineHeight: '64px',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            maxWidth: 1400,
-            margin: '0 auto',
-            padding: isNarrow ? '0 14px' : '0 24px',
-            height: '100%',
-            boxSizing: 'border-box',
-          }}
-        >
-          <Link
-            to="/"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              textDecoration: 'none',
-              color: 'inherit',
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
-            <img
-              src="/favicon.svg"
-              alt="CipherGate"
-              style={{ marginRight: 10, width: 32, height: 32, flexShrink: 0 }}
-            />
-            <span
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #00d4aa, #1890ff)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '-0.5px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              CipherGate
-            </span>
-            {!isNarrow && (
-              <span
-                style={{
-                  marginLeft: 16,
-                  paddingLeft: 16,
-                  borderLeft: '1px solid #e8e8e8',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: '#262626',
-                  WebkitTextFillColor: '#262626',
-                }}
-              >
-                卡密自助管理
-              </span>
-            )}
-          </Link>
-          <Link
-            to="/"
-            style={{
-              color: '#595959',
-              fontWeight: 500,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              flexShrink: 0,
-              marginLeft: 8,
-            }}
-          >
-            <ArrowLeftOutlined />
-            返回
-          </Link>
-        </div>
-      </Header>
-
-      <Content
-        style={{
-          marginTop: 64,
-          minHeight: 'calc(100vh - 64px - 52px)',
-          padding: isNarrow ? '28px 14px 28px' : '40px 16px 40px',
-          background: '#f6f8fb',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-        }}
-      >
-        <Card
-          style={{
-            width: '100%',
-            maxWidth: cardMaxWidth,
-            borderRadius: 12,
-            border: '1px solid #eef1f5',
-            boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
-            background: '#fff',
-          }}
-          styles={{ body: { padding: isNarrow ? '22px 18px 18px' : '28px 30px 22px' } }}
-        >
-          <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 18 }}>
-            <div>
-              <Title level={4} style={{ margin: 0, color: '#111827', fontWeight: 650 }}>
-                卡密自助管理
-              </Title>
-              <Paragraph style={{ marginTop: 8, marginBottom: 0, color: '#6b7280', fontSize: 13 }}>
-                输入卡密查询剩余到期时间。如需更换设备或网络环境，可执行解绑（默认解绑设备与 IP）。
-              </Paragraph>
-            </div>
+    <PublicServiceLayout title="卡密自助管理" description="查询卡密有效期与绑定状态，需要更换设备时可在这里解绑。" help="卡密是您的使用凭证，请勿分享给他人。解绑可能消耗次数，确认后再操作。">
             {!appId && (
               <Alert
                 type="warning"
@@ -276,43 +152,16 @@ const LicenseSelfServicePage: React.FC = () => {
                 description="请通过应用方提供的专用入口访问本页面。"
               />
             )}
-          </Space>
 
-          <Form form={form} layout="vertical" requiredMark="optional" onFinish={() => void doQuery()}>
-            <Form.Item
-              name="keyCode"
-              label="卡密"
-              rules={[
-                { required: true, message: '请输入卡密' },
-                { max: 64, message: '长度不能超过64位' },
-                { pattern: /^[A-Z0-9]+$/, message: '只能包含大写字母和数字' },
-              ]}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Input
-                  size="middle"
-                  prefix={<KeyOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
-                  placeholder="请输入卡密（大写字母与数字）"
-                  maxLength={64}
-                  disabled={!appId}
-                  onPressEnter={() => void doQuery()}
-                  style={{ flex: 1, minWidth: 0 }}
-                  onChange={(e) => {
-                    const v = e.target.value.toUpperCase();
-                    form.setFieldValue('keyCode', v);
-                  }}
-                />
-                <Button
-                  type="primary"
-                  size="middle"
-                  icon={<SearchOutlined />}
-                  htmlType="submit"
-                  loading={loading}
-                  disabled={!appId}
-                  style={{ flexShrink: 0, minWidth: isNarrow ? 86 : 96 }}
-                >
-                  查询
-                </Button>
+          <Form form={form} layout="vertical" requiredMark={false} onFinish={() => void doQuery()} onValuesChange={() => setData(null)}>
+            <Form.Item label="卡密">
+              <div className="public-service-row">
+                <Form.Item name="keyCode" noStyle normalize={(value: string) => value.toUpperCase()}
+                  rules={[{ required: true, message: '请输入卡密' }, { max: 64, message: '长度不能超过64位' }, { pattern: /^[A-Z0-9]+$/, message: '只能包含字母和数字' }]}>
+                  <Input.Password aria-label="卡密" prefix={<KeyOutlined />} placeholder="请输入卡密" maxLength={64}
+                    autoComplete="off" disabled={!appId} style={{ flex: 1, minWidth: 0 }} />
+                </Form.Item>
+                <Button type="primary" icon={<SearchOutlined />} htmlType="submit" loading={loading} disabled={!appId}>查询</Button>
               </div>
             </Form.Item>
 
@@ -324,8 +173,8 @@ const LicenseSelfServicePage: React.FC = () => {
                 icon={<DisconnectOutlined />}
                 onClick={() => void doUnbind()}
                 loading={unbindLoading}
-                disabled={!appId}
-                style={{ padding: 0 }}
+                disabled={!appId || !data || keyCode !== queriedKey || !!data.redeemedAt || !(data.boundDevice || data.boundIp) || data.unbindRemaining === 0}
+                style={{ padding: 0, minHeight: 44 }}
               >
                 解绑设备与 IP
               </Button>
@@ -382,22 +231,7 @@ const LicenseSelfServicePage: React.FC = () => {
               </Descriptions>
             </div>
           )}
-        </Card>
-      </Content>
-
-      <Footer
-        style={{
-          textAlign: 'center',
-          padding: '16px 24px',
-          background: '#fff',
-          borderTop: '1px solid #f0f0f0',
-          color: '#8c8c8c',
-          fontSize: 13,
-        }}
-      >
-        <Text type="secondary">CipherGate · 企业级访问与安全管控</Text>
-      </Footer>
-    </Layout>
+    </PublicServiceLayout>
   );
 };
 
