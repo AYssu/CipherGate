@@ -66,6 +66,15 @@ class BackupOperationTest(unittest.TestCase):
         self.assertIn('"$MYSQL_DATABASE"', command[-1])
         self.assertNotIn("shell", popen.call_args.kwargs)
 
+    def test_explicit_isolated_database_is_passed_as_argument_and_recorded(self):
+        with patch.object(operations.subprocess, "Popen", return_value=FakeProcess(b"SQL")) as process, \
+                patch.object(operations, "database_name") as default_database:
+            operations.backup(self.destination, "restore_fixture")
+        default_database.assert_not_called()
+        self.assertEqual(process.call_args.args[0][-2:], ["sh", "restore_fixture"])
+        metadata = json.loads(self.destination.with_suffix(".gz.json").read_text())
+        self.assertEqual(metadata["database"], "restore_fixture")
+
     def test_existing_dump_is_preserved_and_process_never_starts(self):
         self.destination.parent.mkdir()
         self.destination.write_bytes(b"existing backup")
@@ -125,6 +134,9 @@ class BackupOperationTest(unittest.TestCase):
 
 class RestoreOperationTest(unittest.TestCase):
     def setUp(self):
+        guard = patch.object(operations, "require_empty_database")
+        self.guard = guard.start()
+        self.addCleanup(guard.stop)
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.source = Path(self.temporary.name) / "backup.sql.gz"
@@ -143,9 +155,25 @@ class RestoreOperationTest(unittest.TestCase):
             operations.restore(self.source, "isolated_restore")
         self.assertEqual(process.stdin.sent, self.sql)
         self.assertTrue(process.stdin.closed)
-        self.assertIn('"$MYSQL_DATABASE"', popen.call_args.args[0][-1])
+        self.assertEqual(popen.call_args.args[0][-1], 'isolated_restore')
+        self.guard.assert_called_once_with('isolated_restore')
         self.assertNotIn("shell", popen.call_args.kwargs)
         self.assertFalse(process.terminated)
+
+    def test_isolated_target_overrides_installation_and_is_bound_to_mysql_argument(self):
+        with patch.object(operations, "database_name") as default_database, \
+                patch.object(operations.subprocess, "Popen", return_value=FakeProcess()) as process:
+            operations.restore(self.source, "recovery_copy", "recovery_copy")
+        default_database.assert_not_called()
+        self.guard.assert_called_once_with("recovery_copy")
+        self.assertEqual(process.call_args.args[0][-2:], ["sh", "recovery_copy"])
+
+    def test_nonempty_target_cannot_start_restore_process(self):
+        self.guard.side_effect = ValueError("existing empty database required")
+        with patch.object(operations.subprocess, "Popen") as process:
+            with self.assertRaisesRegex(ValueError, "empty database"):
+                operations.restore(self.source, "recovery_copy", "recovery_copy")
+        process.assert_not_called()
 
     def test_wrong_target_rejects_before_starting_mysql(self):
         with patch.object(operations, "database_name", return_value="production"), \
@@ -270,6 +298,24 @@ class ComposeSelectionTest(unittest.TestCase):
                     operations.main()
             self.assertEqual(Path.cwd(), original_directory)
             self.assertIs(operations.COMPOSE, original_command)
+
+
+class EmptyRestoreTargetTest(unittest.TestCase):
+    def test_nonempty_or_missing_database_fails_before_import(self):
+        for result in ['1\t2\n', '0\t0\n', '', 'unexpected']:
+            with self.subTest(result=result), patch.object(operations.subprocess, 'check_output', return_value=result):
+                with self.assertRaisesRegex(ValueError, 'existing empty database'):
+                    operations.require_empty_database('isolated_restore')
+
+    def test_invalid_identifier_cannot_be_interpolated(self):
+        with patch.object(operations.subprocess, 'check_output') as query:
+            with self.assertRaises(ValueError):
+                operations.require_empty_database("target'; DROP DATABASE prod; --")
+            query.assert_not_called()
+
+    def test_empty_existing_database_is_accepted(self):
+        with patch.object(operations.subprocess, 'check_output', return_value='1\t0\n'):
+            operations.require_empty_database('isolated_restore')
 
 
 if __name__ == "__main__":

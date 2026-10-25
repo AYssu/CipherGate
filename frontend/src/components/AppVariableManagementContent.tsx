@@ -24,8 +24,10 @@ import {
   Pagination,
   Grid,
   type MenuProps,
+  type TableColumnsType,
 } from 'antd';
 import M5BottomSheet from './M5BottomSheet';
+import { getErrorMessage } from '../services/apiResponse';
 import {
   DownOutlined,
   RightOutlined,
@@ -188,7 +190,7 @@ const AppVariableManagementContent: React.FC = () => {
 
   const fetchApplications = async () => {
     try {
-      const res: any = await getApplicationList({ current: 1, size: 200 });
+      const res = await getApplicationList({ current: 1, size: 200 });
       if (res.code === 200) {
         setApplications(res.data?.records || []);
       }
@@ -222,7 +224,7 @@ const AppVariableManagementContent: React.FC = () => {
         size,
       };
 
-      const res: any = await getVariableList(params);
+      const res = await getVariableList(params);
       if (res.code === 200 && res.data) {
         setVariables(res.data.records || []);
         setPagination({
@@ -233,7 +235,7 @@ const AppVariableManagementContent: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      message.error('获取变量列表失败');
+      message.error(getErrorMessage(e, '获取变量列表失败'));
     } finally {
       setLoading(false);
     }
@@ -361,16 +363,16 @@ const AppVariableManagementContent: React.FC = () => {
         enabled: record.enabled,
         version: record.version,
         tags: record.tags,
-        metadata: record.metadata,
         changeReason: '',
       });
+      editForm.setFieldValue('metadata', record.metadata);
     } else {
       editForm.resetFields();
       editForm.setFieldsValue({
         enabled: true,
         required: false,
         sortOrder: 0,
-      } as any);
+      });
     }
     setEditModalVisible(true);
   };
@@ -381,7 +383,7 @@ const AppVariableManagementContent: React.FC = () => {
       const dto: AppVariableDTO = { ...values };
 
       if (editingVariable) {
-        const res: any = await updateVariable(editingVariable.id, dto);
+        const res = await updateVariable(editingVariable.id, dto);
         if (res.code === 200) {
           message.success('变量更新成功');
           setEditModalVisible(false);
@@ -390,7 +392,7 @@ const AppVariableManagementContent: React.FC = () => {
           message.error(res.message || '变量更新失败');
         }
       } else {
-        const res: any = await createVariable(dto);
+        const res = await createVariable(dto);
         if (res.code === 200) {
           message.success('变量创建成功');
           setEditModalVisible(false);
@@ -407,7 +409,7 @@ const AppVariableManagementContent: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const res: any = await deleteVariable(id);
+      const res = await deleteVariable(id);
       if (res.code === 200) {
         message.success('删除成功');
         fetchVariables(pagination.current, pagination.pageSize);
@@ -416,7 +418,7 @@ const AppVariableManagementContent: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      message.error('删除失败');
+      message.error(getErrorMessage(e, '删除失败'));
     }
   };
 
@@ -431,7 +433,7 @@ const AppVariableManagementContent: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          const res: any = await batchDeleteVariables(ids);
+          const res = await batchDeleteVariables(ids);
           if (res.code === 200) {
             message.success('批量删除成功');
             setSelectedRowKeys([]);
@@ -441,7 +443,7 @@ const AppVariableManagementContent: React.FC = () => {
           }
         } catch (e) {
           console.error(e);
-          message.error('批量删除失败');
+          message.error(getErrorMessage(e, '批量删除失败'));
         }
       },
     });
@@ -466,7 +468,7 @@ const AppVariableManagementContent: React.FC = () => {
           message.error('新变量名不能为空');
           return Promise.reject();
         }
-        const res: any = await copyVariable(record.id, newName.trim());
+        const res = await copyVariable(record.id, newName.trim());
         if (res.code === 200) {
           message.success('复制成功');
           fetchVariables(pagination.current, pagination.pageSize);
@@ -487,7 +489,7 @@ const AppVariableManagementContent: React.FC = () => {
   const fetchHistory = async (record: AppVariable, current = 1, size = 10) => {
     setHistoryLoading(true);
     try {
-      const res: any = await getVariableHistory(record.id, current, size);
+      const res = await getVariableHistory(record.id, current, size);
       if (res.code === 200 && res.data) {
         setHistoryRecords(res.data.records || []);
         setHistoryPagination({
@@ -498,7 +500,7 @@ const AppVariableManagementContent: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      message.error('获取历史记录失败');
+      message.error(getErrorMessage(e, '获取历史记录失败'));
     } finally {
       setHistoryLoading(false);
     }
@@ -514,7 +516,7 @@ const AppVariableManagementContent: React.FC = () => {
     setPreviewVisible(true);
     setPreviewAppId(appId);
     try {
-      const res: any = await exportAppVariables(appId, { format: 'json' });
+      const res = await exportAppVariables(appId, { format: 'json' });
       if (res.code === 200) {
         const raw = res.data || '{}';
         try {
@@ -529,7 +531,7 @@ const AppVariableManagementContent: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      message.error('预览加载失败');
+      message.error(getErrorMessage(e, '预览加载失败'));
       setPreviewText('');
     } finally {
       setPreviewLoading(false);
@@ -547,7 +549,7 @@ const AppVariableManagementContent: React.FC = () => {
       return;
     }
     try {
-      const res: any = await importAppVariables(appId, importText, { format: 'json' });
+      const res = await importAppVariables(appId, importText, { format: 'json' });
       if (res.code === 200) {
         message.success('导入成功（已执行批量更新）');
         setImportVisible(false);
@@ -558,17 +560,17 @@ const AppVariableManagementContent: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      message.error('导入失败');
+      message.error(getErrorMessage(e, '导入失败'));
     }
   };
 
-  const columns = [
+  const columns: TableColumnsType<AppVariable> = [
     {
       title: '应用',
       dataIndex: 'appName',
       key: 'appName',
       width: 220,
-      render: (_: any, record: AppVariable) => (
+      render: (_: unknown, record: AppVariable) => (
         <div>
           <div>
             <Text strong>{record.appName || `AppID:${record.appId}`}</Text>
@@ -610,7 +612,7 @@ const AppVariableManagementContent: React.FC = () => {
       key: 'status',
       width: 90,
       align: 'center' as const,
-      render: (_: any, record: AppVariable) => (
+      render: (_: unknown, record: AppVariable) => (
         <Tag color={record.enabled ? 'success' : 'default'}>{record.enabled ? '启用' : '停用'}</Tag>
       ),
     },
@@ -626,7 +628,7 @@ const AppVariableManagementContent: React.FC = () => {
       key: 'action',
       width: 180,
       fixed: 'right' as const,
-      render: (_: any, record: AppVariable) => {
+      render: (_: unknown, record: AppVariable) => {
         const items: MenuProps['items'] = [
           {
             key: 'edit',
@@ -679,7 +681,7 @@ const AppVariableManagementContent: React.FC = () => {
     },
   ];
 
-  const historyColumns = [
+  const historyColumns: TableColumnsType<AppVariableHistory> = [
     {
       title: '操作',
       dataIndex: 'operationType',
@@ -879,7 +881,7 @@ const AppVariableManagementContent: React.FC = () => {
           </div>
         ) : (
           <Table
-            columns={columns as any}
+            columns={columns}
             dataSource={variables}
             rowKey="id"
             loading={loading}
@@ -1349,7 +1351,7 @@ const AppVariableManagementContent: React.FC = () => {
         width={isMobile ? '100%' : 720}
       >
         <Table
-          columns={historyColumns as any}
+          columns={historyColumns}
           dataSource={historyRecords}
           rowKey="id"
           loading={historyLoading}

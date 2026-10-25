@@ -75,11 +75,11 @@ const DocManagementContent: React.FC = () => {
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<DocCategory | null>(null);
-  const [categoryForm] = Form.useForm();
+  const [categoryForm] = Form.useForm<DocCategory>();
 
   const [itemModalVisible, setItemModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<DocItem | null>(null);
-  const [itemForm] = Form.useForm();
+  const [itemForm] = Form.useForm<DocItem>();
 
   const [attachmentModalVisible, setAttachmentModalVisible] = useState(false);
   const [attachmentDocId, setAttachmentDocId] = useState<number | null>(null);
@@ -91,7 +91,7 @@ const DocManagementContent: React.FC = () => {
     setCategoriesLoading(true);
     try {
       const result = await docApi.getCategories();
-      setCategories((result as any).data || []);
+      setCategories(result.data || []);
     } catch (error) {
       console.error('获取分类列表失败:', error);
     } finally {
@@ -103,7 +103,7 @@ const DocManagementContent: React.FC = () => {
     setItemsLoading(true);
     try {
       const result = await docApi.getDocsByCategory(categoryId);
-      setItems((result as any).data || []);
+      setItems(result.data || []);
     } catch (error) {
       console.error('获取文档列表失败:', error);
     } finally {
@@ -223,7 +223,7 @@ const DocManagementContent: React.FC = () => {
     setAttachmentsLoading(true);
     try {
       const result = await docApi.getDocDetail(docId);
-      const data = (result as any).data;
+      const data = result.data;
       setAttachments(data?.attachments || []);
     } catch (error) {
       console.error('获取附件失败:', error);
@@ -237,11 +237,11 @@ const DocManagementContent: React.FC = () => {
     setUploading(true);
     try {
       const objectKey = `doc-attachments/${attachmentDocId}/${Date.now()}_${file.name}`;
-      await chunkedUploadService.uploadFile({ file, objectKey });
-      await docApi.addAttachment(attachmentDocId, file.name, objectKey, file.size, file.type);
+      const uploadedKey = await chunkedUploadService.uploadFile({ file, objectKey });
+      await docApi.addAttachment(attachmentDocId, file.name, uploadedKey, file.size, file.type);
       message.success('上传成功');
       const result = await docApi.getDocDetail(attachmentDocId);
-      const data = (result as any).data;
+      const data = result.data;
       setAttachments(data?.attachments || []);
     } catch (error) {
       message.error('上传失败');
@@ -257,7 +257,7 @@ const DocManagementContent: React.FC = () => {
       message.success('删除成功');
       if (attachmentDocId) {
         const result = await docApi.getDocDetail(attachmentDocId);
-        const data = (result as any).data;
+        const data = result.data;
         setAttachments(data?.attachments || []);
       }
     } catch (error) {
@@ -439,7 +439,7 @@ const DocManagementContent: React.FC = () => {
                   title: '操作',
                   key: 'action',
                   width: 90,
-                  render: (_: any, record: DocItem) => {
+                  render: (_: unknown, record: DocItem) => {
                     if (isMobile) {
                       return getItemActions(record);
                     }

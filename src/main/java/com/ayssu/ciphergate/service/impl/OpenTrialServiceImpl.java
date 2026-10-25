@@ -53,9 +53,7 @@ public class OpenTrialServiceImpl implements OpenTrialService {
                 .eq(AppUser::getEmail, email)
                 .eq(AppUser::getDeleted, 0)
                 .last("limit 1 FOR UPDATE"));
-        if (appUser == null) {
-            throw new IllegalArgumentException("用户不存在");
-        }
+        com.ayssu.ciphergate.util.PublicUserCredentials.verify(appUser, request.getPassword());
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime base = appUser.getMemberExpiresAt();
@@ -93,11 +91,11 @@ public class OpenTrialServiceImpl implements OpenTrialService {
             );
         }
 
-        return new TrialApplyResult(appId, appUser.getId(), email, TRIAL_DAYS, newExpiresAt);
+        return new TrialApplyResult(appId, TRIAL_DAYS, newExpiresAt);
     }
 
     @Override
-    public TrialExpireResult queryTrialExpireAt(Long appId, String email) {
+    public TrialExpireResult queryTrialExpireAt(Long appId, String email, String password) {
         if (appId == null || appId <= 0) {
             throw new IllegalArgumentException("appId必须大于0");
         }
@@ -108,11 +106,9 @@ public class OpenTrialServiceImpl implements OpenTrialService {
                 .eq(AppUser::getEmail, normalizedEmail)
                 .eq(AppUser::getDeleted, 0)
                 .last("limit 1"));
-        if (appUser == null) {
-            throw new IllegalArgumentException("用户不存在");
-        }
+        com.ayssu.ciphergate.util.PublicUserCredentials.verify(appUser, password);
 
-        return new TrialExpireResult(appId, appUser.getId(), normalizedEmail, appUser.getMemberExpiresAt());
+        return new TrialExpireResult(appId, appUser.getMemberExpiresAt());
     }
 
     private static Long parsePid(String pid) {

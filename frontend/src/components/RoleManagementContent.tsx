@@ -15,6 +15,7 @@ import {
   Checkbox,
   Grid,
   Dropdown,
+  type TreeDataNode,
 } from 'antd';
 import M5BottomSheet from './M5BottomSheet';
 import {
@@ -49,14 +50,14 @@ const RoleManagementContent: React.FC = () => {
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [roleMenuIds, setRoleMenuIds] = useState<number[]>([]);
   const [rolePermissionIds, setRolePermissionIds] = useState<number[]>([]);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Omit<Role, 'id'>>();
 
   // 获取角色列表
   const fetchRoles = async () => {
     setLoading(true);
     try {
       const result = await roleApi.getRoles();
-      setRoles((result as any).data || []);
+      setRoles(result.data || []);
     } catch (error) {
       console.error('获取角色列表失败:', error);
     } finally {
@@ -74,7 +75,7 @@ const RoleManagementContent: React.FC = () => {
   const fetchAllMenus = async () => {
     try {
       const result = await MenuService.getAllMenus();
-      setAllMenus((result as any).data || []);
+      setAllMenus(result.data || []);
     } catch (error) {
       console.error('获取菜单列表失败:', error);
     }
@@ -84,7 +85,7 @@ const RoleManagementContent: React.FC = () => {
   const fetchAllPermissions = async () => {
     try {
       const result = await permissionApi.getPermissions();
-      setAllPermissions((result as any).data || []);
+      setAllPermissions(result.data || []);
     } catch (error) {
       console.error('获取权限列表失败:', error);
     }
@@ -94,7 +95,7 @@ const RoleManagementContent: React.FC = () => {
   const fetchRoleMenus = async (roleId: number) => {
     try {
       const result = await roleApi.getRoleMenus(roleId);
-      setRoleMenuIds((result as any).data || []);
+      setRoleMenuIds(result.data || []);
     } catch (error) {
       console.error('获取角色菜单权限失败:', error);
     }
@@ -104,7 +105,7 @@ const RoleManagementContent: React.FC = () => {
   const fetchRolePermissions = async (roleId: number) => {
     try {
       const result = await roleApi.getRolePermissions(roleId);
-      setRolePermissionIds((result as any).data || []);
+      setRolePermissionIds(result.data || []);
     } catch (error) {
       console.error('获取角色API权限失败:', error);
     }
@@ -279,7 +280,7 @@ const RoleManagementContent: React.FC = () => {
   };
 
   // 将菜单树转换为Tree组件需要的格式
-  const convertMenusToTreeData = (menus: Menu[]): any[] => {
+  const convertMenusToTreeData = (menus: Menu[]): TreeDataNode[] => {
     return menus.map(menu => ({
       title: menu.menuName,
       key: menu.id,

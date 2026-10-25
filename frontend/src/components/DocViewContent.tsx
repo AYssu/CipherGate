@@ -46,7 +46,7 @@ const DocViewContent: React.FC<DocViewContentProps> = ({ docId }) => {
       setLoading(true);
       try {
         const result = await docApi.getDocDetail(docId);
-        setDoc((result as any).data || null);
+        setDoc(result.data || null);
       } catch (error) {
         console.error('获取文档详情失败:', error);
       } finally {

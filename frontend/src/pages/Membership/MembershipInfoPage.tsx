@@ -1,3 +1,4 @@
+import type { UserMembership, MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Typography, Tag, Statistic, Row, Col, Progress, Spin, Space, Grid, Modal, Tooltip } from 'antd';
 import {
@@ -16,9 +17,9 @@ const MembershipInfoPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [loading, setLoading] = React.useState(true);
-  const [membership, setMembership] = React.useState<any>(null);
-  const [level, setLevel] = React.useState<any>(null);
-  const [allLevels, setAllLevels] = React.useState<any[]>([]);
+  const [membership, setMembership] = React.useState<UserMembership | null>(null);
+  const [level, setLevel] = React.useState<MembershipLevel | null>(null);
+  const [allLevels, setAllLevels] = React.useState<MembershipLevel[]>([]);
   const [showLevelCompare, setShowLevelCompare] = React.useState(false);
   const [inviteEnabled, setInviteEnabled] = React.useState(true);
   const [inviteConfig, setInviteConfig] = React.useState({ rewardAmount: 300, maxInviteCount: 20 });
@@ -38,9 +39,9 @@ const MembershipInfoPage: React.FC = () => {
         maxInviteCount: inviteData.maxInviteCount || 20
       });
       if (lvlRes.data) {
-        setAllLevels(lvlRes.data.sort((a: any, b: any) => a.level - b.level));
+        setAllLevels(lvlRes.data.sort((a: MembershipLevel, b: MembershipLevel) => a.level - b.level));
         if (mem) {
-          const lvl = lvlRes.data.find((l: any) => l.id === mem.levelId);
+          const lvl = lvlRes.data.find((l: MembershipLevel) => l.id === mem.levelId);
           setLevel(lvl);
         }
       }
@@ -240,7 +241,7 @@ const MembershipInfoPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {allLevels.map((l: any) => {
+              {allLevels.map((l: MembershipLevel) => {
                 const isCurrent = l.id === level?.id;
                 const isHigher = l.level > (level?.level || 0);
                 const rowBg = isCurrent ? '#f6f0ff' : isHigher ? '#f6ffed' : '#fafafa';

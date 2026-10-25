@@ -1,19 +1,22 @@
+import type { PortalProfile, PortalPasswordChange, PortalEmailChange } from '../services/types';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Typography, Form, Input, Button, message, Space, Row, Col, Tag } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, SendOutlined, SafetyOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { portalSettingsApi } from '../services/portalSettingsService';
+import { useNavigate } from 'react-router-dom';
 import { portalAuthApi } from '../services/portalAuthService';
 
 const { Title, Text } = Typography;
 
 const PortalSettingsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const [emailForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [codeSending, setCodeSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<PortalProfile | null>(null);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -24,7 +27,7 @@ const PortalSettingsPage: React.FC = () => {
 
   const loadProfile = useCallback(async () => {
     try {
-      const res: any = await portalSettingsApi.getProfile();
+      const res = await portalSettingsApi.getProfile();
       if (res?.data) {
         setProfile(res.data);
         profileForm.setFieldsValue({ nickname: res.data.nickname });
@@ -39,7 +42,7 @@ const PortalSettingsPage: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const handleUpdateNickname = async (values: any) => {
+  const handleUpdateNickname = async (values: { nickname: string }) => {
     setLoading(true);
     try {
       await portalSettingsApi.updateNickname(values.nickname);
@@ -51,12 +54,18 @@ const PortalSettingsPage: React.FC = () => {
     }
   };
 
-  const handleChangePassword = async (values: any) => {
+  const requireFreshLogin = () => {
+    for (const key of ['portal_token', 'portal_app_id', 'portal_temp_token', 'portal_apps']) localStorage.removeItem(key);
+    navigate('/portal/login');
+  };
+
+  const handleChangePassword = async (values: PortalPasswordChange) => {
     setLoading(true);
     try {
       await portalSettingsApi.changePassword({ oldPassword: values.oldPassword, newPassword: values.newPassword });
-      message.success('密码修改成功');
+      message.success('密码修改成功，请重新登录');
       passwordForm.resetFields();
+      requireFreshLogin();
     } catch {
       // ignore
     } finally {
@@ -82,7 +91,7 @@ const PortalSettingsPage: React.FC = () => {
     }
   };
 
-  const handleChangeEmail = async (values: any) => {
+  const handleChangeEmail = async (values: PortalEmailChange) => {
     setLoading(true);
     try {
       await portalSettingsApi.changeEmail({
@@ -92,7 +101,7 @@ const PortalSettingsPage: React.FC = () => {
       });
       message.success('邮箱更换成功，请使用新邮箱登录');
       emailForm.resetFields();
-      loadProfile();
+      requireFreshLogin();
     } catch {
       // ignore
     } finally {

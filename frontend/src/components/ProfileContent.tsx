@@ -15,14 +15,14 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [passwordForm] = Form.useForm();
+  const [passwordForm] = Form.useForm<{ newPassword: string; confirmPassword: string }>();
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   const handleSetPassword = async () => {
     try {
       const values = await passwordForm.validateFields();
       setPasswordLoading(true);
-      const response: any = await systemApi.setPassword({
+      const response = await systemApi.setPassword({
         newPassword: values.newPassword,
       });
       if (response?.success) {
@@ -32,8 +32,8 @@ const ProfileContent: React.FC<ProfileContentProps> = ({ userInfo }) => {
       } else {
         message.error(response?.message || '密码设置失败');
       }
-    } catch (error: any) {
-      if (error.errorFields) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'errorFields' in error) {
         message.error('请填写所有必填项');
       }
     } finally {

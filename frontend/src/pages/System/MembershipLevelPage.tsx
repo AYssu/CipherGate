@@ -1,3 +1,4 @@
+import type { MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, message, Typography, Grid } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -8,10 +9,10 @@ const { Title } = Typography;
 const MembershipLevelPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [levels, setLevels] = React.useState<any[]>([]);
+  const [levels, setLevels] = React.useState<MembershipLevel[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [editVisible, setEditVisible] = React.useState(false);
-  const [editing, setEditing] = React.useState<any>(null);
+  const [editing, setEditing] = React.useState<MembershipLevel | null>(null);
   const [form] = Form.useForm();
 
   const fetchLevels = () => {
@@ -46,7 +47,7 @@ const MembershipLevelPage: React.FC = () => {
       { title: '卡密额度', dataIndex: 'licenseQuota', key: 'licenseQuota', render: (v: number) => v === -1 ? '不限' : v },
       { title: '用户额度', dataIndex: 'userRegisterQuota', key: 'userQuota', render: (v: number) => v === -1 ? '不限' : v },
     ] : []),
-    { title: '操作', key: 'action', width: 80, render: (_: any, record: any) => <Button type="link" size={isMobile ? 'small' : 'middle'} onClick={() => { setEditing(record); form.setFieldsValue(record); setEditVisible(true); }}>编辑</Button> },
+    { title: '操作', key: 'action', width: 80, render: (_: unknown, record: MembershipLevel) => <Button type="link" size={isMobile ? 'small' : 'middle'} onClick={() => { setEditing(record); form.setFieldsValue(record); setEditVisible(true); }}>编辑</Button> },
   ];
 
   return (

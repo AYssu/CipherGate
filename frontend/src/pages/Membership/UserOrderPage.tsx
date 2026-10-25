@@ -1,3 +1,4 @@
+import type { PaymentOrder } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Typography, Grid, Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -7,7 +8,7 @@ const { Title } = Typography;
 const UserOrderPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [orders, setOrders] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<PaymentOrder[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {

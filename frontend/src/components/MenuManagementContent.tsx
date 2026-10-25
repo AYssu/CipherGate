@@ -44,7 +44,7 @@ const MenuManagementContent: React.FC = () => {
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
   const [parentOptions, setParentOptions] = useState<Menu[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Omit<Menu, 'visible' | 'status'> & { visible: boolean; status: boolean }>();
 
   // 菜单类型选项
   const menuTypeOptions = [
@@ -75,7 +75,7 @@ const MenuManagementContent: React.FC = () => {
     setLoading(true);
     try {
       const result = await MenuService.getAllMenus();
-      setMenus((result as any).data || []);
+      setMenus(result.data || []);
     } catch (error) {
       console.error('获取菜单列表失败:', error);
     } finally {
@@ -86,7 +86,7 @@ const MenuManagementContent: React.FC = () => {
   const fetchParentOptions = async () => {
     try {
       const result = await MenuService.getParentMenuOptions();
-      setParentOptions((result as any).data || []);
+      setParentOptions(result.data || []);
     } catch (error) {
       console.error('获取父菜单选项失败:', error);
     }
@@ -192,7 +192,7 @@ const MenuManagementContent: React.FC = () => {
   };
 
   // 将树形数据转换为表格数据，保持层级结构
-  const convertMenusToTableData = (menus: Menu[]): any[] => {
+  const convertMenusToTableData = (menus: Menu[]): Array<Menu & { key: number }> => {
     return menus.map(menu => ({
       ...menu,
       key: menu.id,
@@ -260,7 +260,7 @@ const MenuManagementContent: React.FC = () => {
       title: '操作',
       key: 'action',
       width: isMobile ? 80 : 150,
-      render: (_: any, record: Menu) => {
+      render: (_: unknown, record: Menu) => {
         if (isMobile) {
           return (
             <Dropdown

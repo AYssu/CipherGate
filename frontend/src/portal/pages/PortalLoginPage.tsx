@@ -1,3 +1,4 @@
+import type { PortalLoginInput } from '../services/types';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Form, Input, Button, Typography, message } from 'antd';
@@ -18,7 +19,7 @@ const PortalLoginPage: React.FC = () => {
     setCaptchaId('');
     form.setFieldValue('captchaCode', '');
     try {
-      const res: any = await portalAuthApi.getCaptcha();
+      const res = await portalAuthApi.getCaptcha();
       if (res?.data) {
         setCaptchaUrl(res.data.image);
         setCaptchaId(res.data.captchaId);
@@ -32,10 +33,10 @@ const PortalLoginPage: React.FC = () => {
     loadCaptcha();
   }, [loadCaptcha]);
 
-  const handleLogin = async (values: any) => {
+  const handleLogin = async (values: Omit<PortalLoginInput, 'captchaId'>) => {
     setLoading(true);
     try {
-      const res: any = await portalAuthApi.login({
+      const res = await portalAuthApi.login({
         email: values.email,
         password: values.password,
         captchaCode: values.captchaCode,

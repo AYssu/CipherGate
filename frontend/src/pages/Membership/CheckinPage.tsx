@@ -1,3 +1,4 @@
+import type { CheckinStatus, CheckinResult, CheckinReward } from '../../services/contracts';
 import React from 'react';
 import { Card, Button, Typography, Statistic, Row, Col, Tag, message, Grid, Descriptions } from 'antd';
 import { CheckCircleOutlined, GiftOutlined } from '@ant-design/icons';
@@ -14,10 +15,10 @@ const CheckinPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
 
-  const [status, setStatus] = React.useState<any>(null);
+  const [status, setStatus] = React.useState<CheckinStatus | null>(null);
   const [, setLoading] = React.useState(true);
   const [checkinLoading, setCheckinLoading] = React.useState(false);
-  const [rewardResult, setRewardResult] = React.useState<any>(null);
+  const [rewardResult, setRewardResult] = React.useState<CheckinResult | null>(null);
 
   const fetchStatus = () => {
     fetch('/api/user/checkin/status', { credentials: 'include' })
@@ -52,7 +53,7 @@ const CheckinPage: React.FC = () => {
     setCheckinLoading(false);
   };
 
-  const formatReward = (reward: any) => {
+  const formatReward = (reward: CheckinReward | null) => {
     if (!reward) return '-';
     if (reward.type === 'TRAFFIC') {
       return `${reward.amountMB}MB`;

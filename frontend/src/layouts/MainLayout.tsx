@@ -25,12 +25,15 @@ import { userApi } from '../services/userService';
 import { activityApi } from '../services/activityService';
 import { messageApi, type SystemMessage } from '../services/messageService';
 import { announcementApi, type SystemAnnouncement } from '../services/announcementService';
+import type { DocMenuCategory } from '../services/docService';
 import { docApi } from '../services/docService';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import type { User, Menu as UserMenu } from '../services/userService';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
+
+type SidebarItem = { key: string; icon?: React.ReactNode; label: React.ReactNode; onClick?: () => void } & ({ children: SidebarItem[] } | { children?: undefined });
 
 const MainLayout: React.FC = () => {
   const screens = Grid.useBreakpoint();
@@ -50,7 +53,7 @@ const MainLayout: React.FC = () => {
   const [messageDetailVisible, setMessageDetailVisible] = useState(false);
   const [announcementVisible, setAnnouncementVisible] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] = useState<SystemAnnouncement | null>(null);
-  const [docMenuData, setDocMenuData] = useState<any[]>([]);
+  const [docMenuData, setDocMenuData] = useState<DocMenuCategory[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -63,7 +66,7 @@ const MainLayout: React.FC = () => {
     const fetchUserInfo = async () => {
       try {
         const result = await userApi.getCurrentUserInfo();
-        setUserInfo((result as any).data);
+        setUserInfo(result.data);
       } catch (error) {
         console.error('获取用户信息失败:', error);
       } finally {
@@ -74,7 +77,7 @@ const MainLayout: React.FC = () => {
     const fetchUnreadCount = async () => {
       try {
         const result = await activityApi.getUnreadCount();
-        const data = (result as any).data;
+        const data = result.data;
         setUnreadCount(data.total);
         setShowBadge(data.showBadge);
       } catch (error) {
@@ -105,7 +108,7 @@ const MainLayout: React.FC = () => {
     const checkAnnouncements = async () => {
       try {
         const result = await announcementApi.getActiveAnnouncements();
-        const activeAnnouncements = (result as any).data || [];
+        const activeAnnouncements = result.data || [];
         if (activeAnnouncements.length === 0) return;
 
         const shownKey = 'shown_announcements';
@@ -127,7 +130,7 @@ const MainLayout: React.FC = () => {
     const fetchDocMenu = async () => {
       try {
         const result = await docApi.getDocMenu();
-        const data = (result as any).data || [];
+        const data = result.data || [];
         setDocMenuData(data);
       } catch {
         // 文档菜单获取失败静默处理
@@ -155,7 +158,7 @@ const MainLayout: React.FC = () => {
     
     try {
       const result = await messageApi.getMyMessages(20);
-      setMessages((result as any).data || []);
+      setMessages(result.data || []);
     } catch (error) {
       console.error('获取消息失败:', error);
     } finally {
@@ -204,7 +207,7 @@ const MainLayout: React.FC = () => {
       await messageApi.markAsRead(id);
       // 刷新消息列表
       const result = await messageApi.getMyMessages(20);
-      setMessages((result as any).data || []);
+      setMessages(result.data || []);
       // 刷新未读数
       const countResult = await activityApi.getUnreadCount();
       setUnreadCount(countResult.data.total);
@@ -227,7 +230,7 @@ const MainLayout: React.FC = () => {
       })));
 
       const countResult = await activityApi.getUnreadCount();
-      const data = (countResult as any).data;
+      const data = countResult.data;
       setUnreadCount(data.total);
       setShowBadge(data.showBadge);
     } catch (error) {
@@ -470,7 +473,7 @@ const MainLayout: React.FC = () => {
     return '/dashboard';
   };
 
-  const generateSidebarMenus = (menus: UserMenu[]) => {
+  const generateSidebarMenus = (menus: UserMenu[]): SidebarItem[] => {
     return menus.map(menu => {
       const menuKey = menu.menuCode.toLowerCase();
       
@@ -480,10 +483,10 @@ const MainLayout: React.FC = () => {
           key: menuKey,
           icon: getMenuIcon(menu.icon),
           label: menu.menuName,
-          children: docMenuData.map((cat: any) => ({
+          children: docMenuData.map((cat) => ({
             key: `doc-cat-${cat.id}`,
             label: cat.name,
-            children: (cat.items || []).map((item: any) => ({
+            children: (cat.items || []).map((item) => ({
               key: `doc-item-${item.id}`,
               label: item.title,
               onClick: () => navigate(`/admin/docs/view/${item.id}`),
@@ -497,7 +500,7 @@ const MainLayout: React.FC = () => {
           key: menuKey,
           icon: getMenuIcon(menu.icon),
           label: menu.menuName,
-          children: menu.children.map((child: any) => {
+          children: menu.children.map((child) => {
             const childKey = child.menuCode.toLowerCase();
             
             return {
@@ -618,7 +621,7 @@ const MainLayout: React.FC = () => {
     if (item.children) {
       return {
         ...item,
-        children: item.children.map((child: any) => ({
+        children: item.children.map((child) => ({
           ...child,
           onClick: () => {
             child.onClick?.();
@@ -630,7 +633,7 @@ const MainLayout: React.FC = () => {
     return {
       ...item,
       onClick: () => {
-        (item as any).onClick?.();
+        item.onClick?.();
         setMobileDrawerOpen(false);
       },
     };
@@ -836,7 +839,7 @@ const MainLayout: React.FC = () => {
         width={isMobile ? undefined : 380}
         height={isMobile ? '70vh' : undefined}
         styles={{
-          body: { padding: 0, overflow: 'hidden', overflowY: 'auto' as any },
+          body: { padding: 0, overflow: 'hidden', overflowY: 'auto' },
           header: isMobile ? { borderBottom: '1px solid #f0f0f0' } : undefined,
           content: isMobile ? { borderRadius: '16px 16px 0 0', overflow: 'hidden' } : undefined,
         }}

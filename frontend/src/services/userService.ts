@@ -1,3 +1,5 @@
+import type { ApiResponse } from './apiResponse';
+export type UserInfo = User;
 import request from '../utils/request';
 
 export interface User {
@@ -40,36 +42,36 @@ export interface Menu {
 // 用户管理 API
 export const userApi = {
   // 获取用户列表
-  getUsers: () => request.get<{ data: User[] }>('/users'),
+  getUsers: () => request.get<unknown, ApiResponse<User[]>>('/users'),
 
   // 获取用户详情
-  getUserById: (id: number) => request.get<{ data: User }>(`/users/${id}`),
+  getUserById: (id: number) => request.get<unknown, ApiResponse<User>>(`/users/${id}`),
 
   // 更新用户
-  updateUser: (id: number, userData: Record<string, any>) => 
-    request.put(`/users/${id}`, userData),
+  updateUser: (id: number, userData: Partial<User> & { roleIds?: number[] }) =>
+    request.put<unknown, ApiResponse<string>>(`/users/${id}`, userData),
 
   // 删除用户
-  deleteUser: (id: number) => request.delete(`/users/${id}`),
+  deleteUser: (id: number) => request.delete<unknown, ApiResponse<string>>(`/users/${id}`),
 
   // 更新用户状态
   updateUserStatus: (id: number, status: number) => 
-    request.put(`/users/${id}/status`, null, { params: { status } }),
+    request.put<unknown, ApiResponse<string>>(`/users/${id}/status`, null, { params: { status } }),
 
   // 重置用户密码
   resetPassword: (id: number, password: string) => 
-    request.put(`/users/${id}/password`, { password }),
+    request.put<unknown, ApiResponse<string>>(`/users/${id}/password`, { password }),
 
   // 获取当前用户信息
-  getCurrentUserInfo: () => request.get<{ data: User }>('/user/info'),
+  getCurrentUserInfo: () => request.get<unknown, ApiResponse<User>>('/user/info'),
 
   // 获取当前用户基本信息
-  getCurrentUserProfile: () => request.get<{ data: User }>('/user/profile'),
+  getCurrentUserProfile: () => request.get<unknown, ApiResponse<User>>('/user/profile'),
 
   // 更新当前用户信息
-  updateCurrentUserProfile: (userData: Partial<User>) => 
-    request.put('/user/profile', userData),
+  updateCurrentUserProfile: (userData: Partial<User> & { roleIds?: number[] }) =>
+    request.put<unknown, ApiResponse<string>>('/user/profile', userData),
 
   // 退出登录
-  logout: () => request.post('/logout'),
+  logout: () => request.post<unknown, ApiResponse<string>>('/logout'),
 };

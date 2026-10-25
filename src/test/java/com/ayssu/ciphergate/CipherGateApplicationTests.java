@@ -26,6 +26,7 @@ class CipherGateApplicationTests {
     @Autowired PortalJwtUtil jwt;
     @Autowired JdbcTemplate jdbc;
     @Autowired BuildProperties build;
+    @Autowired com.ayssu.ciphergate.mapper.AppUserMapper appUsers;
 
     @BeforeAll static void requireIsolatedDatabase() {
         String url = System.getenv("CIPHERGATE_BOOT_JDBC_URL");
@@ -54,16 +55,28 @@ class CipherGateApplicationTests {
     }
 
     @Test void portalTokenAuthenticatesOwnProfileOnRealSecurityFilterChain() throws Exception {
+        jdbc.update("INSERT INTO users (id,github_id,login) VALUES (999999,'ci-security-owner','ci-security-owner') ON DUPLICATE KEY UPDATE login=VALUES(login)");
+        jdbc.update("INSERT INTO application(id,owner_id,app_name,app_key,app_secret,status) VALUES (999999,999999,'CI Security','ci-security-key','test-only',1) ON DUPLICATE KEY UPDATE status=1");
         jdbc.update("INSERT INTO app_user (app_id, username, nickname, email) VALUES (?, ?, ?, ?) "
                         + "ON DUPLICATE KEY UPDATE nickname=VALUES(nickname)",
                 999999L, "ci-security-user", "CI Member", "ci-security@example.test");
         Long userId = jdbc.queryForObject("SELECT id FROM app_user WHERE app_id=? AND username=?",
                 Long.class, 999999L, "ci-security-user");
         var response = request("/api/portal/settings/profile",
-                jwt.generateToken(userId, 999999L, "ci-security@example.test", "CI Member"));
+                jwt.generateSessionToken(appUsers.selectById(userId)));
         assertEquals(200, response.statusCode());
         assertTrue(response.body().contains("CI Member"));
         assertFalse(response.body().contains("password"));
+        var user = appUsers.selectById(userId);
+        String session = jwt.generateSessionToken(user);
+        String selection = jwt.generateSelectionToken(user.getEmail(), java.util.List.of(user));
+        assertEquals(403, request("/api/portal/settings/profile", selection).statusCode());
+        jdbc.update("UPDATE app_user SET password='changed-credential' WHERE id=?", userId);
+        assertEquals(401, request("/api/portal/settings/profile", session).statusCode());
+        assertEquals(200, request("/api/portal/settings/profile", jwt.generateSessionToken(appUsers.selectById(userId))).statusCode());
+        jdbc.update("UPDATE application SET status=0 WHERE id=999999");
+        assertEquals(401, request("/api/portal/settings/profile", jwt.generateSessionToken(appUsers.selectById(userId))).statusCode());
+        jdbc.update("UPDATE application SET status=1 WHERE id=999999");
     }
 
     @Test void publicConfigurationAndHealthProbesWorkWithoutCredentials() throws Exception {

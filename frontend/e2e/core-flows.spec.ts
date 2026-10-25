@@ -9,6 +9,7 @@ async function mockApi(page: Page, handler: (route: Route, path: string) => Prom
     if (path.includes('/unread/count')) data = { total: 0, showBadge: false };
     if (path === '/portal/settings/profile') data = { username: 'Portal user', email: 'user@example.com' };
     if (path === '/portal/dashboard/stats') data = {};
+    if (path === '/public/challenge') data = { captchaId: 'challenge', image: '' };
     await route.fulfill({ json: envelope(data) });
   });
 }
@@ -157,6 +158,8 @@ for (const succeeds of [true, false]) test(`license redemption ${succeeds ? 'con
   });
   await page.goto('/app-user?id=10');
   await page.getByLabel('邮箱', { exact: true }).fill('alice@example.test');
+  await page.getByLabel('账号密码', { exact: true }).fill('test-password');
+  await page.getByLabel('图形验证码', { exact: true }).fill('12345');
   await page.getByRole('button', { name: /查\s*询/ }).click();
   await expect(page.getByText('未开通会员', { exact: true })).toBeVisible();
   await page.getByLabel('充值邮箱', { exact: true }).fill('Alice@example.test');

@@ -8,7 +8,11 @@ import lombok.Data;
 
 @Data
 @Schema(description = "公开-终端用户到期查询请求")
-public class PublicAppUserExpireQueryRequest {
+public class PublicAppUserExpireQueryRequest extends PublicChallengeRequest {
+    @NotBlank(message = "请输入该应用账号密码")
+    @jakarta.validation.constraints.Size(max = 100)
+    private String password;
+
 
     @NotNull(message = "应用ID不能为空")
     @Schema(description = "应用ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)

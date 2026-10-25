@@ -12,6 +12,11 @@ permissions:
   contents: read
 
 jobs:
+  java-audit:
+    uses: ./.github/workflows/java-dependency-audit.yml
+    with:
+      ref: ${{ inputs.ref || github.sha }}
+
   backend:
     name: Backend tests and MySQL migrations (${{ matrix.mysql }})
     runs-on: ubuntu-latest
@@ -207,7 +212,7 @@ jobs:
   pr-checks:
     name: Check summary
     if: always()
-    needs: [backend, frontend, docs, security, deployment]
+    needs: [backend, frontend, docs, security, deployment, java-audit]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

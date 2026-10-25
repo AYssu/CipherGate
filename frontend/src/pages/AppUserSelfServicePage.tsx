@@ -1,3 +1,4 @@
+import { usePublicChallenge } from '../components/usePublicChallenge';
 import PublicServiceLayout from '../components/PublicServiceLayout';
 import React, { useMemo, useState } from 'react';
 import AppUserLicenseRechargeForm from '../components/AppUserLicenseRechargeForm';
@@ -41,7 +42,8 @@ const AppUserSelfServicePage: React.FC = () => {
     return Number.isSafeInteger(n) && n > 0 ? n : null;
   }, [appIdRaw]);
 
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<{email: string; password: string}>();
+  const challenge = usePublicChallenge('app-user-query');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PublicAppUserExpireQueryResponse | null>(null);
 
@@ -51,22 +53,23 @@ const AppUserSelfServicePage: React.FC = () => {
       return;
     }
     try {
-      await form.validateFields(['email']);
+      await form.validateFields(['email', 'password']);
     } catch {
       return;
     }
-    const email = (form.getFieldValue('email') as string).trim().toLowerCase();
+    const verification = challenge.get(); if (!verification) return;
+    const email = form.getFieldValue('email').trim().toLowerCase();
     setData(null);
     setLoading(true);
     try {
-      const res: any = await queryAppUserExpire(appId, email);
+      const res = await queryAppUserExpire(appId, email, form.getFieldValue('password'), verification);
       if (res.code === 200 && res.data && email === (form.getFieldValue('email') as string)?.trim().toLowerCase()) {
         setData(res.data);
       }
     } catch {
       // The request interceptor displays the error.
     } finally {
-      setLoading(false);
+      setLoading(false); void challenge.refresh();
     }
   };
 
@@ -110,6 +113,10 @@ const AppUserSelfServicePage: React.FC = () => {
                 </Button>
               </div>
             </Form.Item>
+            <Form.Item name="password" label="账号密码" rules={[{required: true, message: '请输入该应用账号密码'}]}>
+              <Input.Password autoComplete="current-password" maxLength={100} />
+            </Form.Item>
+            {challenge.fields}
           </Form>
 
           <AppUserLicenseRechargeForm appId={appId} onSuccess={setData} />

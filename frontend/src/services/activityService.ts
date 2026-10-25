@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface ActivityLog {
@@ -37,7 +38,7 @@ export const activityApi = {
    * 获取最近活动列表（用于首页展示）
    */
   getRecentActivities: (limit: number = 10) => {
-    return request<ActivityLog[]>({
+    return request<unknown, ApiResponse<ActivityLog[]>>({
       url: '/activity/recent/list',
       method: 'GET',
       params: { limit }
@@ -48,7 +49,7 @@ export const activityApi = {
    * 获取最近活动（分页）
    */
   getRecentActivitiesPage: (pageNum: number = 1, pageSize: number = 10) => {
-    return request<PageResult<ActivityLog>>({
+    return request<unknown, ApiResponse<PageResult<ActivityLog>>>({
       url: '/activity/recent',
       method: 'GET',
       params: { pageNum, pageSize }
@@ -59,7 +60,7 @@ export const activityApi = {
    * 获取用户最近活动
    */
   getUserRecentActivities: (userId: number, limit: number = 10) => {
-    return request<ActivityLog[]>({
+    return request<unknown, ApiResponse<ActivityLog[]>>({
       url: `/activity/user/${userId}`,
       method: 'GET',
       params: { limit }
@@ -70,7 +71,7 @@ export const activityApi = {
    * 获取未读消息统计
    */
   getUnreadCount: () => {
-    return request<UnreadCount>({
+    return request<unknown, ApiResponse<UnreadCount>>({
       url: '/activity/unread/count',
       method: 'GET'
     });
@@ -80,7 +81,7 @@ export const activityApi = {
    * 标记活动为已读
    */
   markAsRead: (id: number) => {
-    return request<void>({
+    return request<unknown, ApiResponse<void>>({
       url: `/activity/${id}/read`,
       method: 'PUT'
     });
@@ -90,7 +91,7 @@ export const activityApi = {
    * 批量标记活动为已读
    */
   markBatchAsRead: (ids: number[]) => {
-    return request<void>({
+    return request<unknown, ApiResponse<void>>({
       url: '/activity/read/batch',
       method: 'PUT',
       data: ids
@@ -101,7 +102,7 @@ export const activityApi = {
    * 标记所有活动为已读
    */
   markAllAsRead: () => {
-    return request<void>({
+    return request<unknown, ApiResponse<void>>({
       url: '/activity/read/all',
       method: 'PUT'
     });

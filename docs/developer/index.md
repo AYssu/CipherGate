@@ -53,3 +53,6 @@
 - [第三方 API 对接](/developer/api-integration)：应用签名、加密、账号登录和临时更新下载。
 - [第三方凭证](/developer/credential)：多应用充值授权及独立充值签名。
 - [用户迁移与复制](/developer/user-transfer)：范围确认、预检查、冲突处理和结果核验。
+
+- [公开入口与认证安全](/developer/public-security)：验证码、密码校验、多应用会话与接口变更。
+- [运行时依赖安全](/developer/dependency-security)：完整扫描、补丁版本与维护门禁。

@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Schema(description = "应用用户自助注册：发送邮箱验证码")
-public class AppUserRegisterSendCodeRequest {
+public class AppUserRegisterSendCodeRequest extends PublicChallengeRequest {
 
     @NotNull
     @Schema(description = "应用 ID", requiredMode = Schema.RequiredMode.REQUIRED)

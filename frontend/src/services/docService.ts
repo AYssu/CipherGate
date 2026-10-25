@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface DocCategory {
@@ -69,7 +70,7 @@ export interface DocItem {
 
 export const docApi = {
   getCategories: () =>
-    request.get<{ data: DocCategory[] }>('/doc/categories'),
+    request.get<unknown, ApiResponse<DocCategory[]>>('/doc/categories'),
 
   createCategory: (data: Partial<DocCategory>) =>
     request.post('/doc/categories', data),
@@ -81,10 +82,10 @@ export const docApi = {
     request.delete(`/doc/categories/${id}`),
 
   getDocMenu: () =>
-    request.get<{ data: DocMenuCategory[] }>('/doc/menu'),
+    request.get<unknown, ApiResponse<DocMenuCategory[]>>('/doc/menu'),
 
   getDocDetail: (id: number) =>
-    request.get<{ data: DocDetail }>(`/doc/items/${id}`),
+    request.get<unknown, ApiResponse<DocDetail>>(`/doc/items/${id}`),
 
   createDoc: (data: Partial<DocItem>) =>
     request.post('/doc/items', data),
@@ -96,7 +97,7 @@ export const docApi = {
     request.delete(`/doc/items/${id}`),
 
   getDocsByCategory: (categoryId: number) =>
-    request.get<{ data: DocItem[] }>(`/doc/items/category/${categoryId}`),
+    request.get<unknown, ApiResponse<DocItem[]>>(`/doc/items/category/${categoryId}`),
 
   addAttachment: (
     docId: number,

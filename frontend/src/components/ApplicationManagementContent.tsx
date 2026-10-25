@@ -69,6 +69,9 @@ import {
   uploadApplicationUpdatePackage,
   type Application,
   type ApplicationDTO,
+  type EncryptionPlugin,
+  type JsonObject,
+  type JsonValue,
 } from '../services/applicationService';
 import {
   listAppAgents,
@@ -81,21 +84,37 @@ import {
   type AgentBindUserDTO,
 } from '../services/appAgentService';
 import { applicationEpayConfigApi } from '../services/applicationEpayConfigService';
-import { pricingPlanApi } from '../services/pricingPlanService';
+import { pricingPlanApi, type PricingPlan, type PricingPlanInput } from '../services/pricingPlanService';
+import type { UserInfo } from '../services/userService';
+import type { ApplicationEpayConfig } from '../services/pricingPlanService';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+function isJsonValue(value: unknown): value is JsonValue {
+  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    || (Array.isArray(value) ? value.every(isJsonValue) : isJsonObject(value));
+}
+function isJsonObject(value: unknown): value is JsonObject {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && Object.values(value).every(isJsonValue);
+}
+function parseEncryptionConfig(raw: string): JsonObject {
+  const value: unknown = JSON.parse(raw.trim() || '{}');
+  if (!isJsonObject(value)) throw new Error('加密配置须为 JSON 对象，例如 {}');
+  return value;
+}
+type PaymentFormValues = Pick<ApplicationEpayConfig, 'epayUrl' | 'epayPid' | 'epayKey'>;
+type AgentFormValues = AppAgentDTO & { quotaText?: string };
 
 const ApplicationManagementContent: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const { userInfo } = useOutletContext<{ userInfo: any }>();
-  const isSuperAdmin = userInfo?.roles?.some((r: any) => r.roleCode === 'SUPER_ADMIN');
+  const { userInfo } = useOutletContext<{ userInfo?: UserInfo | null }>();
+  const isSuperAdmin = userInfo?.roles?.some((r) => r.roleCode === 'SUPER_ADMIN');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<ApplicationDTO>();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -109,12 +128,7 @@ const ApplicationManagementContent: React.FC = () => {
   const [encryptionSaving, setEncryptionSaving] = useState(false);
   const [encryptionTemplateKeys, setEncryptionTemplateKeys] = useState<string[]>([]);
   const [templateMismatch, setTemplateMismatch] = useState(false);
-  const [encryptionPlugins, setEncryptionPlugins] = useState<Array<{
-    pluginId: string;
-    pluginName: string;
-    keys: string[];
-    template: Record<string, any>;
-  }>>([]);
+  const [encryptionPlugins, setEncryptionPlugins] = useState<EncryptionPlugin[]>([]);
   const [selectedPluginId, setSelectedPluginId] = useState<string>('');
   const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
   const [updatePackageProgress, setUpdatePackageProgress] = useState(0);
@@ -125,20 +139,20 @@ const ApplicationManagementContent: React.FC = () => {
   const [agentApp, setAgentApp] = useState<Application | null>(null);
   const [agentList, setAgentList] = useState<AppAgentDTO[]>([]);
   const [editingAgent, setEditingAgent] = useState<AppAgentDTO | null>(null);
-  const [agentForm] = Form.useForm();
+  const [agentForm] = Form.useForm<AgentFormValues>();
   const [bindUser, setBindUser] = useState<AgentBindUserDTO | null>(null);
   const [bindGithubId, setBindGithubId] = useState('');
   const [bindLookupLoading, setBindLookupLoading] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentApp, setPaymentApp] = useState<Application | null>(null);
-  const [paymentConfig, setPaymentConfig] = useState<any>(null);
+  const [paymentConfig, setPaymentConfig] = useState<PaymentFormValues | null>(null);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [pricingModalVisible, setPricingModalVisible] = useState(false);
   const [pricingApp, setPricingApp] = useState<Application | null>(null);
-  const [pricingList, setPricingList] = useState<any[]>([]);
+  const [pricingList, setPricingList] = useState<PricingPlan[]>([]);
   const [pricingLoading, setPricingLoading] = useState(false);
-  const [pricingForm] = Form.useForm();
-  const [editingPricing, setEditingPricing] = useState<any>(null);
+  const [pricingForm] = Form.useForm<PricingPlanInput>();
+  const [editingPricing, setEditingPricing] = useState<PricingPlan | null>(null);
   const [showPricingForm, setShowPricingForm] = useState(false);
 
   const getEncryptionJsonError = (raw: string): string | null => {
@@ -147,7 +161,7 @@ const ApplicationManagementContent: React.FC = () => {
       return null;
     }
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed: unknown = JSON.parse(trimmed);
       if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
         return '加密配置须为 JSON 对象，例如 {}';
       }
@@ -162,7 +176,7 @@ const ApplicationManagementContent: React.FC = () => {
   const fetchApplications = async (page = 1, size = 10) => {
     setLoading(true);
     try {
-      const result: any = await getApplicationList({
+      const result = await getApplicationList({
         current: page,
         size: size,
       });
@@ -190,7 +204,7 @@ const ApplicationManagementContent: React.FC = () => {
   const loadPricingPlans = async (appId: number) => {
     setPricingLoading(true);
     try {
-      const res: any = await pricingPlanApi.list(appId);
+      const res = await pricingPlanApi.list(appId);
       setPricingList(res?.data || []);
     } catch {
       // handled
@@ -239,7 +253,7 @@ const ApplicationManagementContent: React.FC = () => {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res: any = await uploadApplicationUpdatePackage(editingApp.id, fd, setUpdatePackageProgress);
+      const res = await uploadApplicationUpdatePackage(editingApp.id, fd, setUpdatePackageProgress);
       if (res.code === 200 && res.data) {
         message.success('更新包上传成功');
         setEditingApp({ ...editingApp, ...res.data });
@@ -299,7 +313,7 @@ const ApplicationManagementContent: React.FC = () => {
       };
 
       if (editingApp) {
-        const result: any = await updateApplication(editingApp.id, dto);
+        const result = await updateApplication(editingApp.id, dto);
         if (result.code === 200) {
           message.success('应用更新成功');
           setModalVisible(false);
@@ -308,7 +322,7 @@ const ApplicationManagementContent: React.FC = () => {
           message.error(result.message || '应用更新失败');
         }
       } else {
-        const result: any = await createApplication(dto);
+        const result = await createApplication(dto);
         if (result.code === 200) {
           message.success('应用创建成功');
           setModalVisible(false);
@@ -325,7 +339,7 @@ const ApplicationManagementContent: React.FC = () => {
   // 删除应用
   const handleDelete = async (id: number) => {
     try {
-      const result: any = await deleteApplication(id);
+      const result = await deleteApplication(id);
       if (result.code === 200) {
         message.success('应用删除成功');
         fetchApplications(pagination.current, pagination.pageSize);
@@ -341,7 +355,7 @@ const ApplicationManagementContent: React.FC = () => {
   // 重置密钥
   const handleResetKeys = async (id: number) => {
     try {
-      const result: any = await resetAppKeys(id);
+      const result = await resetAppKeys(id);
       if (result.code === 200) {
         message.success('密钥重置成功');
         fetchApplications(pagination.current, pagination.pageSize);
@@ -357,7 +371,7 @@ const ApplicationManagementContent: React.FC = () => {
   // 更新状态
   const handleUpdateStatus = async (id: number, status: number) => {
     try {
-      const result: any = await updateApplicationStatus(id, status);
+      const result = await updateApplicationStatus(id, status);
       if (result.code === 200) {
         message.success('状态更新成功');
         fetchApplications(pagination.current, pagination.pageSize);
@@ -385,14 +399,14 @@ const ApplicationManagementContent: React.FC = () => {
     setTemplateMismatch(false);
     setEncryptionTemplateKeys([]);
     try {
-      const [configRes, pluginsRes]: any[] = await Promise.all([
+      const [configRes, pluginsRes] = await Promise.all([
         getEncryptionConfig(record.id),
         listEncryptionPlugins(),
       ]);
 
       // 加载应用加密配置
-      let configObj: Record<string, any> = {};
-      if (configRes.code === 200 && configRes.data && typeof configRes.data === 'object') {
+      let configObj: JsonObject = {};
+      if (configRes.code === 200 && isJsonObject(configRes.data)) {
         configObj = configRes.data;
         setEncryptionConfigJson(JSON.stringify(configRes.data, null, 2));
       } else {
@@ -400,7 +414,7 @@ const ApplicationManagementContent: React.FC = () => {
       }
 
       // 加载插件列表
-      const plugins: Array<{ pluginId: string; pluginName: string; keys: string[]; template: Record<string, any> }> =
+      const plugins: EncryptionPlugin[] =
         pluginsRes.code === 200 && Array.isArray(pluginsRes.data) ? pluginsRes.data : [];
       setEncryptionPlugins(plugins);
 
@@ -431,10 +445,10 @@ const ApplicationManagementContent: React.FC = () => {
 
   const handleSaveEncryptionConfig = async () => {
     if (!encryptionApp) return;
-    let parsed: Record<string, unknown>;
+    let parsed: JsonObject;
     try {
       const raw = (encryptionConfigJson || '').trim();
-      parsed = raw === '' ? {} : JSON.parse(raw);
+      parsed = parseEncryptionConfig(raw);
     } catch {
       message.error('JSON 格式不正确，请检查括号与引号');
       return;
@@ -460,12 +474,12 @@ const ApplicationManagementContent: React.FC = () => {
     await doSaveEncryptionConfig(parsed);
   };
 
-  const doSaveEncryptionConfig = async (parsed: Record<string, unknown>) => {
+  const doSaveEncryptionConfig = async (parsed: JsonObject) => {
     if (!encryptionApp) return;
     setEncryptionSaving(true);
     try {
       // 同时保存加密插件标识和加密配置
-      const configRes: any = await updateEncryptionConfig(encryptionApp.id, parsed as Record<string, any>);
+      const configRes = await updateEncryptionConfig(encryptionApp.id, parsed);
       if (selectedPluginId && selectedPluginId !== encryptionApp.encryptionPlugin) {
         await patchApplication(encryptionApp.id, { encryptionPlugin: selectedPluginId });
       }
@@ -504,7 +518,7 @@ const ApplicationManagementContent: React.FC = () => {
     }
     try {
       const raw = (encryptionConfigJson || '').trim();
-      const configObj = raw === '' ? {} : JSON.parse(raw);
+      const configObj = parseEncryptionConfig(raw);
       if (configObj && typeof configObj === 'object' && !Array.isArray(configObj)) {
         const configKeys = Object.keys(configObj).sort();
         const sortedTplKeys = [...tplKeys].sort();
@@ -527,10 +541,10 @@ const ApplicationManagementContent: React.FC = () => {
     setEncryptionTemplateKeys(plugin.keys);
     checkTemplateMismatch(plugin.keys);
 
-    let configObj: Record<string, any> = {};
+    let configObj: JsonObject = {};
     try {
       const raw = (encryptionConfigJson || '').trim();
-      configObj = raw === '' ? {} : JSON.parse(raw);
+      configObj = parseEncryptionConfig(raw);
     } catch {
       configObj = {};
     }
@@ -583,7 +597,7 @@ const ApplicationManagementContent: React.FC = () => {
   const loadAppAgents = async (appId: number) => {
     setAgentLoading(true);
     try {
-      const res: any = await listAppAgents(appId);
+      const res = await listAppAgents(appId);
       if (res.code === 200) {
         setAgentList(res.data || []);
       } else {
@@ -661,7 +675,7 @@ const ApplicationManagementContent: React.FC = () => {
     setBindLookupLoading(true);
     setBindUser(null);
     try {
-      const res: any = await lookupAppAgentBindUser(agentApp.id, githubId);
+      const res = await lookupAppAgentBindUser(agentApp.id, githubId);
       if (res.code === 200 && res.data) {
         setBindUser(res.data);
         agentForm.setFieldValue('userId', res.data.id);
@@ -691,13 +705,13 @@ const ApplicationManagementContent: React.FC = () => {
     try {
       let targetId = editingAgent?.id;
       if (editingAgent?.id) {
-        const res: any = await updateAppAgent(agentApp.id, editingAgent.id, dto);
+        const res = await updateAppAgent(agentApp.id, editingAgent.id, dto);
         if (res.code !== 200) {
           message.error(res.message || '更新代理失败');
           return;
         }
       } else {
-        const res: any = await createAppAgent(agentApp.id, dto);
+        const res = await createAppAgent(agentApp.id, dto);
         if (res.code !== 200 || !res.data?.id) {
           message.error(res.message || '创建代理失败');
           return;
@@ -705,12 +719,12 @@ const ApplicationManagementContent: React.FC = () => {
         targetId = res.data.id;
       }
       if (!targetId) return;
-      const permRes: any = await updateAppAgentPermissions(agentApp.id, targetId, dto.permissions || []);
+      const permRes = await updateAppAgentPermissions(agentApp.id, targetId, dto.permissions || []);
       if (permRes.code !== 200) {
         message.error(permRes.message || '保存代理权限失败');
         return;
       }
-      const quotaRes: any = await updateAppAgentQuotas(agentApp.id, targetId, quotas);
+      const quotaRes = await updateAppAgentQuotas(agentApp.id, targetId, quotas);
       if (quotaRes.code !== 200) {
         message.error(quotaRes.message || '保存代理额度失败');
         return;
@@ -780,7 +794,7 @@ const ApplicationManagementContent: React.FC = () => {
       onClick: () => {
         setPaymentApp(record);
         setPaymentModalVisible(true);
-        applicationEpayConfigApi.getConfig(record.id).then((res: any) => {
+        applicationEpayConfigApi.getConfig(record.id).then((res) => {
           setPaymentConfig(res?.data || { epayUrl: '', epayPid: '', epayKey: '' });
         });
       },
@@ -1068,7 +1082,7 @@ const ApplicationManagementContent: React.FC = () => {
       key: 'traffic',
       width: isMobile ? 80 : 120,
       align: 'right' as const,
-      render: (_: any, record: Application) => {
+      render: (_: unknown, record: Application) => {
         const used = record.trafficUsed || 0;
         const limit = record.trafficLimit || 0;
         return (
@@ -1105,7 +1119,7 @@ const ApplicationManagementContent: React.FC = () => {
       key: 'action',
       width: 100,
       ...(isMobile ? {} : { fixed: 'right' as const }),
-      render: (_: any, record: Application) => {
+      render: (_: unknown, record: Application) => {
         return (
           <Space size="small">
             {!isMobile && (
@@ -1897,14 +1911,14 @@ const ApplicationManagementContent: React.FC = () => {
                   {
                     title: '绑定用户',
                     key: 'userId',
-                    render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
+                    render: (_: unknown, r: AppAgentDTO) => `#${r.userId}`,
                   },
                   { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
                   { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
                   {
                     title: '操作',
                     key: 'action',
-                    render: (_: any, r: AppAgentDTO) => (
+                    render: (_: unknown, r: AppAgentDTO) => (
                       <Button type="link" size="small" onClick={() => onEditAgent(r)}>
                         编辑
                       </Button>
@@ -2021,14 +2035,14 @@ const ApplicationManagementContent: React.FC = () => {
                   {
                     title: '绑定用户',
                     key: 'userId',
-                    render: (_: any, r: AppAgentDTO) => `#${r.userId}`,
+                    render: (_: unknown, r: AppAgentDTO) => `#${r.userId}`,
                   },
                   { title: '范围', dataIndex: 'scopeMode', key: 'scopeMode', render: (v: string) => <Tag>{v}</Tag> },
                   { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
                   {
                     title: '操作',
                     key: 'action',
-                    render: (_: any, r: AppAgentDTO) => (
+                    render: (_: unknown, r: AppAgentDTO) => (
                       <Button type="link" size="small" onClick={() => onEditAgent(r)}>
                         编辑
                       </Button>
@@ -2150,7 +2164,7 @@ const ApplicationManagementContent: React.FC = () => {
               { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
               {
                 title: '操作', key: 'action',
-                render: (_: any, record: any) => (
+                render: (_: unknown, record: PricingPlan) => (
                   <Space>
                     <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
                     <Button size="small" danger onClick={() => {
@@ -2170,7 +2184,7 @@ const ApplicationManagementContent: React.FC = () => {
           />
           {showPricingForm ? (
             <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
-              <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
+              <Form form={pricingForm} layout="vertical" onFinish={async (values: PricingPlanInput) => {
                 try {
                   if (editingPricing) {
                     await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);
@@ -2259,7 +2273,7 @@ const ApplicationManagementContent: React.FC = () => {
               { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
               {
                 title: '操作', key: 'action',
-                render: (_: any, record: any) => (
+                render: (_: unknown, record: PricingPlan) => (
                   <Space>
                     <Button size="small" onClick={() => { setEditingPricing(record); setShowPricingForm(true); pricingForm.setFieldsValue(record); }}>编辑</Button>
                     <Button size="small" danger onClick={() => {
@@ -2279,7 +2293,7 @@ const ApplicationManagementContent: React.FC = () => {
           />
           {showPricingForm ? (
             <Card title={editingPricing ? '编辑方案' : '新增方案'} style={{ marginTop: 16 }}>
-              <Form form={pricingForm} layout="vertical" onFinish={async (values: any) => {
+              <Form form={pricingForm} layout="vertical" onFinish={async (values: PricingPlanInput) => {
                 try {
                   if (editingPricing) {
                     await pricingPlanApi.update(pricingApp!.id, editingPricing.id, values);

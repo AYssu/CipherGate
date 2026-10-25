@@ -9,7 +9,11 @@ import lombok.Data;
  * 开放试用接口请求参数
  */
 @Data
-public class OpenTrialRequest {
+public class OpenTrialRequest extends PublicChallengeRequest {
+    @NotBlank(message = "请输入该应用账号密码")
+    @jakarta.validation.constraints.Size(max = 100)
+    private String password;
+
 
     @NotBlank(message = "email不能为空")
     @Email(message = "email格式不正确")

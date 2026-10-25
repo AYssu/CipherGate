@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Data
 @Schema(description = "公开-卡密查询剩余时间请求")
-public class PublicLicenseQueryRequest {
+public class PublicLicenseQueryRequest extends PublicChallengeRequest {
 
     @NotNull(message = "应用ID不能为空")
     @Schema(description = "应用ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)

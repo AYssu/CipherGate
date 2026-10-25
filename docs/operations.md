@@ -165,24 +165,38 @@ python3 operations.py backup backups/before-upgrade.sql.gz
 
 ### 恢复数据库
 
-恢复会修改目标库。先停止业务写入，优先在另一 Compose 项目和全新数据卷中演练，保留原现场：
+恢复脚本只允许导入**已存在的空库**；默认安装库非空时会拒绝，避免旧备份留下新版本新增表。先停止业务写入，保留当前库和完整备份，在隔离 Compose 项目／数据卷中演练。脚本不会删除现有业务表，也不会自动切换生产连接。
 
-```bash
-docker compose -f docker-compose.server.yml stop backend frontend
-python3 operations.py restore backups/before-upgrade.sql.gz --confirm-database ciphergate
+1. 创建恢复库，例如 `ciphergate_restore_20261025`。使用 MySQL 管理账户执行以下 SQL，按实际应用数据库账户授权：
+
+```sql
+CREATE DATABASE ciphergate_restore_20261025 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL ON ciphergate_restore_20261025.* TO 'ciphergate'@'%';
 ```
 
-自定义项目或多个 Compose 文件需要使用原参数，参数位于子命令之前；停止业务时也须使用相同的 Compose 项目和文件：
+2. 校验并导入旧备份；库名确认必须与目标完全一致：
+
+```bash
+python3 operations.py restore backups/before-upgrade.sql.gz \
+  --target-database ciphergate_restore_20261025 \
+  --confirm-database ciphergate_restore_20261025
+```
+
+自定义项目或多个 Compose 文件使用原参数，参数位于子命令之前；停止业务也使用相同项目与文件：
 
 ```bash
 python3 operations.py --directory /srv/CipherGate --project-name ciphergate \
   --compose-file docker-compose.server.yml --compose-file /srv/runtime.override.json \
-  restore backups/时间-update/database.sql.gz --confirm-database ciphergate
+  restore backups/时间-update/database.sql.gz \
+  --target-database ciphergate_restore_20261025 --confirm-database ciphergate_restore_20261025
 ```
 
-恢复前脚本校验 SHA256、gzip 完整性和明确的目标库名。SQL 导入不是原子操作，失败后保持应用停止，排查原因，必要时重建隔离目标再重试。全库备份包含 DROP/CREATE，不能当增量补丁使用；恢复到空库可避免备份中不存在的新表残留。
+3. 在隔离环境将后端 `SPRING_DATASOURCE_URL` 指向恢复库，以目标发布版本启动。Flyway 验证历史并执行尚未应用的迁移；核对关键表行数、会员余额、充值流水和下载对象。CI 从真实发布 JAR 读取全部迁移版本，演练 V1→当前版本（含 V2、V3）→恢复到空库→重新升级，验证业务标记保留、全部迁移各执行一次且没有残留新表。
+4. 维护窗口内停止旧前后端写入并再次确认恢复时间点和对账方案。备份私有配置后，按原部署方式显式切换后端连接到验证后的库，再执行 readiness 与业务检查。不要修改 MySQL 容器的 `MYSQL_DATABASE` 来重建原有数据卷；它只参与首次初始化。保留旧库供核对，回切须评估恢复后产生的新写入。
 
-恢复后核对关键表行数、Flyway 历史和业务读取，再启动应用。MinIO 另用 S3 客户端同步到独立存储，并验证对象下载；SQL、配置和对象备份应属于同一恢复时间点。不要只复制正在写入的 MySQL 数据目录，不运行 `docker compose down -v`。
+恢复前脚本校验 SHA256、gzip 完整性、目标库名和目标为空。SQL 导入不是原子操作，失败时保持应用停止，保留失败现场，另建空库重试。需要独立演练备份时可使用 `backup 文件 --database 隔离库名`，默认备份仍使用安装库。
+
+MinIO 另用 S3 客户端同步到独立存储并验证下载；SQL、配置、对象应属于同一恢复时间点。备份后的写入不会自动回放，涉及充值时先对账。不要只复制正在写入的 MySQL 数据目录，不运行 `docker compose down -v`。
 
 ## 平台回退
 

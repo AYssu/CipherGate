@@ -19,5 +19,6 @@ public class PortalPasswordRecoveryRequest {
     private Long appId;
 
     @NotBlank(message = "新密码不能为空")
+    @jakarta.validation.constraints.Size(min = 6, max = 50, message = "密码长度6-50位")
     private String newPassword;
 }

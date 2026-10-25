@@ -50,6 +50,7 @@ public class AppUser implements Serializable {
     /**
      * 密码(加密存储)
      */
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     private String password;
     
     /**

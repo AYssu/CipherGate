@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Form, Input, message } from 'antd';
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+import { usePublicChallenge } from '../components/usePublicChallenge';
 import PublicServiceLayout from '../components/PublicServiceLayout';
 import { sendAppUserRegisterEmailCode, submitAppUserRegister } from '../services/appUserRegisterPublicService';
 
@@ -12,6 +13,7 @@ export default function AppUserRegisterPage() {
   const id = Number(params.get('id'));
   const appId = Number.isSafeInteger(id) && id > 0 ? id : null;
   const [form] = Form.useForm<Registration>();
+  const challenge = usePublicChallenge('register-email');
   const [countdown, setCountdown] = useState(0);
   const [sending, setSending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,13 +28,14 @@ export default function AppUserRegisterPage() {
     if (!appId || sending || countdown) return;
     try { await form.validateFields(['username', 'email']); }
     catch { message.error('请先填写用户名与有效邮箱'); return; }
+    const verification = challenge.get(); if (!verification) return;
     setSending(true);
     try {
-      await sendAppUserRegisterEmailCode(appId, form.getFieldValue('email').trim().toLowerCase());
+      await sendAppUserRegisterEmailCode(appId, form.getFieldValue('email').trim().toLowerCase(), verification);
       setCountdown(60);
       message.success('验证码已发送，请查收邮件');
     } catch { /* The request interceptor displays the error. */ }
-    finally { setSending(false); }
+    finally { setSending(false); void challenge.refresh(); }
   }
 
   async function register(values: Registration) {
@@ -57,6 +60,7 @@ export default function AppUserRegisterPage() {
           <Form.Item name="email" label="注册邮箱" rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '邮箱格式不正确' }, { max: 100, message: '邮箱不能超过100个字符' }]}>
             <Input prefix={<MailOutlined />} placeholder="name@example.com" autoComplete="email" inputMode="email" />
           </Form.Item>
+          {challenge.fields}
           <Form.Item label="邮箱验证码" extra="验证码 3 分钟内有效。未收到时，请检查垃圾邮件。">
             <div className="public-service-row">
               <Form.Item name="emailCode" noStyle rules={[{ required: true, message: '请输入邮箱验证码' }, { pattern: /^\d{6}$/, message: '请输入6位数字验证码' }]}>
@@ -65,8 +69,8 @@ export default function AppUserRegisterPage() {
               <Button loading={sending} disabled={!appId || countdown > 0} onClick={() => void sendCode()}>{countdown ? `${countdown} 秒后重发` : '发送验证码'}</Button>
             </div>
           </Form.Item>
-          <Form.Item name="password" label="设置密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 100, message: '密码长度为6～100位' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="至少6位" autoComplete="new-password" maxLength={100} />
+          <Form.Item name="password" label="设置密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 50, message: '密码长度为6～50位，UTF-8不超过72字节' }]}>
+            <Input.Password prefix={<LockOutlined />} placeholder="至少6位" autoComplete="new-password" maxLength={50} />
           </Form.Item>
           <Form.Item name="confirmPassword" label="确认密码" dependencies={['password']} rules={[{ required: true, message: '请再次输入密码' }, ({ getFieldValue }) => ({ validator(_, value) { return !value || getFieldValue('password') === value ? Promise.resolve() : Promise.reject(new Error('两次输入的密码不一致')); } })]}>
             <Input.Password placeholder="再次输入密码" autoComplete="new-password" />

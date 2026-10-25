@@ -1,3 +1,4 @@
+import type { PortalPricingPlan } from '../services/types';
 import React, { useEffect, useState } from 'react';
 import { Card, Typography, Row, Col, Button, Tag, message, Modal } from 'antd';
 import { CrownOutlined, CheckCircleOutlined } from '@ant-design/icons';
@@ -7,17 +8,8 @@ import { portalPaymentApi } from '../services/portalPaymentService';
 
 const { Title, Text } = Typography;
 
-interface PricingPlan {
-  id: number;
-  planName: string;
-  planType: string;
-  durationDays: number | null;
-  priceFen: number;
-  sortOrder: number;
-}
-
 const PortalRechargePage: React.FC = () => {
-  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [plans, setPlans] = useState<PortalPricingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState<number | null>(null);
   const navigate = useNavigate();
@@ -28,7 +20,7 @@ const PortalRechargePage: React.FC = () => {
 
   const loadPlans = async () => {
     try {
-      const res: any = await portalMembershipApi.getPlans();
+      const res = await portalMembershipApi.getPlans();
       setPlans(res?.data || []);
     } catch {
       // ignore
@@ -37,10 +29,10 @@ const PortalRechargePage: React.FC = () => {
     }
   };
 
-  const handleOrder = async (plan: PricingPlan) => {
+  const handleOrder = async (plan: PortalPricingPlan) => {
     setOrdering(plan.id);
     try {
-      const res: any = await portalPaymentApi.createOrder(plan.id);
+      const res = await portalPaymentApi.createOrder(plan.id);
       if (res?.data) {
         Modal.confirm({
           title: '确认支付',

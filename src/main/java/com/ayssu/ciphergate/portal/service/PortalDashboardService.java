@@ -101,11 +101,13 @@ public class PortalDashboardService {
     }
 
     public List<PortalLoginLog> getLoginHistory(Long appUserId, int page, int size) {
+        if (page < 1 || size < 1 || size > 100) throw new IllegalArgumentException("页码必须大于0，每页数量须为1～100");
+        long offset = Math.multiplyExact((long) page - 1L, size);
         return loginLogMapper.selectList(
             new LambdaQueryWrapper<PortalLoginLog>()
                 .eq(PortalLoginLog::getAppUserId, appUserId)
                 .orderByDesc(PortalLoginLog::getCreatedAt)
-                .last("LIMIT " + size + " OFFSET " + (page - 1) * size)
+                .last("LIMIT " + size + " OFFSET " + offset)
         );
     }
 

@@ -1,3 +1,4 @@
+import { normalizeResponse, shouldExpireSession } from '../services/apiResponse';
 import axios from 'axios';
 import { message } from 'antd';
 
@@ -27,20 +28,8 @@ request.interceptors.response.use(
     if (response.config.responseType === 'blob') {
       return response;
     }
-    const { data } = response;
-
-    // 如果后端返回的数据结构是 { success: boolean, data: any, message: string }
-    if (data && typeof data.success === 'boolean') {
-      if (data.success) {
-        return data; // 返回完整的响应数据，包含 data 字段
-      } else {
-        message.error(data.message || '请求失败');
-        return Promise.reject(new Error(data.message || '请求失败'));
-      }
-    }
-
-    // 如果不是标准格式，直接返回数据
-    return { data }; // 包装成标准格式
+    try { return normalizeResponse(response.data) as unknown as typeof response; }
+    catch (error) { message.error(error instanceof Error ? error.message : '请求失败'); return Promise.reject(error); }
   },
   (error) => {
     // 处理 HTTP 错误响应
@@ -50,7 +39,7 @@ request.interceptors.response.use(
       switch (status) {
         case 401:
           // 未登录或登录已过期，跳转到首页登录
-          if (!isRedirectingToLogin) {
+          if (shouldExpireSession(error.config?.url, 'admin') && !isRedirectingToLogin) {
             isRedirectingToLogin = true;
             const errorMsg = data?.message || '登录已过期，请重新登录';
             message.warning(errorMsg, 2, () => {

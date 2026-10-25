@@ -11,7 +11,11 @@ import lombok.Data;
  * 开放试用到期时间查询参数
  */
 @Data
-public class OpenTrialExpireQueryRequest {
+public class OpenTrialExpireQueryRequest extends PublicChallengeRequest {
+    @NotBlank(message = "请输入该应用账号密码")
+    @jakarta.validation.constraints.Size(max = 100)
+    private String password;
+
 
     @NotBlank(message = "email不能为空")
     @Email(message = "email格式不正确")

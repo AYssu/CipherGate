@@ -1,3 +1,4 @@
+import type { UserMembershipSummary, MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Tabs, Grid, Dropdown, Select } from 'antd';
 import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -22,11 +23,11 @@ const formatMoney = (fen: number | null | undefined) => {
 const UserMembershipPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [users, setUsers] = React.useState<any[]>([]);
+  const [users, setUsers] = React.useState<UserMembershipSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [levels, setLevels] = React.useState<any[]>([]);
+  const [levels, setLevels] = React.useState<MembershipLevel[]>([]);
   const [detailVisible, setDetailVisible] = React.useState(false);
-  const [editingUser, setEditingUser] = React.useState<any>(null);
+  const [editingUser, setEditingUser] = React.useState<UserMembershipSummary | null>(null);
   const [editType, setEditType] = React.useState<string>('');
   const [selectedRowKeys, setSelectedRowKeys] = React.useState<number[]>([]);
   const [form] = Form.useForm();
@@ -56,18 +57,18 @@ const UserMembershipPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const openDetail = (record: any) => {
+  const openDetail = (record: UserMembershipSummary) => {
     setEditingUser(record);
     setDetailVisible(true);
   };
 
-  const openEditLevel = (record: any) => {
+  const openEditLevel = (record: UserMembershipSummary) => {
     setEditingUser(record);
     setEditType('level');
     form.setFieldsValue({ levelId: record.levelId });
   };
 
-  const openEditExtraQuota = (record: any) => {
+  const openEditExtraQuota = (record: UserMembershipSummary) => {
     setEditingUser(record);
     setEditType('extraQuota');
     form.setFieldsValue({
@@ -78,7 +79,7 @@ const UserMembershipPage: React.FC = () => {
     });
   };
 
-  const openEditBalance = (record: any) => {
+  const openEditBalance = (record: UserMembershipSummary) => {
     setEditingUser(record);
     setEditType('balance');
     form.resetFields();
@@ -132,16 +133,16 @@ const UserMembershipPage: React.FC = () => {
     { title: 'ID', dataIndex: 'userId', key: 'userId', width: 70 },
     { title: '会员等级', dataIndex: 'levelName', key: 'levelName', render: (v: string) => <Tag color="blue">{v}</Tag> },
     { title: '余额', dataIndex: 'balance', key: 'balance', render: (v: number) => formatMoney(v) },
-    { title: '应用', key: 'app', render: (_: any, r: any) => <span>{r.appUsed || 0} / {r.appTotal}</span> },
-    { title: '卡密', key: 'license', render: (_: any, r: any) => <span>{r.licenseUsed || 0} / {r.licenseTotal}</span> },
-    { title: '终端用户', key: 'userReg', render: (_: any, r: any) => <span>{r.userRegisterUsed || 0} / {r.userRegisterTotal}</span> },
-    { title: '流量', key: 'traffic', render: (_: any, r: any) => <span>{formatBytes(r.trafficUsed)} / {formatBytes(r.trafficTotal)}</span> },
+    { title: '应用', key: 'app', render: (_: unknown, r: UserMembershipSummary) => <span>{r.appUsed || 0} / {r.appTotal}</span> },
+    { title: '卡密', key: 'license', render: (_: unknown, r: UserMembershipSummary) => <span>{r.licenseUsed || 0} / {r.licenseTotal}</span> },
+    { title: '终端用户', key: 'userReg', render: (_: unknown, r: UserMembershipSummary) => <span>{r.userRegisterUsed || 0} / {r.userRegisterTotal}</span> },
+    { title: '流量', key: 'traffic', render: (_: unknown, r: UserMembershipSummary) => <span>{formatBytes(r.trafficUsed)} / {formatBytes(r.trafficTotal)}</span> },
     ...(inviteEnabled ? [{ title: '邀请人数', dataIndex: 'inviteCount', key: 'inviteCount', render: (v: number) => v || 0 }] : []),
     { title: '签到天数', dataIndex: 'totalCheckinDays', key: 'totalCheckinDays', render: (v: number) => v || 0 },
     { title: '到期时间', dataIndex: 'memberExpiresAt', key: 'memberExpiresAt', render: (v: string) => v || '永久' },
     {
       title: '操作', key: 'action', width: 200,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: UserMembershipSummary) => {
         if (isMobile) {
           return (
             <Dropdown
@@ -174,7 +175,7 @@ const UserMembershipPage: React.FC = () => {
   const MOBILE_VISIBLE_KEYS = ['levelName', 'app', 'traffic', 'action'];
   const displayColumns = isMobile
     ? allColumns
-        .filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes((c as any).dataIndex as string))
+        .filter((c) => MOBILE_VISIBLE_KEYS.includes(c.key as string) || MOBILE_VISIBLE_KEYS.includes(('dataIndex' in c ? c.dataIndex : '') as string))
         .map((c) => c.key === 'action' ? { ...c, width: 60 } : c)
     : allColumns;
 
@@ -184,7 +185,7 @@ const UserMembershipPage: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item name="levelId" label="会员等级" rules={[{ required: true }]}>
             <Select placeholder="选择会员等级">
-              {levels.map((l: any) => <Select.Option key={l.id} value={l.id}>{l.levelName} (¥{l.price})</Select.Option>)}
+              {levels.map((l: MembershipLevel) => <Select.Option key={l.id} value={l.id}>{l.levelName} (¥{l.price})</Select.Option>)}
             </Select>
           </Form.Item>
         </Form>

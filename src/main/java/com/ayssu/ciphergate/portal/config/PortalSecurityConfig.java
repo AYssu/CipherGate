@@ -45,10 +45,10 @@ public class PortalSecurityConfig {
                     "/api/portal/auth/captcha",
                     "/api/portal/auth/login",
                     "/api/portal/auth/recovery/**",
-                    "/api/portal/auth/verify-email-code",
                     "/api/portal/payment/notify",
                     "/api/portal/payment/return"
                 ).permitAll()
+                .requestMatchers("/api/portal/auth/select-app").hasRole("PORTAL_SELECT")
                 .anyRequest().hasRole("PORTAL_USER")
             )
             .addFilterBefore(portalJwtFilter, UsernamePasswordAuthenticationFilter.class)

@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface SystemInfo {
@@ -91,22 +92,22 @@ export const systemApi = {
 
   // 检查系统是否已初始化
   checkInitStatus: () => {
-    return request.get('/config/init/status');
+    return request.get<unknown, ApiResponse<{ initialized: boolean }>>('/config/init/status');
   },
 
   // 初始化系统配置
   initializeSystem: (data: { clientId: string; clientSecret: string; redirectUri: string; frontendUrl: string }) => {
-    return request.post('/config/init', data);
+    return request.post<unknown, ApiResponse<null>>('/config/init', data);
   },
 
   // 获取站点公共展示信息（备案等）
   getPublicSiteInfo: () => {
-    return request.get('/config/public/site-info');
+    return request.get<unknown, ApiResponse<SiteInfo>>('/config/public/site-info');
   },
 
   /** GitHub OAuth 授权入口与前端地址（后端从 redirect-uri / 配置解析，无需登录） */
   getPublicOAuth2Login: () => {
-    return request.get('/config/public/oauth2-login');
+    return request.get<unknown, ApiResponse<PublicOAuth2LoginInfo>>('/config/public/oauth2-login');
   },
 
   getSystemSettings: () => {
@@ -153,12 +154,12 @@ export const systemApi = {
 
   /** 密码登录 */
   passwordLogin: (data: { login: string; password: string }) => {
-    return request.post('/auth/login', data);
+    return request.post<unknown, ApiResponse<null>>('/auth/login', data);
   },
 
   /** 设置密码（已登录用户） */
   setPassword: (data: { newPassword: string }) => {
-    return request.post('/auth/set-password', data);
+    return request.post<unknown, ApiResponse<null>>('/auth/set-password', data);
   },
 
   uploadGeoIpDb: (dbType: 'country' | 'city', file: File) => {

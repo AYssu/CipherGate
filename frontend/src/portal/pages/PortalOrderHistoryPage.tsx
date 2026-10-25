@@ -1,3 +1,4 @@
+import type { PortalOrder } from '../services/types';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Typography, Table, Tag, message } from 'antd';
 import { useSearchParams } from 'react-router-dom';
@@ -14,7 +15,7 @@ const statusMap: Record<number, { color: string; text: string }> = {
 };
 
 const PortalOrderHistoryPage: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [searchParams] = useSearchParams();
@@ -22,7 +23,7 @@ const PortalOrderHistoryPage: React.FC = () => {
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res: any = await portalPaymentApi.getOrders(page, 20);
+      const res = await portalPaymentApi.getOrders(page, 20);
       setOrders(res?.data || []);
     } catch {
       // ignore

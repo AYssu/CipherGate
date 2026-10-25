@@ -1,3 +1,4 @@
+import type { PortalDashboardStats, PortalLoginLog } from '../services/types';
 import React, { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Typography, Table, Tag } from 'antd';
 import { LoginOutlined, MobileOutlined, EnvironmentOutlined, ClockCircleOutlined, SafetyOutlined } from '@ant-design/icons';
@@ -7,8 +8,8 @@ import { portalDashboardApi } from '../services/portalDashboardService';
 const { Title, Text } = Typography;
 
 const PortalDashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [loginHistory, setLoginHistory] = useState<any[]>([]);
+  const [stats, setStats] = useState<PortalDashboardStats | null>(null);
+  const [loginHistory, setLoginHistory] = useState<PortalLoginLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ const PortalDashboardPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, historyRes]: any[] = await Promise.all([
+      const [statsRes, historyRes] = await Promise.all([
         portalDashboardApi.getStats(),
         portalDashboardApi.getLoginHistory(1, 10),
       ]);
@@ -38,9 +39,9 @@ const PortalDashboardPage: React.FC = () => {
 
   const loginTrendOption = {
     tooltip: { trigger: 'axis' as const },
-    xAxis: { type: 'category' as const, data: stats?.loginTrend?.map((t: any) => t.date?.slice(5)) || [] },
+    xAxis: { type: 'category' as const, data: stats?.loginTrend?.map((t) => t.date?.slice(5)) || [] },
     yAxis: { type: 'value' as const },
-    series: [{ data: stats?.loginTrend?.map((t: any) => t.count) || [], type: 'line', smooth: true, areaStyle: {}, color: '#1890ff' }],
+    series: [{ data: stats?.loginTrend?.map((t) => t.count) || [], type: 'line', smooth: true, areaStyle: {}, color: '#1890ff' }],
     grid: { left: 40, right: 16, top: 16, bottom: 30 },
   };
 
@@ -139,7 +140,7 @@ const PortalDashboardPage: React.FC = () => {
         </Col>
         <Col xs={24} lg={10}>
           <Card title="IP 归属分布" loading={loading}>
-            {stats?.ipDistribution?.length > 0 ? (
+            {(stats?.ipDistribution?.length ?? 0) > 0 ? (
               <ReactECharts option={ipPieOption} style={{ height: 280 }} />
             ) : (
               <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无数据</div>

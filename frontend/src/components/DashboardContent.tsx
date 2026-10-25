@@ -109,9 +109,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
           dashboardApi.getOnline(),
           dashboardApi.getTrend7d(),
         ]);
-        setOverview((overviewRes as any).data || null);
-        setOnlineStats((onlineRes as any).data || null);
-        setTrend7d((trendRes as any).data || []);
+        setOverview(overviewRes.data || null);
+        setOnlineStats(onlineRes.data || null);
+        setTrend7d(trendRes.data || []);
       } catch {
         /* 拦截器已提示 */
       } finally {
@@ -129,7 +129,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       setLoadingActivities(true);
       try {
         const result = await activityApi.getRecentActivities(5);
-        setRecentActivities((result as any).data || []);
+        setRecentActivities(result.data || []);
       } catch (error) {
         console.error('获取活动日志失败:', error);
         message.error('获取活动日志失败');
@@ -205,7 +205,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       await activityApi.markAsRead(id);
       // 刷新活动列表
       const result = await activityApi.getRecentActivities(5);
-      setRecentActivities((result as any).data || []);
+      setRecentActivities(result.data || []);
       // 如果弹窗打开，也刷新弹窗列表
       if (allActivitiesVisible) {
         fetchAllActivities(currentPage, pageSize);
@@ -253,7 +253,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     setLoadingAllActivities(true);
     try {
       const result = await activityApi.getRecentActivitiesPage(page, size);
-      const data = (result as any).data;
+      const data = result.data;
       setAllActivities(data.records || []);
       setTotal(data.total || 0);
       setCurrentPage(page);

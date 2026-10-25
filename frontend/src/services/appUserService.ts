@@ -1,4 +1,5 @@
 import request from '../utils/request';
+import type { ApiResponse, PageResult } from './apiResponse';
 
 // 应用终端用户类型定义
 export interface AppUser {
@@ -82,42 +83,42 @@ export interface AppUserQueryDTO {
 
 // 获取终端用户列表
 export const getAppUserList = (params: AppUserQueryDTO) => {
-  return request.get('/app-users', { params });
+  return request.get<unknown, ApiResponse<PageResult<AppUser>>>('/app-users', { params });
 };
 
 // 获取终端用户详情
 export const getAppUserById = (id: number) => {
-  return request.get(`/app-users/${id}`);
+  return request.get<unknown, ApiResponse<AppUser>>(`/app-users/${id}`);
 };
 
 // 创建终端用户
 export const createAppUser = (data: AppUserDTO) => {
-  return request.post('/app-users', data);
+  return request.post<unknown, ApiResponse<AppUser>>('/app-users', data);
 };
 
 // 更新终端用户
 export const updateAppUser = (id: number, data: AppUserDTO) => {
-  return request.put(`/app-users/${id}`, data);
+  return request.put<unknown, ApiResponse<AppUser>>(`/app-users/${id}`, data);
 };
 
 // 删除终端用户
 export const deleteAppUser = (id: number) => {
-  return request.delete(`/app-users/${id}`);
+  return request.delete<unknown, ApiResponse<null>>(`/app-users/${id}`);
 };
 
 // 重置用户密码
 export const resetPassword = (id: number, newPassword: string) => {
-  return request.post(`/app-users/${id}/reset-password`, { newPassword });
+  return request.post<unknown, ApiResponse<null>>(`/app-users/${id}/reset-password`, { newPassword });
 };
 
 // 封禁/解封用户
 export const banUser = (id: number, ban: boolean, reason?: string, bindingId?: number) => {
-  return request.post(`/app-users/${id}/ban`, { ban, reason, bindingId });
+  return request.post<unknown, ApiResponse<null>>(`/app-users/${id}/ban`, { ban, reason, bindingId });
 };
 
 // 强制下线终端用户 WS（CloseStatus=MEMBER_EXPIRED）
 export const kickAppUserWs = (id: number) => {
-  return request.post(`/app-users/${id}/kick-ws`);
+  return request.post<unknown, ApiResponse<null>>(`/app-users/${id}/kick-ws`);
 };
 
 export interface BatchIdsDTO {
@@ -184,26 +185,26 @@ export interface AppUserBatchExtendMemberResultDTO {
 
 // 获取用户绑定设备列表
 export const getUserBindings = (userId: number, current = 1, size = 10) => {
-  return request.get(`/app-users/${userId}/bindings`, { 
+  return request.get<unknown, ApiResponse<PageResult<AppUserBinding>>>(`/app-users/${userId}/bindings`, {
     params: { current, size } 
   });
 };
 
 // 解绑用户设备
 export const unbindDevice = (userId: number, bindingId: number, reason?: string) => {
-  return request.delete(`/app-users/${userId}/bindings/${bindingId}`, {
+  return request.delete<unknown, ApiResponse<null>>(`/app-users/${userId}/bindings/${bindingId}`, {
     data: { reason }
   });
 };
 
 /** 延长会员天数（在「当前时间」与「原到期时间」中较晚者基础上累加） */
 export const extendMemberDays = (id: number, days: number) => {
-  return request.post(`/app-users/${id}/extend-member`, { days });
+  return request.post<unknown, ApiResponse<AppUser>>(`/app-users/${id}/extend-member`, { days });
 };
 
 /** 批量延长会员天数（按天累加到到期时间） */
 export const batchExtendMemberDays = (data: AppUserBatchExtendMemberDTO) => {
-  return request.post('/app-users/batch-extend-member', data);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-extend-member', data);
 };
 
 export type MemberExtendUnit = 'MINUTE' | 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'PERMANENT';
@@ -221,45 +222,45 @@ export interface AppUserBatchExtendMemberDurationDTO {
 
 /** 按单位延长会员（分钟/小时/天/周/月/年/永久） */
 export const extendMemberDuration = (id: number, body: ExtendMemberDurationDTO) => {
-  return request.post(`/app-users/${id}/extend-member-duration`, body);
+  return request.post<unknown, ApiResponse<AppUser>>(`/app-users/${id}/extend-member-duration`, body);
 };
 
 /** 批量按单位延长会员（分钟/小时/天/周/月/年/永久） */
 export const batchExtendMemberDuration = (body: AppUserBatchExtendMemberDurationDTO) => {
-  return request.post('/app-users/batch-extend-member-duration', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-extend-member-duration', body);
 };
 
 /** 批量按单位扣时（不支持永久） */
 export const batchSubtractMemberDuration = (body: AppUserBatchExtendMemberDurationDTO) => {
-  return request.post('/app-users/batch-subtract-member-duration', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-subtract-member-duration', body);
 };
 
 /** 批量下线 WS（CloseStatus=MEMBER_EXPIRED） */
 export const batchKickAppUserWs = (body: BatchIdsDTO) => {
-  return request.post('/app-users/batch-kick-ws', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-kick-ws', body);
 };
 
 /** 批量封禁/解禁（封禁会踢线） */
 export const batchBanAppUsers = (body: BatchBanDTO) => {
-  return request.post('/app-users/batch-ban', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-ban', body);
 };
 
 /** 批量删除 */
 export const batchDeleteAppUsers = (body: BatchIdsDTO) => {
-  return request.post('/app-users/batch-delete', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/batch-delete', body);
 };
 
 /** 选中应用：未到期会员批量加时 */
 export const extendNotExpiredInApp = (body: AppUserAppNotExpiredDurationDTO) => {
-  return request.post('/app-users/extend-not-expired-in-app', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/extend-not-expired-in-app', body);
 };
 
 /** 选中应用：未到期会员批量扣时 */
 export const subtractNotExpiredInApp = (body: AppUserAppNotExpiredDurationDTO) => {
-  return request.post('/app-users/subtract-not-expired-in-app', body);
+  return request.post<unknown, ApiResponse<AppUserBatchExtendMemberResultDTO>>('/app-users/subtract-not-expired-in-app', body);
 };
 
 /** 直接设置或清空会员到期；memberExpiresAt 为 null 表示清空 */
 export const setMemberExpiresAt = (id: number, memberExpiresAt: string | null) => {
-  return request.put(`/app-users/${id}/member-expires`, { memberExpiresAt });
+  return request.put<unknown, ApiResponse<AppUser>>(`/app-users/${id}/member-expires`, { memberExpiresAt });
 };

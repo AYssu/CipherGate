@@ -1,3 +1,7 @@
+import type { ApiResponse } from './apiResponse';
+import type { JsonObject, PageResult } from './contracts';
+export type { JsonValue, JsonObject } from './contracts';
+export interface EncryptionPlugin { pluginId: string; pluginName: string; keys: string[]; template: JsonObject }
 import request from '../utils/request';
 
 export interface Application {
@@ -17,8 +21,8 @@ export interface Application {
   businessModel: number;
   status: number;
   encryptionPlugin?: string;
-  encryptionConfig?: Record<string, any>;
-  features?: Record<string, any>;
+  encryptionConfig?: JsonObject;
+  features?: JsonObject;
   trafficLimit?: number;
   trafficUsed?: number;
   currentVersion?: string;
@@ -59,8 +63,8 @@ export interface ApplicationDTO {
   businessModel: number;
   status?: number;
   encryptionPlugin?: string;
-  encryptionConfig?: Record<string, any>;
-  features?: Record<string, any>;
+  encryptionConfig?: JsonObject;
+  features?: JsonObject;
   trafficLimit?: number;
   currentVersion?: string;
   minVersion?: string;
@@ -75,61 +79,61 @@ export interface ApplicationDTO {
  * 获取应用列表
  */
 export const getApplicationList = (params: ApplicationQuery) => {
-  return request.get('/applications', { params });
+  return request.get<unknown, ApiResponse<PageResult<Application>>>('/applications', { params });
 };
 
 /**
  * 获取应用详情
  */
 export const getApplicationById = (id: number) => {
-  return request.get(`/applications/${id}`);
+  return request.get<unknown, ApiResponse<Application>>(`/applications/${id}`);
 };
 
 /**
  * 创建应用
  */
 export const createApplication = (data: ApplicationDTO) => {
-  return request.post('/applications', data);
+  return request.post<unknown, ApiResponse<Application>>('/applications', data);
 };
 
 /**
  * 更新应用
  */
 export const updateApplication = (id: number, data: ApplicationDTO) => {
-  return request.put(`/applications/${id}`, data);
+  return request.put<unknown, ApiResponse<Application>>(`/applications/${id}`, data);
 };
 
 /** 仅更新应用部分字段 */
 export const patchApplication = (id: number, data: Partial<ApplicationDTO>) => {
-  return request.put(`/applications/${id}`, data);
+  return request.put<unknown, ApiResponse<Application>>(`/applications/${id}`, data);
 };
 
 /**
  * 删除应用
  */
 export const deleteApplication = (id: number) => {
-  return request.delete(`/applications/${id}`);
+  return request.delete<unknown, ApiResponse<string>>(`/applications/${id}`);
 };
 
 /**
  * 生成应用密钥
  */
 export const generateAppKeys = () => {
-  return request.post('/applications/generate-keys');
+  return request.post<unknown, ApiResponse<{ appKey: string; appSecret: string }>>('/applications/generate-keys');
 };
 
 /**
  * 重置应用密钥
  */
 export const resetAppKeys = (id: number) => {
-  return request.post(`/applications/${id}/reset-keys`);
+  return request.post<unknown, ApiResponse<{ appKey: string; appSecret: string }>>(`/applications/${id}/reset-keys`);
 };
 
 /**
  * 生成加密密钥对
  */
 export const generateEncryptionKeys = (pluginId: string) => {
-  return request.post('/applications/generate-encryption-keys', null, {
+  return request.post<unknown, ApiResponse<JsonObject>>('/applications/generate-encryption-keys', null, {
     params: { pluginId }
   });
 };
@@ -138,7 +142,7 @@ export const generateEncryptionKeys = (pluginId: string) => {
  * 更新应用状态
  */
 export const updateApplicationStatus = (id: number, status: number) => {
-  return request.put(`/applications/${id}/status`, null, {
+  return request.put<unknown, ApiResponse<string>>(`/applications/${id}/status`, null, {
     params: { status }
   });
 };
@@ -147,29 +151,29 @@ export const updateApplicationStatus = (id: number, status: number) => {
  * 获取应用统计信息
  */
 export const getApplicationStats = (id: number) => {
-  return request.get(`/applications/${id}/stats`);
+  return request.get<unknown, ApiResponse<Record<string, number>>>(`/applications/${id}/stats`);
 };
 
 export const getEncryptionConfig = (id: number) => {
-  return request.get(`/applications/${id}/encryption-config`);
+  return request.get<unknown, ApiResponse<JsonObject>>(`/applications/${id}/encryption-config`);
 };
 
-export const updateEncryptionConfig = (id: number, encryptionConfig: Record<string, any>) => {
-  return request.put(`/applications/${id}/encryption-config`, encryptionConfig);
+export const updateEncryptionConfig = (id: number, encryptionConfig: JsonObject) => {
+  return request.put<unknown, ApiResponse<string>>(`/applications/${id}/encryption-config`, encryptionConfig);
 };
 
 export const getEncryptionTemplate = (pluginId?: string) => {
-  return request.get('/applications/encryption-template', { params: { pluginId } });
+  return request.get<unknown, ApiResponse<JsonObject>>('/applications/encryption-template', { params: { pluginId } });
 };
 
 export const listEncryptionPlugins = () => {
-  return request.get('/applications/encryption-plugins');
+  return request.get<unknown, ApiResponse<EncryptionPlugin[]>>('/applications/encryption-plugins');
 };
 
 /** 上传应用更新包到 MinIO（multipart，字段名 file） */
 export const uploadApplicationUpdatePackage = (id: number, formData: FormData, onProgress?: (percent: number) => void) => {
   // 更新包最大 512MB，上传不能沿用普通接口的 10 秒超时。
-  return request.post(`/applications/${id}/update-package`, formData, {
+  return request.post<unknown, ApiResponse<Application>>(`/applications/${id}/update-package`, formData, {
     timeout: 30 * 60 * 1000,
     onUploadProgress: (event) => {
       if (event.total) onProgress?.(Math.min(100, Math.round(event.loaded * 100 / event.total)));

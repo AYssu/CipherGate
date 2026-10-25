@@ -1,6 +1,9 @@
 package com.ayssu.ciphergate.portal.util;
 
 import io.jsonwebtoken.Claims;
+import com.ayssu.ciphergate.entity.AppUser;
+import com.ayssu.ciphergate.service.PublicAbuseGuard;
+import java.util.List;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -53,6 +56,32 @@ public class PortalJwtUtil {
                 .compact();
     }
 
+    /** Fingerprint revokes sessions immediately after a credential/email change, without storing hashes in JWTs. */
+    public String credentialStamp(AppUser user) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(signingKey);
+            return java.util.HexFormat.of().formatHex(mac.doFinal((user.getId() + ":" + user.getAppId() + ":" + user.getEmail() + ":" + user.getPassword()).getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException e) { throw new IllegalStateException(e); }
+    }
+
+    public String generateSessionToken(AppUser user) {
+        return issue(user.getId(), Map.of("appId", user.getAppId(), "email", user.getEmail(),
+            "nickname", user.getNickname() == null ? "" : user.getNickname(), "purpose", "SESSION", "credential", credentialStamp(user)), expirationMs);
+    }
+
+    public String generateSelectionToken(String email, List<AppUser> verifiedUsers) {
+        Map<String, String> grants = new HashMap<>();
+        for (AppUser user : verifiedUsers) grants.put(user.getId().toString(), credentialStamp(user));
+        return issue(0L, Map.of("appId", 0L, "email", email, "purpose", "SELECT_APP", "grants", grants), Math.min(expirationMs, 300_000));
+    }
+
+    private String issue(Long userId, Map<String, ?> claims, long lifetime) {
+        Date now = new Date();
+        return Jwts.builder().claims(claims).subject(userId.toString()).issuedAt(now)
+            .expiration(new Date(now.getTime() + lifetime)).signWith(signingKey).compact();
+    }
+
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey)
@@ -84,7 +113,7 @@ public class PortalJwtUtil {
             log.warn("Portal JWT token expired");
             return false;
         } catch (Exception e) {
-            log.warn("Portal JWT token invalid: {}", e.getMessage());
+            log.debug("Portal JWT token invalid");
             return false;
         }
     }

@@ -1,4 +1,6 @@
 import request from '../utils/request';
+import type { Challenge } from '../components/usePublicChallenge';
+import type { ApiResponse } from './apiResponse';
 
 export interface PublicLicenseQueryResponse {
   keyCodeMasked: string;
@@ -14,15 +16,15 @@ export interface PublicLicenseQueryResponse {
   unbindRemaining: number;
 }
 
-export function queryLicenseRemaining(appId: number, keyCode: string) {
-  return request.post('/public/license/query-remaining', { appId, keyCode });
+export function queryLicenseRemaining(appId: number, keyCode: string, challenge: Challenge) {
+  return request.post<unknown, ApiResponse<PublicLicenseQueryResponse>>('/public/license/query-remaining', { appId, keyCode, ...challenge });
 }
 
-export function unbindLicense(payload: {
+export function unbindLicense(payload: Challenge & {
   appId: number;
   keyCode: string;
   unbindDevice?: boolean;
   unbindIp?: boolean;
 }) {
-  return request.post('/public/license/unbind', payload);
+  return request.post<unknown, ApiResponse<null>>('/public/license/unbind', payload);
 }

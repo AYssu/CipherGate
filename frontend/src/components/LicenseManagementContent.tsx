@@ -1,3 +1,5 @@
+import { isAxiosError } from 'axios';
+import { getErrorMessage } from '../services/apiResponse';
 import React, { useState, useEffect } from 'react';
 import M5BottomSheet from './M5BottomSheet';
 import {
@@ -18,6 +20,8 @@ import {
   Badge,
   Dropdown,
   type MenuProps,
+  type FormInstance,
+  type BadgeProps,
   DatePicker,
   TimePicker,
   Switch,
@@ -45,7 +49,7 @@ import {
   FilterOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   getLicenseList,
   createLicense,
@@ -68,6 +72,7 @@ import {
   importLicenses,
   type LicenseKey,
   type LicenseKeyDTO,
+  type LicenseKeyQuery,
   type LicenseBatchCreateDTO,
   type LicenseBatchOperateResult,
   type LicenseImportResult,
@@ -80,9 +85,36 @@ const { Option } = Select;
 const BATCH_FORM_PRESET_KEY = 'license.batchFormPreset.v1';
 const CREATE_FORM_PRESET_KEY = 'license.createFormPreset.v1';
 
+type LicenseFormValues = Omit<LicenseKeyDTO, 'expiresAt' | 'useTimeStart' | 'useTimeEnd'> & {
+  keyCode?: string;
+  expiresAt?: Dayjs | null;
+  useTimeStart?: Dayjs | null;
+  useTimeEnd?: Dayjs | null;
+};
+type BatchFormValues = LicenseBatchCreateDTO & { durationUnit?: string };
+type LicensePreset = Partial<BatchFormValues>;
+function readLicensePreset(raw: string): LicensePreset {
+  const value: unknown = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const preset: LicensePreset = {};
+  if ('appId' in value && typeof value.appId === 'number') preset.appId = value.appId;
+  if ('keyPrefix' in value && typeof value.keyPrefix === 'string') preset.keyPrefix = value.keyPrefix;
+  if ('keyType' in value && typeof value.keyType === 'string') preset.keyType = value.keyType;
+  if ('durationValue' in value && typeof value.durationValue === 'number') preset.durationValue = value.durationValue;
+  if ('durationUnit' in value && typeof value.durationUnit === 'string') preset.durationUnit = value.durationUnit;
+  if ('totalCount' in value && typeof value.totalCount === 'number') preset.totalCount = value.totalCount;
+  if ('useLimit' in value && typeof value.useLimit === 'number') preset.useLimit = value.useLimit;
+  if ('unbindLimit' in value && typeof value.unbindLimit === 'number') preset.unbindLimit = value.unbindLimit;
+  if ('remark' in value && typeof value.remark === 'string') preset.remark = value.remark;
+  return preset;
+}
+function isFormValidationError(error: unknown): boolean {
+  return !!error && typeof error === 'object' && 'errorFields' in error;
+}
+
 /** 批量生成卡密表单（移动端 & 桌面端复用） */
 const BatchGenerateForm: React.FC<{
-  form: any;
+  form: FormInstance<BatchFormValues>;
   applications: Application[];
   keyTypeOptions: { label: string; value: string }[];
 }> = ({ form, applications, keyTypeOptions }) => (
@@ -184,7 +216,7 @@ const BatchGenerateForm: React.FC<{
 
 /** 创建/编辑卡密表单（移动端 & 桌面端复用） */
 const CreateEditForm: React.FC<{
-  form: any;
+  form: FormInstance<LicenseFormValues>;
   editingLicense: LicenseKey | null;
   applications: Application[];
   keyTypeOptions: { label: string; value: string }[];
@@ -360,25 +392,25 @@ const LicenseManagementContent: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedBatchAction, setSelectedBatchAction] = useState<string>();
   const [editingLicense, setEditingLicense] = useState<LicenseKey | null>(null);
-  const [form] = Form.useForm();
-  const [batchForm] = Form.useForm();
-  const [addTimeForm] = Form.useForm();
-  const [subtractTimeForm] = Form.useForm();
-  const [batchUnbindForm] = Form.useForm();
-  const [batchUseLimitForm] = Form.useForm();
-  const [batchUnbindLimitForm] = Form.useForm();
-  const [batchUseTimeForm] = Form.useForm();
-  const [listFilterForm] = Form.useForm();
+  const [form] = Form.useForm<LicenseFormValues>();
+  const [batchForm] = Form.useForm<BatchFormValues>();
+  const [addTimeForm] = Form.useForm<{ durationValue: number; durationUnit: string }>();
+  const [subtractTimeForm] = Form.useForm<{ durationValue: number; durationUnit: string }>();
+  const [batchUnbindForm] = Form.useForm<{ unbindDevice: boolean; unbindIp: boolean }>();
+  const [batchUseLimitForm] = Form.useForm<{ useLimit: number }>();
+  const [batchUnbindLimitForm] = Form.useForm<{ unbindLimit: number }>();
+  const [batchUseTimeForm] = Form.useForm<{ useTimeStart?: Dayjs | null; useTimeEnd?: Dayjs | null; clearTimeRange?: boolean }>();
+  const [listFilterForm] = Form.useForm<Omit<LicenseKeyQuery, 'appId' | 'status' | 'isOnline'> & { appId?: number | ''; status?: number | ''; isOnline?: boolean | '' }>();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<LicenseKeyQuery>({});
   const [keyCodeInput, setKeyCodeInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
-  const [batchFormPreset, setBatchFormPreset] = useState<Record<string, any>>({});
-  const [createFormPreset, setCreateFormPreset] = useState<Record<string, any>>({});
+  const [batchFormPreset, setBatchFormPreset] = useState<LicensePreset>({});
+  const [createFormPreset, setCreateFormPreset] = useState<LicensePreset>({});
   const selectedLicenseIds = selectedRowKeys.map((k) => Number(k));
 
   const showGeneratedKeysModal = (title: string, keys: string[]) => {
@@ -460,7 +492,7 @@ const LicenseManagementContent: React.FC = () => {
   // 获取应用列表
   const fetchApplications = async () => {
     try {
-      const result: any = await getApplicationList({ current: 1, size: 1000 });
+      const result = await getApplicationList({ current: 1, size: 1000 });
       if (result.code === 200 && result.data) {
         setApplications(result.data.records || []);
       }
@@ -470,10 +502,10 @@ const LicenseManagementContent: React.FC = () => {
   };
 
   // 获取卡密列表
-  const fetchLicenses = async (page = 1, size = 10, filterParams = {}) => {
+  const fetchLicenses = async (page = 1, size = 10, filterParams: LicenseKeyQuery = {}) => {
     setLoading(true);
     try {
-      const result: any = await getLicenseList({
+      const result = await getLicenseList({
         current: page,
         size: size,
         ...filterParams,
@@ -508,17 +540,11 @@ const LicenseManagementContent: React.FC = () => {
     try {
       const batchRaw = localStorage.getItem(BATCH_FORM_PRESET_KEY);
       if (batchRaw) {
-        const batchParsed = JSON.parse(batchRaw);
-        if (batchParsed && typeof batchParsed === 'object') {
-          setBatchFormPreset(batchParsed);
-        }
+        setBatchFormPreset(readLicensePreset(batchRaw));
       }
       const createRaw = localStorage.getItem(CREATE_FORM_PRESET_KEY);
       if (createRaw) {
-        const createParsed = JSON.parse(createRaw);
-        if (createParsed && typeof createParsed === 'object') {
-          setCreateFormPreset(createParsed);
-        }
+        setCreateFormPreset(readLicensePreset(createRaw));
       }
     } catch {
       /* ignore */
@@ -664,7 +690,7 @@ const LicenseManagementContent: React.FC = () => {
     try {
       const values = await form.validateFields();
       
-      const dto: LicenseKeyDTO = {
+      const dto = {
         ...values,
         expiresAt: values.expiresAt ? values.expiresAt.format('YYYY-MM-DDTHH:mm:ss') : undefined,
         useTimeStart: values.useTimeStart ? values.useTimeStart.format('HH:mm:ss') : undefined,
@@ -680,11 +706,12 @@ const LicenseManagementContent: React.FC = () => {
 
       if (editingLicense) {
         // 类型与时长生成后固定，不参与更新请求
-        delete (dto as any).keyType;
-        delete (dto as any).durationValue;
-        delete (dto as any).durationUnit;
-        delete (dto as any).appId;
-        await updateLicense(editingLicense.id, dto);
+        const updateDto: Partial<LicenseKeyDTO> = { ...dto };
+        delete updateDto.keyType;
+        delete updateDto.durationValue;
+        delete updateDto.durationUnit;
+        delete updateDto.appId;
+        await updateLicense(editingLicense.id, updateDto);
         message.success('卡密更新成功');
       } else {
         const nextCreatePreset = {
@@ -702,7 +729,7 @@ const LicenseManagementContent: React.FC = () => {
         } catch {
           /* ignore */
         }
-        const result: any = await createLicense(dto);
+        const result = await createLicense(dto);
         message.success(result?.message || '卡密创建成功');
         const keyCode = result?.data?.keyCode;
         if (keyCode) {
@@ -712,9 +739,9 @@ const LicenseManagementContent: React.FC = () => {
 
       setModalVisible(false);
       fetchLicenses(pagination.current, pagination.pageSize, filters);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('操作失败:', error);
-      message.error(error.response?.data?.message || '操作失败');
+      message.error(getErrorMessage(error, '操作失败'));
     }
   };
 
@@ -814,16 +841,16 @@ const LicenseManagementContent: React.FC = () => {
 
   const handleBatchDeleteSubmit = async () => {
     try {
-      const result: any = await batchDeleteLicenses({ ids: selectedLicenseIds });
+      const result = await batchDeleteLicenses({ ids: selectedLicenseIds });
       if (result.code === 200 && result.data) {
         setSelectedRowKeys([]);
         setSelectedBatchAction(undefined);
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult('删除', result.data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('批量删除失败:', error);
-      message.error(error.response?.data?.message || '批量删除失败');
+      message.error(getErrorMessage(error, '批量删除失败'));
     }
   };
 
@@ -834,7 +861,7 @@ const LicenseManagementContent: React.FC = () => {
     }
     try {
       const values = await addTimeForm.validateFields();
-      const result: any = await batchAddLicenseTime({
+      const result = await batchAddLicenseTime({
         ids: selectedRowKeys.map((k) => Number(k)),
         durationValue: values.durationValue,
         durationUnit: values.durationUnit,
@@ -847,12 +874,12 @@ const LicenseManagementContent: React.FC = () => {
         setSelectedBatchAction(undefined);
         showBatchResult('加时', r);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量加时失败:', error);
-      message.error(error.response?.data?.message || '批量加时失败');
+      message.error(getErrorMessage(error, '批量加时失败'));
     }
   };
 
@@ -863,7 +890,7 @@ const LicenseManagementContent: React.FC = () => {
     }
     try {
       const values = await subtractTimeForm.validateFields();
-      const result: any = await batchSubtractLicenseTime({
+      const result = await batchSubtractLicenseTime({
         ids: selectedRowKeys.map((k) => Number(k)),
         durationValue: values.durationValue,
         durationUnit: values.durationUnit,
@@ -876,18 +903,18 @@ const LicenseManagementContent: React.FC = () => {
         setSelectedBatchAction(undefined);
         showBatchResult('扣时', r);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量扣时失败:', error);
-      message.error(error.response?.data?.message || '批量扣时失败');
+      message.error(getErrorMessage(error, '批量扣时失败'));
     }
   };
 
   const handleBatchDisableSubmit = async () => {
     try {
-      const result: any = await batchUpdateLicenseStatus({
+      const result = await batchUpdateLicenseStatus({
         ids: selectedLicenseIds,
         status: 4,
       });
@@ -897,9 +924,9 @@ const LicenseManagementContent: React.FC = () => {
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult('封禁', result.data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('批量封禁失败:', error);
-      message.error(error.response?.data?.message || '批量封禁失败');
+      message.error(getErrorMessage(error, '批量封禁失败'));
     }
   };
 
@@ -910,7 +937,7 @@ const LicenseManagementContent: React.FC = () => {
         message.warning('请至少选择一种解绑类型');
         return;
       }
-      const result: any = await batchUnbindLicenses({
+      const result = await batchUnbindLicenses({
         ids: selectedLicenseIds,
         unbindDevice: values.unbindDevice,
         unbindIp: values.unbindIp,
@@ -922,19 +949,19 @@ const LicenseManagementContent: React.FC = () => {
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult('解绑', result.data);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量解绑失败:', error);
-      message.error(error.response?.data?.message || '批量解绑失败');
+      message.error(getErrorMessage(error, '批量解绑失败'));
     }
   };
 
   const handleBatchUseLimitSubmit = async () => {
     try {
       const values = await batchUseLimitForm.validateFields();
-      const result: any = await batchSetLicenseUseLimit({
+      const result = await batchSetLicenseUseLimit({
         ids: selectedLicenseIds,
         useLimit: values.useLimit,
       });
@@ -945,19 +972,19 @@ const LicenseManagementContent: React.FC = () => {
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult('设置使用次数限制', result.data);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量设置使用次数限制失败:', error);
-      message.error(error.response?.data?.message || '批量设置使用次数限制失败');
+      message.error(getErrorMessage(error, '批量设置使用次数限制失败'));
     }
   };
 
   const handleBatchUnbindLimitSubmit = async () => {
     try {
       const values = await batchUnbindLimitForm.validateFields();
-      const result: any = await batchSetLicenseUnbindLimit({
+      const result = await batchSetLicenseUnbindLimit({
         ids: selectedLicenseIds,
         unbindLimit: values.unbindLimit,
       });
@@ -968,12 +995,12 @@ const LicenseManagementContent: React.FC = () => {
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult('设置解绑次数限制', result.data);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量设置解绑次数限制失败:', error);
-      message.error(error.response?.data?.message || '批量设置解绑次数限制失败');
+      message.error(getErrorMessage(error, '批量设置解绑次数限制失败'));
     }
   };
 
@@ -981,7 +1008,7 @@ const LicenseManagementContent: React.FC = () => {
     try {
       const values = await batchUseTimeForm.validateFields();
       const clearTimeRange = !!values.clearTimeRange;
-      const result: any = await batchSetLicenseUseTime({
+      const result = await batchSetLicenseUseTime({
         ids: selectedLicenseIds,
         clearTimeRange,
         useTimeStart: clearTimeRange || !values.useTimeStart ? undefined : values.useTimeStart.format('HH:mm:ss'),
@@ -994,12 +1021,12 @@ const LicenseManagementContent: React.FC = () => {
         fetchLicenses(pagination.current, pagination.pageSize, filters);
         showBatchResult(clearTimeRange ? '清空使用时间段限制' : '设置使用时间段限制', result.data);
       }
-    } catch (error: any) {
-      if (error?.errorFields) {
+    } catch (error: unknown) {
+      if (isFormValidationError(error)) {
         return;
       }
       console.error('批量设置使用时间段限制失败:', error);
-      message.error(error.response?.data?.message || '批量设置使用时间段限制失败');
+      message.error(getErrorMessage(error, '批量设置使用时间段限制失败'));
     }
   };
 
@@ -1027,20 +1054,20 @@ const LicenseManagementContent: React.FC = () => {
       
       const dto: LicenseBatchCreateDTO = values;
 
-      const result: any = await batchCreateLicenses(dto);
+      const result = await batchCreateLicenses(dto);
       
       if (result.code === 200) {
         message.success(result?.message || `成功生成 ${values.totalCount} 个卡密`);
         setBatchModalVisible(false);
         fetchLicenses(pagination.current, pagination.pageSize, filters);
-        const keys = Array.isArray(result?.data) ? result.data.map((k: any) => k?.keyCode).filter(Boolean) : [];
+        const keys = Array.isArray(result?.data) ? result.data.map((k: LicenseKey) => k.keyCode).filter(Boolean) : [];
         if (keys.length) {
           showGeneratedKeysModal('批量生成结果', keys);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('批量生成失败:', error);
-      message.error(error.response?.data?.message || '批量生成失败');
+      message.error(getErrorMessage(error, '批量生成失败'));
     }
   };
 
@@ -1050,9 +1077,9 @@ const LicenseManagementContent: React.FC = () => {
       await deleteLicense(id);
       message.success('卡密删除成功');
       fetchLicenses(pagination.current, pagination.pageSize, filters);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('删除失败:', error);
-      message.error(error.response?.data?.message || '删除失败');
+      message.error(getErrorMessage(error, '删除失败'));
     }
   };
 
@@ -1062,9 +1089,9 @@ const LicenseManagementContent: React.FC = () => {
       await updateLicenseStatus(id, status);
       message.success('状态更新成功');
       fetchLicenses(pagination.current, pagination.pageSize, filters);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('更新状态失败:', error);
-      message.error(error.response?.data?.message || '更新状态失败');
+      message.error(getErrorMessage(error, '更新状态失败'));
     }
   };
 
@@ -1079,31 +1106,31 @@ const LicenseManagementContent: React.FC = () => {
 
   const handleUnbindDevice = async (id: number) => {
     try {
-      const result: any = await unbindLicenseDevice(id);
+      const result = await unbindLicenseDevice(id);
       if (result.code === 200) {
         message.success(result.message || '已解绑设备');
         fetchLicenses(pagination.current, pagination.pageSize, filters);
       } else {
         message.error(result.message || '解绑设备失败');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('解绑设备失败:', error);
-      message.error(error.response?.data?.message || '解绑设备失败');
+      message.error(getErrorMessage(error, '解绑设备失败'));
     }
   };
 
   const handleUnbindIp = async (id: number) => {
     try {
-      const result: any = await unbindLicenseIp(id);
+      const result = await unbindLicenseIp(id);
       if (result.code === 200) {
         message.success(result.message || '已解绑IP');
         fetchLicenses(pagination.current, pagination.pageSize, filters);
       } else {
         message.error(result.message || '解绑IP失败');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('解绑IP失败:', error);
-      message.error(error.response?.data?.message || '解绑IP失败');
+      message.error(getErrorMessage(error, '解绑IP失败'));
     }
   };
 
@@ -1137,8 +1164,8 @@ const LicenseManagementContent: React.FC = () => {
       if (blob.type && blob.type.includes('application/json')) {
         const text = await blob.text();
         try {
-          const j = JSON.parse(text);
-          message.error(j.message || '导出失败');
+          const j: unknown = JSON.parse(text);
+          message.error(getErrorMessage(j, '导出失败'));
         } catch {
           message.error('导出失败');
         }
@@ -1156,15 +1183,15 @@ const LicenseManagementContent: React.FC = () => {
       message.success('导出成功');
       setSelectedRowKeys([]);
       setSelectedBatchAction(undefined);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('导出失败:', error);
       let msg = '导出失败';
-      const d = error.response?.data;
+      const d: unknown = isAxiosError<unknown>(error) ? error.response?.data : undefined;
       if (d instanceof Blob) {
         try {
           const t = await d.text();
-          const j = JSON.parse(t);
-          msg = j.message || msg;
+          const j: unknown = JSON.parse(t);
+          msg = getErrorMessage(j, msg);
         } catch {
           /* ignore */
         }
@@ -1207,8 +1234,8 @@ const LicenseManagementContent: React.FC = () => {
         message.warning(`导入完成: 成功 ${res.data.successCount} 条，失败 ${res.data.failCount} 条`);
       }
       fetchLicenses(pagination.current, pagination.pageSize, filters);
-    } catch (error: any) {
-      message.error(error?.message || '导入失败');
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error, '导入失败'));
     } finally {
       setImporting(false);
     }
@@ -1349,7 +1376,7 @@ const LicenseManagementContent: React.FC = () => {
       key: 'useCount',
       width: 100,
       align: 'center' as const,
-      render: (_: any, record: LicenseKey) => (
+      render: (_: unknown, record: LicenseKey) => (
         <Text style={{ fontSize: 12 }}>
           {record.useCount} / {record.useLimit === 0 ? '∞' : record.useLimit}
         </Text>
@@ -1360,7 +1387,7 @@ const LicenseManagementContent: React.FC = () => {
       key: 'unbindCount',
       width: 110,
       align: 'center' as const,
-      render: (_: any, record: LicenseKey) => (
+      render: (_: unknown, record: LicenseKey) => (
         <Text style={{ fontSize: 12 }}>
           {record.unbindCount ?? 0} / {(record.unbindLimit ?? 0) === 0 ? '∞' : record.unbindLimit}
         </Text>
@@ -1442,7 +1469,7 @@ const LicenseManagementContent: React.FC = () => {
       key: 'action',
       width: 150,
       fixed: 'right' as const,
-      render: (_: any, record: LicenseKey) => {
+      render: (_: unknown, record: LicenseKey) => {
         const menuItems: MenuProps['items'] = [
           {
             key: 'edit',
@@ -1659,13 +1686,13 @@ const LicenseManagementContent: React.FC = () => {
   };
 
   const renderMobileLicenseCard = (record: LicenseKey) => {
-    const statusMap: Record<number, { text: string; color: string; border: string }> = {
+    const statusMap: Record<number, { text: string; color: NonNullable<BadgeProps['status']>; border: string }> = {
       1: { text: '未使用', color: 'default', border: '#d9d9d9' },
       2: { text: '使用中', color: 'processing', border: '#1890ff' },
       3: { text: '已到期', color: 'error', border: '#ff4d4f' },
       4: { text: '已禁用', color: 'error', border: '#ff4d4f' },
     };
-    const statusInfo = record.redeemedAt ? { text: '已兑换', color: 'purple', border: '#722ed1' } : statusMap[record.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
+    const statusInfo = record.redeemedAt ? { text: '已兑换', color: 'default' as const, border: '#722ed1' } : statusMap[record.status] || { text: '未知', color: 'default', border: '#d9d9d9' };
 
     let typeLabel = getKeyTypeLabel(record.keyType);
     if (record.keyType === 'CUSTOM' && record.durationValue && record.durationUnit) {
@@ -1699,7 +1726,7 @@ const LicenseManagementContent: React.FC = () => {
 
         {/* Row 2: Status + Tags */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-          <Badge status={statusInfo.color as any} text={<span style={{ fontSize: 11 }}>{statusInfo.text}</span>} />
+          <Badge color={record.redeemedAt ? '#722ed1' : undefined} status={statusInfo.color} text={<span style={{ fontSize: 11 }}>{statusInfo.text}</span>} />
           {isOnline && <Tag color="success" className="license-mobile-tag">在线</Tag>}
           <Tag color="blue" className="license-mobile-tag">{typeLabel}</Tag>
           {record.appName && <Tag className="license-mobile-tag">{record.appName}</Tag>}

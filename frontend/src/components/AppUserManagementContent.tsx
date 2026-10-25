@@ -23,7 +23,7 @@ import {
   Grid,
   type MenuProps,
 } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   PlusOutlined,
   EditOutlined,
@@ -59,9 +59,17 @@ import {
   setMemberExpiresAt,
   type AppUser,
   type AppUserBinding,
+  type AppUserDTO,
+  type AppUserQueryDTO,
+  type MemberExtendUnit,
 } from '../services/appUserService';
 import { getApplicationList, type Application } from '../services/applicationService';
 import M5BottomSheet from './M5BottomSheet';
+import { getErrorMessage } from '../services/apiResponse';
+
+type AppUserFormValues = Omit<AppUserDTO, 'memberExpiresAt'> & { memberExpiresAt?: string | Dayjs };
+type DurationFormValues = { unit?: MemberExtendUnit; amount?: number; days?: number; appId?: number };
+type UserFilterFormValues = AppUserQueryDTO & { expiresFilter?: 'not_expired' | 'expired' };
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -117,20 +125,20 @@ const AppUserManagementContent: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [memberExpModalVisible, setMemberExpModalVisible] = useState(false);
   const [memberExpUser, setMemberExpUser] = useState<AppUser | null>(null);
-  const [form] = Form.useForm();
-  const [passwordForm] = Form.useForm();
-  const [extendForm] = Form.useForm();
-  const [batchExtendForm] = Form.useForm();
-  const [batchSubtractForm] = Form.useForm();
-  const [notExpiredForm] = Form.useForm();
-  const [memberExpForm] = Form.useForm();
-  const [listFilterForm] = Form.useForm();
+  const [form] = Form.useForm<AppUserFormValues>();
+  const [passwordForm] = Form.useForm<{newPassword: string}>();
+  const [extendForm] = Form.useForm<DurationFormValues>();
+  const [batchExtendForm] = Form.useForm<DurationFormValues>();
+  const [batchSubtractForm] = Form.useForm<DurationFormValues>();
+  const [notExpiredForm] = Form.useForm<DurationFormValues>();
+  const [memberExpForm] = Form.useForm<{expires?: Dayjs}>();
+  const [listFilterForm] = Form.useForm<UserFilterFormValues>();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
   });
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<AppUserQueryDTO>({});
   const [usernameInput, setUsernameInput] = useState('');
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
 
@@ -159,7 +167,7 @@ const AppUserManagementContent: React.FC = () => {
   // 获取应用列表
   const fetchApplications = async () => {
     try {
-      const result: any = await getApplicationList({ current: 1, size: 1000 });
+      const result = await getApplicationList({ current: 1, size: 1000 });
       if (result.code === 200 && result.data) {
         setApplications(result.data.records || []);
       }
@@ -169,10 +177,10 @@ const AppUserManagementContent: React.FC = () => {
   };
 
   // 获取用户列表
-  const fetchUsers = async (page = 1, size = 10, filterParams = {}) => {
+  const fetchUsers = async (page = 1, size = 10, filterParams: AppUserQueryDTO = {}) => {
     setLoading(true);
     try {
-      const result: any = await getAppUserList({
+      const result = await getAppUserList({
         current: page,
         size,
         ...filterParams,
@@ -220,7 +228,7 @@ const AppUserManagementContent: React.FC = () => {
   const handleAdvancedFilterQuery = async () => {
     const v = await listFilterForm.validateFields();
     const next = { ...filters };
-    if (v.appId != null && v.appId !== '') {
+    if (v.appId != null) {
       next.appId = v.appId;
     } else {
       delete next.appId;
@@ -345,11 +353,16 @@ const AppUserManagementContent: React.FC = () => {
   // 提交表单
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      const fields = await form.validateFields();
+      const values: AppUserDTO = {
+        ...fields,
+        memberExpiresAt: dayjs.isDayjs(fields.memberExpiresAt)
+          ? fields.memberExpiresAt.format('YYYY-MM-DDTHH:mm:ss') : fields.memberExpiresAt,
+      };
 
       if (editingUser) {
         // 更新
-        const result: any = await updateAppUser(editingUser.id, values);
+        const result = await updateAppUser(editingUser.id, values);
         if (result.code === 200) {
           message.success('更新成功');
           setModalVisible(false);
@@ -358,12 +371,9 @@ const AppUserManagementContent: React.FC = () => {
           message.error(result.message || '更新失败');
         }
       } else {
-        const createValues: any = { ...values };
-        if (createValues.memberExpiresAt && dayjs.isDayjs(createValues.memberExpiresAt)) {
-          createValues.memberExpiresAt = createValues.memberExpiresAt.format('YYYY-MM-DDTHH:mm:ss');
-        }
+        const createValues: AppUserDTO = { ...values };
         // 创建
-        const result: any = await createAppUser(createValues);
+        const result = await createAppUser(createValues);
         if (result.code === 200) {
           message.success('创建成功');
           setModalVisible(false);
@@ -387,7 +397,7 @@ const AppUserManagementContent: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          const result: any = await deleteAppUser(id);
+          const result = await deleteAppUser(id);
           if (result.code === 200) {
             message.success('删除成功');
             fetchUsers(pagination.current, pagination.pageSize, filters);
@@ -415,7 +425,7 @@ const AppUserManagementContent: React.FC = () => {
       const values = await passwordForm.validateFields();
       if (!resetUserId) return;
 
-      const result: any = await resetPassword(resetUserId, values.newPassword);
+      const result = await resetPassword(resetUserId, values.newPassword);
       if (result.code === 200) {
         message.success('密码重置成功');
         setPasswordModalVisible(false);
@@ -448,7 +458,7 @@ const AppUserManagementContent: React.FC = () => {
       okType: currentBanned ? 'primary' : 'danger',
       onOk: async () => {
         try {
-          const result: any = await banUser(
+          const result = await banUser(
             id,
             !currentBanned,
             currentBanned ? undefined : '管理员封禁',
@@ -475,7 +485,7 @@ const AppUserManagementContent: React.FC = () => {
   const fetchUserBindings = async (userId: number) => {
     setBindingsLoading(true);
     try {
-      const result: any = await getUserBindings(userId, 1, 100);
+      const result = await getUserBindings(userId, 1, 100);
       if (result.code === 200 && result.data) {
         setUserBindings(result.data.records || []);
       }
@@ -491,9 +501,9 @@ const AppUserManagementContent: React.FC = () => {
     try {
       const v = await extendForm.validateFields();
       if (!extendUserId) return;
-      const unit = (v.unit ?? 'DAY') as any;
+      const unit = v.unit ?? 'DAY';
       const amount = unit === 'PERMANENT' ? undefined : Number(v.amount);
-      const result: any = await extendMemberDuration(extendUserId, { unit, amount });
+      const result = await extendMemberDuration(extendUserId, { unit, amount });
       if (result.code === 200) {
         message.success('会员已延长');
         setExtendModalVisible(false);
@@ -544,9 +554,9 @@ const AppUserManagementContent: React.FC = () => {
     }
     try {
       const v = await batchExtendForm.validateFields();
-      const unit = (v.unit ?? 'DAY') as any;
+      const unit = v.unit ?? 'DAY';
       const amount = unit === 'PERMANENT' ? undefined : Number(v.amount);
-      const result: any = await batchExtendMemberDuration({
+      const result = await batchExtendMemberDuration({
         ids: selectedRowKeys.map((k) => Number(k)),
         unit,
         amount,
@@ -575,12 +585,12 @@ const AppUserManagementContent: React.FC = () => {
       } else {
         message.error(result.message || '批量加时失败');
       }
-    } catch (e: any) {
-      if (e?.errorFields) {
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'errorFields' in e) {
         return;
       }
       console.error(e);
-      message.error('批量加时失败');
+      message.error(getErrorMessage(e, '批量加时失败'));
     }
   };
 
@@ -591,13 +601,13 @@ const AppUserManagementContent: React.FC = () => {
     }
     try {
       const v = await batchSubtractForm.validateFields();
-      const unit = (v.unit ?? 'DAY') as any;
+      const unit = v.unit ?? 'DAY';
       if (unit === 'PERMANENT') {
         message.error('扣时不支持永久');
         return;
       }
       const amount = Number(v.amount);
-      const result: any = await batchSubtractMemberDuration({
+      const result = await batchSubtractMemberDuration({
         ids: selectedRowKeys.map((k) => Number(k)),
         unit,
         amount,
@@ -626,10 +636,10 @@ const AppUserManagementContent: React.FC = () => {
       } else {
         message.error(result.message || '批量扣时失败');
       }
-    } catch (e: any) {
-      if (e?.errorFields) return;
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
       console.error(e);
-      message.error('批量扣时失败');
+      message.error(getErrorMessage(e, '批量扣时失败'));
     }
   };
 
@@ -645,7 +655,7 @@ const AppUserManagementContent: React.FC = () => {
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        const result: any = await batchKickAppUserWs({ ids: selectedRowKeys.map((k) => Number(k)) });
+        const result = await batchKickAppUserWs({ ids: selectedRowKeys.map((k) => Number(k)) });
         if (result.code === 200 && result.data) {
           const r = result.data;
           setSelectedRowKeys([]);
@@ -670,7 +680,7 @@ const AppUserManagementContent: React.FC = () => {
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        const result: any = await batchBanAppUsers({
+        const result = await batchBanAppUsers({
           ids: selectedRowKeys.map((k) => Number(k)),
           ban,
         });
@@ -698,7 +708,7 @@ const AppUserManagementContent: React.FC = () => {
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
-        const result: any = await batchDeleteAppUsers({ ids: selectedRowKeys.map((k) => Number(k)) });
+        const result = await batchDeleteAppUsers({ ids: selectedRowKeys.map((k) => Number(k)) });
         if (result.code === 200 && result.data) {
           const r = result.data;
           setSelectedRowKeys([]);
@@ -715,14 +725,14 @@ const AppUserManagementContent: React.FC = () => {
     try {
       const v = await notExpiredForm.validateFields();
       const appId = Number(v.appId);
-      const unit = (v.unit ?? 'DAY') as any;
+      const unit = v.unit ?? 'DAY';
       if (unit === 'PERMANENT') {
         message.error('该操作不支持永久');
         return;
       }
       const amount = Number(v.amount);
       const api = mode === 'ADD' ? extendNotExpiredInApp : subtractNotExpiredInApp;
-      const result: any = await api({ appId, unit, amount });
+      const result = await api({ appId, unit, amount });
       if (result.code === 200 && result.data) {
         const r = result.data;
         setNotExpiredAddVisible(false);
@@ -747,10 +757,10 @@ const AppUserManagementContent: React.FC = () => {
       } else {
         message.error(result.message || '操作失败');
       }
-    } catch (e: any) {
-      if (e?.errorFields) return;
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
       console.error(e);
-      message.error('操作失败');
+      message.error(getErrorMessage(e, '操作失败'));
     }
   };
 
@@ -794,7 +804,7 @@ const AppUserManagementContent: React.FC = () => {
         return;
       }
       const iso = dayjs(expires).format('YYYY-MM-DDTHH:mm:ss');
-      const result: any = await setMemberExpiresAt(memberExpUser.id, iso);
+      const result = await setMemberExpiresAt(memberExpUser.id, iso);
       if (result.code === 200) {
         message.success('已保存');
         setMemberExpModalVisible(false);
@@ -814,7 +824,7 @@ const AppUserManagementContent: React.FC = () => {
       title: '清空会员',
       content: '确定取消该用户的会员到期时间？',
       onOk: async () => {
-        const result: any = await setMemberExpiresAt(memberExpUser.id, null);
+        const result = await setMemberExpiresAt(memberExpUser.id, null);
         if (result.code === 200) {
           message.success('已清空');
           setMemberExpModalVisible(false);
@@ -846,7 +856,7 @@ const AppUserManagementContent: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          const result: any = await unbindDevice(userId, bindingId, '管理员解绑');
+          const result = await unbindDevice(userId, bindingId, '管理员解绑');
           if (result.code === 200) {
             message.success('解绑成功');
             fetchUserBindings(userId); // 刷新设备列表
@@ -871,7 +881,7 @@ const AppUserManagementContent: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          const result: any = await kickAppUserWs(userId);
+          const result = await kickAppUserWs(userId);
           if (result.code === 200) {
             message.success('已下线');
             fetchUsers(pagination.current, pagination.pageSize, filters);
@@ -1295,7 +1305,7 @@ const AppUserManagementContent: React.FC = () => {
       key: 'action',
       width: 80,
       fixed: 'right' as const,
-      render: (_: any, record: AppUser) => (
+      render: (_: unknown, record: AppUser) => (
         <Dropdown menu={getActionMenu(record)} trigger={['click']}>
           <Button type="text" icon={<MoreOutlined />} />
         </Dropdown>
@@ -2755,7 +2765,7 @@ const AppUserManagementContent: React.FC = () => {
               key: 'action',
               width: 140,
               fixed: 'right' as const,
-              render: (_: any, record: AppUserBinding) => (
+              render: (_: unknown, record: AppUserBinding) => (
                 <Space size="small" wrap>
                   {record.isBanned && record.status !== 4 && selectedUserId != null && (
                     <Button

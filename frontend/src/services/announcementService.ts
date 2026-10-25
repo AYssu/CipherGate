@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface SystemAnnouncement {
@@ -16,7 +17,7 @@ export const announcementApi = {
   },
 
   getActiveAnnouncements: () => {
-    return request.get('/announcements/active');
+    return request.get<unknown, ApiResponse<SystemAnnouncement[]>>('/announcements/active');
   },
 
   getAnnouncementById: (id: number) => {

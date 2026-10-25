@@ -1,3 +1,4 @@
+import type { PaymentOrder } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, message, Typography, Grid, Dropdown } from 'antd';
 import { MoreOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -7,7 +8,7 @@ const { Title } = Typography;
 const AdminOrderPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [orders, setOrders] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<PaymentOrder[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const fetchOrders = () => {
@@ -39,7 +40,7 @@ const AdminOrderPage: React.FC = () => {
     ...(!isMobile ? [{ title: '时间', dataIndex: 'createdAt', key: 'time' }] : []),
     {
       title: '操作', key: 'action', width: isMobile ? 60 : undefined,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: PaymentOrder) => {
         if (record.status !== 0) return null;
         if (isMobile) {
           return (

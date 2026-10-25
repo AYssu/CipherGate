@@ -1,3 +1,4 @@
+import type { Ticket, TicketMessage } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, message, Typography, List, Avatar, Space, Tabs, Badge, Empty, Grid, Dropdown } from 'antd';
 import { UserOutlined, RobotOutlined, PlusOutlined, MoreOutlined } from '@ant-design/icons';
@@ -9,12 +10,12 @@ const { TextArea } = Input;
 const UserTicketPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [tickets, setTickets] = React.useState<any[]>([]);
+  const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [createVisible, setCreateVisible] = React.useState(false);
   const [detailVisible, setDetailVisible] = React.useState(false);
-  const [selectedTicket, setSelectedTicket] = React.useState<any>(null);
-  const [messages, setMessages] = React.useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
+  const [messages, setMessages] = React.useState<TicketMessage[]>([]);
   const [newMessage, setNewMessage] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('all');
   const [form] = Form.useForm();
@@ -42,7 +43,7 @@ const UserTicketPage: React.FC = () => {
     else message.error(data.message);
   };
 
-  const viewDetail = async (ticket: any) => {
+  const viewDetail = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     const res = await fetch(`/api/tickets/${ticket.ticketNo}`, { credentials: 'include' });
     const data = await res.json();
@@ -50,7 +51,7 @@ const UserTicketPage: React.FC = () => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedTicket) return;
     await fetch(`/api/tickets/${selectedTicket.ticketNo}/messages`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -102,7 +103,7 @@ const UserTicketPage: React.FC = () => {
     { title: '创建时间', dataIndex: 'createdAt', key: 'time', width: 160, render: (v: string) => new Date(v).toLocaleString('zh-CN') },
     {
       title: '操作', key: 'action', width: isMobile ? 80 : 200,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: Ticket) => {
         if (isMobile) {
           return (
             <Dropdown
@@ -244,7 +245,7 @@ const UserTicketPage: React.FC = () => {
               <List
                 dataSource={messages}
                 style={{ maxHeight: 400, overflow: 'auto' }}
-                renderItem={(msg: any) => (
+                renderItem={(msg: TicketMessage) => (
                   <List.Item style={{ padding: '8px 0' }}>
                     <List.Item.Meta
                       avatar={
@@ -305,7 +306,7 @@ const UserTicketPage: React.FC = () => {
             <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
               <Space size={16}>
                 <Text type="secondary">分类: <Text strong>{selectedTicket?.category}</Text></Text>
-                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority]?.text}</Tag></Text>
+                <Text type="secondary">优先级: <Tag color={priorityMap[selectedTicket?.priority ?? -1]?.color} style={{ marginLeft: 4 }}>{priorityMap[selectedTicket?.priority ?? -1]?.text}</Tag></Text>
               </Space>
             </div>
             {messages.length === 0 ? (
@@ -314,7 +315,7 @@ const UserTicketPage: React.FC = () => {
               <List
                 dataSource={messages}
                 style={{ maxHeight: 400, overflow: 'auto' }}
-                renderItem={(msg: any) => (
+                renderItem={(msg: TicketMessage) => (
                   <List.Item style={{ padding: '8px 0' }}>
                     <List.Item.Meta
                       avatar={

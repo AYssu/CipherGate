@@ -1,3 +1,4 @@
+import { normalizeResponse, shouldExpireSession, isCurrentPortalSession } from '../../services/apiResponse';
 import axios from 'axios';
 import { message } from 'antd';
 
@@ -17,15 +18,11 @@ portalRequest.interceptors.request.use((config) => {
 
 portalRequest.interceptors.response.use(
   (response) => {
-    const data = response.data;
-    if (data.code && data.code !== 200 && data.code !== 0) {
-      message.error(data.message || '请求失败');
-      return Promise.reject(new Error(data.message));
-    }
-    return data;
+    try { return normalizeResponse(response.data) as unknown as typeof response; }
+    catch (error) { message.error(error instanceof Error ? error.message : '请求失败'); return Promise.reject(error); }
   },
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && shouldExpireSession(error.config?.url, 'portal') && isCurrentPortalSession(error.config?.headers?.Authorization, localStorage.getItem('portal_token'))) {
       localStorage.removeItem('portal_token');
       localStorage.removeItem('portal_app_id');
       window.location.href = '/portal/login';

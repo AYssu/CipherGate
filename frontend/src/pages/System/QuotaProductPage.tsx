@@ -1,3 +1,4 @@
+import type { QuotaProduct } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Grid } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -8,10 +9,10 @@ const { Title } = Typography;
 const QuotaProductPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [products, setProducts] = React.useState<any[]>([]);
+  const [products, setProducts] = React.useState<QuotaProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [editVisible, setEditVisible] = React.useState(false);
-  const [editing, setEditing] = React.useState<any>(null);
+  const [editing, setEditing] = React.useState<QuotaProduct | null>(null);
   const [form] = Form.useForm();
 
   const fetchProducts = () => {
@@ -40,7 +41,7 @@ const QuotaProductPage: React.FC = () => {
     { title: '类型', dataIndex: 'productType', key: 'type' },
     { title: '额度', dataIndex: 'quotaValue', key: 'quota' },
     { title: '价格', dataIndex: 'price', key: 'price', render: (v: number) => `¥${(v / 100).toFixed(2)}` },
-    { title: '操作', key: 'action', render: (_: any, record: any) => <Button type="link" onClick={() => { setEditing(record); form.setFieldsValue({ ...record, price: record.price / 100 }); setEditVisible(true); }}>编辑</Button> },
+    { title: '操作', key: 'action', render: (_: unknown, record: QuotaProduct) => <Button type="link" onClick={() => { setEditing(record); form.setFieldsValue({ ...record, price: record.price / 100 }); setEditVisible(true); }}>编辑</Button> },
   ];
 
   return (

@@ -1,3 +1,4 @@
+import type { ApiResponse } from './apiResponse';
 import request from '../utils/request';
 
 export interface SystemMessage {
@@ -20,7 +21,7 @@ export const messageApi = {
    * 获取当前用户的系统消息
    */
   getMyMessages: (limit: number = 10) => {
-    return request<SystemMessage[]>({
+    return request<unknown, ApiResponse<SystemMessage[]>>({
       url: '/messages/my',
       method: 'GET',
       params: { limit }
@@ -31,7 +32,7 @@ export const messageApi = {
    * 标记消息为已读
    */
   markAsRead: (id: number) => {
-    return request<void>({
+    return request<unknown, ApiResponse<void>>({
       url: `/messages/${id}/read`,
       method: 'PUT'
     });
@@ -41,7 +42,7 @@ export const messageApi = {
    * 将当前用户的所有未读消息标记为已读
    */
   markAllAsRead: () => {
-    return request<void>({
+    return request<unknown, ApiResponse<void>>({
       url: '/messages/read/all',
       method: 'PUT'
     });
