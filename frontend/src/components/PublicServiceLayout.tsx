@@ -7,7 +7,7 @@ type Props = { title: string; description: string; children: ReactNode; help?: R
 
 export default function PublicServiceLayout({ title, description, children, help }: Props) {
   return (
-    <ConfigProvider theme={{ token: { fontFamily: "'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif", colorPrimary: '#2459b8', colorText: '#20324a', borderRadius: 8, controlHeight: 44, fontSize: 15 } }}>
+    <ConfigProvider theme={{ token: { fontFamily: "'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif", colorPrimary: '#2459b8', colorText: '#20324a', borderRadius: 8, controlHeight: 40, controlHeightLG: 40, fontSize: 15 } }}>
       <div className="public-service">
         <header className="public-service-header">
           <Link to="/" className="public-service-brand"><img src="/favicon.svg" alt="" />CipherGate</Link>

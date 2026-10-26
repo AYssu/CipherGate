@@ -9,7 +9,7 @@ async function mockApi(page: Page, handler: (route: Route, path: string) => Prom
     if (path.includes('/unread/count')) data = { total: 0, showBadge: false };
     if (path === '/portal/settings/profile') data = { username: 'Portal user', email: 'user@example.com' };
     if (path === '/portal/dashboard/stats') data = {};
-    if (path === '/public/challenge') data = { captchaId: 'challenge', image: '' };
+    if (path === '/public/challenge') data = { captchaId: 'challenge', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=' };
     await route.fulfill({ json: envelope(data) });
   });
 }
@@ -17,7 +17,7 @@ for (const valid of [true, false]) test(`portal login ${valid ? 'persists sessio
   let captchas = 0;
   let payload: unknown;
   await mockApi(page, async (route, path) => {
-    if (path === '/portal/auth/captcha') { captchas++; await route.fulfill({ json: envelope({ captchaId: 'captcha-1', image: '' }) }); return true; }
+    if (path === '/portal/auth/captcha') { captchas++; await route.fulfill({ json: envelope({ captchaId: 'captcha-1', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=' }) }); return true; }
     if (path === '/portal/auth/login') {
       payload = route.request().postDataJSON();
       await route.fulfill(valid ? { json: envelope({ token: 'mock-session', apps: [{ appId: 1 }] }) } : { status: 401, json: { success: false, message: '登录失败' } }); return true;
@@ -25,8 +25,8 @@ for (const valid of [true, false]) test(`portal login ${valid ? 'persists sessio
     return false;
   });
   await page.goto('/portal/login');
-  await page.getByPlaceholder('邮箱地址').fill('user@example.com');
-  await page.getByPlaceholder('密码', { exact: true }).fill('test-password');
+  await page.getByPlaceholder('请输入注册邮箱').fill('user@example.com');
+  await page.getByPlaceholder('请输入密码', { exact: true }).fill('test-password');
   await page.getByPlaceholder('验证码', { exact: true }).fill('1234');
   await page.getByRole('button', { name: /登\s*录/, exact: true }).click();
   await expect.poll(() => payload).toEqual({ email: 'user@example.com', password: 'test-password', captchaCode: '1234', captchaId: 'captcha-1' });
@@ -129,13 +129,13 @@ test('application registration validates fields and links to the shared login fl
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await mockApi(page, async (route, path) => {
-    if (path === '/portal/auth/captcha') { await route.fulfill({ json: envelope({ captchaId: 'registration-captcha', image: '' }) }); return true; }
+    if (path === '/portal/auth/captcha') { await route.fulfill({ json: envelope({ captchaId: 'registration-captcha', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=' }) }); return true; }
     return false;
   });
   await page.goto('/register?id=1');
   await expect(page.getByRole('heading', { name: '创建应用账户', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '发送验证码', exact: true }).click();
-  await expect(page.getByText('请先填写用户名与有效邮箱', { exact: true })).toBeVisible();
+  await expect(page.getByText('请先填写账号与有效邮箱', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: '已有账号？登录', exact: true }).click();
   await expect(page).toHaveURL(/\/portal\/login$/);
   await expect(page.getByRole('heading', { name: '应用用户登录', exact: true })).toBeVisible();
