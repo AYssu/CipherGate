@@ -4,7 +4,7 @@ import portalRequest from './portalRequest';
 
 export const portalAuthApi = {
   getCaptcha: () => {
-    return portalRequest.get<unknown, ApiResponse<PortalCaptcha>>('/auth/captcha');
+    return portalRequest.get<unknown, ApiResponse<PortalCaptcha>>('/auth/captcha', { params: { _t: Date.now() } });
   },
   login: (data: { email: string; password: string; captchaCode: string; captchaId: string }) => {
     return portalRequest.post<unknown, ApiResponse<PortalLoginResult>>('/auth/login', data);

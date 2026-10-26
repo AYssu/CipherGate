@@ -1,4 +1,5 @@
 import type { PortalPasswordReset } from '../services/types';
+import CaptchaImage from '../../components/CaptchaImage';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React, { useState, useCallback, useEffect } from 'react';
 import { Form, Input, Button, message, Steps, Select } from 'antd';
@@ -16,10 +17,13 @@ const PortalPasswordRecoveryPage: React.FC = () => {
   const [apps, setApps] = useState<Array<{ appId: number; appName: string }>>([]);
   const navigate = useNavigate();
   const [captcha, setCaptcha] = useState({ captchaId: '', image: '' });
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
   const refreshCaptcha = useCallback(async () => {
-    setCaptcha({ captchaId: '', image: '' });
+    setCaptcha({ captchaId: '', image: '' }); setCaptchaLoading(true); setCaptchaFailed(false);
     form.setFieldValue('captchaCode', '');
-    try { const result = await portalAuthApi.getCaptcha(); setCaptcha(result.data); } catch { /* interceptor reports failures */ }
+    try { const result = await portalAuthApi.getCaptcha(); if (!result.data?.image || !result.data.captchaId) throw new Error('Empty captcha'); setCaptcha(result.data); }
+    catch { setCaptchaFailed(true); } finally { setCaptchaLoading(false); }
   }, [form]);
   useEffect(() => { void refreshCaptcha(); }, [refreshCaptcha]);
 
@@ -79,14 +83,13 @@ const PortalPasswordRecoveryPage: React.FC = () => {
               <Form.Item name="email" label="注册邮箱" rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}>
                 <Input prefix={<MailOutlined />} placeholder="注册邮箱" size="large" />
               </Form.Item>
-              <Form.Item label="图形验证码" required>
+              <Form.Item label="图形验证码" required extra={captchaFailed ? <span role="status" className="public-service-error">验证码加载失败，请点击重试。</span> : "看不清可点击图片换一张"}>
                 <div className="public-service-row">
                   <Form.Item name="captchaCode" noStyle rules={[{ required: true, message: '请输入图形验证码' }]}>
                     <Input placeholder="图形验证码" maxLength={4} autoComplete="off" aria-label="图形验证码" style={{ flex: 1, minWidth: 0 }} />
                   </Form.Item>
-                  <button type="button" className="public-service-captcha" onClick={() => void refreshCaptcha()} aria-label="刷新图形验证码">
-                    {captcha.image ? <img src={captcha.image} alt="图形验证码" /> : '点击刷新'}
-                  </button>
+                  <CaptchaImage image={captcha.image} loading={captchaLoading} failed={captchaFailed}
+                    onRefresh={() => void refreshCaptcha()} onError={() => { setCaptchaFailed(true); setCaptcha({ captchaId: '', image: '' }); }} />
                 </div>
               </Form.Item>
               <Form.Item>

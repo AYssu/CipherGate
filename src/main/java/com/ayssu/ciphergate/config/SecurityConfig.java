@@ -50,6 +50,7 @@ public class SecurityConfig {
                                 "/api/config/public/invite-status",
                                 "/api/test",
                                  "/api/open/**",
+                                "/api/public/challenge",
                                 "/api/public/app-user/register/**",
                                 "/api/public/app-user/self/**",
                                 "/api/public/license/**",

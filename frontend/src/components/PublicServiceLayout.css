@@ -42,3 +42,29 @@
 .public-service a:hover { text-decoration: underline; }
 .public-service-intro h1 { font-family: inherit; color: var(--public-ink); }
 @media (max-width: 767px) { .public-service-panel section[aria-label="卡密充值"] > form > .ant-btn { width: 100%; } }
+
+/* Keep nested Ant inputs at one control height, including mobile global overrides. */
+.public-service-panel .ant-form-item { margin-bottom: 18px; }
+.public-service-panel .ant-form-item-label { padding-bottom: 6px; }
+.public-service-panel .ant-form-item-extra { min-height: 0; margin-top: 5px; font-size: 12px; line-height: 1.6; }
+.public-service-panel input.ant-input,
+.public-service-panel .ant-input-affix-wrapper,
+.public-service-panel .ant-select-selector { height: 40px !important; min-height: 40px; font-size: 16px !important; }
+.public-service-panel .ant-input-affix-wrapper { padding: 7px 11px; align-items: center; }
+.public-service-panel .ant-input-affix-wrapper > input.ant-input { height: 24px !important; min-height: 0; padding: 0; line-height: 24px; }
+.public-service-panel .ant-input-prefix { margin-inline-end: 9px; color: #63758a; }
+.public-service-panel .ant-btn { height: 40px; font-size: 15px; }
+.public-service-panel .public-service-captcha { display: flex; align-items: center; justify-content: center; width: 132px; height: 40px; padding: 0; border-radius: 6px; }
+.public-service-captcha span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.public-service-captcha:disabled { cursor: wait; }
+.public-service-captcha:hover { border-color: #2459b8; }
+.public-service-captcha img { display: block; }
+.public-service-error { color: #b42318; }
+@media (max-width: 767px) {
+ .public-service-main { gap: 18px; }
+ .public-service-panel { padding: 22px 18px; }
+ .public-service-help { margin-top: 12px; }
+ .public-service-panel .ant-form-item { margin-bottom: 16px; }
+ .public-service-row { gap: 8px; align-items: center; }
+ .public-service-panel .public-service-captcha { width: 120px; }
+}

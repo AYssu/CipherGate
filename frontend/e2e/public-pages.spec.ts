@@ -5,7 +5,7 @@ async function mock(page: Page) {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
     let data: unknown = [];
-    if (path.endsWith('/captcha') || path.endsWith('/challenge')) data = { captchaId: 'captcha', image: '' };
+    if (path.endsWith('/captcha') || path.endsWith('/challenge')) data = { captchaId: 'captcha', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=' };
     if (path.endsWith('/recovery/apps')) data = [{ appId: 1, appName: '我的应用' }];
     if (path.endsWith('/query-remaining')) data = { keyCodeMasked: 'ABCD****1234', status: 2, remainingSeconds: 86400, boundDevice: true, boundIp: false, unbindCount: 0, unbindLimit: 3, unbindRemaining: 3 };
     if (path.endsWith('/query-expire')) data = { emailMasked: 'us***@example.com', memberActive: false, remainingSeconds: 0 };
@@ -33,7 +33,7 @@ test('registration sends the exact form values and shows a success receipt', asy
   await mock(page); let submitted: unknown;
   await page.route('**/api/public/app-user/register/submit', async route => { submitted = route.request().postDataJSON(); await route.fulfill({ json: envelope(null) }); });
   await page.goto('/register?id=12');
-  await page.getByLabel('用户名', { exact: true }).fill('alice_1');
+  await page.getByLabel('账号', { exact: true }).fill('alice_1');
   await page.getByLabel('注册邮箱', { exact: true }).fill('Alice@example.com');
   await page.getByLabel('邮箱验证码', { exact: true }).fill('123456');
   await page.getByLabel('设置密码', { exact: true }).fill('password-123');
@@ -147,8 +147,8 @@ test('failed login preserves an existing unrelated portal session', async ({ pag
   await page.addInitScript(() => { localStorage.setItem('portal_token', 'existing-session'); localStorage.setItem('portal_app_id', '12'); });
   await page.route('**/api/portal/auth/login', async route => route.fulfill({ status: 401, json: { code: 401, message: '邮箱或密码错误' } }));
   await page.goto('/portal/login');
-  await page.getByPlaceholder('邮箱地址').fill('other@example.com');
-  await page.getByPlaceholder('密码', { exact: true }).fill('wrong-password');
+  await page.getByPlaceholder('请输入注册邮箱').fill('other@example.com');
+  await page.getByPlaceholder('请输入密码', { exact: true }).fill('wrong-password');
   await page.getByPlaceholder('验证码', { exact: true }).fill('1234');
   await page.getByRole('button', { name: /登\s*录/, exact: true }).click();
   await expect(page.getByText('邮箱或密码错误', { exact: true })).toBeVisible();
