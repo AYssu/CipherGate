@@ -52,7 +52,9 @@ public class ThirdPartyAuthFilter extends OncePerRequestFilter {
             return true;
         }
         // 三方凭证加时接口走 body 内 apiKey/sign 校验，不走 X-* 鉴权头
-        if (path.startsWith("/api/v1/third_party/recharge")) {
+        if (path.startsWith("/api/v1/third_party/recharge")
+                || path.equals("/api/v1/third_party/trial")
+                || path.equals("/api/v1/third_party/authorization")) {
             return true;
         }
         // Also skip WebSocket upgrade requests (defensive).

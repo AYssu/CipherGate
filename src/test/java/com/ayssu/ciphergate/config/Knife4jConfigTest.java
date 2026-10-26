@@ -35,6 +35,8 @@ class Knife4jConfigTest {
                 .addPathItem("/api/v1/card/login", postOperationPathItem())
                 .addPathItem("/api/v1/app/update-package", getOperationPathItem())
                 .addPathItem("/api/v1/third_party/recharge", postOperationPathItem())
+                .addPathItem("/api/v1/third_party/trial", postOperationPathItem())
+                .addPathItem("/api/v1/third_party/authorization", postOperationPathItem())
                 .addPathItem("/api/payment/notify", postOperationPathItem()));
     }
 
@@ -83,6 +85,8 @@ class Knife4jConfigTest {
         assertNull(openApi.getPaths().get("/api/portal/auth/login").getPost().getSecurity());
         assertNull(openApi.getPaths().get("/api/payment/notify").getPost().getSecurity());
         assertNull(openApi.getPaths().get("/api/v1/third_party/recharge").getPost().getSecurity());
+        assertNull(openApi.getPaths().get("/api/v1/third_party/trial").getPost().getSecurity());
+        assertNull(openApi.getPaths().get("/api/v1/third_party/authorization").getPost().getSecurity());
     }
 
     @Test

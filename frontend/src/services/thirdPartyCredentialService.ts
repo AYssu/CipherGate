@@ -17,6 +17,8 @@ export interface ThirdPartyCredential {
   apiSecret?: string;
   status: number;
   allowedIps?: string;
+  allowTrial?: boolean;
+  allowQuery?: boolean;
   dailyLimit?: number;
   totalCallLimit?: number;
   totalDaysLimit?: number;
@@ -34,6 +36,8 @@ export interface ThirdPartyCredentialDTO {
   appIds?: number[];
   name: string;
   allowedIps?: string;
+  allowTrial?: boolean;
+  allowQuery?: boolean;
   dailyLimit?: number;
   totalCallLimit?: number;
   totalDaysLimit?: number;

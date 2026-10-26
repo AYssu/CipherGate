@@ -13,6 +13,10 @@ public class ThirdPartyCredentialDTO {
     private List<Long> appIds;
     private String name;
     private String allowedIps;
+
+    /** Administrator-granted server integration permissions; disabled for legacy credentials. */
+    private Boolean allowTrial;
+    private Boolean allowQuery;
     private Integer dailyLimit;
     private Long totalCallLimit;
     private Long totalDaysLimit;

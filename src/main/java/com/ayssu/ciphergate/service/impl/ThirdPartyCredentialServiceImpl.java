@@ -143,6 +143,7 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
         row.setApiKey("tpk_" + randomText(24));
         row.setApiSecret("tps_" + randomText(32));
         row.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        applyIntegrationPermissions(row, dto, operatorId);
         row.setAllowedIps(normalizeIps(dto.getAllowedIps()));
         row.setDailyLimit(dto.getDailyLimit());
         row.setTotalCallLimit(dto.getTotalCallLimit());
@@ -166,6 +167,8 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
     @Transactional(rollbackFor = Exception.class)
     public ThirdPartyCredential updateCredential(Long id, ThirdPartyCredentialDTO dto, Long operatorId) {
         ThirdPartyCredential row = loadAuthorizedCredential(id, operatorId, true);
+        requireIntegrationAdministrator(row, operatorId);
+        applyIntegrationPermissions(row, dto, operatorId);
         // 不传绑定字段保持原授权。旧版表单只回传原 appId 时，不截断已配置的多应用集合。
         boolean replaceBindings = dto.getAppIds() != null
                 || (dto.getAppId() != null && !dto.getAppId().equals(row.getAppId()));
@@ -193,6 +196,8 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
                 .set(ThirdPartyCredential::getName, row.getName())
                 .set(ThirdPartyCredential::getStatus, row.getStatus())
                 .set(ThirdPartyCredential::getAllowedIps, row.getAllowedIps())
+                .set(ThirdPartyCredential::getAllowTrial, row.getAllowTrial())
+                .set(ThirdPartyCredential::getAllowQuery, row.getAllowQuery())
                 .set(ThirdPartyCredential::getDailyLimit, row.getDailyLimit())
                 .set(ThirdPartyCredential::getTotalCallLimit, row.getTotalCallLimit())
                 .set(ThirdPartyCredential::getTotalDaysLimit, row.getTotalDaysLimit())
@@ -210,7 +215,7 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteCredential(Long id, Long operatorId) {
-        loadAuthorizedCredential(id, operatorId, true);
+        requireIntegrationAdministrator(loadAuthorizedCredential(id, operatorId, true), operatorId);
         credentialMapper.deleteById(id);
         credentialAppMapper.deleteBindings(id);
     }
@@ -219,6 +224,7 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
     @Transactional(rollbackFor = Exception.class)
     public ThirdPartyCredential rotateSecret(Long id, Long operatorId) {
         ThirdPartyCredential row = loadAuthorizedCredential(id, operatorId, true);
+        requireIntegrationAdministrator(row, operatorId);
         row.setApiSecret("tps_" + randomText(32));
         row.setUpdatedAt(LocalDateTime.now());
         credentialMapper.update(null, new LambdaUpdateWrapper<ThirdPartyCredential>()
@@ -282,6 +288,27 @@ public class ThirdPartyCredentialServiceImpl implements ThirdPartyCredentialServ
             ids.add(app.getId());
         }
         return ids;
+    }
+
+    private void requireIntegrationAdministrator(ThirdPartyCredential row, Long operatorId) {
+        if ((Boolean.TRUE.equals(row.getAllowTrial()) || Boolean.TRUE.equals(row.getAllowQuery()))
+                && !securityUtils.isAdmin(operatorId))
+            throw new IllegalArgumentException("包含开放接口权限的凭证仅系统管理员可修改、轮换或删除");
+    }
+
+    private void applyIntegrationPermissions(ThirdPartyCredential row, ThirdPartyCredentialDTO dto, Long operatorId) {
+        boolean trial = dto.getAllowTrial() == null ? Boolean.TRUE.equals(row.getAllowTrial()) : dto.getAllowTrial();
+        boolean query = dto.getAllowQuery() == null ? Boolean.TRUE.equals(row.getAllowQuery()) : dto.getAllowQuery();
+        if ((trial || query || dto.getAllowTrial() != null || dto.getAllowQuery() != null)
+                && !securityUtils.isAdmin(operatorId))
+            throw new IllegalArgumentException("仅系统管理员可配置开放接口权限");
+        if (trial || query) {
+            if (!StringUtils.hasText(dto.getAllowedIps())) throw new IllegalArgumentException("开放接口必须配置允许IP，不能为空");
+            for (String ip : dto.getAllowedIps().split(",", -1))
+                if (!com.ayssu.ciphergate.util.IntegrationIpPolicy.valid(ip.trim()))
+                    throw new IllegalArgumentException("允许IP必须为精确IPv4或IPv6地址，不支持域名、通配符或网段");
+        }
+        row.setAllowTrial(trial); row.setAllowQuery(query);
     }
 
     private String normalizeIps(String ips) {

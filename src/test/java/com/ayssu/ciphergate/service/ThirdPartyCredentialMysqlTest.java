@@ -59,6 +59,8 @@ class ThirdPartyCredentialMysqlTest {
         }
         // 升级脚本重跑不能扩大授权或删除绑定。
         executeUpgrade(); executeUpgrade();
+        String integrationUpgrade = Files.readString(Path.of("src/main/resources/db/migration/V4__third_party_integration_permissions.sql")).replaceAll("(?m)^--.*$", "");
+        for (String statement : integrationUpgrade.split(";")) if (!statement.isBlank()) jdbc.execute(statement);
         var config = new MybatisConfiguration(); config.setMapUnderscoreToCamelCase(true);
         var pagination = new MybatisPlusInterceptor(); pagination.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         config.addInterceptor(pagination);
@@ -110,6 +112,54 @@ class ThirdPartyCredentialMysqlTest {
     }
     LocalDateTime expiry(long id) { return jdbc.queryForObject("SELECT member_expires_at FROM app_user WHERE id=?", LocalDateTime.class, id); }
     String error() { return jdbc.queryForObject("SELECT error_code FROM third_party_recharge_log ORDER BY id DESC LIMIT 1", String.class); }
+
+    com.ayssu.ciphergate.thirdparty.dto.ThirdPartyIntegrationRequest integrationRequest() {
+        var request=new com.ayssu.ciphergate.thirdparty.dto.ThirdPartyIntegrationRequest();
+        request.setApiKey("test_key");request.setAppId(10L);request.setUserEmail("user@example.test");
+        request.setTimestamp(System.currentTimeMillis());request.setNonce(UUID.randomUUID().toString());
+        request.setSign(com.ayssu.ciphergate.thirdparty.auth.ThirdPartySignatureVerifier.hmacSha256Hex("test_secret",
+                com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService.signingText(
+                    com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService.Action.AUTH_QUERY,request)));
+        return request;
+    }
+    @SuppressWarnings("unchecked")
+    com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService integration(OpenTrialService trial) {
+        var redis=mock(StringRedisTemplate.class);var values=mock(ValueOperations.class);when(redis.opsForValue()).thenReturn(values);
+        when(values.setIfAbsent(anyString(),eq("1"),any(Duration.class))).thenReturn(true);
+        when(redis.execute(any(org.springframework.data.redis.core.script.RedisScript.class),anyList())).thenReturn(1L);
+        return new com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService(
+            sessions.getMapper(ThirdPartyCredentialMapper.class),sessions.getMapper(ThirdPartyCredentialAppMapper.class),
+            sessions.getMapper(ApplicationMapper.class),sessions.getMapper(ThirdPartyRechargeLogMapper.class),trial,redis,mock(PublicAbuseGuard.class),transactions);
+    }
+    @Test void integrationFailureRollsBackBusinessAndPreservesFailureAudit() {
+        jdbc.update("UPDATE third_party_credential SET allow_query=1,allowed_ips='192.0.2.1' WHERE id=5");
+        var trial=mock(OpenTrialService.class);var before=expiry(100);
+        when(trial.queryAuthorizedExpireAt(anyLong(),anyString())).thenAnswer(inv->{
+            jdbc.update("UPDATE app_user SET member_expires_at='2040-01-01' WHERE id=100");
+            throw new IllegalStateException("simulated downstream failure");
+        });
+        var result=integration(trial).execute(com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService.Action.AUTH_QUERY,integrationRequest(),"192.0.2.1",null);
+        assertFalse(result.getSuccess());assertEquals(before,expiry(100));
+        assertEquals(9L,jdbc.queryForObject("SELECT used_call_count FROM third_party_credential WHERE id=5",Long.class));
+        assertEquals("BUSINESS_CONFLICT",error());
+        assertEquals("AUTH_QUERY",jdbc.queryForObject("SELECT operation FROM third_party_recharge_log ORDER BY id DESC LIMIT 1",String.class));
+    }
+    @Test void queryAndRechargeShareLastCallWithoutExceedingQuota() throws Exception {
+        jdbc.update("UPDATE third_party_credential SET allow_query=1,allowed_ips='192.0.2.1',total_call_limit=10 WHERE id=5");
+        var trial=mock(OpenTrialService.class);
+        when(trial.queryAuthorizedExpireAt(anyLong(),anyString())).thenReturn(new OpenTrialService.TrialExpireResult(10L,expiry(100)));
+        var integration=integration(trial);var start=new java.util.concurrent.CountDownLatch(1);var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var query=pool.submit(()->{start.await();return integration.execute(com.ayssu.ciphergate.thirdparty.service.ThirdPartyIntegrationService.Action.AUTH_QUERY,integrationRequest(),"192.0.2.1",null);});
+            var topup=pool.submit(()->{start.await();return recharge.recharge(request(10,"shared-last-call"),"192.0.2.1",null);});
+            start.countDown();
+            boolean queryOk=query.get(15,java.util.concurrent.TimeUnit.SECONDS).getSuccess();
+            boolean topupOk=topup.get(15,java.util.concurrent.TimeUnit.SECONDS).getSuccess();
+            assertNotEquals(queryOk,topupOk);
+            assertEquals(10L,jdbc.queryForObject("SELECT used_call_count FROM third_party_credential WHERE id=5",Long.class));
+            assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM third_party_recharge_log WHERE status=1",Integer.class));
+        } finally {pool.shutdownNow();}
+    }
 
     @Test void legacyFallbackWorksForAuthorizationAndFiltering() {
         assertEquals(List.of(10L), service.getCredential(5L, 1L).getAppIds());

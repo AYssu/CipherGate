@@ -10,6 +10,10 @@ public interface OpenTrialService {
 
     TrialExpireResult queryTrialExpireAt(Long appId, String email, String password);
 
+    TrialApplyResult applyAuthorizedTrial(Long appId, String email, String ipAddress, String userAgent);
+
+    TrialExpireResult queryAuthorizedExpireAt(Long appId, String email);
+
     record TrialApplyResult(Long appId, Integer trialDays, LocalDateTime expiresAt) {}
 
     record TrialExpireResult(Long appId, LocalDateTime expiresAt) {}

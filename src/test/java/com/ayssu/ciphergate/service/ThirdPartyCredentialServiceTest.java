@@ -53,6 +53,31 @@ class ThirdPartyCredentialServiceTest {
         var dto = new ThirdPartyCredentialDTO(); dto.setName("Test recharge key"); dto.setAppIds(ids); return dto;
     }
 
+    @Test void newPermissionsDefaultClosedAndRequireAdministratorAndIp() {
+        var input=dto(List.of(10L)); input.setAllowQuery(true);
+        assertThrows(IllegalArgumentException.class,()->service.createCredential(input,1L));
+        when(security.isAdmin(1L)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class,()->service.createCredential(input,1L));
+        input.setAllowedIps("0.0.0.0/0");
+        assertThrows(IllegalArgumentException.class,()->service.createCredential(input,1L));
+        input.setAllowedIps("192.0.2.1,2001:db8::1");
+        var created=service.createCredential(input,1L);
+        assertTrue(created.getAllowQuery()); assertFalse(created.getAllowTrial());
+    }
+    @Test void privilegedCredentialCannotBeModifiedRotatedOrDeletedByOwner() {
+        row.setAllowQuery(true);
+        assertThrows(IllegalArgumentException.class,()->service.updateCredential(5L,dto(List.of(10L)),1L));
+        assertThrows(IllegalArgumentException.class,()->service.rotateSecret(5L,1L));
+        assertThrows(IllegalArgumentException.class,()->service.deleteCredential(5L,1L));
+        verify(credentials,never()).update(any(),any()); verify(credentials,never()).deleteById(anyLong());
+    }
+    @Test void administratorCanExplicitlyRevokePermissions() {
+        row.setAllowQuery(true); row.setAllowTrial(true); when(security.isAdmin(1L)).thenReturn(true);
+        var input=dto(List.of(10L));input.setAllowQuery(false); input.setAllowTrial(false);
+        var updated=service.updateCredential(5L,input,1L);
+        assertFalse(updated.getAllowQuery());assertFalse(updated.getAllowTrial());assertNull(updated.getApiSecret());
+    }
+
     @Test void createDeduplicatesBindingsAndReturnsSecretOnlyOnce() {
         doAnswer(inv -> { ((ThirdPartyCredential)inv.getArgument(0)).setId(5L); return 1; })
                 .when(credentials).insert(any(ThirdPartyCredential.class));
