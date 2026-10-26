@@ -185,6 +185,24 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
 
             // 核心数据库写入放在独立事务中；异常会回滚，随后由外层写失败日志并释放 Redis。
             SuccessData successData = new TransactionTemplate(transactionManager).execute(status -> {
+                // Share lock order and quota enforcement with signed query/trial operations.
+                ThirdPartyCredential currentCredential = credentialMapper.selectForUpdate(credential.getId());
+                if (currentCredential == null || !Integer.valueOf(1).equals(currentCredential.getStatus())
+                        || (currentCredential.getExpiresAt() != null && !currentCredential.getExpiresAt().isAfter(LocalDateTime.now())))
+                    throw new RechargeRejected("BAD_API_KEY", "凭证已失效");
+                if (!java.util.Objects.equals(currentCredential.getApiSecret(), credential.getApiSecret()))
+                    throw new RechargeRejected("BAD_SIGN", "凭证已轮换，请重新签名");
+                if (!ipAllowed(currentCredential.getAllowedIps(), ipAddress))
+                    throw new RechargeRejected("IP_DENIED", "IP地址未授权");
+                if (!credentialAppMapper.isAppBound(currentCredential.getId(), appId))
+                    throw new RechargeRejected("APP_DENIED", "无权限操作该应用");
+                long currentCalls = currentCredential.getUsedCallCount() == null ? 0L : currentCredential.getUsedCallCount();
+                long currentDays = currentCredential.getUsedDaysCount() == null ? 0L : currentCredential.getUsedDaysCount();
+                if (currentCredential.getTotalCallLimit() != null && currentCredential.getTotalCallLimit() > 0 && currentCalls >= currentCredential.getTotalCallLimit())
+                    throw new RechargeRejected("TOTAL_CALL_LIMIT_EXCEEDED", "超过总调用限制");
+                if (currentCredential.getTotalDaysLimit() != null && currentCredential.getTotalDaysLimit() > 0
+                        && (currentDays > currentCredential.getTotalDaysLimit() - dto.getDays()))
+                    throw new RechargeRejected("TOTAL_DAYS_LIMIT_EXCEEDED", "超过总消费天数限制");
                 AppUser currentUser = appUserMapper.selectForUpdate(appUser.getId());
                 if (currentUser == null) {
                     throw new IllegalStateException("目标用户已不存在");
@@ -263,6 +281,8 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
             data.put("beforeExpiresAt", successData.before());
             data.put("afterExpiresAt", successData.after());
             return Result.success("充值成功", data);
+        } catch (RechargeRejected rejected) {
+            return fail(logRow, rejected.code, rejected.getMessage());
         } catch (DuplicateKeyException e) {
             // 事务已回滚；让 finally 退回本次每日计数并释放本次锁，
             // 下一次请求会由数据库成功订单检查直接识别为已处理。
@@ -382,6 +402,11 @@ public class ThirdPartyRechargeServiceImpl implements ThirdPartyRechargeService 
         }
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    private static class RechargeRejected extends RuntimeException {
+        final String code;
+        RechargeRejected(String code, String message) { super(message); this.code = code; }
     }
 
     private record SuccessData(LocalDateTime before, LocalDateTime after, String email) {

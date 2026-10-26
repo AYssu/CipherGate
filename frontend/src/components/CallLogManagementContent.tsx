@@ -8,6 +8,7 @@ import { getRechargeSignatureStatus } from '../utils/rechargeSignatureStatus';
 import type { ApiResponse } from '../types';
 
 const { Text, Title } = Typography;
+const operationLabel = (operation?: string) => ({ RECHARGE: '充值加时', TRIAL_APPLY: '申请试用', AUTH_QUERY: '查询授权' })[operation as 'RECHARGE' | 'TRIAL_APPLY' | 'AUTH_QUERY'] ?? '充值加时';
 
 interface LogPage<T> {
   records: T[];
@@ -347,7 +348,7 @@ const CallLogManagementContent: React.FC = () => {
                   </Text>
                 </div>
                 <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap', marginLeft: 8 }}>
-                  +{item.days}天
+                  {operationLabel(item.operation)}{(!item.operation || item.operation === 'RECHARGE') ? ` +${item.days}天` : ''}
                 </Text>
               </div>
               <div className="mgmt-mobile-card-meta">
@@ -392,7 +393,8 @@ const CallLogManagementContent: React.FC = () => {
             { title: '应用ID', dataIndex: 'appId', width: 90 },
             { title: '凭证ID', dataIndex: 'credentialId', width: 100 },
             { title: '用户邮箱', dataIndex: 'userEmail', width: 220 },
-            { title: '加时天数', dataIndex: 'days', width: 90 },
+            { title: '调用接口', dataIndex: 'operation', width: 100, render: operationLabel },
+            { title: '加时天数', dataIndex: 'days', width: 90, render: (days: number, row: ThirdPartyRechargeLog) => !row.operation || row.operation === 'RECHARGE' ? days : '-' },
             { title: '订单号', dataIndex: 'outTradeNo', width: 180, ellipsis: true },
             { title: 'IP', dataIndex: 'requestIp', width: 140 },
             {

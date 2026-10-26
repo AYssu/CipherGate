@@ -7,6 +7,7 @@ export interface ThirdPartyRechargeLog {
   apiKey?: string;
   userEmail?: string;
   days?: number;
+  operation?: string;
   outTradeNo?: string;
   requestIp?: string;
   requestTs?: number;

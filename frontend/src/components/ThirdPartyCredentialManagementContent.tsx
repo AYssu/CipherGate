@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import type { UserInfo } from '../services/userService';
 import {
   Badge,
+  Checkbox,
   Button,
   Card,
   Col,
@@ -39,9 +42,13 @@ import { getApplicationList, type Application } from '../services/applicationSer
 import type { ApiResponse } from '../types';
 import M5BottomSheet from './M5BottomSheet';
 
-const { Text, Title } = Typography;
+const { Text, Title, Paragraph } = Typography;
 
 const ThirdPartyCredentialManagementContent: React.FC = () => {
+  const { userInfo } = useOutletContext<{ userInfo?: UserInfo | null }>() ?? {};
+  const isAdmin = !!userInfo?.roles?.some((role) => role.roleCode === 'SUPER_ADMIN' || role.roleCode === 'ADMIN');
+  const hasRestrictedActions = (credential: ThirdPartyCredential) => !!(credential.allowTrial || credential.allowQuery);
+  const canManageCredential = (credential: ThirdPartyCredential) => isAdmin || !hasRestrictedActions(credential);
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
@@ -54,7 +61,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   const [latestSecret, setLatestSecret] = useState<{ apiKey: string; apiSecret: string } | null>(null);
   const [showSecret, setShowSecret] = useState<Record<number, boolean>>({});
   const [rotatedSecretMap, setRotatedSecretMap] = useState<Record<number, string>>({});
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<ThirdPartyCredentialDTO>();
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [filters, setFilters] = useState<{ appId?: number; status?: number; name?: string }>({});
   const [nameInput, setNameInput] = useState('');
@@ -170,6 +177,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         totalDaysLimit: v.totalDaysLimit,
         status: v.status,
         remark: v.remark,
+        ...(isAdmin ? { allowTrial: !!v.allowTrial, allowQuery: !!v.allowQuery } : {}),
       };
       setSaving(true);
       const res = editingCredential
@@ -201,11 +209,14 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   };
 
   const onEdit = (row: ThirdPartyCredential) => {
+    if (!canManageCredential(row)) return;
     setEditingCredential(row);
     form.setFieldsValue({
       appIds: row.appIds?.length ? row.appIds : [row.appId],
       name: row.name,
       allowedIps: row.allowedIps,
+      allowTrial: !!row.allowTrial,
+      allowQuery: !!row.allowQuery,
       dailyLimit: row.dailyLimit,
       totalCallLimit: row.totalCallLimit,
       totalDaysLimit: row.totalDaysLimit,
@@ -278,10 +289,10 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
   };
 
   const getCredentialMenuItems = (r: ThirdPartyCredential): MenuProps['items'] => [
-    { key: 'edit', icon: <EditOutlined />, label: '编辑', onClick: () => onEdit(r) },
-    { key: 'rotate', icon: <KeyOutlined />, label: '重置密钥', onClick: () => onRotate(r.id) },
+    { key: 'edit', disabled: !canManageCredential(r), icon: <EditOutlined />, label: '编辑', onClick: () => onEdit(r) },
+    { key: 'rotate', disabled: !canManageCredential(r), icon: <KeyOutlined />, label: '重置密钥', onClick: () => onRotate(r.id) },
     { type: 'divider' },
-    { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除', onClick: () => confirmDelete(r.id) },
+    { key: 'delete', disabled: !canManageCredential(r), icon: <DeleteOutlined />, danger: true, label: '删除', onClick: () => confirmDelete(r.id) },
   ];
 
   const boundAppIds = (row: ThirdPartyCredential) => row.appIds?.length ? row.appIds : [row.appId];
@@ -300,6 +311,32 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         </Tag>
       ))}
     </Space>
+  );
+
+  const renderActions = (credential: ThirdPartyCredential) => (
+    <Space size={[4, 4]} wrap>
+      <Tag style={{ marginInlineEnd: 0 }}>充值</Tag>
+      {credential.allowTrial && <Tag color="blue" style={{ marginInlineEnd: 0 }}>申请试用</Tag>}
+      {credential.allowQuery && <Tag color="cyan" style={{ marginInlineEnd: 0 }}>查询授权</Tag>}
+      {!isAdmin && hasRestrictedActions(credential) && <Text type="secondary">仅管理员可修改</Text>}
+    </Space>
+  );
+
+  const interfacePermissions = (
+    <>
+      <Divider orientation="left">开放接口权限</Divider>
+      <Space wrap size={[24, 8]}>
+        <Form.Item name="allowTrial" valuePropName="checked" style={{ marginBottom: 8 }}>
+          <Checkbox disabled={!isAdmin}>申请试用</Checkbox>
+        </Form.Item>
+        <Form.Item name="allowQuery" valuePropName="checked" style={{ marginBottom: 8 }}>
+          <Checkbox disabled={!isAdmin}>查询授权</Checkbox>
+        </Form.Item>
+      </Space>
+      <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+        {isAdmin ? '单独开启后，调用方可通过签名和 IP 白名单，凭应用标识与邮箱操作，无需用户密码或图形验证码。申请试用仍遵守应用的试用规则。' : '仅系统管理员可开启这些接口；已开启的凭证仅管理员可编辑、重置或删除。'}
+      </Paragraph>
+    </>
   );
 
   return (
@@ -328,7 +365,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
               type="primary"
               size="small"
               icon={<PlusOutlined />}
-              onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1 }); setModalVisible(true); }}
+              onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1, allowTrial: false, allowQuery: false }); setModalVisible(true); }}
              
             >
               新增
@@ -337,14 +374,14 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         ) : (
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1 }); setModalVisible(true); }}>新增凭证</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingCredential(null); form.resetFields(); form.setFieldsValue({ status: 1, allowTrial: false, allowQuery: false }); setModalVisible(true); }}>新增凭证</Button>
           </Space>
         )}
       </div>
 
       <Alert type="info" showIcon style={{ marginBottom: 16 }}
-        message="同一组充值 Key 可授权多个应用"
-        description="每次请求只为 projectKey 指定应用的用户加时。调用额度由整组凭证共享；相同订单号在同一 Key 下仅处理一次。" />
+        message="同一组凭证可授权多个应用"
+        description="充值权限保持原有规则；申请试用、查询授权由系统管理员单独开启，并须设置调用方出口 IP。所有请求均需凭证签名，调用额度由整组凭证共享。" />
 
       {/* 搜索和筛选 */}
       <div style={isMobile ? { display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' } : { marginBottom: 16 }}>
@@ -441,6 +478,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
                     </Text>
                   )}
                   <div style={{ marginTop: 6 }}>{renderBoundApps(r)}</div>
+                  <div style={{ marginTop: 6 }}>{renderActions(r)}</div>
                   <div className="mgmt-mobile-card-meta" style={{ marginTop: 4 }}>
                     <Text type="secondary">日限: {r.dailyLimit ?? '-'}</Text>
                     <Text type="secondary">|</Text>
@@ -469,6 +507,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             { title: 'ID', dataIndex: 'id', width: 80 },
             { title: '绑定应用', key: 'appIds', width: 240, render: (_, row) => renderBoundApps(row) },
             { title: '凭证名称', dataIndex: 'name', width: 180 },
+            { title: '开放接口', key: 'actions', width: 190, render: (_, row) => renderActions(row) },
             {
               title: 'API Key',
               dataIndex: 'apiKey',
@@ -543,10 +582,10 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ status: 1 }}
+            initialValues={{ status: 1, allowTrial: false, allowQuery: false }}
           >
             <Form.Item name="appIds" label="授权应用" rules={[{ required: true, type: 'array', min: 1, max: 100, message: '请选择1至100个应用' }]}
-              extra="每次充值仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
+              extra="每次调用仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
               <Select
                 mode="multiple"
                 showSearch
@@ -559,8 +598,21 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
               <Input maxLength={120} />
             </Form.Item>
-            <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
-              <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
+            {interfacePermissions}
+            <Form.Item name="allowedIps" label="IP 白名单" dependencies={['allowTrial', 'allowQuery']}
+              extra="填写调用服务器的公网出口 IP，多个用英文逗号分隔；支持精确 IPv4 / IPv6，不支持网段或通配符。"
+              rules={[({ getFieldValue }) => ({
+                validator(_, value: string | undefined) {
+                  if ((getFieldValue('allowTrial') || getFieldValue('allowQuery')) && !value?.trim()) {
+                    return Promise.reject(new Error('开启申请试用或查询授权时，必须填写 IP 白名单'));
+                  }
+                  if (value && /[/*]/.test(value)) {
+                    return Promise.reject(new Error('请填写精确 IP，不支持网段或通配符'));
+                  }
+                  return Promise.resolve();
+                },
+              })]}>
+              <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} placeholder="例如：203.0.113.10,2001:db8::10" />
             </Form.Item>
             <Space wrap style={{ width: '100%' }} align="start">
               <Form.Item name="dailyLimit" label="每日调用上限">
@@ -602,10 +654,10 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ status: 1 }}
+            initialValues={{ status: 1, allowTrial: false, allowQuery: false }}
           >
             <Form.Item name="appIds" label="授权应用" rules={[{ required: true, type: 'array', min: 1, max: 100, message: '请选择1至100个应用' }]}
-              extra="每次充值仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
+              extra="每次调用仅作用于 projectKey 指定的应用；修改绑定不会重置 Key / Secret。">
               <Select
                 mode="multiple"
                 showSearch
@@ -618,8 +670,21 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
             <Form.Item name="name" label="凭证名称" rules={[{ required: true, message: '请输入凭证名称' }]}>
               <Input maxLength={120} />
             </Form.Item>
-            <Form.Item name="allowedIps" label="IP白名单（多个用逗号分隔）">
-              <Input placeholder="例如: 1.1.1.1,2.2.2.2" />
+            {interfacePermissions}
+            <Form.Item name="allowedIps" label="IP 白名单" dependencies={['allowTrial', 'allowQuery']}
+              extra="填写调用服务器的公网出口 IP，多个用英文逗号分隔；支持精确 IPv4 / IPv6，不支持网段或通配符。"
+              rules={[({ getFieldValue }) => ({
+                validator(_, value: string | undefined) {
+                  if ((getFieldValue('allowTrial') || getFieldValue('allowQuery')) && !value?.trim()) {
+                    return Promise.reject(new Error('开启申请试用或查询授权时，必须填写 IP 白名单'));
+                  }
+                  if (value && /[/*]/.test(value)) {
+                    return Promise.reject(new Error('请填写精确 IP，不支持网段或通配符'));
+                  }
+                  return Promise.resolve();
+                },
+              })]}>
+              <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} placeholder="例如：203.0.113.10,2001:db8::10" />
             </Form.Item>
             <Space wrap style={{ width: '100%' }} align="start">
               <Form.Item name="dailyLimit" label="每日调用上限">
@@ -648,7 +713,7 @@ const ThirdPartyCredentialManagementContent: React.FC = () => {
         </Modal>
       )}
       <Modal
-        title="充值密钥（请立即保存）"
+        title="三方凭证密钥（请立即保存）"
         open={secretVisible}
         onCancel={() => setSecretVisible(false)}
         footer={[

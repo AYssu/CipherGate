@@ -36,6 +36,10 @@ public class ThirdPartyCredential implements Serializable {
     /** 逗号分隔IP */
     private String allowedIps;
 
+    /** Administrator-granted server integration permissions; disabled for legacy credentials. */
+    private Boolean allowTrial;
+    private Boolean allowQuery;
+
     private Integer dailyLimit;
 
     private Long totalCallLimit;

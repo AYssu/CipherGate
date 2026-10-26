@@ -44,7 +44,9 @@ public class ThirdPartyResponseEncryptionAdvice implements ResponseBodyAdvice<Ob
 
     @Override
     public boolean supports(@NonNull MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
-        return true;
+        // Independent integration credentials use ordinary JSON over HTTPS.
+        return !com.ayssu.ciphergate.thirdparty.controller.ThirdPartyIntegrationController.class
+                .isAssignableFrom(returnType.getContainingClass());
     }
 
     @Override

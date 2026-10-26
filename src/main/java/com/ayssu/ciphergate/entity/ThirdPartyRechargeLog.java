@@ -25,6 +25,9 @@ public class ThirdPartyRechargeLog implements Serializable {
 
     private Integer days;
 
+    /** RECHARGE, TRIAL_APPLY or AUTH_QUERY. */
+    private String operation;
+
     private String outTradeNo;
 
     private String requestIp;

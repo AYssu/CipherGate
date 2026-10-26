@@ -1,6 +1,6 @@
 # 第三方凭证
 
-第三方凭证用于授权外部服务为指定应用的终端用户充值加时。每条凭证包含独立的 `apiKey` 和 `apiSecret`，可授权一个或多个应用。它与应用 AppKey/AppSecret、更新包下载 ticket 相互独立。
+第三方凭证用于授权外部服务为指定应用的终端用户充值加时，以及经系统管理员开通的试用申请和授权查询。每条凭证包含独立的 `apiKey` 和 `apiSecret`，可授权一个或多个应用。它与应用 AppKey/AppSecret、更新包下载 ticket 相互独立。
 
 ## 创建与轮换
 
@@ -102,3 +102,104 @@ apiKey=<apiKey>&days=<days>&projectKey=<projectKey>&timestamp=<timestamp>&userEm
 `apiKey`、`projectKey`、`userEmail` 和 `apiSecret` 在签名前去除首尾空白。按 UTF-8 计算该原文的 MD5；`outTradeNo` 不参与当前签名。充值只作用于目标应用内指定邮箱的账号；返回业务结果应检查响应 `code` / `success`，不能仅按 HTTP 200 判断充值成功。
 
 建议联调顺序：先校准时间与目标应用 ID，再确认凭证授权集合和 IP 白名单，最后核对签名及限额。成功后查询目标用户的会员到期时间，并在 [调用日志](/developer/call-log)按订单号核对一次处理结果。网络异常时用同一 `outTradeNo` 核对幂等结果，不要生成新订单号盲目重充。
+
+## 凭证申请试用与查询授权
+
+机器人、商城等服务端集成可复用此处创建的独立凭证。**系统管理员**在同一凭证编辑页按需开启「申请试用」「查询授权」，并填写精确 IP 白名单；应用所有者不能自行开启或修改已含这些权限的凭证。无需新建菜单，也不使用应用 AppKey/AppSecret。
+
+原有凭证升级后两个开关均关闭，充值权限与旧签名保持不变。新接口必须同时满足：凭证启用且未过期、目标应用属于授权集合、对应接口已开启、来源 IP 命中非空白名单、签名正确、随机串未重放及调用额度允许。新权限作用于这条凭证的整个授权应用集合；不同应用需要不同权限时请拆分凭证。
+
+| 操作 | 请求地址 | 签名操作值 |
+| --- | --- | --- |
+| 申请试用 | `POST /api/v1/third_party/trial` | `TRIAL_APPLY` |
+| 查询授权 | `POST /api/v1/third_party/authorization` | `AUTH_QUERY` |
+
+请求为普通 JSON，经 HTTPS 发送，无需 AES 信封、`X-App-Key`、用户密码或图形验证码。
+
+| 字段 | 规则 |
+| --- | --- |
+| `apiKey` | 当前第三方凭证 API Key |
+| `appId` | 正整数应用 ID，直接使用数字，无需 Base64 |
+| `userEmail` | 目标应用中已存在用户的邮箱，签名前去除首尾空格并转小写 |
+| `timestamp` | 毫秒时间戳，服务端允许前后5分钟偏差 |
+| `nonce` | 每次请求新生成的16～64位字母、数字、下划线或短横线；推荐UUID十六进制 |
+| `sign` | HMAC-SHA256 十六进制摘要，使用当前 API Secret 作为密钥 |
+
+按以下固定顺序拼接，以单个 LF（`\n`）分隔，最后一行后**不加换行**：
+
+```text
+操作值
+apiKey
+appId
+userEmail
+timestamp
+nonce
+```
+
+签名绑定操作与应用，查询签名不能用于申请试用。随机串在同一凭证范围内一次性使用，至少保留11分钟；超时重试请生成新随机串重新签名，试用的数据库唯一约束仍保证一个用户在同一应用只能领取一次。
+
+### Python 机器人调用示例
+
+```python
+import hashlib
+import hmac
+import os
+import time
+import uuid
+import httpx
+
+async def query_authorization(app_id: int, email: str):
+    action = "AUTH_QUERY"
+    body = {
+        "apiKey": os.environ["CIPHERGATE_API_KEY"].strip(),
+        "appId": app_id,
+        "userEmail": email.strip().lower(),
+        "timestamp": time.time_ns() // 1_000_000,
+        "nonce": uuid.uuid4().hex,
+    }
+    text = "\n".join(str(value) for value in (
+        action, body["apiKey"], body["appId"], body["userEmail"],
+        body["timestamp"], body["nonce"],
+    ))
+    body["sign"] = hmac.new(
+        os.environ["CIPHERGATE_API_SECRET"].encode("utf-8"),
+        text.encode("utf-8"), hashlib.sha256,
+    ).hexdigest()
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            "https://你的域名/api/v1/third_party/authorization", json=body,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if not result.get("success"):
+            raise RuntimeError(result.get("message", "查询失败"))
+        return result["data"]  # appId、expiresAt；没有会员时 expiresAt 可以为空
+```
+
+申请试用使用同一封装，把操作值改成 `TRIAL_APPLY`、地址改为 `/api/v1/third_party/trial`，并重新生成随机串及签名。成功返回 `appId`、`trialDays`、`expiresAt`，不返回密码、用户内部ID或其他应用信息。
+
+试用仍要求应用启用并选择试用业务模式，目标用户事先存在且未领过试用；有效会员从原到期时间顺延，已过期则从当前时间起加1天。查询授权也要求应用启用。
+
+### 额度、IP与调用日志
+
+新接口的成功请求与充值共用凭证的日调用及总调用额度；失败请求不消耗成功调用额度，但仍受每IP、每凭证每分钟120次的防刷限制。新接口不使用充值消费天数额度；申请试用受每应用每用户一次的独立限制。
+
+IP 只读取经过可信代理规范化的 `remoteAddr`。白名单仅支持精确 IPv4/IPv6 地址，不支持域名、CIDR或通配符；IPv6不同文本写法会规范化比较。**新接口白名单为空时拒绝，原充值的空白名单语义不变。** 代理与源站信任链需要正确配置，不能直接相信调用方自填的转发头。
+
+现有「调用日志」新增调用接口类型，记录来源 IP、签名结果、失败原因、凭证不可逆短指纹与 traceId。未知凭证、IP不匹配及签名失败也会记录。无法验证目标应用归属的拒绝记录只供有调用日志权限的系统管理员查看，避免伪造请求污染其他应用所有者的日志；成功签名后的应用内记录仍按原应用权限隔离。日志不保存 Secret、签名或完整请求体。
+
+| HTTP 状态 / 日志错误码 | 含义 |
+| --- | --- |
+| `400 / INVALID_REQUEST` | 字段缺失或格式错误、目标用户不存在 |
+| `401 / BAD_API_KEY`、`BAD_SIGN`、`TIMESTAMP_EXPIRED` | 凭证、签名或时间戳无效 |
+| `403 / OPERATION_DENIED`、`IP_DENIED`、`APP_DENIED` | 接口未开通、IP不匹配或应用未授权 |
+| `403 / CREDENTIAL_EXPIRED`、`APP_UNAVAILABLE` | 凭证过期、应用不存在或禁用 |
+| `409 / REPLAY`、`BUSINESS_CONFLICT` | 随机串重复、重复领试用或试用不可用 |
+| `429 / RATE_LIMITED`、`DAILY_LIMIT_EXCEEDED`、`TOTAL_CALL_LIMIT_EXCEEDED` | 来源限流或额度耗尽 |
+| `503 / SYSTEM_ERROR`、`LIMIT_UNAVAILABLE` | 服务暂不可用 |
+
+原 `/api/open/trial` 和 `/api/open/trial/expires-at` 的密码与图形挑战规则继续保留。机器人应改用上述凭证端点，不能去掉原公开端点的安全校验。
+
+### 升级与撤销
+
+Flyway V4新增两个默认关闭的权限列及调用类型列，历史充值日志默认显示「充值加时」，不轮换已有密钥或修改充值签名。撤销任一开关、禁用/过期凭证、修改授权应用或轮换 Secret 均会限制后续调用。已有新权限的凭证修改、轮换、删除仅系统管理员可执行，防止普通所有者通过改IP或扩展绑定绕过管理员授权。

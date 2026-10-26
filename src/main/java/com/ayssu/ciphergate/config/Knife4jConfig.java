@@ -226,7 +226,9 @@ public class Knife4jConfig {
             if (pathMatcher.match("/api/v1/app/update-package", path)) {
                 return requirement(UPDATE_TICKET_SCHEME);
             }
-            if (pathMatcher.match("/api/v1/third_party/recharge", path)) {
+            if (pathMatcher.match("/api/v1/third_party/recharge", path)
+                    || pathMatcher.match("/api/v1/third_party/trial", path)
+                    || pathMatcher.match("/api/v1/third_party/authorization", path)) {
                 // apiKey/sign 位于请求体，OpenAPI 无法用标准 securityScheme 准确表达，操作说明中单独注明。
                 return null;
             }
