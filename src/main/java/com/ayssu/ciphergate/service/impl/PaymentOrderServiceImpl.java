@@ -42,12 +42,17 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
     @Override
     @Transactional
     public PaymentOrder createOrder(Long userId, Long productId, int quantity) {
+        if (quantity < 1 || quantity > 10000) throw new IllegalArgumentException("购买数量必须在1到10000之间");
         QuotaProduct product = quotaProductService.getById(productId);
         if (product == null || product.getStatus() != 1) {
             throw new RuntimeException("商品不存在或已下架");
         }
 
-        Long totalAmount = product.getPrice() * quantity;
+        if (product.getPrice() == null || product.getPrice() <= 0) throw new IllegalArgumentException("商品价格必须大于0");
+        if ("MEMBERSHIP".equals(product.getProductType()) && quantity != 1) {
+            throw new IllegalArgumentException("会员商品每次只能购买1份");
+        }
+        Long totalAmount = Math.multiplyExact(product.getPrice(), quantity);
 
         if ("MEMBERSHIP".equals(product.getProductType())) {
             boolean deducted = userMembershipService.deductBalance(userId, totalAmount, null, "购买会员：" + product.getProductName());
@@ -68,7 +73,7 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
             order.setPaidAt(LocalDateTime.now());
             order.setAdminGranted(false);
             order.setCreatedAt(LocalDateTime.now());
-            save(order);
+            if (!save(order)) throw new IllegalStateException("订单保存失败");
 
             userMembershipService.upgradeLevel(userId, product.getQuotaValue(), null, "余额购买会员");
             return order;
@@ -92,7 +97,7 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
         order.setPaidAt(LocalDateTime.now());
         order.setAdminGranted(false);
         order.setCreatedAt(LocalDateTime.now());
-        save(order);
+        if (!save(order)) throw new IllegalStateException("订单保存失败");
 
         grantQuotaByProduct(order.getUserId(), product, order.getQuantity());
         return order;
@@ -101,6 +106,7 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
     @Override
     @Transactional
     public PaymentOrder createPendingOrder(Long userId, String productName, Long amountFen, String orderNo, String productType) {
+        if (amountFen == null || amountFen <= 0) throw new IllegalArgumentException("订单金额必须大于0");
         PaymentOrder order = new PaymentOrder();
         order.setOrderNo(orderNo);
         order.setUserId(userId);
@@ -113,7 +119,7 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
         order.setStatus(0);
         order.setAdminGranted(false);
         order.setCreatedAt(LocalDateTime.now());
-        save(order);
+        if (!save(order)) throw new IllegalStateException("订单保存失败");
 
         // 发送延迟消息，5分钟后检查订单是否已支付
         Map<String, Object> message = new HashMap<>();
@@ -155,7 +161,10 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
             userMembershipService.grantBalance(order.getUserId(), order.getTotalAmount(), null, "在线充值");
         } else {
             QuotaProduct product = quotaProductService.getById(order.getProductId());
-            if (product != null) {
+            if (product == null) throw new IllegalStateException("订单商品不存在，无法发放");
+            if ("MEMBERSHIP".equals(product.getProductType())) {
+                userMembershipService.upgradeLevel(order.getUserId(), product.getQuotaValue(), null, "在线购买会员");
+            } else {
                 grantQuotaByProduct(order.getUserId(), product, order.getQuantity());
             }
         }
@@ -176,15 +185,22 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
             throw new RuntimeException("订单不存在");
         }
 
-        order.setStatus(1);
-        order.setPaidAt(LocalDateTime.now());
-        order.setAdminGranted(true);
-        order.setAdminOperatorId(adminId);
-        updateById(order);
+        boolean claimed = lambdaUpdate().eq(PaymentOrder::getId, orderId)
+                .eq(PaymentOrder::getStatus, 0)
+                .set(PaymentOrder::getStatus, 1).set(PaymentOrder::getPaidAt, LocalDateTime.now())
+                .set(PaymentOrder::getAdminGranted, true).set(PaymentOrder::getAdminOperatorId, adminId).update();
+        if (!claimed) throw new IllegalStateException("订单已处理，不能重复发放");
 
-        QuotaProduct product = quotaProductService.getById(order.getProductId());
-        if (product != null) {
-            grantQuotaByProduct(order.getUserId(), product, order.getQuantity());
+        if ("RECHARGE".equals(order.getProductType())) {
+            userMembershipService.grantBalance(order.getUserId(), order.getTotalAmount(), adminId, "管理员确认充值");
+        } else {
+            QuotaProduct product = quotaProductService.getById(order.getProductId());
+            if (product == null) throw new IllegalStateException("订单商品不存在，无法发放");
+            if ("MEMBERSHIP".equals(product.getProductType())) {
+                userMembershipService.upgradeLevel(order.getUserId(), product.getQuotaValue(), adminId, "管理员确认会员订单");
+            } else {
+                grantQuotaByProduct(order.getUserId(), product, order.getQuantity());
+            }
         }
 
         log.info("管理员手动发放: orderId={}, adminId={}", orderId, adminId);
@@ -208,7 +224,7 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
         return lambdaQuery()
                 .eq(PaymentOrder::getUserId, userId)
                 .orderByDesc(PaymentOrder::getCreatedAt)
-                .page(new Page<>(page, size));
+                .page(com.ayssu.ciphergate.util.IdPageQuery.page(page, size));
     }
 
     @Override
@@ -217,22 +233,23 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
         if (status != null) {
             query.eq(PaymentOrder::getStatus, status);
         }
-        return query.orderByDesc(PaymentOrder::getCreatedAt).page(new Page<>(page, size));
+        return query.orderByDesc(PaymentOrder::getCreatedAt).page(com.ayssu.ciphergate.util.IdPageQuery.page(page, size));
     }
 
     private void grantQuotaByProduct(Long userId, QuotaProduct product, int quantity) {
-        long totalQuota = product.getQuotaValue() * quantity;
-        var membership = userMembershipService.getByUserId(userId);
-        if (membership == null) return;
+        long totalQuota = Math.multiplyExact(product.getQuotaValue(), quantity);
+        if (totalQuota <= 0) throw new IllegalArgumentException("商品额度必须大于0");
+        var membership = userMembershipService.getByUserIdForUpdate(userId);
+        if (membership == null) throw new IllegalStateException("用户会员信息不存在，无法发放");
 
         switch (product.getProductType()) {
-            case "APP_QUOTA" -> membership.setExtraAppQuota((membership.getExtraAppQuota() != null ? membership.getExtraAppQuota() : 0) + totalQuota);
-            case "LICENSE_QUOTA" -> membership.setExtraLicenseQuota((membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0) + totalQuota);
-            case "USER_REGISTER_QUOTA" -> membership.setExtraUserRegisterQuota((membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0) + totalQuota);
-            case "TRAFFIC_QUOTA" -> membership.setExtraTrafficQuota((membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0) + totalQuota);
-            default -> { return; }
+            case "APP_QUOTA" -> membership.setExtraAppQuota(Math.addExact(membership.getExtraAppQuota() != null ? membership.getExtraAppQuota() : 0, totalQuota));
+            case "LICENSE_QUOTA" -> membership.setExtraLicenseQuota(Math.addExact(membership.getExtraLicenseQuota() != null ? membership.getExtraLicenseQuota() : 0, totalQuota));
+            case "USER_REGISTER_QUOTA" -> membership.setExtraUserRegisterQuota(Math.addExact(membership.getExtraUserRegisterQuota() != null ? membership.getExtraUserRegisterQuota() : 0, totalQuota));
+            case "TRAFFIC_QUOTA" -> membership.setExtraTrafficQuota(Math.addExact(membership.getExtraTrafficQuota() != null ? membership.getExtraTrafficQuota() : 0, totalQuota));
+            default -> throw new IllegalArgumentException("不支持的商品类型");
         }
-        userMembershipService.updateById(membership);
+        if (!userMembershipService.updateById(membership)) throw new IllegalStateException("额度发放失败");
     }
 
     private String generateOrderNo() {

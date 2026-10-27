@@ -26,6 +26,7 @@ public class User implements Serializable {
     /**
      * 密码（BCrypt加密存储，本地账号登录使用）
      */
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     private String password;
     
     /**

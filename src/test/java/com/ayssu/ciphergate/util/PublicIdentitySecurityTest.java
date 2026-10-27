@@ -37,4 +37,14 @@ class PublicIdentitySecurityTest {
         assertEquals("input", jackson2.readValue("{\"password\":\"input\"}", AppUser.class).getPassword());
         assertEquals("input", jackson3.readValue("{\"password\":\"input\"}", AppUser.class).getPassword());
     }
+    @Test void platformUserPasswordIsWriteOnlyForBothJsonGenerations() throws Exception {
+        var user = new com.ayssu.ciphergate.entity.User(); user.setId(9L); user.setPassword("synthetic-hash");
+        var jackson2 = new com.fasterxml.jackson.databind.ObjectMapper();
+        var jackson3 = tools.jackson.databind.json.JsonMapper.builder().build();
+        assertFalse(jackson2.writeValueAsString(user).contains("password"));
+        assertFalse(jackson3.writeValueAsString(user).contains("synthetic-hash"));
+        assertEquals("input", jackson2.readValue("{\"password\":\"input\"}", com.ayssu.ciphergate.entity.User.class).getPassword());
+        assertEquals("input", jackson3.readValue("{\"password\":\"input\"}", com.ayssu.ciphergate.entity.User.class).getPassword());
+    }
+
 }

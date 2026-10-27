@@ -19,7 +19,7 @@ class PublicAbuseRedisIntegrationTest {
     static LettuceConnectionFactory connection; static StringRedisTemplate redis;
     PublicAbuseGuard guard; AppUserRegisterOtpRedisService otp; String email;
     @BeforeAll static void connect() {
-        connection=new LettuceConnectionFactory("127.0.0.1",6379);connection.afterPropertiesSet();connection.start();
+        connection=new LettuceConnectionFactory(System.getenv().getOrDefault("CIPHERGATE_TEST_REDIS_HOST","127.0.0.1"), Integer.parseInt(System.getenv().getOrDefault("CIPHERGATE_TEST_REDIS_PORT","6379")));connection.afterPropertiesSet();connection.start();
         redis=new StringRedisTemplate(connection);redis.afterPropertiesSet();
     }
     @AfterAll static void close() { connection.destroy(); }

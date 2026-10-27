@@ -33,18 +33,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         
         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
         
-        log.info("=== OAuth2 登录成功处理器 ===");
-        log.info("认证主体类型: {}", authentication.getPrincipal().getClass().getName());
-        log.info("OAuth2User 所有属性: {}", oauth2User.getAttributes());
-        
-        // 详细打印每个属性
-        oauth2User.getAttributes().forEach((key, value) -> {
-            log.info("属性 [{}]: {} (类型: {})", 
-                key, 
-                String.valueOf(value), 
-                value != null ? value.getClass().getSimpleName() : "null");
-        });
-        
         // 保存或更新用户信息到数据库
         User user = userService.findOrCreateUser(oauth2User);
         log.info("保存/更新用户信息: {}", user);
@@ -62,10 +50,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         
         // 设置 Session 最大不活跃时间（7天）
         session.setMaxInactiveInterval(7 * 24 * 60 * 60);
-        
-        log.info("Session ID: {}", session.getId());
-        log.info("Session 最大不活跃时间: {} 秒", session.getMaxInactiveInterval());
-        log.info("=== OAuth2 登录处理完成 ===");
         
         // 记录登录日志
         try {

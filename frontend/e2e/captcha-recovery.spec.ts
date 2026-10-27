@@ -8,6 +8,9 @@ test('QQ fresh browser recovers from failed captcha and sends the displayed chal
   let payload: unknown;
   const timestamps: string[] = [];
   await page.route('**/api/**', async route => {
+    if (new URL(route.request().url()).pathname === '/api/csrf') {
+      await route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'mock-session-csrf-token' } }); return;
+    }
     const url = new URL(route.request().url());
     if (url.pathname === '/api/public/challenge') {
       calls++;

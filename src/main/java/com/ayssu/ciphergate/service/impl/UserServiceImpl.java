@@ -181,7 +181,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             idObj != null ? idObj.getClass().getSimpleName() : "null");
         
         if (githubId == null) {
-            log.error("无法获取 GitHub ID，OAuth2User 属性: {}", oauth2User.getAttributes());
+            log.error("无法获取 GitHub ID");
             throw new RuntimeException("无法获取 GitHub 用户 ID");
         }
         

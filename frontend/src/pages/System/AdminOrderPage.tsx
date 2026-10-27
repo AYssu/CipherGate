@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { PaymentOrder } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, message, Typography, Grid, Dropdown } from 'antd';
@@ -12,7 +13,7 @@ const AdminOrderPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
 
   const fetchOrders = () => {
-    fetch('/api/admin/payment/orders?page=1&size=50', { credentials: 'include' })
+    sessionFetch('/api/admin/payment/orders?page=1&size=50', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setOrders(data.data?.records || []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -21,7 +22,7 @@ const AdminOrderPage: React.FC = () => {
   React.useEffect(() => { fetchOrders(); }, []);
 
   const handleGrant = async (orderId: number) => {
-    const res = await fetch(`/api/admin/payment/grant?orderId=${orderId}`, { method: 'POST', credentials: 'include' });
+    const res = await sessionFetch(`/api/admin/payment/grant?orderId=${orderId}`, { method: 'POST', credentials: 'include' });
     const data = await res.json();
     if (data.success) { message.success('发放成功'); fetchOrders(); }
     else message.error(data.message);

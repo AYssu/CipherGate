@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { QuotaProduct } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, message, Typography, Grid } from 'antd';
@@ -16,7 +17,7 @@ const QuotaProductPage: React.FC = () => {
   const [form] = Form.useForm();
 
   const fetchProducts = () => {
-    fetch('/api/quota-products', { credentials: 'include' })
+    sessionFetch('/api/quota-products', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setProducts(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -29,7 +30,7 @@ const QuotaProductPage: React.FC = () => {
     values.price = values.price * 100;
     const url = editing ? `/api/quota-products/${editing.id}` : '/api/quota-products';
     const method = editing ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+    const res = await sessionFetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
     const data = await res.json();
     if (data.success) { message.success('保存成功'); setEditVisible(false); fetchProducts(); }
     else message.error(data.message);

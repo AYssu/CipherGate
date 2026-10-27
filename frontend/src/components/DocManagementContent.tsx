@@ -1,3 +1,5 @@
+import rehypeSanitize from 'rehype-sanitize';
+import { sessionFetch } from '../utils/csrf';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
@@ -52,6 +54,7 @@ const MdEditorWrapper: React.FC<{
   return (
       <div data-color-mode="light">
         <MDEditor
+          previewOptions={{ rehypePlugins: [rehypeSanitize] }}
             value={value || ''}
             onChange={(val) => onChange?.(val || '')}
             height={height}
@@ -672,7 +675,7 @@ const DocManagementContent: React.FC = () => {
                     icon={<DownloadOutlined />}
                     onClick={async () => {
                       try {
-                        const response = await fetch(`/api/doc/attachments/${item.id}/file`, {
+                        const response = await sessionFetch(`/api/doc/attachments/${item.id}/file`, {
                           credentials: 'include',
                         });
                         if (!response.ok) {

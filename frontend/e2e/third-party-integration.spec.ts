@@ -9,6 +9,9 @@ const credential = {
 async function mockCredentials(page: Page, admin: boolean, privileged = false) {
   const writes: Record<string, unknown>[] = [];
   await page.context().route('**/api/**', async route => {
+    if (new URL(route.request().url()).pathname === '/api/csrf') {
+      await route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'mock-session-csrf-token' } }); return;
+    }
     const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
     let data: unknown = [];
     if (path === '/user/info') {

@@ -4,7 +4,7 @@ import com.ayssu.ciphergate.config.MinioProperties;
 import com.ayssu.ciphergate.entity.Application;
 import com.ayssu.ciphergate.mapper.ApplicationMapper;
 import com.ayssu.ciphergate.service.MinioObjectService;
-import com.ayssu.ciphergate.service.UserMembershipService;
+import com.ayssu.ciphergate.thirdparty.service.UpdateDownloadTrafficService;
 import com.ayssu.ciphergate.thirdparty.service.ThirdPartyUpdateDownloadTicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,7 +42,7 @@ public class ThirdPartyUpdateDownloadController {
     private final ThirdPartyUpdateDownloadTicketService ticketService;
     private final MinioObjectService minioObjectService;
     private final MinioProperties minioProperties;
-    private final UserMembershipService userMembershipService;
+    private final UpdateDownloadTrafficService trafficService;
 
     @GetMapping("/app/update-package")
     @Operation(
@@ -74,37 +74,33 @@ public class ThirdPartyUpdateDownloadController {
             return ResponseEntity.notFound().build();
         }
 
-        if (!userMembershipService.checkTrafficQuota(app.getOwnerId(), size)) {
-            log.warn("用户流量额度不足，拒绝下载: appId={}, ownerId={}, size={}", app.getId(), app.getOwnerId(), size);
-            return ResponseEntity.status(403).build();
-        }
-
-        if (app.getTrafficLimit() != null && app.getTrafficLimit() > 0) {
-            long appUsed = app.getTrafficUsed() != null ? app.getTrafficUsed() : 0;
-            if (appUsed + size > app.getTrafficLimit()) {
-                log.warn("应用流量额度不足，拒绝下载: appId={}, appLimit={}, appUsed={}, size={}", app.getId(), app.getTrafficLimit(), appUsed, size);
-                return ResponseEntity.status(403).build();
-            }
-        }
-
+        InputStream in = null;
         try {
-            InputStream in = minioObjectService.download(bucket, objectKey);
+            in = minioObjectService.download(bucket, objectKey);
             String filename = Paths.get(objectKey.replace("\\", "/")).getFileName().toString();
             if (!StringUtils.hasText(filename)) {
                 filename = "update.bin";
             }
-            userMembershipService.consumeTrafficQuota(app.getOwnerId(), size);
-            app.setTrafficUsed((app.getTrafficUsed() != null ? app.getTrafficUsed() : 0) + size);
-            applicationMapper.updateById(app);
+            if (!trafficService.reserve(app, size)) {
+                log.warn("更新包状态已变更或流量额度不足，拒绝下载: appId={}, size={}", app.getId(), size);
+                return ResponseEntity.status(403).build();
+            }
             InputStreamResource body = new InputStreamResource(in);
-            return ResponseEntity.ok()
+            ResponseEntity<Resource> response = ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                     .contentLength(size)
                     .body(body);
+            in = null; // The response now owns the stream; no transaction is held while streaming.
+            return response;
         } catch (Exception e) {
-            log.warn("update-package download failed: appId={}, key={}", app.getId(), objectKey, e);
+            log.warn("update-package download failed: appId={}", app.getId(), e);
             return ResponseEntity.internalServerError().build();
+        } finally {
+            if (in != null) {
+                try { in.close(); }
+                catch (Exception ignored) { log.debug("关闭更新包流失败: appId={}", app.getId()); }
+            }
         }
     }
 

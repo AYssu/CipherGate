@@ -2,6 +2,9 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 const envelope = (data: unknown) => ({ success: true, code: 200, data });
 async function mockApi(page: Page, handler: (route: Route, path: string) => Promise<boolean>) {
   await page.context().route('**/api/**', async route => {
+    if (new URL(route.request().url()).pathname === '/api/csrf') {
+      await route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'mock-session-csrf-token' } }); return;
+    }
     const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
     if (await handler(route, path)) return;
     let data: unknown = [];

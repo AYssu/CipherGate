@@ -128,6 +128,31 @@ python3 update.py /tmp/ciphergate-deploy.zip --project-name ciphergate \
 
 脚本先校验 ZIP、文件清单、校验和及 JAR，并确认运行容器挂载属于指定安装目录。官方旧插件仅在内容仍与旧清单一致时清理；同名插件已被修改时拒绝覆盖，需人工处理。更新不拉取镜像，不重建 MySQL、Redis、RabbitMQ 或 MinIO。
 
+### 旧配置升级前核对
+
+更新会保留安装目录中的 `.env`、Compose 和 Nginx 配置，包括自定义真实 IP 信任规则；不会用发布包模板整体覆盖它们。保留配置不代表旧配置已经具备新版所需的路由。
+
+脚本在停止应用前请求现有入口的 `/health/ready`，要求返回 JSON `{"status":"UP"}`。若返回 `healthy`、网页、404 或后端未就绪，更新立即退出。先排查后端健康；旧 Nginx 缺少探针时，仅合并以下精确路由并验证、重载 Nginx，保留原有 IP、TLS 和代理配置：
+
+```nginx
+location = /health/ready {
+    access_log off;
+    proxy_pass http://backend:8080/actuator/health/readiness;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 5s;
+}
+```
+
+`backend:8080` 应替换为该安装实际使用的后端服务名和**容器端口**。配置模板使用 `${BACKEND_CONTAINER_PORT}` 时保留模板变量，不要误用宿主机映射端口。完整探针与配置差异应在升级前确认；不要为通过检查改成固定返回 `UP`。
+
+管理端会话写操作现要求 CSRF 令牌，官方前端自动获取。更新须使用同一版本的前后端，已打开的旧页面应刷新；自建管理端客户端需先获取 `/api/csrf`，保留同一会话 Cookie，并以响应指定的头发送令牌。独立签名接口和公开挑战接口仍按各自认证协议调用。
+
+卡密 WebSocket 仅接受完成 HELLO 后的加密 PONG，要求认证密文、15 秒内的时间戳及递增序号；服务端发心跳不会自行续期。旧客户端如使用明文 PONG，应先升级客户端。相同 token 重连后，旧连接不能续期或清除新连接状态。
+
+文档保留 Markdown 排版和安全链接，移除脚本、事件属性、危险 URL 和 iframe；依赖嵌入式 HTML 的既有文档需调整。以上变更不新增数据库迁移，不改变已有卡密和终端用户数据。
+
+更新包下载在开始传输前，按完整文件大小同时预留用户与应用的流量额度。额度不足或包引用已改变时拒绝下载，传输期间不持有数据库锁；开始传输后的中断不自动退还额度。
+
 ### 备份与验收
 
 脚本短暂停止前后端写入，将旧应用、配置快照、运行镜像及环境、数据库导出保存到 `backups/<时间>-update/`，随后重建 `backend`、`frontend`，检查 readiness 和前后端版本。命令输出备份目录；其中可能含密钥，需限制管理员访问并另存到安全存储。

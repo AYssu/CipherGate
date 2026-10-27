@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { UserMembershipSummary, MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, InputNumber, Input, message, Typography, Tag, Space, Descriptions, Tabs, Grid, Dropdown, Select } from 'antd';
@@ -35,14 +36,14 @@ const UserMembershipPage: React.FC = () => {
 
   const fetchUsers = () => {
     setLoading(true);
-    fetch('/api/membership/users', { credentials: 'include' })
+    sessionFetch('/api/membership/users', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setUsers(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
   const fetchLevels = () => {
-    fetch('/api/membership/levels', { credentials: 'include' })
+    sessionFetch('/api/membership/levels', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setLevels(data.data || []); })
       .catch(() => {});
@@ -51,7 +52,7 @@ const UserMembershipPage: React.FC = () => {
   React.useEffect(() => {
     fetchUsers();
     fetchLevels();
-    fetch('/api/config/public/invite-status', { credentials: 'include' })
+    sessionFetch('/api/config/public/invite-status', { credentials: 'include' })
       .then(r => r.json())
       .then(res => setInviteEnabled(res?.data?.enabled !== false))
       .catch(() => {});
@@ -91,25 +92,25 @@ const UserMembershipPage: React.FC = () => {
 
     let res: Response;
     if (editType === 'level') {
-      res = await fetch(`/api/membership/users/${editingUser.userId}`, {
+      res = await sessionFetch(`/api/membership/users/${editingUser.userId}`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ levelId: values.levelId, remark: '管理员手动调整' })
       });
     } else if (editType === 'extraQuota') {
-      res = await fetch(`/api/membership/users/${editingUser.userId}/extra-quota`, {
+      res = await sessionFetch(`/api/membership/users/${editingUser.userId}/extra-quota`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values)
       });
     } else if (editType === 'balance') {
-      res = await fetch(`/api/membership/users/${editingUser.userId}/grant-balance`, {
+      res = await sessionFetch(`/api/membership/users/${editingUser.userId}/grant-balance`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: values.amount * 100, description: values.description || '管理员充值' })
       });
     } else if (editType === 'expires') {
-      res = await fetch(`/api/membership/users/${editingUser.userId}/expires`, {
+      res = await sessionFetch(`/api/membership/users/${editingUser.userId}/expires`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberExpiresAt: values.memberExpiresAt || null })

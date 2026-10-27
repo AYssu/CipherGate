@@ -33,14 +33,9 @@ public class CheckinServiceImpl extends ServiceImpl<CheckinRecordMapper, Checkin
     public Map<String, Object> doCheckin(Long userId) {
         LocalDate today = LocalDate.now();
 
+        UserMembership membership = userMembershipService.getByUserIdForUpdate(userId);
         if (hasCheckedInToday(userId)) {
-            throw new RuntimeException("今日已签到");
-        }
-
-        UserMembership membership = userMembershipService.getByUserId(userId);
-        if (membership == null) {
-            userMembershipService.initMembershipForUser(userId);
-            membership = userMembershipService.getByUserId(userId);
+            throw new IllegalStateException("今日已签到");
         }
 
         int consecutiveDays = 1;

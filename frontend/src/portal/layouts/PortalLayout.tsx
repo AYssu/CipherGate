@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Drawer, Grid, Typography, Avatar, Dropdown } from 'antd';
 import {
@@ -49,7 +50,7 @@ const PortalLayout: React.FC = () => {
       return;
     }
     // 获取用户名
-    fetch('/api/portal/settings/profile', {
+    sessionFetch('/api/portal/settings/profile', {
       headers: { Authorization: `Bearer ${token}` }
     }).then(r => r.json()).then(res => {
       if (res?.data?.username) {

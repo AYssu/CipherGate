@@ -27,7 +27,7 @@ class PublicChallengeSecurityTest {
     AnnotationConfigWebApplicationContext context;
     MockMvc mvc;
     @Configuration @EnableWebMvc @EnableWebSecurity
-    @Import({SecurityConfig.class, PublicChallengeController.class})
+    @Import({SecurityConfig.class, PublicChallengeController.class, com.ayssu.ciphergate.controller.CsrfController.class})
     static class TestConfig {
         @Bean OAuth2LoginSuccessHandler success(){return mock(OAuth2LoginSuccessHandler.class);}
         @Bean OAuth2LoginFailureHandler failure(){return mock(OAuth2LoginFailureHandler.class);}
@@ -46,6 +46,7 @@ class PublicChallengeSecurityTest {
             .tokenUri("https://example.test/token").userInfoUri("https://example.test/user").userNameAttributeName("id").build());}
     }
     @RestController static class Endpoints {
+        @PostMapping({"/api/payment/create", "/api/payment/notify"}) String mutate(){return "ok";}
         @GetMapping({"/api/users", "/api/public/challenge/admin"}) String protectedEndpoint(){return "private";}
     }
     @BeforeEach void setup(){
@@ -66,4 +67,25 @@ class PublicChallengeSecurityTest {
         mvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/public/challenge/admin")).andExpect(status().isUnauthorized());
     }
+    @Test void sessionMutationRequiresTokenFromTheSameSessionButNotifyDoesNot() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/payment/create")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("member")))
+                .andExpect(status().isForbidden());
+        var issued = mvc.perform(get("/api/csrf")).andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store"))).andReturn();
+        var token = new ObjectMapper().readTree(issued.getResponse().getContentAsString());
+        var session = (org.springframework.mock.web.MockHttpSession) issued.getRequest().getSession(false);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/payment/create")
+                .session(session).header(token.get("headerName").asText(), token.get("token").asText())
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("member")))
+                .andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/payment/create")
+                .session(new org.springframework.mock.web.MockHttpSession())
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("member")))
+                .andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/payment/notify"))
+                .andExpect(status().isOk());
+    }
+
 }

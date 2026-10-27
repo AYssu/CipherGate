@@ -9,6 +9,13 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface UserMembershipMapper extends BaseMapper<UserMembership> {
 
+    // Lock the stable parent first, including when a legacy user has no membership yet.
+    @Select("SELECT id FROM users WHERE id = #{userId} FOR UPDATE")
+    Long lockUser(@Param("userId") Long userId);
+
+    @Select("SELECT * FROM user_membership WHERE user_id = #{userId} FOR UPDATE")
+    UserMembership selectByUserIdForUpdate(@Param("userId") Long userId);
+
     @Select("SELECT * FROM user_membership WHERE user_id = #{userId}")
     UserMembership selectByUserId(@Param("userId") Long userId);
 

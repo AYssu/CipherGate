@@ -1,3 +1,4 @@
+import { csrfHeaders } from './csrf';
 import { normalizeResponse, shouldExpireSession } from '../services/apiResponse';
 import axios from 'axios';
 import { message } from 'antd';
@@ -14,7 +15,8 @@ const request = axios.create({
 
 // 请求拦截器
 request.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    for (const [name, value] of Object.entries(await csrfHeaders(config.method, request.getUri(config)))) config.headers.set(name, value);
     return config;
   },
   (error) => {

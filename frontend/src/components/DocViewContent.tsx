@@ -1,3 +1,5 @@
+import rehypeSanitize from 'rehype-sanitize';
+import { sessionFetch } from '../utils/csrf';
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -42,25 +44,31 @@ const DocViewContent: React.FC<DocViewContentProps> = ({ docId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const fetchDoc = async () => {
+      setDoc(null);
       setLoading(true);
       try {
         const result = await docApi.getDocDetail(docId);
-        setDoc(result.data || null);
+        if (active) setDoc(result.data || null);
       } catch (error) {
         console.error('获取文档详情失败:', error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     if (docId) {
       fetchDoc();
+    } else {
+      setDoc(null);
+      setLoading(false);
     }
+    return () => { active = false; };
   }, [docId]);
 
   const handleDownload = async (attachment: DocAttachment) => {
     try {
-      const response = await fetch(`/api/doc/attachments/${attachment.id}/file`, {
+      const response = await sessionFetch(`/api/doc/attachments/${attachment.id}/file`, {
         credentials: 'include',
       });
       if (!response.ok) {
@@ -149,7 +157,7 @@ const DocViewContent: React.FC<DocViewContentProps> = ({ docId }) => {
 
           <div className="doc-content" data-color-mode="light" style={{ overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <MDEditor.Markdown source={doc.content || ''} />
+              <MDEditor.Markdown source={doc.content || ''} rehypePlugins={[rehypeSanitize]} />
             </div>
           </div>
 

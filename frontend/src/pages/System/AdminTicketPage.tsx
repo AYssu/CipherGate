@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { Ticket, TicketMessage } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, Modal, Input, message, Typography, List, Avatar, Space, Tabs, Badge, Grid, Dropdown, Checkbox } from 'antd';
@@ -35,7 +36,7 @@ const AdminTicketPage: React.FC = () => {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/tickets?page=1&size=100', { credentials: 'include' });
+      const res = await sessionFetch('/api/admin/tickets?page=1&size=100', { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         const all = data.data?.records || [];
@@ -49,14 +50,14 @@ const AdminTicketPage: React.FC = () => {
 
   const viewDetail = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
-    const res = await fetch(`/api/admin/tickets/${ticket.ticketNo}`, { credentials: 'include' });
+    const res = await sessionFetch(`/api/admin/tickets/${ticket.ticketNo}`, { credentials: 'include' });
     const data = await res.json();
     if (data.success) { setMessages(data.data.messages || []); setDetailVisible(true); }
   };
 
   const sendReply = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
-    await fetch(`/api/admin/tickets/${selectedTicket.ticketNo}/messages`, {
+    await sessionFetch(`/api/admin/tickets/${selectedTicket.ticketNo}/messages`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: newMessage })
@@ -67,7 +68,7 @@ const AdminTicketPage: React.FC = () => {
   };
 
   const handleStatusChange = async (ticketNo: string, status: number, sendEmail: boolean = false, remark: string = '') => {
-    await fetch(`/api/admin/tickets/${ticketNo}/status`, {
+    await sessionFetch(`/api/admin/tickets/${ticketNo}/status`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, sendEmail, remark })
