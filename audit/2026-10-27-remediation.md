@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 管理端 Cookie 会话缺少 CSRF 保护 | 启用会话 CSRF，增加无缓存令牌入口，Axios 与原生会话请求统一携带令牌；独立认证入口按路径豁免 | `PublicChallengeSecurityTest`、`csrf.test.mjs`、管理端浏览器流程 |
 | 账号停用、密码或角色变更后旧会话继续使用 | 每次请求复核账号；密码会话核对密码摘要；两类会话刷新角色权限 | `ActiveUserSessionFilterTest` |
-| 用户密码可被序列化，OAuth 登录日志泄露身份属性或会话 ID | 密码字段只写，移除完整 OAuth 属性与原始会话 ID 日志 | `PublicIdentitySecurityTest`；源代码复核 |
+| 用户密码可被序列化，OAuth 日志泄露身份属性或会话 ID | 密码字段只写，移除登录处理器与会话查询接口中的完整 OAuth 属性及原始会话 ID 日志 | `PublicIdentitySecurityTest`、`AuthControllerLoggingTest`；源代码复核 |
 | WebSocket 重复 HELLO 可切换已认证上下文 | 原子认领一次握手；重复握手终止连接，后续消息失效 | `ThirdPartyWsHandlerTest` |
 | 卡密过期、封禁、兑换后仍能使用旧连接 | 每次操作与心跳复核应用、卡密及 token 归属 | `CardWsHandlerSecurityTest` |
 | 服务端心跳自行续期、旧连接清理新连接 | 仅加密客户端 PONG 续期；Redis 比较 token 与 connectionId 后更新或删除 | `CardWsHandlerSecurityTest`、真实 Redis 的 `CardWsRedisIntegrationTest` |

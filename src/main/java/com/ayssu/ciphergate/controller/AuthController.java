@@ -23,11 +23,6 @@ public class AuthController {
     @Operation(summary = "获取当前OAuth2用户信息")
     public Result<Map<String, Object>> user(@AuthenticationPrincipal OAuth2User principal, HttpSession session) {
         if (principal != null) {
-            // 打印所有 GitHub 返回的用户信息
-            log.info("=== GitHub OAuth2 用户信息 ===");
-            log.info("所有属性: {}", principal.getAttributes());
-            log.info("=== 结束 GitHub 用户信息 ===");
-            
             return Result.success(principal.getAttributes());
         }
         
@@ -35,9 +30,7 @@ public class AuthController {
         @SuppressWarnings("unchecked")
         Map<String, Object> githubUser = (Map<String, Object>) session.getAttribute("githubUser");
         
-        if (githubUser != null) {
-            log.info("从 Session 获取用户信息: {}", githubUser);
-        } else {
+        if (githubUser == null) {
             log.warn("用户未登录或 Session 已过期");
         }
         
@@ -51,9 +44,7 @@ public class AuthController {
     @Operation(summary = "获取当前会话用户档案")
     public Result<User> userProfile(HttpSession session) {
         User user = (User) session.getAttribute("user");
-        if (user != null) {
-            log.info("从 Session 获取用户档案: {}", user);
-        } else {
+        if (user == null) {
             log.warn("Session 中没有用户档案信息");
         }
         if (user == null) {
