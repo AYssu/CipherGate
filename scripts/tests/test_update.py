@@ -13,6 +13,22 @@ spec.loader.exec_module(update)
 
 
 class UpdateTest(unittest.TestCase):
+    def test_legacy_plaintext_readiness_fails_before_stop_backup_or_replacement(self):
+        import io
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / ".env").write_text("FRONTEND_PORT=5173")
+            with patch.object(update.tooling, "verify_artifact"), patch.object(update, "call") as call, \
+                 patch.object(update.urllib.request, "urlopen", return_value=io.BytesIO(b"healthy\n")), \
+                 patch.object(update.operations, "backup") as backup:
+                with self.assertRaisesRegex(RuntimeError, "no application was stopped"):
+                    update.update(directory / "release.zip", directory)
+                self.assertEqual(call.call_count, 1)
+                self.assertEqual(call.call_args.args[0][-2:], ["config", "--quiet"])
+                backup.assert_not_called()
+                self.assertFalse((directory / "backups").exists())
+                self.assertEqual((directory / ".env").read_text(), "FRONTEND_PORT=5173")
+
     def test_custom_configuration_and_custom_plugins_are_not_managed(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -135,7 +151,7 @@ class UpdateTest(unittest.TestCase):
                 return ""
             def fake_backup(path):
                 path.write_text("database snapshot")
-            with patch.object(update.tooling, "verify_artifact"), patch.object(update.tooling, "smoke") as smoke, \
+            with patch.object(update, "verify_readiness_route"), patch.object(update.tooling, "verify_artifact"), patch.object(update.tooling, "smoke") as smoke, \
                  patch.object(update, "fingerprint", side_effect=["before-stop", "after-stop"]) as fingerprint, patch.object(update, "call", side_effect=fake_call), \
                  patch.object(update.operations, "backup", side_effect=fake_backup):
                 backup = update.update(archive, directory)
@@ -189,7 +205,7 @@ class UpdateTest(unittest.TestCase):
                     path.write_text("database snapshot")
                 schemas = ["before-stop", "schema-at-backup", "migrated" if schema_changed else "schema-at-backup"]
                 message = "remain stopped" if schema_changed else "previous application restored"
-                with patch.object(update.tooling, "verify_artifact"), \
+                with patch.object(update, "verify_readiness_route"), patch.object(update.tooling, "verify_artifact"), \
                      patch.object(update.tooling, "smoke", side_effect=[RuntimeError("new version readiness failed"), None]) as smoke, \
                      patch.object(update, "fingerprint", side_effect=schemas), \
                      patch.object(update, "call", side_effect=fake_call), \

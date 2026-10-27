@@ -528,21 +528,47 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         String safeName = sanitizeUpdateFilename(file.getOriginalFilename());
         String objectKey = "app-updates/" + id + "/" + UUID.randomUUID() + "_" + safeName;
-        String oldKey = application.getUpdateFileStorageKey();
         minioObjectService.uploadBinaryDefaultBucket(objectKey, file, null);
-        if (StringUtils.hasText(oldKey) && !oldKey.trim().equals(objectKey)) {
-            try {
-                minioObjectService.deleteObject(minioProperties.getBucket(), oldKey.trim());
-            } catch (Exception e) {
-                log.warn("删除旧更新包失败（可忽略）: {}", oldKey, e);
+        boolean synchronization = org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive();
+        boolean saved = false;
+        try {
+            // Only lock after streaming upload; concurrent uploads read the latest stored reference.
+            Application current = applicationMapper.selectOne(new LambdaQueryWrapper<Application>()
+                    .eq(Application::getId, id).last("FOR UPDATE"));
+            if (current == null) throw new IllegalStateException("应用不存在");
+            String oldKey = current.getUpdateFileStorageKey();
+            if (synchronization) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override public void afterCommit() { deleteUpdateObject(oldKey); }
+                            @Override public void afterCompletion(int status) {
+                                if (status == STATUS_ROLLED_BACK) deleteUpdateObject(objectKey);
+                            }
+                        });
             }
+            int changed = applicationMapper.update(null,
+                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Application>()
+                            .eq(Application::getId, id).set(Application::getUpdateFileStorageKey, objectKey)
+                            .set(Application::getUpdatedAt, LocalDateTime.now()));
+            if (changed != 1) throw new IllegalStateException("更新包保存失败");
+            logOperation(id, userId, "UPLOAD", "上传应用更新包", "SUCCESS", null,
+                    Map.of("size", file.getSize()));
+            Application result = applicationMapper.selectById(id);
+            saved = true;
+            if (!synchronization) deleteUpdateObject(oldKey);
+            return result;
+        } finally {
+            if (!saved) deleteUpdateObject(objectKey);
         }
-        application.setUpdateFileStorageKey(objectKey);
-        application.setUpdatedAt(LocalDateTime.now());
-        applicationMapper.updateById(application);
-        logOperation(id, userId, "UPLOAD", "上传应用更新包: " + objectKey, "SUCCESS", null,
-                Map.of("objectKey", objectKey, "size", file.getSize()));
-        return applicationMapper.selectById(id);
+    }
+
+    private void deleteUpdateObject(String key) {
+        if (!StringUtils.hasText(key)) return;
+        try {
+            minioObjectService.deleteObject(minioProperties.getBucket(), key.trim());
+        } catch (Exception e) {
+            log.warn("更新包对象清理失败，请稍后重试");
+        }
     }
 
     @Override

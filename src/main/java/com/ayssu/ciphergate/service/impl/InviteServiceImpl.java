@@ -69,122 +69,53 @@ public class InviteServiceImpl extends ServiceImpl<InviteRecordMapper, InviteRec
     @Override
     @Transactional
     public void processInvite(String inviteCode, Long newUserId) {
-        if (!isInviteEnabled()) return;
-        if (inviteCode == null || inviteCode.isEmpty()) return;
-
-        UserMembership inviterMembership = userMembershipService.getByInviteCode(inviteCode);
-        if (inviterMembership == null) {
-            log.warn("邀请码无效: {}", inviteCode);
-            return;
-        }
-
-        if (inviterMembership.getUserId().equals(newUserId)) {
-            log.warn("不能邀请自己");
-            return;
-        }
-
-        if (inviterMembership.getInviteCount() >= getMaxInviteCount()) {
-            log.warn("用户[{}]已达到最大邀请人数", inviterMembership.getUserId());
-            return;
-        }
-
-        Long existingCount = lambdaQuery()
-                .eq(InviteRecord::getInviterId, inviterMembership.getUserId())
-                .eq(InviteRecord::getInviteeId, newUserId)
-                .count();
-        if (existingCount > 0) {
-            log.warn("已邀请过该用户");
-            return;
-        }
-
-        long rewardAmount = getRewardAmount();
-
-        InviteRecord record = new InviteRecord();
-        record.setInviterId(inviterMembership.getUserId());
-        record.setInviteeId(newUserId);
-        record.setRewardAmount(rewardAmount);
-        record.setRewardGranted(false);
-        save(record);
-
-        userMembershipService.grantBalance(
-                inviterMembership.getUserId(),
-                rewardAmount,
-                null,
-                "邀请奖励：邀请新用户"
-        );
-
-        inviterMembership.setInviteCount(inviterMembership.getInviteCount() + 1);
-        userMembershipService.updateById(inviterMembership);
-
-        record.setRewardGranted(true);
-        updateById(record);
-
-        log.info("邀请奖励发放：邀请人[{}]，被邀请人[{}]，奖励{}分",
-                inviterMembership.getUserId(), newUserId, rewardAmount);
+        if (!isInviteEnabled() || inviteCode == null || inviteCode.isBlank()) return;
+        bindOnce(newUserId, inviteCode.trim(), false);
     }
 
     @Override
     @Transactional
     public String bindInviteCode(Long userId, String inviteCode) {
-        if (!isInviteEnabled()) {
-            throw new IllegalStateException("邀请功能已关闭");
+        if (!isInviteEnabled()) throw new IllegalStateException("邀请功能已关闭");
+        if (inviteCode == null || inviteCode.isBlank()) throw new IllegalArgumentException("邀请码不能为空");
+        return bindOnce(userId, inviteCode.trim(), true);
+    }
+
+    private String bindOnce(Long userId, String inviteCode, boolean strict) {
+        UserMembership candidate = userMembershipService.getByInviteCode(inviteCode);
+        if (candidate == null || candidate.getUserId().equals(userId)) {
+            if (strict) throw new IllegalArgumentException("邀请码无效或不能邀请自己");
+            return null;
         }
-        if (inviteCode == null || inviteCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("邀请码不能为空");
+        Long inviterId = candidate.getUserId();
+        // A stable ordering also prevents mutual invitations from deadlocking.
+        UserMembership first = userMembershipService.getByUserIdForUpdate(Math.min(userId, inviterId));
+        UserMembership second = userMembershipService.getByUserIdForUpdate(Math.max(userId, inviterId));
+        UserMembership invitee = first.getUserId().equals(userId) ? first : second;
+        UserMembership inviter = first.getUserId().equals(inviterId) ? first : second;
+        boolean alreadyBound = invitee.getInvitedBy() != null || lambdaQuery()
+                .eq(InviteRecord::getInviteeId, userId).count() > 0;
+        if (alreadyBound || inviter.getInviteCount() >= getMaxInviteCount()
+                || !inviteCode.equals(inviter.getInviteCode())) {
+            if (strict) throw new IllegalStateException("已绑定邀请码或该邀请码不可用");
+            return null;
         }
-
-        UserMembership userMembership = userMembershipService.getByUserId(userId);
-        if (userMembership == null) {
-            userMembershipService.initMembershipForUser(userId);
-            userMembership = userMembershipService.getByUserId(userId);
-        }
-
-        if (userMembership.getInvitedBy() != null) {
-            throw new IllegalStateException("您已绑定过邀请码，无法重复绑定");
-        }
-
-        UserMembership inviterMembership = userMembershipService.getByInviteCode(inviteCode.trim());
-        if (inviterMembership == null) {
-            throw new IllegalArgumentException("邀请码无效");
-        }
-
-        if (inviterMembership.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("不能使用自己的邀请码");
-        }
-
-        if (inviterMembership.getInviteCount() >= getMaxInviteCount()) {
-            throw new IllegalStateException("该邀请人已达到最大邀请人数");
-        }
-
-        long rewardAmount = getRewardAmount();
-
-        userMembership.setInvitedBy(inviterMembership.getUserId());
-        userMembershipService.updateById(userMembership);
-
+        long reward = getRewardAmount();
+        if (reward < 0) throw new IllegalStateException("邀请奖励配置无效");
+        invitee.setInvitedBy(inviterId);
+        if (!userMembershipService.updateById(invitee)) throw new IllegalStateException("邀请关系保存失败");
+        // Persist the counter BEFORE granting balance: never save a stale balance snapshot afterwards.
+        inviter.setInviteCount(Math.addExact(inviter.getInviteCount(), 1));
+        if (!userMembershipService.updateById(inviter)) throw new IllegalStateException("邀请计数保存失败");
+        if (reward > 0) userMembershipService.grantBalance(inviterId, reward, null, "邀请奖励：邀请新用户");
         InviteRecord record = new InviteRecord();
-        record.setInviterId(inviterMembership.getUserId());
+        record.setInviterId(inviterId);
         record.setInviteeId(userId);
-        record.setRewardAmount(rewardAmount);
-        record.setRewardGranted(false);
-        save(record);
-
-        userMembershipService.grantBalance(
-                inviterMembership.getUserId(),
-                rewardAmount,
-                null,
-                "邀请奖励：邀请新用户"
-        );
-
-        inviterMembership.setInviteCount(inviterMembership.getInviteCount() + 1);
-        userMembershipService.updateById(inviterMembership);
-
+        record.setRewardAmount(reward);
         record.setRewardGranted(true);
-        updateById(record);
-
-        log.info("邀请码绑定成功：邀请人[{}]，被邀请人[{}]，奖励{}分",
-                inviterMembership.getUserId(), userId, rewardAmount);
-
-        return inviterMembership.getInviteCode();
+        if (!save(record)) throw new IllegalStateException("邀请记录保存失败");
+        log.info("邀请绑定完成: inviterId={}, inviteeId={}", inviterId, userId);
+        return inviter.getInviteCode();
     }
 
     @Override
@@ -192,7 +123,7 @@ public class InviteServiceImpl extends ServiceImpl<InviteRecordMapper, InviteRec
         return lambdaQuery()
                 .eq(InviteRecord::getInviterId, userId)
                 .orderByDesc(InviteRecord::getCreatedAt)
-                .page(new Page<>(page, size));
+                .page(com.ayssu.ciphergate.util.IdPageQuery.page(page, size));
     }
 
     @Override

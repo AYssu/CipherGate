@@ -7,6 +7,9 @@ public interface UserMembershipService extends IService<UserMembership> {
 
     UserMembership getByUserId(Long userId);
 
+    /** Must be called within the business transaction; serializes all membership writers. */
+    UserMembership getByUserIdForUpdate(Long userId);
+
     UserMembership getByInviteCode(String inviteCode);
 
     void initMembershipForUser(Long userId);

@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { CheckinStatus, CheckinResult, CheckinReward } from '../../services/contracts';
 import React from 'react';
 import { Card, Button, Typography, Statistic, Row, Col, Tag, message, Grid, Descriptions } from 'antd';
@@ -21,7 +22,7 @@ const CheckinPage: React.FC = () => {
   const [rewardResult, setRewardResult] = React.useState<CheckinResult | null>(null);
 
   const fetchStatus = () => {
-    fetch('/api/user/checkin/status', { credentials: 'include' })
+    sessionFetch('/api/user/checkin/status', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.success) setStatus(data.data);
@@ -38,7 +39,7 @@ const CheckinPage: React.FC = () => {
     setCheckinLoading(true);
     setRewardResult(null);
     try {
-      const res = await fetch('/api/user/checkin', { method: 'POST', credentials: 'include' });
+      const res = await sessionFetch('/api/user/checkin', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         message.success('签到成功！');

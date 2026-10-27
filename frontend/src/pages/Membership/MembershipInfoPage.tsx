@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { UserMembership, MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Typography, Tag, Statistic, Row, Col, Progress, Spin, Space, Grid, Modal, Tooltip } from 'antd';
@@ -26,9 +27,9 @@ const MembershipInfoPage: React.FC = () => {
 
   React.useEffect(() => {
     Promise.all([
-      fetch('/api/user/membership/info', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/membership/levels/public', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/user/invite/stats', { credentials: 'include' }).then(r => r.json()).catch(() => ({ data: {} }))
+      sessionFetch('/api/user/membership/info', { credentials: 'include' }).then(r => r.json()),
+      sessionFetch('/api/membership/levels/public', { credentials: 'include' }).then(r => r.json()),
+      sessionFetch('/api/user/invite/stats', { credentials: 'include' }).then(r => r.json()).catch(() => ({ data: {} }))
     ]).then(([memRes, lvlRes, inviteRes]) => {
       const mem = memRes.data;
       setMembership(mem);

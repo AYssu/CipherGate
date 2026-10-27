@@ -90,8 +90,7 @@ public class CardWsHeartbeatService {
                 return;
             }
 
-            // 更新 Redis 心跳时间
-            cardWsHandler.updateRedisHeartbeat(cardId);
+            if (!cardWsHandler.validateEntitlement(session)) return;
 
             long now = Instant.now().toEpochMilli();
             String connId = (String) session.getAttributes().get(ATTR_CONN_ID);

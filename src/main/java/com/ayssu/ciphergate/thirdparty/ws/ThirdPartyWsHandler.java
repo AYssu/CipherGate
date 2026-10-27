@@ -59,6 +59,7 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     private static final String ATTR_SERVER_NONCE = "cg.ws.serverNonce";
     private static final String ATTR_SESSION_KEY = "cg.ws.sessionKey";
     private static final String ATTR_AUTHED = "cg.ws.authed";
+    private static final String ATTR_HELLO_STARTED = "cg.ws.helloStarted";
     private static final String ATTR_LAST_SEQ = "cg.ws.lastSeq";
     /** 单调递增；每发一条变量 HEARTBEAT +1，用于 HKDF 子密钥。 */
     public static final String ATTR_VAR_PACKET_SEQ = "cg.ws.varPacketSeq";
@@ -109,6 +110,9 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        if (!session.isOpen() || Boolean.TRUE.equals(session.getAttributes().get(ThirdPartyWsSessionRegistry.ATTR_TERMINATED))) {
+            return;
+        }
         WsEnvelope env;
         try {
             env = objectMapper.readValue(message.getPayload(), WsEnvelope.class);
@@ -138,6 +142,18 @@ public class ThirdPartyWsHandler extends TextWebSocketHandler {
     }
 
     private void handleHello(WebSocketSession session, WsEnvelope env) throws Exception {
+        // A connection negotiates its application and encryption context exactly once.
+        // Claim the handshake before validation so concurrent HELLO frames cannot reset it.
+        synchronized (session.getAttributes()) {
+            if (Boolean.TRUE.equals(session.getAttributes().get(ATTR_HELLO_STARTED))
+                    || Boolean.TRUE.equals(session.getAttributes().get(ATTR_AUTHED))
+                    || session.getAttributes().containsKey(ATTR_APP)
+                    || session.getAttributes().containsKey(ATTR_SESSION_KEY)) {
+                close(session, 1008, "HELLO_ALREADY_STARTED");
+                return;
+            }
+            session.getAttributes().put(ATTR_HELLO_STARTED, true);
+        }
         long now = Instant.now().toEpochMilli();
         Long ts = env.getTs();
         if (ts == null || Math.abs(now - ts) > MAX_SKEW_MS) {

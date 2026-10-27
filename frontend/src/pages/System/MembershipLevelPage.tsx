@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { MembershipLevel } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, message, Typography, Grid } from 'antd';
@@ -16,7 +17,7 @@ const MembershipLevelPage: React.FC = () => {
   const [form] = Form.useForm();
 
   const fetchLevels = () => {
-    fetch('/api/membership/levels', { credentials: 'include' })
+    sessionFetch('/api/membership/levels', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setLevels(data.data || []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -28,7 +29,7 @@ const MembershipLevelPage: React.FC = () => {
     const values = await form.validateFields();
     const url = editing ? `/api/membership/levels/${editing.id}` : '/api/membership/levels';
     const method = editing ? 'PUT' : 'POST';
-    const res = await fetch(url, {
+    const res = await sessionFetch(url, {
       method, credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values)

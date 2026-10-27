@@ -10,12 +10,18 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * 每次请求校验当前登录用户是否仍处于启用状态。
@@ -54,15 +60,38 @@ public class ActiveUserSessionFilter extends OncePerRequestFilter {
 
             // 密码登录：principal 是 User 对象
             if (principal instanceof User loginUser) {
-                disabled = loginUser.getStatus() == null || loginUser.getStatus() != 1;
+                User current = userService.getUserWithRolesAndPermissions(loginUser.getId());
+                disabled = current == null || !Integer.valueOf(1).equals(current.getStatus())
+                        || !Objects.equals(loginUser.getPassword(), current.getPassword());
+                if (!disabled) {
+                    var refreshed = new UsernamePasswordAuthenticationToken(current, null, authoritiesFor(current));
+                    refreshed.setDetails(authentication.getDetails());
+                    SecurityContextHolder.getContext().setAuthentication(refreshed);
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.setAttribute("user", current);
+                        session.setAttribute("passwordAuth", refreshed);
+                    }
+                }
             }
             // OAuth2 登录：principal 是 OAuth2User，通过 githubId 查库校验
             else if (principal instanceof OAuth2User oauth2User) {
                 Object idObj = oauth2User.getAttribute("id");
                 String githubId = idObj == null ? null : idObj.toString();
-                if (githubId != null) {
-                    User user = userService.getUserByGithubId(githubId);
-                    disabled = user == null || user.getStatus() == null || user.getStatus() != 1;
+                User user = githubId == null ? null : userService.getUserByGithubId(githubId);
+                User current = user == null ? null : userService.getUserWithRolesAndPermissions(user.getId());
+                disabled = current == null || !Integer.valueOf(1).equals(current.getStatus());
+                if (!disabled && authentication instanceof OAuth2AuthenticationToken oauthToken) {
+                    var authorities = authoritiesFor(current);
+                    var refreshedPrincipal = new DefaultOAuth2User(authorities, oauth2User.getAttributes(), "login");
+                    var refreshed = new OAuth2AuthenticationToken(refreshedPrincipal, authorities,
+                            oauthToken.getAuthorizedClientRegistrationId());
+                    refreshed.setDetails(authentication.getDetails());
+                    SecurityContextHolder.getContext().setAuthentication(refreshed);
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.setAttribute("user", current);
+                    }
                 }
             }
 
@@ -74,11 +103,16 @@ public class ActiveUserSessionFilter extends OncePerRequestFilter {
                 }
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"code\":403,\"message\":\"账号已被禁用\"}");
+                response.getWriter().write("{\"code\":403,\"message\":\"账号状态或登录凭证已变更，请重新登录\"}");
                 return;
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private List<SimpleGrantedAuthority> authoritiesFor(User user) {
+        return user.getRoles() == null ? List.of() : user.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleCode())).toList();
     }
 }

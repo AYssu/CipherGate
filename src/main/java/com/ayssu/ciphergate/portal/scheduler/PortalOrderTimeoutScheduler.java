@@ -23,21 +23,12 @@ public class PortalOrderTimeoutScheduler {
     public void closeExpiredOrders() {
         LocalDateTime expireTime = LocalDateTime.now().minusMinutes(TIMEOUT_MINUTES);
 
-        var expiredOrders = orderMapper.selectList(
-            new LambdaQueryWrapper<PortalPaymentOrder>()
-                .eq(PortalPaymentOrder::getStatus, 0)
-                .lt(PortalPaymentOrder::getCreatedAt, expireTime)
-        );
-
-        if (expiredOrders.isEmpty()) return;
-
-        for (PortalPaymentOrder order : expiredOrders) {
-            order.setStatus(2);
-            order.setUpdatedAt(LocalDateTime.now());
-            orderMapper.updateById(order);
-            log.info("关闭超时未支付订单: orderNo={}, amount={}分", order.getOrderNo(), order.getAmountFen());
-        }
-
-        log.info("本次关闭超时订单数量: {}", expiredOrders.size());
+        int closed = orderMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<PortalPaymentOrder>()
+                        .eq(PortalPaymentOrder::getStatus, 0)
+                        .lt(PortalPaymentOrder::getCreatedAt, expireTime)
+                        .set(PortalPaymentOrder::getStatus, 2)
+                        .set(PortalPaymentOrder::getUpdatedAt, LocalDateTime.now()));
+        if (closed > 0) log.info("本次关闭超时订单数量: {}", closed);
     }
 }

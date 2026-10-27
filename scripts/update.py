@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+import urllib.request
 
 HERE = Path(__file__).resolve().parent
 
@@ -87,6 +88,20 @@ def smoke_url(directory):
     if ":" in address:
         address = "[" + address + "]"
     return "http://" + address + ":" + values.get("FRONTEND_PORT", "5173")
+
+
+def verify_readiness_route(url):
+    """Check preserved ingress BEFORE stopping an old installation or replacing files."""
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/health/ready", timeout=10) as response:
+            body = json.load(response)
+        if not isinstance(body, dict) or body.get("status") != "UP":
+            raise ValueError("Backend is not ready")
+    except (OSError, ValueError) as error:
+        raise RuntimeError("Existing /health/ready must return JSON status=UP before update. "
+                           "Check backend health; legacy Nginx must proxy this exact route to "
+                           "/actuator/health/readiness. Existing .env, Compose and real-IP settings "
+                           "have NOT been replaced; no application was stopped.") from error
 
 
 def managed_paths(stage, directory=None):
@@ -192,6 +207,7 @@ def _update(archive, directory, project=None, files=None, url=None):
         raise ValueError("No existing .env; use install.py for a new installation")
     command = compose_command(directory, project, files)
     call(command + ["config", "--quiet"], directory)
+    verify_readiness_route(url or smoke_url(directory))
     # Pin the actual running images, not mutable tags or changed Compose defaults.
     runtime = {"services": {}}
     for service in ["backend", "frontend"]:

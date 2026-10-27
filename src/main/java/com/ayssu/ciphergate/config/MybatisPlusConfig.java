@@ -21,7 +21,10 @@ public class MybatisPlusConfig {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        // Preserve existing application selectors (size=1000), cap every other paged query too.
+        pagination.setMaxLimit(1000L);
+        interceptor.addInnerInterceptor(pagination);
         return interceptor;
     }
 

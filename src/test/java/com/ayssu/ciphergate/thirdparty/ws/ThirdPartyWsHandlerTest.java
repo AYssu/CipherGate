@@ -46,6 +46,8 @@ class ThirdPartyWsHandlerTest {
     private WebSocketSession session;
     private Map<String, Object> attributes;
     private Application app;
+    private AppUserWsAuthService auth;
+    private FunctionRuntimeService runtime;
     private KeyPair serverKeys;
 
     @BeforeEach
@@ -56,7 +58,8 @@ class ThirdPartyWsHandlerTest {
         presence = new AppUserWsPresenceRegistry(redis);
         sessions = new ThirdPartyWsSessionRegistry(presence);
         recorder = mock(AppUserWsLoginRecorder.class);
-        AppUserWsAuthService auth = mock(AppUserWsAuthService.class);
+        auth = mock(AppUserWsAuthService.class);
+        runtime = mock(FunctionRuntimeService.class);
         WsNonceService nonce = mock(WsNonceService.class);
         when(nonce.markIfNew(any(), any())).thenReturn(true);
         app = new Application();
@@ -81,7 +84,7 @@ class ThirdPartyWsHandlerTest {
                 mapper, mock(AppVariableTemplateResolver.class));
         handler = new ThirdPartyWsHandler(mapper, auth, nonce, sessions, recorder, presence,
                 mock(AppUserWsDeviceBindService.class), new AppUserWsSessionKickService(sessions, presence),
-                heartbeat, mock(FunctionRuntimeService.class));
+                heartbeat, runtime);
         serverKeys = WsCrypto.generateX25519KeyPair();
         attributes = new HashMap<>();
         attributes.put("cg.ws.connId", CONN_ID);
@@ -164,6 +167,63 @@ class ThirdPartyWsHandlerTest {
         assertThrows(IOException.class, this::authenticate);
 
         assertOffline();
+    }
+
+    @Test
+    void authenticatedConnectionCannotSwitchApplicationWithAnotherHello() throws Exception {
+        authenticate();
+        Object originalKey = attributes.get("cg.ws.sessionKey");
+        Object originalSequence = attributes.get("cg.ws.lastSeq");
+        Application target = new Application();
+        target.setId(2L);
+        target.setAppKey("another-app");
+        target.setBusinessModel(2);
+        lenient().when(auth.requireActiveAppByKey(target.getAppKey())).thenReturn(target);
+
+        sendHello(target.getAppKey());
+
+        verify(session).close(new CloseStatus(1008, "HELLO_ALREADY_STARTED"));
+        assertSame(app, attributes.get("cg.ws.app"));
+        assertSame(originalKey, attributes.get("cg.ws.sessionKey"));
+        assertEquals(originalSequence, attributes.get("cg.ws.lastSeq"));
+        assertOffline();
+        verify(auth, never()).requireActiveAppByKey(any());
+        WsEnvelope call = new WsEnvelope();
+        call.setType("FUNC_CALL");
+        call.setPluginId("target-plugin");
+        call.setFunc("target-function");
+        handler.handleTextMessage(session, new TextMessage(mapper.writeValueAsString(call)));
+        verifyNoInteractions(runtime);
+    }
+
+    @Test
+    void secondHelloBeforeAuthenticationCannotReplaceNegotiatedContext() throws Exception {
+        attributes.keySet().removeIf(key -> !key.equals("cg.ws.connId") && !key.equals("cg.ws.clientIp"));
+        when(auth.requireActiveAppByKey(app.getAppKey())).thenReturn(app);
+        sendHello(app.getAppKey());
+        Object originalKey = attributes.get("cg.ws.sessionKey");
+        Object originalNonce = attributes.get("cg.ws.serverNonce");
+        assertNotNull(originalKey);
+        verify(session, never()).close(any());
+
+        sendHello("another-app");
+
+        verify(session).close(new CloseStatus(1008, "HELLO_ALREADY_STARTED"));
+        assertSame(app, attributes.get("cg.ws.app"));
+        assertSame(originalKey, attributes.get("cg.ws.sessionKey"));
+        assertEquals(originalNonce, attributes.get("cg.ws.serverNonce"));
+        verify(auth, times(1)).requireActiveAppByKey(any());
+        verifyNoInteractions(runtime);
+    }
+
+    private void sendHello(String appKey) throws Exception {
+        WsEnvelope hello = new WsEnvelope();
+        hello.setType("HELLO");
+        hello.setAppKey(appKey);
+        hello.setTs(System.currentTimeMillis());
+        hello.setNonce(UUID.randomUUID().toString());
+        hello.setClientPubKey(WsCrypto.b64(WsCrypto.generateX25519KeyPair().getPublic().getEncoded()));
+        handler.handleTextMessage(session, new TextMessage(mapper.writeValueAsString(hello)));
     }
 
     private void authenticate() throws Exception {

@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { BalanceTransaction, QuotaProduct } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Button, InputNumber, Space, message, Typography, Row, Col, Statistic, Tag, Modal, Grid } from 'antd';
@@ -20,21 +21,21 @@ const BalancePage: React.FC = () => {
   const [purchaseVisible, setPurchaseVisible] = React.useState(false);
 
   const fetchBalance = () => {
-    fetch('/api/user/membership/balance', { credentials: 'include' })
+    sessionFetch('/api/user/membership/balance', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setBalance(data.data || 0); });
   };
 
   const fetchTransactions = () => {
     setLoading(true);
-    fetch('/api/user/membership/transactions?page=1&size=50', { credentials: 'include' })
+    sessionFetch('/api/user/membership/transactions?page=1&size=50', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setTransactions(data.data?.records || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
   const fetchProducts = () => {
-    fetch('/api/quota-products/public', { credentials: 'include' })
+    sessionFetch('/api/quota-products/public', { credentials: 'include' })
       .then(res => res.json())
       .then(data => { if (data.success) setProducts(data.data || []); });
   };
@@ -51,7 +52,7 @@ const BalancePage: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(`/api/payment/recharge?amount=${rechargeAmount * 100}`, {
+      const res = await sessionFetch(`/api/payment/recharge?amount=${rechargeAmount * 100}`, {
         method: 'POST', credentials: 'include'
       });
       const data = await res.json();
@@ -68,7 +69,7 @@ const BalancePage: React.FC = () => {
 
   const handlePurchase = async () => {
     if (!selectedProduct) return;
-    const res = await fetch(`/api/payment/create?productId=${selectedProduct.id}&quantity=1`, {
+    const res = await sessionFetch(`/api/payment/create?productId=${selectedProduct.id}&quantity=1`, {
       method: 'POST', credentials: 'include'
     });
     const data = await res.json();

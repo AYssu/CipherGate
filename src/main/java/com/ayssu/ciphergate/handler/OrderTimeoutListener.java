@@ -27,14 +27,10 @@ public class OrderTimeoutListener {
 
         log.info("订单超时检查: orderNo={}", orderNo);
 
-        PaymentOrder order = paymentOrderService.getByOrderNo(orderNo);
-        if (order == null || order.getStatus() != 0) {
-            log.info("订单已处理或不存在，跳过: orderNo={}, status={}", orderNo, order != null ? order.getStatus() : "null");
-            return;
-        }
-
-        order.setStatus(2);
-        paymentOrderService.updateById(order);
-        log.info("订单已取消（超时未支付）: orderNo={}", orderNo);
+        boolean cancelled = paymentOrderService.lambdaUpdate()
+                .eq(PaymentOrder::getOrderNo, orderNo).eq(PaymentOrder::getStatus, 0)
+                .le(PaymentOrder::getCreatedAt, java.time.LocalDateTime.now().minusMinutes(5))
+                .set(PaymentOrder::getStatus, 2).update();
+        if (cancelled) log.info("订单已取消（超时未支付）: orderNo={}", orderNo);
     }
 }

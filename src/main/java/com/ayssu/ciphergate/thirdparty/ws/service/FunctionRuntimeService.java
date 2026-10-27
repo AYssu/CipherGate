@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -37,11 +38,22 @@ public class FunctionRuntimeService {
     /** pluginId -> (functionName -> FunctionPlugin) */
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, FunctionPlugin>> registry = new ConcurrentHashMap<>();
 
-    private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
+    // Keep both running work and pending requests bounded, including plugins that ignore interruption.
+    private final ThreadPoolExecutor executor = new ThreadPoolExecutor(8, 8, 0L,
+            TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(64), r -> {
         Thread t = new Thread(r, "func-exec");
         t.setDaemon(true);
         return t;
-    });
+    }, new ThreadPoolExecutor.AbortPolicy());
+
+    @PreDestroy
+    public void shutdown() {
+        for (Runnable queued : executor.shutdownNow()) {
+            if (queued instanceof Future<?> future) {
+                future.cancel(true);
+            }
+        }
+    }
 
     @PostConstruct
     public void init() {
@@ -190,22 +202,36 @@ public class FunctionRuntimeService {
         }
 
         // 带超时执行
+        Future<Map<String, Object>> future = null;
         try {
-            Future<Map<String, Object>> future = executor.submit(() -> plugin.execute(params));
+            future = executor.submit(() -> plugin.execute(params));
             Map<String, Object> result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
             return FunctionResult.ok(result);
         } catch (TimeoutException e) {
+            cancelExecution(future);
             return FunctionResult.error("TIMEOUT", "函数执行超时(" + timeoutMs + "ms): " + functionName);
+        } catch (RejectedExecutionException e) {
+            return FunctionResult.error("SERVER_BUSY", "函数执行繁忙，请稍后重试");
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             String msg = cause != null ? cause.getMessage() : e.getMessage();
             log.error("函数执行异常: pluginId={}, function={}, error={}", pluginId, functionName, msg, e);
             return FunctionResult.error("EXEC_ERROR", "函数执行异常: " + msg);
         } catch (InterruptedException e) {
+            cancelExecution(future);
             Thread.currentThread().interrupt();
             return FunctionResult.error("INTERRUPTED", "函数执行被中断");
         } catch (Exception e) {
             return FunctionResult.error("EXEC_ERROR", "函数执行失败: " + e.getMessage());
+        }
+    }
+
+    private void cancelExecution(Future<?> future) {
+        if (future != null) {
+            future.cancel(true);
+            if (future instanceof Runnable task) {
+                executor.remove(task);
+            }
         }
     }
 

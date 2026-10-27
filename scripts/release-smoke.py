@@ -142,9 +142,13 @@ def exercise(archive):
             body = json.dumps({"clientId": "release-smoke-client", "clientSecret": "release-smoke-secret",
                 "redirectUri": "http://127.0.0.1:5173/api/login/oauth2/code/github",
                 "frontendUrl": "http://127.0.0.1:5173"}).encode()
+            import http.cookiejar
+            client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+            with client.open("http://127.0.0.1:5173/api/csrf", timeout=10) as response:
+                csrf = json.load(response)
             request = urllib.request.Request("http://127.0.0.1:5173/api/config/init", data=body,
-                                             headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(request, timeout=15) as response:
+                                             headers={"Content-Type": "application/json", csrf["headerName"]: csrf["token"]})
+            with client.open(request, timeout=15) as response:
                 result = json.load(response)
             if result.get("code") != 200:
                 raise RuntimeError("First-run configuration failed")

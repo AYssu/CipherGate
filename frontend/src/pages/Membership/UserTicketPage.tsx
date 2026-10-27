@@ -1,3 +1,4 @@
+import { sessionFetch } from '../../utils/csrf';
 import type { Ticket, TicketMessage } from '../../services/contracts';
 import React from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, message, Typography, List, Avatar, Space, Tabs, Badge, Empty, Grid, Dropdown } from 'antd';
@@ -25,7 +26,7 @@ const UserTicketPage: React.FC = () => {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/tickets?page=1&size=100', { credentials: 'include' });
+      const res = await sessionFetch('/api/tickets?page=1&size=100', { credentials: 'include' });
       const data = await res.json();
       if (data.success) setTickets(data.data?.records || []);
     } finally { setLoading(false); }
@@ -33,7 +34,7 @@ const UserTicketPage: React.FC = () => {
 
   const handleCreate = async () => {
     const values = await form.validateFields();
-    const res = await fetch('/api/tickets', {
+    const res = await sessionFetch('/api/tickets', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values)
@@ -45,14 +46,14 @@ const UserTicketPage: React.FC = () => {
 
   const viewDetail = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
-    const res = await fetch(`/api/tickets/${ticket.ticketNo}`, { credentials: 'include' });
+    const res = await sessionFetch(`/api/tickets/${ticket.ticketNo}`, { credentials: 'include' });
     const data = await res.json();
     if (data.success) { setMessages(data.data.messages || []); setDetailVisible(true); }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
-    await fetch(`/api/tickets/${selectedTicket.ticketNo}/messages`, {
+    await sessionFetch(`/api/tickets/${selectedTicket.ticketNo}/messages`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: newMessage })
@@ -64,14 +65,14 @@ const UserTicketPage: React.FC = () => {
 
   const handleClose = async () => {
     if (!selectedTicket) return;
-    await fetch(`/api/tickets/${selectedTicket.ticketNo}/close`, { method: 'POST', credentials: 'include' });
+    await sessionFetch(`/api/tickets/${selectedTicket.ticketNo}/close`, { method: 'POST', credentials: 'include' });
     message.success('工单已关闭');
     setDetailVisible(false);
     fetchTickets();
   };
 
   const handleUrge = async (ticketNo: string) => {
-    const res = await fetch(`/api/tickets/${ticketNo}/urge`, { method: 'POST', credentials: 'include' });
+    const res = await sessionFetch(`/api/tickets/${ticketNo}/urge`, { method: 'POST', credentials: 'include' });
     const data = await res.json();
     if (data.success) message.success('催办成功');
     else message.error(data.message);

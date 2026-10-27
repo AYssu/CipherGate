@@ -57,6 +57,7 @@ public class SystemConfigService {
     /**
      * 设置配置值
      */
+    @org.springframework.transaction.annotation.Transactional
     public void setConfigValue(String configKey, String configValue) {
         setConfigValue(configKey, configValue, null, false);
     }
@@ -64,6 +65,7 @@ public class SystemConfigService {
     /**
      * 设置配置值（完整版本）
      */
+    @org.springframework.transaction.annotation.Transactional
     public void setConfigValue(String configKey, String configValue, String description, boolean isEncrypted) {
         try {
             QueryWrapper<SystemConfig> queryWrapper = new QueryWrapper<>();
@@ -77,7 +79,7 @@ public class SystemConfigService {
                     existingConfig.setDescription(description);
                 }
                 existingConfig.setIsEncrypted(isEncrypted);
-                systemConfigMapper.updateById(existingConfig);
+                if (systemConfigMapper.updateById(existingConfig) != 1) throw new IllegalStateException("配置更新失败");
             } else {
                 // 创建新配置
                 SystemConfig newConfig = new SystemConfig();
@@ -85,15 +87,23 @@ public class SystemConfigService {
                 newConfig.setConfigValue(configValue);
                 newConfig.setDescription(description);
                 newConfig.setIsEncrypted(isEncrypted);
-                systemConfigMapper.insert(newConfig);
+                if (systemConfigMapper.insert(newConfig) != 1) throw new IllegalStateException("配置创建失败");
             }
             
             // 更新缓存
-            configCache.put(configKey, configValue);
+            if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override public void afterCommit() { configCache.put(configKey, configValue); }
+                        });
+            } else {
+                configCache.put(configKey, configValue);
+            }
             log.info("配置项 [{}] 已更新", configKey);
             
         } catch (Exception e) {
-            log.error("设置配置项 [{}] 失败: {}", configKey, e.getMessage());
+            log.error("设置配置项 [{}] 失败", configKey);
+            throw new IllegalStateException("配置保存失败，请重试", e);
         }
     }
     
@@ -167,6 +177,7 @@ public class SystemConfigService {
     /**
      * 初始化系统配置（仅在使用默认配置时可用）
      */
+    @org.springframework.transaction.annotation.Transactional
     public boolean initializeSystemConfig(String clientId, String clientSecret, String redirectUri, String frontendUrl) {
         if (isSystemInitialized()) {
             log.warn("系统已初始化，无法重复初始化");

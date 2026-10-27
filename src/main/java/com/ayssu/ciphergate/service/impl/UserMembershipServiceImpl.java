@@ -61,6 +61,21 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     }
 
     @Override
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public UserMembership getByUserIdForUpdate(Long userId) {
+        if (userMembershipMapper.lockUser(userId) == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        UserMembership membership = userMembershipMapper.selectByUserIdForUpdate(userId);
+        if (membership == null) {
+            initMembershipForUser(userId);
+            membership = userMembershipMapper.selectByUserIdForUpdate(userId);
+        }
+        if (membership == null) throw new IllegalStateException("会员初始化失败");
+        return membership;
+    }
+
+    @Override
     public UserMembership getByInviteCode(String inviteCode) {
         return userMembershipMapper.selectByInviteCode(inviteCode);
     }
@@ -68,7 +83,8 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     @Override
     @Transactional
     public void initMembershipForUser(Long userId) {
-        UserMembership existing = getByUserId(userId);
+        if (userMembershipMapper.lockUser(userId) == null) throw new IllegalArgumentException("用户不存在");
+        UserMembership existing = userMembershipMapper.selectByUserIdForUpdate(userId);
         if (existing != null) {
             return;
         }
@@ -93,7 +109,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
         membership.setInviteCount(0);
         membership.setConsecutiveCheckinDays(0);
         membership.setTotalCheckinDays(0);
-        save(membership);
+        if (!save(membership)) throw new IllegalStateException("会员初始化失败");
 
         MembershipChangeLog changeLog = new MembershipChangeLog();
         changeLog.setUserId(userId);
@@ -108,7 +124,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     @Override
     @Transactional
     public void regenerateInviteCode(Long userId) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership == null) {
             log.warn("用户[{}]会员不存在，无法重新生成邀请码", userId);
             return;
@@ -117,14 +133,14 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
             return;
         }
         membership.setInviteCode(generateInviteCode());
-        updateById(membership);
+        if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
         log.info("用户[{}]邀请码已重新生成: {}", userId, membership.getInviteCode());
     }
 
     @Override
     @Transactional
     public void upgradeLevel(Long userId, Long toLevelId, Long operatorId, String remark) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership == null) {
             initMembershipForUser(userId);
             membership = getByUserId(userId);
@@ -142,7 +158,11 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
         } else if (toLevel.getDurationDays() == 0 && toLevel.getLevel() == 5) {
             membership.setMemberExpiresAt(null);
         }
-        updateById(membership);
+        if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
+        if (membership.getMemberExpiresAt() == null) {
+            if (!lambdaUpdate().eq(UserMembership::getId, membership.getId())
+                    .set(UserMembership::getMemberExpiresAt, null).update()) throw new IllegalStateException("会员到期时间保存失败");
+        }
 
         MembershipChangeLog changeLog = new MembershipChangeLog();
         changeLog.setUserId(userId);
@@ -159,25 +179,27 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     @Override
     @Transactional
     public void grantBalance(Long userId, Long amount, Long operatorId, String description) {
-        UserMembership membership = getByUserId(userId);
+        if (amount == null || amount <= 0) throw new IllegalArgumentException("充值金额必须大于0");
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership == null) {
             initMembershipForUser(userId);
             membership = getByUserId(userId);
         }
 
         Long before = membership.getBalance();
-        membership.setBalance(before + amount);
-        updateById(membership);
+        long after = Math.addExact(before, amount);
+        membership.setBalance(after);
+        if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
 
         BalanceTransaction transaction = new BalanceTransaction();
         transaction.setUserId(userId);
         transaction.setTransactionType("ADMIN_GRANT");
         transaction.setAmount(amount);
         transaction.setBalanceBefore(before);
-        transaction.setBalanceAfter(before + amount);
+        transaction.setBalanceAfter(after);
         transaction.setDescription(description);
         transaction.setOperatorId(operatorId);
-        balanceTransactionMapper.insert(transaction);
+        if (balanceTransactionMapper.insert(transaction) != 1) throw new IllegalStateException("余额流水保存失败");
 
         log.info("用户[{}]管理员充值：{}分，余额：{} -> {}", userId, amount, before, before + amount);
     }
@@ -185,14 +207,15 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     @Override
     @Transactional
     public boolean deductBalance(Long userId, Long amount, String orderNo, String description) {
-        UserMembership membership = getByUserId(userId);
+        if (amount == null || amount <= 0) throw new IllegalArgumentException("扣款金额必须大于0");
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership == null || membership.getBalance() < amount) {
             return false;
         }
 
         Long before = membership.getBalance();
         membership.setBalance(before - amount);
-        updateById(membership);
+        if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
 
         BalanceTransaction transaction = new BalanceTransaction();
         transaction.setUserId(userId);
@@ -202,14 +225,24 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
         transaction.setBalanceAfter(before - amount);
         transaction.setRelatedOrderNo(orderNo);
         transaction.setDescription(description);
-        balanceTransactionMapper.insert(transaction);
+        if (balanceTransactionMapper.insert(transaction) != 1) throw new IllegalStateException("余额流水保存失败");
 
         return true;
     }
 
+    private boolean lockingQuotaCheck() {
+        return org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
+                && !org.springframework.transaction.support.TransactionSynchronizationManager.isCurrentTransactionReadOnly();
+    }
+
+    private UserMembership membershipForQuotaCheck(Long userId) {
+        // Preview calls stay read-only. Mutating callers hold this lock through check + insert + consume.
+        return lockingQuotaCheck() ? getByUserIdForUpdate(userId) : getByUserId(userId);
+    }
+
     @Override
     public boolean checkAppQuota(Long userId) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = membershipForQuotaCheck(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
@@ -223,7 +256,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Override
     public boolean checkLicenseQuota(Long userId, int count) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = membershipForQuotaCheck(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
@@ -237,7 +270,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Override
     public boolean checkUserRegisterQuota(Long userId, int count) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = membershipForQuotaCheck(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
@@ -251,7 +284,8 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
     @Override
     public boolean checkTrafficQuota(Long userId, long bytes) {
-        UserMembership membership = getByUserId(userId);
+        if (bytes < 0) return false;
+        UserMembership membership = membershipForQuotaCheck(userId);
         if (membership == null) return false;
         MembershipLevel level = membershipLevelMapper.selectById(membership.getLevelId());
         if (level == null) return false;
@@ -260,42 +294,49 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
         long totalQuota = baseQuota + extraQuota;
         if (totalQuota < 0) totalQuota = Long.MAX_VALUE;
         long actualUsed = membership.getTrafficUsed() != null ? membership.getTrafficUsed() : 0;
-        return actualUsed + bytes <= totalQuota;
+        return actualUsed <= totalQuota && bytes <= totalQuota - actualUsed;
     }
 
     @Override
+    @Transactional
     public void consumeAppQuota(Long userId) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership != null) {
             membership.setAppUsed(membership.getAppUsed() + 1);
-            updateById(membership);
+            if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
         }
     }
 
     @Override
+    @Transactional
     public void consumeLicenseQuota(Long userId, long count) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership != null) {
-            membership.setLicenseUsed(membership.getLicenseUsed() + count);
-            updateById(membership);
+            if (count < 0) throw new IllegalArgumentException("数量不能为负数");
+            membership.setLicenseUsed(Math.addExact(membership.getLicenseUsed(), count));
+            if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
         }
     }
 
     @Override
+    @Transactional
     public void consumeUserRegisterQuota(Long userId, int count) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership != null) {
-            membership.setUserRegisterUsed(membership.getUserRegisterUsed() + count);
-            updateById(membership);
+            if (count < 0) throw new IllegalArgumentException("数量不能为负数");
+            membership.setUserRegisterUsed(Math.addExact(membership.getUserRegisterUsed(), count));
+            if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
         }
     }
 
     @Override
+    @Transactional
     public void consumeTrafficQuota(Long userId, long bytes) {
-        UserMembership membership = getByUserId(userId);
+        UserMembership membership = getByUserIdForUpdate(userId);
         if (membership != null) {
-            membership.setTrafficUsed(membership.getTrafficUsed() + bytes);
-            updateById(membership);
+            if (bytes < 0) throw new IllegalArgumentException("流量不能为负数");
+            membership.setTrafficUsed(Math.addExact(membership.getTrafficUsed(), bytes));
+            if (!updateById(membership)) throw new IllegalStateException("会员信息保存失败");
         }
     }
 
@@ -308,7 +349,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
      * 统计用户所有应用下的卡密总数（包括已删除的）
      */
     public long countUserLicenses(Long userId) {
-        return licenseKeyMapper.countAllByKeyOwner(userId);
+        return lockingQuotaCheck() ? licenseKeyMapper.countAllByKeyOwnerForUpdate(userId) : licenseKeyMapper.countAllByKeyOwner(userId);
     }
 
     /**
@@ -319,7 +360,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
         var appIds = applicationMapper.selectList(
                 new QueryWrapper<com.ayssu.ciphergate.entity.Application>()
                         .eq("owner_id", userId)
-                        .select("id"))
+                        .select("id").last(lockingQuotaCheck() ? "FOR UPDATE" : ""))
                 .stream()
                 .map(com.ayssu.ciphergate.entity.Application::getId)
                 .toList();
@@ -327,7 +368,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
 
         return appUserMapper.selectCount(
                 new QueryWrapper<com.ayssu.ciphergate.entity.AppUser>()
-                        .in("app_id", appIds));
+                        .in("app_id", appIds).last(lockingQuotaCheck() ? "FOR UPDATE" : ""));
     }
 
     /**
@@ -336,7 +377,7 @@ public class UserMembershipServiceImpl extends ServiceImpl<UserMembershipMapper,
     public long countUserApps(Long userId) {
         return applicationMapper.selectCount(
                 new QueryWrapper<com.ayssu.ciphergate.entity.Application>()
-                        .eq("owner_id", userId));
+                        .eq("owner_id", userId).last(lockingQuotaCheck() ? "FOR UPDATE" : ""));
     }
 
     private String generateInviteCode() {

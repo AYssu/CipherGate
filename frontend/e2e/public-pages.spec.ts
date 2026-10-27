@@ -3,6 +3,9 @@ import { test, expect, type Page } from '@playwright/test';
 const envelope = (data: unknown) => ({ success: true, code: 200, data });
 async function mock(page: Page) {
   await page.route('**/api/**', async route => {
+    if (new URL(route.request().url()).pathname === '/api/csrf') {
+      await route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'mock-session-csrf-token' } }); return;
+    }
     const path = new URL(route.request().url()).pathname;
     let data: unknown = [];
     if (path.endsWith('/captcha') || path.endsWith('/challenge')) data = { captchaId: 'captcha', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V8AAAAASUVORK5CYII=' };

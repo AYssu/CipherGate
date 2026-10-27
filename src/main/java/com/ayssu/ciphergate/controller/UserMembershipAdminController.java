@@ -112,10 +112,11 @@ public class UserMembershipAdminController {
     @PutMapping("/{userId}/extra-quota")
     @RequirePermission("USER_MEMBERSHIP_UPDATE")
     @Operation(summary = "管理员修改用户额外额度")
+    @org.springframework.transaction.annotation.Transactional
     public Result<String> updateExtraQuota(
             @PathVariable Long userId,
             @RequestBody Map<String, Object> body) {
-        UserMembership membership = userMembershipService.getByUserId(userId);
+        UserMembership membership = userMembershipService.getByUserIdForUpdate(userId);
         if (membership == null) {
             return Result.error("用户会员信息不存在");
         }
@@ -138,10 +139,11 @@ public class UserMembershipAdminController {
     @PutMapping("/{userId}/expires")
     @RequirePermission("USER_MEMBERSHIP_UPDATE")
     @Operation(summary = "管理员设置会员到期时间")
+    @org.springframework.transaction.annotation.Transactional
     public Result<String> updateExpires(
             @PathVariable Long userId,
             @RequestBody Map<String, Object> body) {
-        UserMembership membership = userMembershipService.getByUserId(userId);
+        UserMembership membership = userMembershipService.getByUserIdForUpdate(userId);
         if (membership == null) {
             return Result.error("用户会员信息不存在");
         }
@@ -151,7 +153,8 @@ public class UserMembershipAdminController {
         } else {
             membership.setMemberExpiresAt(java.time.LocalDateTime.parse(expiresStr));
         }
-        userMembershipService.updateById(membership);
+        userMembershipService.lambdaUpdate().eq(UserMembership::getId, membership.getId())
+                .set(UserMembership::getMemberExpiresAt, membership.getMemberExpiresAt()).update();
         return Result.success("到期时间更新成功");
     }
 

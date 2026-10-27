@@ -20,4 +20,7 @@ public interface LicenseKeyMapper extends BaseMapper<LicenseKey> {
 
     @Select("SELECT COUNT(*) FROM license_key WHERE owner_id = #{userId}")
     long countAllByKeyOwner(@Param("userId") Long userId);
+
+    @Select("SELECT COUNT(*) FROM license_key WHERE owner_id = #{userId} FOR UPDATE")
+    long countAllByKeyOwnerForUpdate(@Param("userId") Long userId);
 }
