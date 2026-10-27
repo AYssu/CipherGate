@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../services/apiResponse';
 import { useState } from 'react';
 import { Alert, Button, Divider, Form, Input, Modal, Typography } from 'antd';
 import { CreditCardOutlined } from '@ant-design/icons';
@@ -27,7 +28,7 @@ export default function AppUserLicenseRechargeForm({ appId, onSuccess }: Props) 
       form.resetFields(['keyCode']);
     } catch (reason) {
       setSuccess(null);
-      setError(reason instanceof Error ? reason.message : '充值失败，请稍后重试');
+      setError(getErrorMessage(reason, '充值失败，请稍后重试'));
     } finally {
       setSubmitting(false);
       setPending(null);

@@ -160,7 +160,16 @@ jobs:
       - name: Build the actual public release bundle
         run: ./deploy-server.sh
       - name: Exercise packaged first install, update and rollback
+        env:
+          CIPHERGATE_ACCEPTANCE_REPORT: ${{ github.workspace }}/acceptance/recovery.json
         run: python3 scripts/release-smoke.py ciphergate-deploy.zip --isolated-ci
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: deployment-acceptance-evidence
+          path: acceptance/recovery.json
+          if-no-files-found: error
+          retention-days: 14
 
   security:
     name: Dependency audit and secret scan

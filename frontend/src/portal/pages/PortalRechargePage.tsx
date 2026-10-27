@@ -1,8 +1,8 @@
 import type { PortalPricingPlan } from '../services/types';
-import React, { useEffect, useState } from 'react';
-import { Card, Typography, Row, Col, Button, Tag, message, Modal } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, Typography, Row, Col, Button, Tag, message, Modal, Alert, Empty } from 'antd';
 import { CrownOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { portalMembershipApi } from '../services/portalMembershipService';
 import { portalPaymentApi } from '../services/portalPaymentService';
 
@@ -13,32 +13,40 @@ const PortalRechargePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const orderPending = useRef(false);
 
-  useEffect(() => {
-    loadPlans();
-  }, []);
-
-  const loadPlans = async () => {
+  const loadPlans = useCallback(async () => {
+    setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await portalMembershipApi.getPlans();
       setPlans(res?.data || []);
     } catch {
-      // ignore
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { void loadPlans(); }, [loadPlans]);
 
   const handleOrder = async (plan: PortalPricingPlan) => {
+    if (orderPending.current) return;
+    orderPending.current = true;
     setOrdering(plan.id);
+    let dialogOpened = false;
+    const releaseOrder = () => { orderPending.current = false; setOrdering(null); };
     try {
       const res = await portalPaymentApi.createOrder(plan.id);
       if (res?.data) {
+        dialogOpened = true;
         Modal.confirm({
           title: '确认支付',
           icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
           content: (
-            <div>
+            <div style={{ overflowWrap: 'anywhere' }}>
+              <p>订单已创建。选择稍后支付仍会保留待支付订单，可在订单记录中查看。</p>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <Text type="secondary">订单号</Text>
                 <Text>{res.data.orderNo}</Text>
@@ -54,7 +62,8 @@ const PortalRechargePage: React.FC = () => {
             </div>
           ),
           okText: '去支付',
-          cancelText: '取消',
+          cancelText: '稍后支付',
+          afterClose: releaseOrder,
           onOk: () => {
             if (res.data.payUrl) {
               window.location.href = res.data.payUrl;
@@ -64,22 +73,31 @@ const PortalRechargePage: React.FC = () => {
             }
           },
         });
+      } else {
+        message.error('订单创建结果不完整，请先查看订单记录，避免重复下单');
       }
     } catch {
       // error handled by interceptor
     } finally {
-      setOrdering(null);
+      if (!dialogOpened) releaseOrder();
     }
   };
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>充值续费</Title>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>充值续费</Title>
+        <Link to="/portal/orders">查看订单记录</Link>
+      </div>
 
       {loading ? (
         <Card loading />
+      ) : loadFailed ? (
+        <Alert type="error" showIcon message="购买方案加载失败"
+          description="暂时无法获取购买方案，请重试。"
+          action={<Button onClick={() => void loadPlans()}>重新加载</Button>} />
       ) : plans.length === 0 ? (
-        <Card><div style={{ textAlign: 'center', padding: 40, color: '#999' }}>该应用暂无可购买的方案</div></Card>
+        <Card><Empty description="该应用暂无可购买的方案" image={Empty.PRESENTED_IMAGE_SIMPLE} /></Card>
       ) : (
         <Row gutter={[16, 16]}>
           {plans.map((plan) => (
@@ -88,7 +106,7 @@ const PortalRechargePage: React.FC = () => {
                 hoverable
                 style={{ textAlign: 'center' }}
                 actions={[
-                  <Button type="primary" loading={ordering === plan.id} onClick={() => handleOrder(plan)}>
+                  <Button type="primary" loading={ordering === plan.id} disabled={ordering !== null} onClick={() => handleOrder(plan)}>
                     购买
                   </Button>,
                 ]}

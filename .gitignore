@@ -93,3 +93,7 @@ QODER.md
 
 /frontend/playwright-report/
 /frontend/test-results/
+
+# Private analysis, audit notes and temporary acceptance records
+/audit/
+/.local-notes/

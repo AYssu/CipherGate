@@ -44,7 +44,7 @@ python3 -m unittest discover -s scripts/tests
 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 ```
 
-测试应验证行为和失败分支。缺陷修复需补充可重现问题的回归测试；权限、凭证、迁移、充值和文件访问变更需覆盖拒绝或失败场景。浏览器测试验证用户操作，避免将组件实现细节作为断言。
+核心业务、页面故障恢复和备份演练的验收矩阵见[稳定性与体验验收](docs/stability-acceptance.md)。测试应验证行为和失败分支。缺陷修复需补充可重现问题的回归测试；权限、凭证、迁移、充值和文件访问变更需覆盖拒绝或失败场景。浏览器测试验证用户操作，避免将组件实现细节作为断言。
 
 ## 集成测试
 
@@ -93,7 +93,7 @@ python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 - “平台更新”指 CipherGate 发布包更新，“应用更新包”指上传到平台供客户端分发的软件文件。
 - 修改配置、命令或流程时，同步检查 README、相关专题文档及发布包内独立运维说明。
 
-具体版本约束、暂缓升级原因及验收要求见 [依赖维护与兼容性](docs/dependency-upgrades.md)。
+兼容范围、构建工具约束及验收要求见 [依赖维护与兼容性](docs/dependency-upgrades.md)。
 
 ## Pull Request
 

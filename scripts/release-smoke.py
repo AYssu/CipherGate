@@ -5,8 +5,10 @@ Never run this on a shared production host: the release's default ports/containe
 are used. All data created here is disposable and removed in finally.
 """
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
+import os
 import re
 import time
 from pathlib import Path
@@ -20,6 +22,144 @@ import zipfile
 def run(command, directory, capture=False):
     return subprocess.run(command, cwd=directory, check=True, text=True,
                           stdout=subprocess.PIPE if capture else None).stdout
+
+
+def validate_object_backup(directory, manifest):
+    """Check every recovery fixture before touching a destination bucket."""
+    directory = Path(directory).resolve()
+    if not isinstance(manifest, list) or not manifest:
+        raise ValueError("Object recovery manifest must contain objects")
+    keys = set()
+    for item in manifest:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid object recovery manifest entry")
+        key, size, digest = item.get("key"), item.get("bytes"), item.get("sha256")
+        if (not isinstance(key, str) or not key or "\\" in key
+                or any(part in ("", ".", "..") for part in key.split("/"))
+                or not isinstance(size, int) or isinstance(size, bool) or size < 0
+                or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                or key in keys):
+            raise ValueError("Invalid object recovery manifest entry")
+        keys.add(key)
+        path = directory / key
+        if not path.resolve().is_relative_to(directory) or not path.is_file() or path.is_symlink():
+            raise ValueError("Object backup file missing or unsafe: " + key)
+        body = path.read_bytes()  # Deliberately small deterministic CI fixtures.
+        if len(body) != size or hashlib.sha256(body).hexdigest() != digest:
+            raise ValueError("Object backup checksum mismatch: " + key)
+    return manifest
+
+
+def restore_object_backup(directory, manifest, target, existing_targets, create_target, upload):
+    """A drill restores only to a new bucket; no merge or overwrite is permitted."""
+    validate_object_backup(directory, manifest)
+    if target in existing_targets:
+        raise ValueError("Object restore target already exists: " + target)
+    create_target(target)  # The actual S3 create must also reject an intervening creation.
+    for item in manifest:
+        upload(target, item["key"], (Path(directory) / item["key"]).read_bytes())
+
+
+def verify_recovered_object(item, body, reference):
+    if len(body) != item["bytes"] or hashlib.sha256(body).hexdigest() != item["sha256"]:
+        raise RuntimeError("Downloaded recovery object differs from backup: " + item["key"])
+    if reference != f"{item['sha256']}:{item['bytes']}":
+        raise RuntimeError("Recovered SQL object reference differs from downloaded object")
+
+
+def exercise_object_restore(directory, compose, report, project_name="ciphergate-release-smoke"):
+    """Recover SQL object references and actual S3 bytes in disposable CI resources."""
+    def stage(value):
+        report["stage"] = "object-recovery/" + value
+
+    def sql(database, statement):
+        return run(compose + ["exec", "-T", "mysql", "sh", "-c",
+            'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql -uroot --default-character-set=utf8mb4 '
+            '--batch --skip-column-names "$1" -e "$2"', "sh", database, statement], directory, True).strip()
+
+    def mc(*arguments, body=None):
+        # Credentials expand only inside the disposable container; never echo them or enable shell tracing.
+        command = compose + ["exec", "-T", "minio", "sh", "-c",
+            'set -eu; umask 077; test -x /usr/bin/mc; '
+            'export MC_CONFIG_DIR=/tmp/ciphergate-recovery-mc; '
+            '/usr/bin/mc alias set recovery http://127.0.0.1:9000 '
+            '"$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; exec /usr/bin/mc "$@"',
+            "sh", *arguments]
+        return subprocess.run(command, cwd=directory, input=body, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, check=True, timeout=60).stdout
+
+    def listing(*arguments):
+        entries = [json.loads(line) for line in mc("ls", "--json", *arguments).decode().splitlines() if line.strip()]
+        if any(item.get("status") != "success" or not isinstance(item.get("key"), str) for item in entries):
+            raise RuntimeError("Unexpected S3 recovery listing")
+        return entries
+
+    source, target = "ciphergate-recovery-source", "ciphergate-recovery-target"
+    source_db, target_db = "ciphergate_object_source", "ciphergate_object_target"
+    payloads = {"update.bin": b"CipherGate recovery fixture\x00\xff\n" * 17,
+                "releases/update package.bin": bytes(range(256)) * 13,
+                "documents/empty.txt": b""}
+    manifest = [{"key": key, "bytes": len(body), "sha256": hashlib.sha256(body).hexdigest()}
+                for key, body in payloads.items()]
+    stage("seed")
+    mc("mb", "recovery/" + source)
+    for key, body in payloads.items():
+        mc("pipe", "recovery/" + source + "/" + key, body=body)
+    for database in [source_db, target_db]:
+        sql("mysql", f"CREATE DATABASE {database} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    sql(source_db, "CREATE TABLE recovery_objects (object_key VARCHAR(255) PRIMARY KEY, sha256 CHAR(64), size_bytes INT)")
+    for item in manifest:
+        # Only fixed fixture keys and generated hex digests enter this SQL.
+        sql(source_db, "INSERT INTO recovery_objects VALUES "
+            f"('{item['key']}', '{item['sha256']}', {item['bytes']})")
+    stage("backup")
+    backup = directory / "backups/object-recovery"
+    backup.mkdir(parents=True)
+    mc("cp", "--recursive", "recovery/" + source + "/", "/tmp/ciphergate-recovery-backup/files/")
+    run(compose + ["cp", "minio:/tmp/ciphergate-recovery-backup/files/.", str(backup)], directory)
+    (backup / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest = json.loads((backup / "manifest.json").read_text(encoding="utf-8"))
+    validate_object_backup(backup, manifest)
+    sql_backup = directory / "backups/object-recovery.sql.gz"
+    run([sys.executable, "operations.py", "--project-name", project_name,
+         "backup", str(sql_backup), "--database", source_db], directory)
+    stage("remove-source")
+    mc("rm", "--recursive", "--force", "recovery/" + source)
+    if listing("--recursive", "recovery/" + source):
+        raise RuntimeError("Recovery source objects were not removed")
+    sql(source_db, "DELETE FROM recovery_objects")
+    stage("restore")
+    run([sys.executable, "operations.py", "--project-name", project_name,
+         "restore", str(sql_backup), "--target-database", target_db, "--confirm-database", target_db], directory)
+    existing = {item["key"].rstrip("/") for item in listing("recovery")}
+    restore_object_backup(backup, manifest, target, existing,
+                          lambda bucket: mc("mb", "recovery/" + bucket),
+                          lambda bucket, key, body: mc("pipe", "recovery/" + bucket + "/" + key, body=body))
+    stage("download-and-reconcile")
+    downloaded = {item["key"] for item in listing("--recursive", "recovery/" + target)}
+    if downloaded != set(payloads):
+        raise RuntimeError("Recovered S3 object inventory differs from backup")
+    for item in manifest:
+        body = mc("cat", "recovery/" + target + "/" + item["key"])
+        reference = sql(target_db, "SELECT CONCAT(sha256, ':', size_bytes) FROM recovery_objects "
+                        f"WHERE object_key='{item['key']}'")
+        verify_recovered_object(item, body, reference)
+    if sql(target_db, "SELECT COUNT(*) FROM recovery_objects") != str(len(manifest)):
+        raise RuntimeError("Recovered SQL object inventory differs from backup")
+    stage("occupied-target-guard")
+    try:
+        restore_object_backup(backup, manifest, target, {target},
+                              lambda bucket: mc("mb", "recovery/" + bucket),
+                              lambda bucket, key, body: mc("pipe", "recovery/" + bucket + "/" + key, body=body))
+    except ValueError as error:
+        if "already exists" not in str(error):
+            raise
+    else:
+        raise RuntimeError("Object recovery allowed an occupied target")
+    report["checks"]["objectRecovery"] = {"status": "passed", "objects": manifest,
+        "sourceObjectsRemoved": True, "restoredDatabase": target_db,
+        "downloadedBytesVerified": True, "occupiedTargetRejected": True}
+    print("Object recovery passed: independent backup → source removal → isolated SQL/S3 restore → verified download.")
 
 
 def exercise_schema_restore(directory, compose):
@@ -118,11 +258,13 @@ def exercise_schema_restore(directory, compose):
     print(f"Schema recovery passed: V1 → V{versions[-1]} → isolated V1 restore → V{versions[-1]}, business data preserved.")
 
 
-def exercise(archive):
+def exercise(archive, report=None):
+    report = report if report is not None else {"stage": "extract", "checks": {}}
     with tempfile.TemporaryDirectory(prefix="ciphergate-release-smoke-") as temporary:
         directory = Path(temporary)
         with zipfile.ZipFile(archive) as content:
             content.extractall(directory)
+        report["build"] = json.loads((directory / "build-info.json").read_text(encoding="utf-8"))
         compose = ["docker", "compose", "--project-directory", str(directory),
                    "--project-name", "ciphergate-release-smoke", "-f", str(directory / "docker-compose.server.yml")]
         def sql(statement):
@@ -132,6 +274,7 @@ def exercise(archive):
         def app(command, *arguments):
             run([sys.executable, command, *map(str, arguments)], directory)
         try:
+            report["stage"] = "installation-update-rollback"
             app("install.py", "--project-name", "ciphergate-release-smoke")
             configuration = (directory / ".env").read_bytes()
             with urllib.request.urlopen("http://127.0.0.1:5173/api/config/init/status", timeout=10) as response:
@@ -182,8 +325,14 @@ def exercise(archive):
                     raise RuntimeError("Unsafe rollback left application running")
             sql("DELETE FROM flyway_schema_history WHERE version='999999' AND description='smoke-rollback-guard'")
             app("update.py", "rollback", "--backup", backup)
+            report["checks"]["lifecycle"] = {"status": "passed", "configurationPreserved": True,
+                                            "migrationRollbackGuard": True}
+            report["stage"] = "schema-recovery"
             exercise_schema_restore(directory, compose)
-            print("Release lifecycle passed: fresh database, initialization, retry, backup, update, rollback, migration guard.")
+            report["checks"]["schemaRecovery"] = {"status": "passed", "businessDataPreserved": True}
+            exercise_object_restore(directory, compose, report)
+            report["stage"] = "cleanup"
+            print("Release lifecycle passed: install, initialization, retry, update, rollback, SQL and object recovery.")
         finally:
             try:
                 run(compose + ["logs", "--no-color", "--tail", "50", "backend", "frontend"], directory)
@@ -192,13 +341,33 @@ def exercise(archive):
                 run(compose + ["down", "--volumes", "--remove-orphans"], directory)
 
 
+def run_acceptance(archive, report_path=None):
+    started = time.monotonic()
+    report = {"schemaVersion": 1, "startedAt": datetime.now(timezone.utc).isoformat(),
+              "status": "running", "stage": "extract", "checks": {}}
+    try:
+        exercise(archive, report)
+        report.update(status="passed", stage="complete")
+    except BaseException as error:
+        # A process failure can contain command output; retain only its type in public evidence.
+        report.update(status="failed", errorType=type(error).__name__)
+        raise
+    finally:
+        report["durationSeconds"] = round(time.monotonic() - started, 3)
+        if report_path:
+            path = Path(report_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
     parser.add_argument("--isolated-ci", action="store_true", required=True,
                         help="Confirm this is a disposable Docker test host")
     args = parser.parse_args()
-    exercise(args.archive.resolve())
+    run_acceptance(args.archive.resolve(), os.environ.get("CIPHERGATE_ACCEPTANCE_REPORT"))
 
 
 if __name__ == "__main__":
