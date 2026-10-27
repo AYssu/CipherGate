@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   Card,
@@ -85,6 +85,7 @@ import {
 } from '../services/appAgentService';
 import { applicationEpayConfigApi } from '../services/applicationEpayConfigService';
 import { pricingPlanApi, type PricingPlan, type PricingPlanInput } from '../services/pricingPlanService';
+import { getErrorMessage } from '../services/apiResponse';
 import type { UserInfo } from '../services/userService';
 import type { ApplicationEpayConfig } from '../services/pricingPlanService';
 
@@ -130,6 +131,8 @@ const ApplicationManagementContent: React.FC = () => {
   const [templateMismatch, setTemplateMismatch] = useState(false);
   const [encryptionPlugins, setEncryptionPlugins] = useState<EncryptionPlugin[]>([]);
   const [selectedPluginId, setSelectedPluginId] = useState<string>('');
+  const updatePackagePending = useRef(false);
+  const [updatePackageError, setUpdatePackageError] = useState('');
   const [updatePackageUploading, setUpdatePackageUploading] = useState(false);
   const [updatePackageProgress, setUpdatePackageProgress] = useState(0);
   const [updatePackageName, setUpdatePackageName] = useState('');
@@ -214,7 +217,17 @@ const ApplicationManagementContent: React.FC = () => {
   };
 
   // 打开创建/编辑弹窗
+  const closeEditModal = () => {
+    if (updatePackagePending.current) {
+      message.info('更新包正在上传或保存，请等待完成后关闭');
+      return;
+    }
+    setModalVisible(false);
+  };
+
   const handleOpenModal = (app?: Application) => {
+    if (updatePackagePending.current) return;
+    setUpdatePackageError('');
     setEditingApp(app || null);
     if (app) {
       form.setFieldsValue({
@@ -242,11 +255,13 @@ const ApplicationManagementContent: React.FC = () => {
   };
 
   const handleUploadUpdatePackage = async (file: File) => {
-    if (!editingApp) return;
+    if (!editingApp || updatePackagePending.current) return;
     if (file.size > 512 * 1024 * 1024) {
       message.warning('更新包不能超过 512MB，请压缩后重试');
       return;
     }
+    updatePackagePending.current = true;
+    setUpdatePackageError('');
     setUpdatePackageProgress(0);
     setUpdatePackageName(file.name);
     setUpdatePackageUploading(true);
@@ -259,11 +274,12 @@ const ApplicationManagementContent: React.FC = () => {
         setEditingApp({ ...editingApp, ...res.data });
         fetchApplications(pagination.current, pagination.pageSize);
       } else {
-        message.error(res.message || '上传失败');
+        setUpdatePackageError(res.message || '上传结果未确认，请重新打开应用核对当前更新包');
       }
     } catch (error) {
-      console.error(error);
+      setUpdatePackageError(getErrorMessage(error, '更新包上传失败'));
     } finally {
+      updatePackagePending.current = false;
       setUpdatePackageUploading(false);
     }
   };
@@ -285,6 +301,8 @@ const ApplicationManagementContent: React.FC = () => {
             </Text>
           </div>
         </div>
+        {updatePackageError && <Alert style={{ marginTop: 12 }} type="error" showIcon message="更新包上传未完成"
+          description={`${updatePackageError}。如发送后连接中断，请重新打开应用核对当前文件，再决定是否重试。`} />}
         {updatePackageUploading && <Progress percent={updatePackageProgress} status="active" style={{ marginTop: 12 }} />}
         <Space wrap style={{ marginTop: 12 }}>
           <Upload maxCount={1} showUploadList={false} disabled={!editingApp || updatePackageUploading}
@@ -303,6 +321,7 @@ const ApplicationManagementContent: React.FC = () => {
 
   // 提交表单
   const handleSubmit = async () => {
+    if (updatePackagePending.current) return;
     try {
       const values = await form.validateFields();
       if (values.unbindTimeDeductMode === 'NONE') {
@@ -1232,12 +1251,12 @@ const ApplicationManagementContent: React.FC = () => {
       {isMobile ? (
         <M5BottomSheet
           open={modalVisible}
-          onClose={() => setModalVisible(false)}
+          onClose={closeEditModal}
           title={editingApp ? '编辑应用' : '创建应用'}
           footer={
             <>
-              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={() => setModalVisible(false)}>取消</Button>
-              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} onClick={handleSubmit}>确定</Button>
+              <Button style={{ flex: 1, height: 44, borderRadius: 10 }} disabled={updatePackageUploading} onClick={closeEditModal}>取消</Button>
+              <Button type="primary" style={{ flex: 1, height: 44, borderRadius: 10 }} disabled={updatePackageUploading} onClick={handleSubmit}>确定</Button>
             </>
           }
         >
@@ -1437,7 +1456,12 @@ const ApplicationManagementContent: React.FC = () => {
           title={editingApp ? '编辑应用' : '创建应用'}
           open={modalVisible}
           onOk={handleSubmit}
-          onCancel={() => setModalVisible(false)}
+          onCancel={closeEditModal}
+          closable={!updatePackageUploading}
+          keyboard={!updatePackageUploading}
+          maskClosable={!updatePackageUploading}
+          okButtonProps={{ disabled: updatePackageUploading }}
+          cancelButtonProps={{ disabled: updatePackageUploading }}
           width={700}
           okText="确定"
           cancelText="取消"

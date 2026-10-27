@@ -43,6 +43,7 @@ export default defineConfig({
         text: '部署与运维',
         items: [
           { text: '安装、更新与恢复', link: '/operations' },
+          { text: '稳定性与体验验收', link: '/stability-acceptance' },
           { text: '数据库迁移规范', link: '/database/README' },
           { text: '依赖维护与兼容性', link: '/dependency-upgrades' },
         ]

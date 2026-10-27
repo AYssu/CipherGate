@@ -1,6 +1,6 @@
 import type { PortalOrder } from '../services/types';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Card, Typography, Table, Tag, message } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Card, Typography, Table, Tag, Alert, Button, Empty, Space } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import { portalPaymentApi } from '../services/portalPaymentService';
 
@@ -18,38 +18,45 @@ const PortalOrderHistoryPage: React.FC = () => {
   const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [searchParams] = useSearchParams();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [requestedPage, setRequestedPage] = useState(1);
+  const [returnedFromPayment, setReturnedFromPayment] = useState(false);
+  const pending = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (targetPage: number) => {
+    if (pending.current) return;
+    pending.current = true;
+    setRequestedPage(targetPage);
     setLoading(true);
+    setLoadFailed(false);
     try {
-      const res = await portalPaymentApi.getOrders(page, 20);
+      const res = await portalPaymentApi.getOrders(targetPage, 20);
       setOrders(res?.data || []);
+      setPage(targetPage);
+      setLoaded(true);
     } catch {
-      // ignore
+      // Keep the last successful page visible and label it as stale.
+      setLoadFailed(true);
     } finally {
+      pending.current = false;
       setLoading(false);
     }
-  }, [page]);
+  }, []);
+
+  useEffect(() => { void loadOrders(1); }, [loadOrders]);
 
   useEffect(() => {
-    // 处理同步跳转参数（支付网关带回的）
-    const tradeStatus = searchParams.get('trade_status');
-    const orderNo = searchParams.get('out_trade_no');
-
-    if (tradeStatus && orderNo) {
-      if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
-        message.success('支付成功！订单号：' + orderNo);
-      } else {
-        message.warning('支付状态：' + tradeStatus);
-      }
-      // 清除URL参数，跳转到干净地址
-      const successUrl = localStorage.getItem('portal_success_url') || '/portal/orders';
-      window.history.replaceState({}, '', successUrl);
+    if (searchParams.has('trade_status') || searchParams.has('out_trade_no')) {
+      // A return URL is editable; only the server's order state confirms payment.
+      setReturnedFromPayment(true);
+      const clean = new URLSearchParams(searchParams);
+      clean.delete('trade_status');
+      clean.delete('out_trade_no');
+      setSearchParams(clean, { replace: true });
     }
-
-    loadOrders();
-  }, [loadOrders, searchParams]);
+  }, [searchParams, setSearchParams]);
 
   const columns = [
     { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', ellipsis: true },
@@ -62,16 +69,30 @@ const PortalOrderHistoryPage: React.FC = () => {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>订单记录</Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>订单记录</Title>
+        <Button onClick={() => void loadOrders(page)} disabled={loading}>刷新订单</Button>
+      </div>
+      {returnedFromPayment && <Alert style={{ marginBottom: 16 }} type="info" showIcon
+        message="已返回订单页面" description="支付结果以订单状态为准。如仍显示待支付，请稍后刷新订单。" />}
+      {loadFailed && <Alert style={{ marginBottom: 16 }} type="error" showIcon message="订单加载失败"
+        description={loaded ? `当前保留第 ${page} 页的上次加载结果，请重试以获取最新状态。` : '暂时无法获取订单记录，请重试。'}
+        action={<Button onClick={() => void loadOrders(requestedPage)}>重新加载</Button>} />}
       <Card>
         <Table
           dataSource={orders}
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{ current: page, onChange: setPage, pageSize: 20 }}
+          pagination={false}
+          locale={{ emptyText: loadFailed ? '订单尚未加载成功' : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无订单记录" /> }}
           scroll={{ x: 700 }}
         />
+        {loaded && <Space wrap style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <Typography.Text type="secondary">第 {page} 页 · 本页 {orders.length} 条</Typography.Text>
+          <Button disabled={loading || page <= 1} onClick={() => void loadOrders(page - 1)}>上一页</Button>
+          <Button disabled={loading || orders.length < 20} onClick={() => void loadOrders(page + 1)}>下一页</Button>
+        </Space>}
       </Card>
     </div>
   );

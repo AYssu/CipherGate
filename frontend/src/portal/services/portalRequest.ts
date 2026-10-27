@@ -1,4 +1,4 @@
-import { normalizeResponse, shouldExpireSession, isCurrentPortalSession } from '../../services/apiResponse';
+import { normalizeResponse, shouldExpireSession, isCurrentPortalSession, responseRequestId, toApiError, getErrorMessage } from '../../services/apiResponse';
 import axios from 'axios';
 import { message } from 'antd';
 
@@ -18,19 +18,19 @@ portalRequest.interceptors.request.use((config) => {
 
 portalRequest.interceptors.response.use(
   (response) => {
-    try { return normalizeResponse(response.data) as unknown as typeof response; }
-    catch (error) { message.error(error instanceof Error ? error.message : '请求失败'); return Promise.reject(error); }
+    try { return normalizeResponse(response.data, responseRequestId(response.headers)) as unknown as typeof response; }
+    catch (error) { message.error(getErrorMessage(error, '请求失败')); return Promise.reject(error); }
   },
   (error) => {
+    const failure = toApiError(error);
     if (error.response?.status === 401 && shouldExpireSession(error.config?.url, 'portal') && isCurrentPortalSession(error.config?.headers?.Authorization, localStorage.getItem('portal_token'))) {
       localStorage.removeItem('portal_token');
       localStorage.removeItem('portal_app_id');
       window.location.href = '/portal/login';
-    } else if (error.response?.status === 403) {
-      message.error('权限不足');
     } else {
-      message.error(error.response?.data?.message || '网络错误');
+      message.error(getErrorMessage(failure));
     }
+    // Preserve structured HTTP error payloads used by import and validation workflows.
     return Promise.reject(error);
   }
 );

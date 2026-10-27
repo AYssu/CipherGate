@@ -99,6 +99,7 @@ public class PortalPaymentService {
             new LambdaQueryWrapper<PortalPaymentOrder>()
                 .eq(PortalPaymentOrder::getAppUserId, appUserId)
                 .orderByDesc(PortalPaymentOrder::getCreatedAt)
+                .orderByDesc(PortalPaymentOrder::getId)
                 .last("LIMIT " + size + " OFFSET " + offset)
         );
     }
