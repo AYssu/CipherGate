@@ -65,6 +65,11 @@ cd frontend && npm run lint
 - After checks pass, report the PR and wait for the user's explicit approval to merge that PR. A request to develop a feature or create a PR does not authorize merging, administrator bypass, release creation, or production deployment.
 - Release publication and production deployment require their own explicit user authorization. Preserve existing production configuration and create verified backups before an authorized deployment.
 
+## Documentation publication
+
+- Keep investigation notes, audit findings, remediation logs, temporary plans and per-run acceptance records in the ignored `/audit/` or `/.local-notes/` directories. Do not commit them or include them in release bundles.
+- Publish maintained user, API, contributor and operations documentation only. Summarize validation in PR descriptions and retain generated test evidence as CI artifacts. Check staged documentation before pushing.
+
 ## Watch out
 
 - Root `package.json` is only for `caveman-installer` — not the frontend. Frontend is `frontend/package.json`.

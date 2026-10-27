@@ -2,30 +2,17 @@
 
 依赖更新分为维护更新、运行库迁移和构建工具迁移。发布前验证组合后的版本，不将各个依赖 PR 的单独通过视为整个发布通过。
 
-## 本次版本调整
+## 兼容范围
 
-| 组件 | 调整 | 兼容处理 |
-| --- | --- | --- |
-| Spring Boot | 4.0.3 → 4.1.1 | 保持 JDK 17；验证权限、OAuth、Session、数据库迁移及完整部署生命周期 |
-| Fastjson2 | 2.0.61 → 2.0.66 | 保持客户端 HTTP/WS 协议回归检查 |
-| MinIO Java SDK | 8.6.0 → 9.0.3 | 调整上传参数和签名请求类型；增加实际 SDK 的上传、下载、统计、签名和删除测试 |
-| GeoIP2 | 4.3.1 → 5.2.0 | 保留现有地理位置查询行为 |
-| ip2region | 2.7.0 → 3.3.7 | 兼容标准 XDB v2 和 v3，按所加载数据库结构解释地理字段 |
-| React / React DOM | 18 → 19.3.1 | 同步类型包、动画库及 Ant Design 5 官方 React 19 补丁 |
-| Day.js / Icons | 1.11.23 / 6.3.4 | 验证页面、日期显示、动画切换和提示消息 |
-| react-intersection-observer | 移除直接依赖 | 仓库源码无引用，避免保留未使用的运行依赖 |
+Java SDK 更新与服务器镜像升级应分别评估。升级对象存储 SDK 时验证上传、下载、统计、签名和删除；升级数据库或存储镜像时另行验证配置、数据卷、备份与恢复。
 
-MinIO Java SDK 更新不等同于服务器 MinIO 镜像升级。本次不修改已有部署的存储服务、数据库镜像、配置或数据卷；基础设施版本迁移使用独立计划。
-
-标准 XDB v2 使用 `country|region|province|city|isp`，v3 使用 `country|province|city|isp|countryCode`。现有 v2 文件可继续使用，不要求部署者先替换数据库。自定义数据库应遵守对应结构的数据布局；只升级 Java 库不会自动新增 IPv6 数据源配置。
+IP 数据库升级需验证文件格式与字段布局。标准 XDB v2 使用 `country|region|province|city|isp`，v3 使用 `country|province|city|isp|countryCode`。应验证既有文件兼容性，不能仅升级 Java 库就假设已配置 IPv6 数据源。
 
 ## 构建工具约束
 
 项目构建继续使用 Node.js 22.22.0、Node 22 类型与 TypeScript 5.9。CI Action 自身的 Node 运行时与项目编译使用的 Node 是不同层次，不能据此单独升级项目的类型包。
 
-保留 ESLint 9 和 `eslint-plugin-react-hooks` 7.0.1：Hooks 7.1.1 会对现有代码启用额外检查，需先在独立变更中处理 effect 内同步更新和声明前引用等问题。本次不关闭这些检查、不扩大 lint 基线，也不使用 `--force` 或 `--legacy-peer-deps` 绕过依赖兼容要求。
-
-TypeScript 7 不在本次 `typescript-eslint` 声明的支持范围内，暂不采用。开发工具的大版本变更应与相关规则及源码迁移一起提交，不与普通补丁更新捆绑。
+构建工具的大版本更新需同时确认 TypeScript、ESLint、规则插件与框架类型声明的兼容范围。先修复新增规则暴露的问题，不通过关闭检查、扩大 lint 基线、`--force` 或 `--legacy-peer-deps` 绕过兼容要求。
 
 ## 验收与回退
 
