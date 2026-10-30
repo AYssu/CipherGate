@@ -31,9 +31,7 @@ public class AppUserRegisterSubmitRequest {
     @Schema(description = "邮箱验证码", requiredMode = Schema.RequiredMode.REQUIRED)
     private String emailCode;
 
-    @NotBlank
-    @Size(min = 8, max = 128)
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "密码须同时包含字母与数字，至少 8 位")
-    @Schema(description = "登录密码", requiredMode = Schema.RequiredMode.REQUIRED)
+    // PasswordPolicy in the registration service owns all password validation.
+    @Schema(description = "登录密码：6～50 位，UTF-8 编码不超过 72 字节", requiredMode = Schema.RequiredMode.REQUIRED)
     private String password;
 }

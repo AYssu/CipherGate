@@ -46,6 +46,28 @@ test('registration sends the exact form values and shows a success receipt', asy
   expect(submitted).toEqual({ appId: 12, username: 'alice_1', email: 'alice@example.com', emailCode: '123456', password: 'password-123' });
 });
 
+test('registration accepts six digits and blocks passwords exceeding the UTF-8 limit', async ({ page }) => {
+  await mock(page); const submitted: unknown[] = [];
+  await page.route('**/api/public/app-user/register/submit', async route => {
+    submitted.push(route.request().postDataJSON());
+    await route.fulfill({ json: envelope(null) });
+  });
+  await page.goto('/register?id=12');
+  await page.getByLabel('账号', { exact: true }).fill('3636672835');
+  await page.getByLabel('注册邮箱', { exact: true }).fill('test@example.com');
+  await page.getByLabel('邮箱验证码', { exact: true }).fill('123456');
+  await page.getByLabel('设置密码', { exact: true }).fill('密'.repeat(25));
+  await page.getByLabel('确认密码', { exact: true }).fill('密'.repeat(25));
+  await page.getByRole('button', { name: '创建账户', exact: true }).click();
+  await expect(page.getByText('密码不能全为空白，UTF-8 编码不能超过72字节', { exact: true })).toBeVisible();
+  expect(submitted).toHaveLength(0);
+  await page.getByLabel('设置密码', { exact: true }).fill('123456');
+  await page.getByLabel('确认密码', { exact: true }).fill('123456');
+  await page.getByRole('button', { name: '创建账户', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '注册成功', exact: true })).toBeVisible();
+  expect(submitted).toHaveLength(1);
+});
+
 test('card query binds its input, masks the secret and invalidates stale actions', async ({ page }) => {
   await mock(page); let payload: unknown;
   await page.route('**/api/public/license/query-remaining', async route => {

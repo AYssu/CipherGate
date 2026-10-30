@@ -69,7 +69,7 @@ export default function AppUserRegisterPage() {
               <Button loading={sending} disabled={!appId || countdown > 0} onClick={() => void sendCode()}>{countdown ? `${countdown} 秒后重发` : '发送验证码'}</Button>
             </div>
           </Form.Item>
-          <Form.Item name="password" label="设置密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 50, message: '密码长度为6～50位，UTF-8不超过72字节' }]}>
+          <Form.Item name="password" label="设置密码" extra="6～50 位，UTF-8 编码不超过 72 字节" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 50, message: '密码长度须为6～50位' }, { validator: (_, value: string | undefined) => !value || (value.trim().length > 0 && new TextEncoder().encode(value).length <= 72) ? Promise.resolve() : Promise.reject(new Error('密码不能全为空白，UTF-8 编码不能超过72字节')) }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="请设置至少 6 位密码" autoComplete="new-password" maxLength={50} />
           </Form.Item>
           <Form.Item name="confirmPassword" label="确认密码" dependencies={['password']} rules={[{ required: true, message: '请再次输入密码' }, ({ getFieldValue }) => ({ validator(_, value) { return !value || getFieldValue('password') === value ? Promise.resolve() : Promise.reject(new Error('两次输入的密码不一致')); } })]}>

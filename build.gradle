@@ -60,6 +60,12 @@ dependencyManagement {
 
 dependencies {
     constraints {
+        implementation('com.google.guava:guava:33.7.2-jre') {
+            because 'Patch compact collection deserialization memory allocation advisory'
+        }
+        implementation('org.xerial.snappy:snappy-java:1.1.10.9') {
+            because 'Patch native typed-array decompression buffer overflow advisories'
+        }
         implementation('org.bouncycastle:bcprov-jdk18on:1.86') {
             because 'Patch known certificate name-constraint and ASN.1 nesting-depth advisories'
         }
