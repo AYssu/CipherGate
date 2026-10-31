@@ -25,7 +25,7 @@
     "dayjs": "^1.11.23",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
-    "framer-motion": "^14.6.0",
+    "framer-motion": "^14.7.1",
     "react": "^19.3.1",
     "react-countup": "^6.5.3",
     "react-dom": "^19.3.1",
