@@ -542,7 +542,7 @@ const SystemConfigContent: React.FC = () => {
               <Form form={paymentForm} layout="vertical">
                 <Row gutter={isMobile ? [0, 0] : 16}>
                   <Col span={isMobile ? 24 : 12}>
-                    <Form.Item name="epayUrl" label="易支付接口地址" rules={[{ required: true, message: '请输入接口地址' }]}>
+                    <Form.Item name="epayUrl" label="SK 支付网关地址" rules={[{ required: true, message: '请输入接口地址' }]}>
                       <Input placeholder="https://pay.ayssu.com" />
                     </Form.Item>
                   </Col>
@@ -605,7 +605,7 @@ const SystemConfigContent: React.FC = () => {
                 </Row>
                 <Space align="center" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : undefined }}>
                   <Button type="primary" loading={paymentSaving} onClick={submitPayment} block={isMobile}>保存支付配置</Button>
-                  <Text type="secondary">支持易支付协议（支付宝/微信/QQ钱包）</Text>
+                  <Text type="secondary">使用 SK 支付 HMAC-SHA256 协议，填写网关根地址；不支持旧 MD5 易支付接口</Text>
                 </Space>
               </Form>
             )

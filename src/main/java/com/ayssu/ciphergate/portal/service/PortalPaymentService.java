@@ -19,9 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import com.ayssu.ciphergate.util.SkPaymentSignature;
+import com.ayssu.ciphergate.util.SkPaymentGateway;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -79,7 +78,7 @@ public class PortalPaymentService {
             throw new IllegalArgumentException("该应用未配置支付网关");
         }
 
-        // 生成支付URL（简化版，实际需要调用易支付API）
+        // 通过 SK 网关创建订单并取得付款地址
         String payUrl = buildPayUrl(epayConfig, order);
         order.setPayUrl(payUrl);
         orderMapper.updateById(order);
@@ -106,7 +105,19 @@ public class PortalPaymentService {
 
     @Transactional
     public boolean handlePaymentNotify(String orderNo, String tradeNo, String status, Map<String, String> allParams) {
-        if (!hasRequiredNotifyFields(allParams) || !orderNo.equals(allParams.get("out_trade_no"))) {
+        return handleCallback(orderNo, tradeNo, status, allParams, "payment.notify");
+    }
+
+    @Transactional
+    public boolean handlePaymentReturn(String orderNo, String tradeNo, String status, Map<String, String> allParams) {
+        return handleCallback(orderNo, tradeNo, status, allParams, "payment.return");
+    }
+
+    private boolean handleCallback(String orderNo, String tradeNo, String status, Map<String, String> allParams, String purpose) {
+        if (allParams == null || !hasRequiredNotifyFields(allParams)
+                || !java.util.Objects.equals(orderNo, allParams.get("out_trade_no"))
+                || !java.util.Objects.equals(tradeNo, allParams.get("trade_no"))
+                || !java.util.Objects.equals(status, allParams.get("trade_status"))) {
             log.warn("门户支付回调: 必填字段或订单号不匹配, orderNo={}", orderNo);
             return false;
         }
@@ -120,7 +131,7 @@ public class PortalPaymentService {
             return false;
         }
 
-        if (!verifyReturnSign(orderNo, allParams)) {
+        if (!verifySign(orderNo, allParams, purpose)) {
             log.warn("门户支付回调: 签名验证失败, orderNo={}", orderNo);
             return false;
         }
@@ -187,6 +198,11 @@ public class PortalPaymentService {
      * 同步回调验签：根据订单号找到应用的支付配置，再验签
      */
     public boolean verifyReturnSign(String orderNo, Map<String, String> params) {
+        return verifySign(orderNo, params, "payment.return");
+    }
+
+    private boolean verifySign(String orderNo, Map<String, String> params, String purpose) {
+        if (params == null || orderNo == null || !orderNo.equals(params.get("out_trade_no"))) return false;
         PortalPaymentOrder order = orderMapper.selectOne(
             new LambdaQueryWrapper<PortalPaymentOrder>()
                 .eq(PortalPaymentOrder::getOrderNo, orderNo)
@@ -207,19 +223,7 @@ public class PortalPaymentService {
             return false;
         }
 
-        String receivedSign = params.get("sign");
-
-        Map<String, String> sorted = new TreeMap<>();
-        sorted.put("money", params.get("money"));
-        sorted.put("name", params.get("name"));
-        sorted.put("out_trade_no", params.get("out_trade_no"));
-        sorted.put("pid", params.get("pid"));
-        sorted.put("trade_no", params.get("trade_no"));
-        sorted.put("trade_status", params.get("trade_status"));
-        sorted.put("type", params.get("type"));
-
-        String calculatedSign = calculateSign(sorted, config.getEpayKey());
-        return receivedSign.equalsIgnoreCase(calculatedSign);
+        return SkPaymentSignature.verify(params, config.getEpayKey(), purpose, java.time.Instant.now().getEpochSecond());
     }
 
     private void extendMembership(PortalPaymentOrder order) {
@@ -243,7 +247,7 @@ public class PortalPaymentService {
     }
 
     private String buildPayUrl(ApplicationEpayConfig config, PortalPaymentOrder order) {
-        String money = String.format("%.2f", order.getAmountFen() / 100.0);
+        String money = BigDecimal.valueOf(order.getAmountFen(), 2).toPlainString();
 
         // 回调和跳转地址从系统配置获取
         String notifyUrl = systemConfigService.getConfigValue("payment.portal.notify.url", "");
@@ -251,7 +255,7 @@ public class PortalPaymentService {
 
         TreeMap<String, String> params = new TreeMap<>();
         params.put("pid", config.getEpayPid());
-        params.put("type", "alipay");
+        params.put("pay_type", "alipay");
         params.put("notify_url", notifyUrl);
         params.put("return_url", returnUrl);
         params.put("out_trade_no", order.getOrderNo());
@@ -259,43 +263,7 @@ public class PortalPaymentService {
         params.put("money", money);
         params.put("sitename", "CipherGate");
 
-        String sign = calculateSign(params, config.getEpayKey());
-        params.put("sign", sign);
-        params.put("sign_type", "MD5");
-
-        StringBuilder query = new StringBuilder();
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            if (query.length() > 0) query.append("&");
-            query.append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
-        }
-
-        return config.getEpayUrl() + "/submit.php?" + query;
-    }
-
-    private String calculateSign(Map<String, String> params, String merchantKey) {
-        try {
-            StringBuilder sb = new StringBuilder();
-            boolean first = true;
-            for (Map.Entry<String, String> entry : params.entrySet()) {
-                if (!"sign".equals(entry.getKey()) && !"sign_type".equals(entry.getKey())) {
-                    if (!first) sb.append("&");
-                    sb.append(entry.getKey()).append("=").append(entry.getValue());
-                    first = false;
-                }
-            }
-            sb.append(merchantKey);
-
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte b : digest) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (Exception e) {
-            log.error("签名计算失败", e);
-            return "";
-        }
+        return SkPaymentGateway.createCheckout(config.getEpayUrl(), params, config.getEpayKey());
     }
 
     private String generateOrderNo() {

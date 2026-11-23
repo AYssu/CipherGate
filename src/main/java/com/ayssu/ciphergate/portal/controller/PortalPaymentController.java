@@ -102,7 +102,7 @@ public class PortalPaymentController {
 
         // 处理订单
         if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus) || "FINISHED".equals(tradeStatus)) {
-            boolean handled = paymentService.handlePaymentNotify(orderNo, params.get("trade_no"), tradeStatus, params);
+            boolean handled = paymentService.handlePaymentReturn(orderNo, params.get("trade_no"), tradeStatus, params);
             if (!handled) {
                 return "<script>alert('支付校验失败');window.location.href='" + successUrl + "';</script>";
             }

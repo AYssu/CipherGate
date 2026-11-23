@@ -11,9 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import com.ayssu.ciphergate.util.SkPaymentSignature;
+import com.ayssu.ciphergate.util.SkPaymentGateway;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -47,11 +46,11 @@ public class EpayService {
             throw new RuntimeException("支付系统未配置");
         }
 
-        String money = String.format("%.2f", amountFen / 100.0);
+        String money = BigDecimal.valueOf(amountFen, 2).toPlainString();
 
         TreeMap<String, String> params = new TreeMap<>();
         params.put("pid", epayConfig.getEpayPid());
-        params.put("type", "alipay");
+        params.put("pay_type", "alipay");
         params.put("notify_url", epayConfig.getEpayNotifyUrl());
         params.put("return_url", epayConfig.getEpayReturnUrl());
         params.put("out_trade_no", orderNo);
@@ -59,41 +58,21 @@ public class EpayService {
         params.put("money", money);
         params.put("sitename", "CipherGate");
 
-        String sign = calculateSign(params, epayConfig.getEpayKey());
-        params.put("sign", sign);
-        params.put("sign_type", "MD5");
-
-        StringBuilder query = new StringBuilder();
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            if (query.length() > 0) query.append("&");
-            query.append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
-        }
-
-        return epayConfig.getEpayUrl() + "/submit.php?" + query;
+        return SkPaymentGateway.createCheckout(epayConfig.getEpayUrl(), params, epayConfig.getEpayKey());
     }
 
-    /**
-     * 验证回调签名（与易支付服务端一致：只用 money/name/out_trade_no/pid/trade_no/trade_status/type）
-     */
     public boolean verifyNotifySign(Map<String, String> params) {
-        if (!hasRequiredNotifyFields(params)
-                || !epayConfig.getEpayPid().equals(params.get("pid"))
-                || !StringUtils.hasText(epayConfig.getEpayKey())) {
-            return false;
-        }
+        return verifySign(params, "payment.notify");
+    }
 
-        String receivedSign = params.get("sign");
-        Map<String, String> sorted = new TreeMap<>();
-        sorted.put("money", params.get("money"));
-        sorted.put("name", params.get("name"));
-        sorted.put("out_trade_no", params.get("out_trade_no"));
-        sorted.put("pid", params.get("pid"));
-        sorted.put("trade_no", params.get("trade_no"));
-        sorted.put("trade_status", params.get("trade_status"));
-        sorted.put("type", params.get("type"));
+    public boolean verifyReturnSign(Map<String, String> params) {
+        return verifySign(params, "payment.return");
+    }
 
-        String calculatedSign = calculateSign(sorted, epayConfig.getEpayKey());
-        return !calculatedSign.isEmpty() && receivedSign.equalsIgnoreCase(calculatedSign);
+    private boolean verifySign(Map<String, String> params, String purpose) {
+        return params != null && hasRequiredNotifyFields(params)
+            && java.util.Objects.equals(epayConfig.getEpayPid(), params.get("pid"))
+            && SkPaymentSignature.verify(params, epayConfig.getEpayKey(), purpose, java.time.Instant.now().getEpochSecond());
     }
 
     private boolean hasRequiredNotifyFields(Map<String, String> params) {
@@ -106,7 +85,15 @@ public class EpayService {
      * 处理支付回调
      */
     public void handleNotify(Map<String, String> params) {
-        if (!verifyNotifySign(params)) {
+        handleCallback(params, "payment.notify");
+    }
+
+    public void handleReturn(Map<String, String> params) {
+        handleCallback(params, "payment.return");
+    }
+
+    private void handleCallback(Map<String, String> params, String purpose) {
+        if (!verifySign(params, purpose)) {
             throw new IllegalArgumentException("支付回调校验失败");
         }
 
@@ -145,37 +132,6 @@ public class EpayService {
         return "TRADE_SUCCESS".equals(tradeStatus)
                 || "TRADE_FINISHED".equals(tradeStatus)
                 || "FINISHED".equals(tradeStatus);
-    }
-
-    /**
-     * 易支付签名: 密钥直接拼在末尾
-     * 格式: key1=value1&key2=value2密钥
-     */
-    private String calculateSign(Map<String, String> params, String merchantKey) {
-        try {
-            StringBuilder sb = new StringBuilder();
-            boolean first = true;
-            for (Map.Entry<String, String> entry : params.entrySet()) {
-                if (!"sign".equals(entry.getKey()) && !"sign_type".equals(entry.getKey())) {
-                    if (!first) sb.append("&");
-                    sb.append(entry.getKey()).append("=").append(entry.getValue());
-                    first = false;
-                }
-            }
-            sb.append(merchantKey);
-
-            String signStr = sb.toString();
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(signStr.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte b : digest) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (Exception e) {
-            log.error("签名计算失败", e);
-            return "";
-        }
     }
 
     private String generateOrderNo() {
