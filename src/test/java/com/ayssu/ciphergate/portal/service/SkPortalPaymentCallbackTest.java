@@ -13,6 +13,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class SkPortalPaymentCallbackTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void initializeMybatisMetadata() {
+        var configuration = new com.baomidou.mybatisplus.core.MybatisConfiguration();
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+            new org.apache.ibatis.builder.MapperBuilderAssistant(configuration, "sk-payment-test"),
+            PortalPaymentOrder.class);
+    }
+
     @Test void signedNotifyCannotBeUsedAsReturnAndRetryDoesNotExtendTwice() {
         PortalPaymentOrderMapper orders=mock(PortalPaymentOrderMapper.class);
         ApplicationEpayConfigMapper configs=mock(ApplicationEpayConfigMapper.class);
