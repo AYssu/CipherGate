@@ -113,7 +113,7 @@ public class PaymentController {
             if (values.length > 0) params.put(key, values[0]);
         });
 
-        log.info("易支付回调: {}", params);
+        log.info("收到支付异步通知");
 
         try {
             if (!epayService.verifyNotifySign(params)) {
@@ -142,12 +142,12 @@ public class PaymentController {
         String redirectUrl = epayConfig.getSuccessRedirectUrl();
         log.info("支付同步回调: orderNo={}, status={}", orderNo, tradeStatus);
 
-        if (!epayService.verifyNotifySign(params)) {
+        if (!epayService.verifyReturnSign(params)) {
             log.warn("同步回调签名验证失败: orderNo={}", orderNo);
             return "<script>alert('签名验证失败');window.location.href='" + redirectUrl + "';</script>";
         }
 
-        epayService.handleNotify(params);
+        epayService.handleReturn(params);
 
         return "<script>alert('支付成功');window.location.href='" + redirectUrl + "';</script>";
     }
