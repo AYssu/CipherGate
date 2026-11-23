@@ -1,7 +1,7 @@
 import type { PortalOrder } from '../services/types';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, Typography, Table, Tag, Alert, Button, Empty, Space } from 'antd';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '@umijs/max';
 import { portalPaymentApi } from '../services/portalPaymentService';
 
 const { Title } = Typography;

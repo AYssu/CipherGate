@@ -1334,7 +1334,7 @@ const AppVariableManagementContent: React.FC = () => {
         </Modal>
       )}
 
-      <Drawer
+      <Drawer rootClassName="ciphergate-overlay"
         title={
           <Space>
             <HistoryOutlined />

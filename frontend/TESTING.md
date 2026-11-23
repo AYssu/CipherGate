@@ -14,10 +14,10 @@ Linux CI 安装浏览器时使用 `npx playwright install --with-deps chromium`�
 `test:e2e` 检查生产构建，运行前必须先执行 `npm run build`。Playwright 自动启动预览服务（5187）和仅监听本机的下载模拟服务（5188），无需数据库、真实账号或 MinIO；端口须空闲。
 
 - `npm run lint`：所有 ESLint 规则保持启用，禁止新增违规。
-- `npm test`：签名状态判断、lint 基线检查器回归测试。
-- `npm run typecheck`：检查应用、Vite 配置及浏览器测试的 TypeScript 类型。
+- `npm test`：签名状态判断、业务路由兼容契约、认证作用域及 lint 基线检查器回归测试。
+- `npm run typecheck`：生成 Umi 运行时类型，检查应用、Umi 配置及浏览器测试的 TypeScript 类型。
 - `npm run check`：依次执行 lint、单元测试及类型检查。
-- `npm run test:e2e`：桌面与移动端的登录成功/失败、更新包上传及认证下载、用户迁移预检查/确认/冲突阻止。
+- `npm run test:e2e`：桌面与移动端的登录成功/失败、更新包上传及认证下载、用户迁移预检查/确认/冲突阻止，以及 Pro 菜单权限、文档深层路由、通知、主题与网络恢复。
 
 浏览器失败时，`test-results/` 保留截图、视频和 trace；`playwright-report/` 为 HTML 报告。执行 `npx playwright show-report` 查看。CI 保留这些报告。
 
@@ -36,3 +36,11 @@ Linux CI 安装浏览器时使用 `npx playwright install --with-deps chromium`�
 `docs/package.json` 暂时将稳定版 VitePress 1.6 的 Vite 依赖覆盖到 `^6.4.4`，避免旧 Vite/esbuild 的审计告警，同时保留现有文档结构。更新文档依赖时必须验证 `npm ci`、`npm audit`、`npm run build`；未来 VitePress 稳定版原生支持安全的 Vite 后，可删除覆盖配置。
 
 API 模拟只证明前端交互和请求契约。权限、数据库事务及实际存储访问由后端测试验证。
+
+## Ant Design Pro 基底
+
+`npm ci` 自动执行 `max setup`，在 `src/.umi/` 中生成模型、路由和类型；这些文件不提交。独立运行类型检查也会先生成它们。Playwright 使用 Umi 的生产预览服务，仍通过 `/api` 代理验证真实浏览器下载。
+
+`route-contract.test.mjs` 固定公开的业务路径契约，避免迁移时漏掉注册、卡密、自助、门户及动态文档 URL。`pro-foundation.spec.ts` 验证后台动态权限菜单、旧菜单地址解析、嵌套文档、移动端导航关闭、消息一键已读、主题保存、管理员加载失败恢复，以及公开页/门户不请求管理员会话。截图作为浏览器报告附件保存。
+
+Umi 的部分可选插件声明较旧的 React peer 范围，项目沿用 Ant Design Pro 的 `legacy-peer-deps` 安装策略。安全修复覆盖在 `package.json` 中显式维护，`npm audit --audit-level=high` 仍为必需检查。`decode-uri-component` 的安全版本为 ESM，通过一个仅限裸模块导入的构建别名保留 Umi 旧查询解析器所需的 CommonJS 调用接口；涉及 URL 参数的浏览器用例必须通过。

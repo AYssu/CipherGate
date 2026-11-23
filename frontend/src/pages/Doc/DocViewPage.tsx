@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from '@umijs/max';
 import DocViewContent from '../../components/DocViewContent';
 
 const DocViewPage: React.FC = () => {

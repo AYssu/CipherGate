@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from '@umijs/max';
 import {
   Card,
   Typography,
@@ -781,7 +781,7 @@ const ApplicationManagementContent: React.FC = () => {
       icon: <UserAddOutlined />,
       label: '应用注册页',
       onClick: () => {
-        const base = import.meta.env.BASE_URL || '/';
+        const base = '/';
         const path = `${base.endsWith('/') ? base : `${base}/`}register?id=${record.id}`;
         window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
       },
@@ -791,7 +791,7 @@ const ApplicationManagementContent: React.FC = () => {
       icon: <KeyOutlined />,
       label: '卡密自助页',
       onClick: () => {
-        const base = import.meta.env.BASE_URL || '/';
+        const base = '/';
         const path = `${base.endsWith('/') ? base : `${base}/`}license?id=${record.id}`;
         window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
       },
@@ -801,7 +801,7 @@ const ApplicationManagementContent: React.FC = () => {
       icon: <UserAddOutlined />,
       label: '用户自助页',
       onClick: () => {
-        const base = import.meta.env.BASE_URL || '/';
+        const base = '/';
         const path = `${base.endsWith('/') ? base : `${base}/`}app-user?id=${record.id}`;
         window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer');
       },

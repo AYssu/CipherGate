@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'playwright-report', 'test-results']),
+  globalIgnores(['dist', 'playwright-report', 'test-results', 'src/.umi', 'src/.umi-production', 'src/.umi-test']),
   {
     files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'e2e/**/*.mjs'],
     extends: [js.configs.recommended],

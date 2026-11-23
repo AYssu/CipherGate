@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { Dropdown } from 'antd';
+import React from 'react';
+import { Button, Dropdown } from 'antd';
 import { BgColorsOutlined } from '@ant-design/icons';
 import { useTheme, THEME_PRESETS } from '../theme/context';
 
 const ThemeSwitcher: React.FC = () => {
   const { themeKey, setTheme } = useTheme();
-  const [hovered, setHovered] = useState(false);
 
   const items = THEME_PRESETS.map((p) => ({
     key: p.key,
@@ -33,24 +32,7 @@ const ThemeSwitcher: React.FC = () => {
 
   return (
     <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
-      <span
-        style={{
-          cursor: 'pointer',
-          fontSize: 16,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 32,
-          height: 32,
-          borderRadius: 6,
-          transition: 'background 0.2s',
-          background: hovered ? 'var(--color-bg-text-hover, #f5f5f5)' : 'transparent',
-        }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        <BgColorsOutlined />
-      </span>
+      <Button type="text" aria-label="切换主题" icon={<BgColorsOutlined />} />
     </Dropdown>
   );
 };

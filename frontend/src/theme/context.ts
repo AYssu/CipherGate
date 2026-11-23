@@ -79,7 +79,7 @@ interface ThemeContextValue {
 }
 
 export const ThemeContext = createContext<ThemeContextValue>({
-  themeKey: 'emerald',
+  themeKey: 'blue',
   themePreset: THEME_PRESETS[0],
   themeConfig: THEME_PRESETS[0].config,
   setTheme: () => {},

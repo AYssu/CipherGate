@@ -6,9 +6,9 @@ const STORAGE_KEY = 'ciphergate_theme';
 
 function getStoredTheme(): string {
   try {
-    return localStorage.getItem(STORAGE_KEY) || 'emerald';
+    return localStorage.getItem(STORAGE_KEY) || 'blue';
   } catch {
-    return 'emerald';
+    return 'blue';
   }
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from '@umijs/max';
 import { DashboardContent } from '../components';
 import type { User } from '../services/userService';
 

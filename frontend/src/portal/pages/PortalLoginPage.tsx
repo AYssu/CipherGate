@@ -4,7 +4,7 @@ import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Form, Input, Button, Typography, message } from 'antd';
 import { MailOutlined, LockOutlined, KeyOutlined } from '@ant-design/icons';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from '@umijs/max';
 import { portalAuthApi } from '../services/portalAuthService';
 
 const { Text } = Typography;

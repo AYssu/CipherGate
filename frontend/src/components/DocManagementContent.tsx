@@ -37,7 +37,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@umijs/max';
 import { docApi } from '../services/docService';
 import { chunkedUploadService } from '../services/chunkedUploadService';
 import type { DocCategory, DocItem, DocAttachment } from '../services/docService';

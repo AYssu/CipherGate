@@ -1,7 +1,7 @@
 import { usePublicChallenge } from '../components/usePublicChallenge';
 import PublicServiceLayout from '../components/PublicServiceLayout';
 import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '@umijs/max';
 import {
   Typography,
   Form,

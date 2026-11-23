@@ -1,4 +1,4 @@
-* {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -15,27 +15,27 @@ body {
   min-height: 100vh;
 }
 
-.ant-layout {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout {
   background: #fff;
 }
 
 /* 卡片悬停动画 */
-.ant-card {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.feature-card:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .feature-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
 }
 
-.stats-card:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .stats-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Hero区域动画 */
-.hero-content {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content {
   animation: fadeInUp 1s ease-out;
 }
 
@@ -51,7 +51,7 @@ body {
 }
 
 /* 滚动时的视差效果 */
-.parallax-bg {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .parallax-bg {
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
@@ -59,36 +59,36 @@ body {
 }
 
 /* 按钮悬停效果 — 颜色由 Ant Design theme token 控制 */
-.ant-btn-primary {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn-primary {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.ant-btn-primary:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-.ant-btn:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn:hover {
   transform: translateY(-2px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 菜单悬停效果 — 颜色由 Ant Design theme token 控制 */
-.ant-menu-horizontal {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-horizontal {
   line-height: 64px;
 }
 
-.ant-menu-horizontal > .ant-menu-item {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-horizontal > .ant-menu-item {
   border-bottom: 2px solid transparent;
   transition: all 0.3s ease;
 }
 
-.ant-menu-horizontal > .ant-menu-item:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-horizontal > .ant-menu-item:hover {
   transform: translateY(-1px);
 }
 
 /* 渐变文字效果 */
-.gradient-text {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .gradient-text {
   background: linear-gradient(135deg, var(--ant-color-primary, #1890ff), #00d4aa);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -96,7 +96,7 @@ body {
 }
 
 /* 滚动指示器 — 颜色由 Ant Design theme token 控制 */
-.scroll-indicator {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .scroll-indicator {
   position: fixed;
   top: 0;
   left: 0;
@@ -108,41 +108,41 @@ body {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .hero-content h1 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content h1 {
     font-size: 32px !important;
     text-align: center !important;
   }
 
-  .hero-content p {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content p {
     font-size: 16px !important;
     text-align: center !important;
   }
 
-  .ant-layout-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header {
     padding: 0 16px !important;
   }
 
-  .ant-menu-horizontal {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-horizontal {
     display: none !important;
   }
 
-  .feature-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .feature-card .ant-card-body {
     padding: 20px !important;
   }
 
-  .stats-card .ant-statistic-content-value {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .stats-card .ant-statistic-content-value {
     font-size: 20px !important;
   }
 
-  .ant-col {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-col {
     margin-bottom: 16px;
   }
 
-  .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space {
     justify-content: center;
   }
 
-  .ant-space-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space-item {
     width: 100%;
   }
 
@@ -150,44 +150,44 @@ body {
 }
 
 @media (max-width: 480px) {
-  .hero-content h1 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content h1 {
     font-size: 28px !important;
     line-height: 1.3 !important;
   }
 
-  .hero-content p {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content p {
     font-size: 14px !important;
   }
 
-  .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-body {
     padding: 16px !important;
   }
 
-  .feature-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .feature-card .ant-card-body {
     padding: 16px !important;
   }
 
-  .stats-card .ant-statistic-content-value {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .stats-card .ant-statistic-content-value {
     font-size: 18px !important;
   }
 
-  .ant-statistic-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-statistic-title {
     font-size: 12px !important;
   }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
-  .hero-content h1 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content h1 {
     font-size: 42px !important;
   }
 
-  .hero-content p {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hero-content p {
     font-size: 18px !important;
   }
 }
 
 /* 侧边栏菜单样式修复 */
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item {
+ {
   display: flex !important;
   align-items: center !important;
   height: 48px !important;
@@ -196,7 +196,7 @@ body {
   margin: 0 !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item .ant-menu-item-icon {
+ {
   margin-right: 12px !important;
   font-size: 16px !important;
   vertical-align: middle !important;
@@ -204,14 +204,14 @@ body {
   align-items: center !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-item .ant-menu-title-content {
+ {
   vertical-align: middle !important;
   line-height: 1 !important;
   display: inline-flex !important;
   align-items: center !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
+ {
   display: flex !important;
   align-items: center !important;
   height: 48px !important;
@@ -220,11 +220,11 @@ body {
   margin: 0 !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-submenu-arrow {
+ {
   right: 16px !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-item-icon {
+ {
   margin-right: 12px !important;
   font-size: 16px !important;
   vertical-align: middle !important;
@@ -232,7 +232,7 @@ body {
   align-items: center !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title .ant-menu-title-content {
+ {
   vertical-align: middle !important;
   line-height: 1 !important;
   display: inline-flex !important;
@@ -240,7 +240,7 @@ body {
 }
 
 /* 子菜单项样式 */
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
+ {
   padding-left: 48px !important;
   height: 40px !important;
   line-height: 40px !important;
@@ -248,7 +248,7 @@ body {
   align-items: center !important;
 }
 
-.dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item .ant-menu-title-content {
+ {
   line-height: 1 !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -269,204 +269,185 @@ html {
   }
 }
 
-.loading {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .loading {
   animation: pulse-loading 2s infinite;
 }
 
 /* 隐藏滚动条 */
-.hide-scrollbar {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hide-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
 
-.hide-scrollbar::-webkit-scrollbar {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari and Opera */
 }
 
 /* 全局滚动条美化（弹窗内容区 + 输入域） */
-.ant-modal .ant-modal-body,
-.ant-modal textarea,
-.ant-drawer .ant-drawer-body,
-.ant-drawer textarea {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal .ant-modal-body, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal textarea, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer .ant-drawer-body, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer textarea {
   scrollbar-width: thin; /* Firefox */
   scrollbar-color: #d9d9d9 transparent; /* Firefox */
 }
 
-.ant-modal .ant-modal-body::-webkit-scrollbar,
-.ant-modal textarea::-webkit-scrollbar,
-.ant-drawer .ant-drawer-body::-webkit-scrollbar,
-.ant-drawer textarea::-webkit-scrollbar {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal .ant-modal-body::-webkit-scrollbar, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal textarea::-webkit-scrollbar, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer .ant-drawer-body::-webkit-scrollbar, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer textarea::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.ant-modal .ant-modal-body::-webkit-scrollbar-track,
-.ant-modal textarea::-webkit-scrollbar-track,
-.ant-drawer .ant-drawer-body::-webkit-scrollbar-track,
-.ant-drawer textarea::-webkit-scrollbar-track {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal .ant-modal-body::-webkit-scrollbar-track, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal textarea::-webkit-scrollbar-track, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer .ant-drawer-body::-webkit-scrollbar-track, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.ant-modal .ant-modal-body::-webkit-scrollbar-thumb,
-.ant-modal textarea::-webkit-scrollbar-thumb,
-.ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb,
-.ant-drawer textarea::-webkit-scrollbar-thumb {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal .ant-modal-body::-webkit-scrollbar-thumb, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal textarea::-webkit-scrollbar-thumb, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer textarea::-webkit-scrollbar-thumb {
   background-color: #d9d9d9;
   border-radius: 3px;
 }
 
-.ant-modal .ant-modal-body::-webkit-scrollbar-thumb:hover,
-.ant-modal textarea::-webkit-scrollbar-thumb:hover,
-.ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb:hover,
-.ant-drawer textarea::-webkit-scrollbar-thumb:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal .ant-modal-body::-webkit-scrollbar-thumb:hover, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-modal textarea::-webkit-scrollbar-thumb:hover, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer .ant-drawer-body::-webkit-scrollbar-thumb:hover, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer textarea::-webkit-scrollbar-thumb:hover {
   background-color: #bfbfbf;
 }
 
 /* 侧边栏折叠样式 */
-.ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon {
   margin-right: 0 !important;
 }
 
-.ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
   margin-right: 0 !important;
 }
 
 /* 折叠时的 Logo 样式 */
-.ant-layout-sider-collapsed .sider-logo {
+ {
   padding: 24px 8px !important;
 }
 
-.ant-layout-sider-collapsed .sider-logo .ant-typography {
+ {
   display: none;
 }
 
 /* 折叠按钮样式优化 — 颜色由 Ant Design theme token 控制 */
-.ant-layout-sider-trigger {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-trigger {
   background: #fff !important;
   color: var(--ant-color-primary, #1890ff) !important;
   border-top: 1px solid #f0f0f0 !important;
   transition: all 0.2s !important;
 }
 
-.ant-layout-sider-trigger:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-trigger:hover {
   background: #f5f5f5 !important;
   color: var(--ant-color-primary-hover, #40a9ff) !important;
 }
 
 /* 侧边栏过渡动画 */
-.ant-layout-sider {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider {
   transition: all 0.2s !important;
 }
 
-.ant-menu {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu {
   transition: all 0.2s !important;
 }
 
 /* 折叠时菜单项的 Tooltip */
-.ant-layout-sider-collapsed .ant-menu-item,
-.ant-layout-sider-collapsed .ant-menu-submenu-title {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-item, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-submenu-title {
   padding: 0 calc(50% - 16px / 2) !important;
 }
 
-.ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon,
-.ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-item .ant-menu-item-icon, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-submenu-title .ant-menu-item-icon {
   font-size: 16px !important;
   line-height: 48px !important;
 }
 /* 子菜单展开/收起动画优化 */
-.ant-menu-submenu-title {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-submenu-title {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.ant-menu-submenu-title:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-submenu-title:hover {
   background-color: #f5f5f5 !important;
 }
 
 /* 子菜单内容展开动画 */
-.ant-menu-sub.ant-menu-inline {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-sub.ant-menu-inline {
   transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* 子菜单内容区域动画 */
-.ant-menu-sub {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-sub {
   background-color: #fafafa !important;
   border-radius: 0 !important;
 }
 
-.ant-menu-sub .ant-menu-item {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-sub .ant-menu-item {
   background-color: transparent !important;
   transition: all 0.2s ease !important;
 }
 
-.ant-menu-sub .ant-menu-item:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-sub .ant-menu-item:hover {
   background-color: var(--ant-color-primary-bg, #e6f7ff) !important;
   color: var(--ant-color-primary, #1890ff) !important;
 }
 
-.ant-menu-sub .ant-menu-item-selected {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-sub .ant-menu-item-selected {
   background-color: var(--ant-color-primary-bg, #e6f7ff) !important;
   color: var(--ant-color-primary, #1890ff) !important;
   font-weight: 500 !important;
 }
 
 /* 折叠状态下的子菜单处理 */
-.ant-layout-sider-collapsed .ant-menu-submenu {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-submenu {
   overflow: visible !important;
 }
 
-.ant-layout-sider-collapsed .ant-menu-submenu-title {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-sider-collapsed .ant-menu-submenu-title {
   padding: 0 calc(50% - 16px / 2) !important;
 }
 
 /* 菜单项激活状态优化 — 颜色由 Ant Design theme token 控制 */
-.ant-menu-item-selected {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-item-selected {
   background-color: var(--ant-color-primary-bg, #e6f7ff) !important;
   color: var(--ant-color-primary, #1890ff) !important;
   font-weight: 500 !important;
 }
 
-.ant-menu-item-selected::after {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-item-selected::after {
   border-right: 3px solid var(--ant-color-primary, #1890ff) !important;
 }
 
 /* 菜单悬停效果 — 颜色由 Ant Design theme token 控制 */
-.ant-menu-item:hover,
-.ant-menu-submenu-title:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-item:hover, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-submenu-title:hover {
   color: var(--ant-color-primary, #1890ff) !important;
 }
 
 /* 菜单图标对齐 */
-.ant-menu-item .ant-menu-item-icon,
-.ant-menu-submenu-title .ant-menu-item-icon {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-item .ant-menu-item-icon, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-menu-submenu-title .ant-menu-item-icon {
   vertical-align: middle !important;
 }
 /* 移动端 Header 简化样式 */
 @media (max-width: 767px) {
-  .ant-layout-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header {
     padding: 0 16px !important;
     height: 56px !important;
   }
 
-  .ant-layout-header .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-space {
     align-items: center !important;
   }
 
-  .ant-layout-header .ant-typography {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-typography {
     margin: 0 !important;
     line-height: 1 !important;
   }
 
   /* 移动端抽屉样式 */
-  .ant-drawer-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-body {
     padding: 0 !important;
   }
 
-  .ant-drawer-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-content {
     background: #fff !important;
   }
 
   /* 移动端菜单样式 */
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-item {
+   {
     height: 48px !important;
     line-height: 48px !important;
     padding: 0 20px !important;
@@ -474,7 +455,7 @@ html {
     border-radius: 6px !important;
   }
 
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
+   {
     height: 48px !important;
     line-height: 48px !important;
     padding: 0 20px !important;
@@ -482,85 +463,81 @@ html {
     border-radius: 6px !important;
   }
 
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
+   {
     padding-left: 48px !important;
     margin: 0 8px !important;
     border-radius: 6px !important;
   }
 
   /* 移动端 Logo 区域 */
-  .sider-logo {
+   {
     padding: 20px 16px !important;
   }
 
-  .sider-logo .anticon {
+   {
     font-size: 28px !important;
     margin-bottom: 6px !important;
   }
 
-  .sider-logo .ant-typography {
+   {
     font-size: 18px !important;
     margin: 0 !important;
   }
 
   /* 移动端用户头像区域 */
-  .ant-dropdown-trigger .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-dropdown-trigger .ant-space {
     padding: 4px !important;
   }
 
   /* 移动端卡片适配 */
-  .ant-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card {
     margin-bottom: 16px !important;
   }
 
-  .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-body {
     padding: 16px !important;
   }
 
   /* 移动端表格适配 */
-  .ant-table {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table {
     min-width: unset !important;
   }
 
   /* 移动端表单适配 */
-  .ant-form-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item {
     margin-bottom: 16px !important;
   }
 
-  .ant-form-item-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item-label {
     padding-bottom: 4px !important;
   }
 
   /* 移动端按钮适配 */
-  .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn {
     height: 36px !important;
     padding: 4px 12px !important;
     font-size: 14px !important;
   }
 
-  .ant-btn-sm {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn-sm {
     height: 28px !important;
     padding: 0 8px !important;
     font-size: 12px !important;
   }
 
   /* 移动端输入框适配 */
-  .ant-input,
-  .ant-select-selector,
-  .ant-picker {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-select-selector, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-picker {
     height: 36px !important;
     font-size: 14px !important;
   }
 
   /* 移动端分页适配 */
-  .ant-pagination {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination {
     text-align: right !important;
     margin-top: 16px !important;
   }
 
-  .ant-pagination-item,
-  .ant-pagination-prev,
-  .ant-pagination-next {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-item, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-prev, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-next {
     min-width: 32px !important;
     height: 32px !important;
     line-height: 30px !important;
@@ -569,40 +546,39 @@ html {
 
 
   /* 移动端抽屉遮罩优化 */
-  .ant-drawer-mask {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-mask {
     background-color: rgba(0, 0, 0, 0.45) !important;
   }
 
   /* 移动端菜单项点击反馈 */
-  .dashboard-sidebar-menu .ant-menu-item:active,
-  .dashboard-sidebar-menu .ant-menu-submenu-title:active {
+   {
     background-color: #e6f7ff !important;
   }
 }
 
 /* 平板端适配 (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
-  .ant-layout-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header {
     padding: 0 20px !important;
   }
 
 
-  .header-left-section .ant-typography {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .header-left-section .ant-typography {
     font-size: 18px !important;
   }
 }
 
 /* 超小屏幕适配 (< 480px) — M5 / 360-375px */
 @media (max-width: 479px) {
-  .ant-layout-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header {
     padding: 0 10px !important;
   }
 
-  .header-left-section {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .header-left-section {
     gap: 4px !important;
   }
 
-  .header-left-section .ant-typography {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .header-left-section .ant-typography {
     font-size: 14px !important;
     max-width: 80px !important;
     overflow: hidden !important;
@@ -611,8 +587,7 @@ html {
   }
 
   /* 触控目标 ≥ 44px */
-  .header-collapse-btn,
-  .ant-layout-header .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .header-collapse-btn, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-btn {
     min-width: 44px !important;
     min-height: 44px !important;
     width: 44px !important;
@@ -621,8 +596,7 @@ html {
   }
 
   /* 主题切换器触控区域 */
-  .ant-layout-header .ant-dropdown-trigger,
-  .ant-layout-header [class*="theme"] {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-dropdown-trigger, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header [class*="theme"] {
     min-width: 44px !important;
     min-height: 44px !important;
     display: flex !important;
@@ -631,7 +605,7 @@ html {
   }
 
   /* 通知铃铛触控区域 */
-  .notification-trigger {
+   {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -641,132 +615,129 @@ html {
   }
 
   /* 头像触控区域 */
-  .ant-layout-header .ant-avatar {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-avatar {
     width: 32px !important;
     height: 32px !important;
   }
 
   /* 侧边抽屉宽度：85% 最大 260px（仅左右方向，不影响底部弹出） */
-  .ant-drawer-left .ant-drawer-content-wrapper,
-  .ant-drawer-right .ant-drawer-content-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-left .ant-drawer-content-wrapper, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-right .ant-drawer-content-wrapper {
     width: 85vw !important;
     max-width: 260px !important;
   }
 
   /* 底部弹出抽屉：强制全宽 + 内容不溢出 */
-  .ant-drawer-bottom .ant-drawer-content-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-bottom .ant-drawer-content-wrapper {
     width: 100% !important;
     max-width: 100% !important;
     overflow: hidden !important;
   }
 
-  .ant-drawer-bottom .ant-drawer-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-bottom .ant-drawer-content {
     overflow: hidden !important;
     overflow-y: auto !important;
   }
 
-  .ant-drawer-bottom .ant-drawer-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-bottom .ant-drawer-body {
     overflow: hidden !important;
     overflow-y: auto !important;
   }
 
   /* 通知消息列表项：强制不溢出 */
-  .ant-drawer-bottom .ant-list-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-bottom .ant-list-item {
     flex-wrap: wrap !important;
     overflow: hidden !important;
     min-width: 0 !important;
   }
 
-  .ant-drawer-bottom .ant-list-item-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-drawer-bottom .ant-list-item-content {
     overflow: hidden !important;
     min-width: 0 !important;
     flex: 1 !important;
   }
 
-  .sider-logo {
+   {
     padding: 14px 12px !important;
   }
 
-  .sider-logo .anticon {
+   {
     font-size: 22px !important;
   }
 
-  .sider-logo .ant-typography {
+   {
     font-size: 15px !important;
   }
 
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-item,
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-submenu-title {
+   {
     padding: 0 14px !important;
     margin: 0 4px !important;
     height: 40px !important;
     line-height: 40px !important;
   }
 
-  .dashboard-sidebar-menu.ant-menu-inline .ant-menu-sub .ant-menu-item {
+   {
     padding-left: 36px !important;
     margin: 0 4px !important;
   }
 
   /* 内容区更紧凑 */
-  .ant-layout-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-content {
     padding: 10px !important;
   }
 
   /* 分页器紧凑化 */
-  .ant-pagination {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination {
     margin: 12px 0 0 0 !important;
   }
 
-  .ant-pagination-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-item {
     min-width: 32px !important;
     height: 32px !important;
     line-height: 30px !important;
   }
 
-  .ant-pagination-item a {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-item a {
     padding: 0 6px !important;
   }
 
-  .ant-pagination-prev,
-  .ant-pagination-next {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-prev, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-next {
     min-width: 32px !important;
     height: 32px !important;
     line-height: 32px !important;
   }
 
-  .ant-pagination-options {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination-options {
     display: none !important;
   }
 
   /* 搜索筛选区横向排列 */
-  .ant-input-search {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-search {
     margin-bottom: 8px !important;
   }
 
-  .ant-input-search .ant-input {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-search .ant-input {
     font-size: 16px !important; /* 防止 iOS 缩放 */
   }
 
   /* 表格操作列优化 */
-  .ant-table-thead > tr > th {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-thead > tr > th {
     padding: 6px 4px !important;
     font-size: 11px !important;
   }
 
-  .ant-table-tbody > tr > td {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-tbody > tr > td {
     padding: 6px 4px !important;
     font-size: 11px !important;
   }
 
   /* 操作按钮组：横排紧凑 */
-  .ant-table .ant-space-compact {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table .ant-space-compact {
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     gap: 2px !important;
   }
 
-  .ant-table .ant-space-compact .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table .ant-space-compact .ant-btn {
     width: auto !important;
     padding: 0 6px !important;
     font-size: 12px !important;
@@ -776,21 +747,21 @@ html {
 
 /* 横屏模式适配 */
 @media (max-width: 767px) and (orientation: landscape) {
-  .ant-layout-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header {
     height: 48px !important;
     line-height: 48px !important;
   }
 
-  .sider-logo {
+   {
     padding: 12px 16px !important;
   }
 
-  .sider-logo .anticon {
+   {
     font-size: 24px !important;
     margin-bottom: 4px !important;
   }
 
-  .sider-logo .ant-typography {
+   {
     font-size: 16px !important;
   }
 }
@@ -799,135 +770,135 @@ html {
 /* Dashboard 组件移动端优化 */
 @media (max-width: 767px) {
   /* 欢迎卡片：紧凑水平布局 */
-  .dashboard-welcome-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-welcome-card .ant-card-body {
     padding: 12px !important;
   }
 
   /* 今日统计：紧凑磁贴 */
-  .dashboard-stat-tile .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-card-body {
     padding: 10px 12px !important;
   }
 
-  .dashboard-stat-tile .ant-statistic {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-statistic {
     text-align: left !important;
   }
 
-  .dashboard-stat-tile .ant-statistic-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-statistic-title {
     font-size: 11px !important;
     margin-bottom: 2px !important;
     color: #8c8c8c !important;
   }
 
-  .dashboard-stat-tile .ant-statistic-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-statistic-content {
     font-size: 20px !important;
     line-height: 1.2 !important;
   }
 
-  .dashboard-stat-tile .ant-statistic-content-prefix {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-statistic-content-prefix {
     font-size: 14px !important;
     margin-right: 2px !important;
   }
 
-  .dashboard-stat-tile .ant-statistic-content-suffix {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile .ant-statistic-content-suffix {
     font-size: 11px !important;
     margin-left: 2px !important;
   }
 
   /* 总览统计：超紧凑磁贴 */
-  .dashboard-stat-tile-sm .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile-sm .ant-card-body {
     padding: 8px 10px !important;
   }
 
-  .dashboard-stat-tile-sm .ant-statistic {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile-sm .ant-statistic {
     text-align: left !important;
   }
 
-  .dashboard-stat-tile-sm .ant-statistic-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile-sm .ant-statistic-title {
     font-size: 11px !important;
     margin-bottom: 0 !important;
     color: #8c8c8c !important;
   }
 
-  .dashboard-stat-tile-sm .ant-statistic-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile-sm .ant-statistic-content {
     font-size: 18px !important;
     line-height: 1.2 !important;
   }
 
-  .dashboard-stat-tile-sm .ant-statistic-content-suffix {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-stat-tile-sm .ant-statistic-content-suffix {
     font-size: 10px !important;
     margin-left: 2px !important;
   }
 
   /* 图表卡片紧凑 */
-  .dashboard-chart-card .ant-card-head {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-chart-card .ant-card-head {
     min-height: 36px !important;
     padding: 0 12px !important;
   }
 
-  .dashboard-chart-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .dashboard-chart-card .ant-card-body {
     padding: 8px !important;
   }
 
   /* 应用列表移动端卡片 */
-  .app-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .app-mobile-card {
     margin-bottom: 8px !important;
     border-radius: 8px !important;
     transition: transform 0.15s ease !important;
   }
 
-  .app-mobile-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .app-mobile-card .ant-card-body {
     padding: 10px 12px !important;
   }
 
-  .app-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .app-mobile-card:active {
     transform: scale(0.98) !important;
   }
 
   /* 应用列表容器 */
-  .application-mobile-card-list {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .application-mobile-card-list {
     display: flex;
     flex-direction: column;
     gap: 0;
   }
 
   /* 卡密列表移动端 */
-  .license-mobile-list {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-list {
     border: 1px solid #f0f0f0;
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
   }
 
-  .license-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-card {
     padding: 10px 12px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
     transition: background 0.15s ease;
   }
 
-  .license-mobile-card:last-child {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-card:last-child {
     border-bottom: none;
   }
 
-  .license-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-card:active {
     background: #fafafa;
   }
 
-  .license-mobile-key {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-key {
     font-family: 'Consolas', 'Monaco', monospace !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     color: #1a1a1a !important;
   }
 
-  .license-mobile-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-tag {
     margin: 0 !important;
     font-size: 10px !important;
     line-height: 16px !important;
     padding: 0 4px !important;
   }
 
-  .license-mobile-meta {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-meta {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -935,46 +906,46 @@ html {
     color: #8c8c8c;
   }
 
-  .license-mobile-meta span {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-mobile-meta span {
     white-space: nowrap;
   }
 
-  .license-meta-expired {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-meta-expired {
     color: #ff4d4f !important;
   }
 
-  .license-meta-device {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-meta-device {
     color: #fa8c16 !important;
   }
 
-  .license-meta-ip {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .license-meta-ip {
     color: #1890ff !important;
   }
 
   /* 终端用户列表移动端 */
-  .appuser-mobile-list {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-list {
     border: 1px solid #f0f0f0;
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
   }
 
-  .appuser-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-card {
     padding: 10px 12px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
     transition: background 0.15s ease;
   }
 
-  .appuser-mobile-card:last-child {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-card:last-child {
     border-bottom: none;
   }
 
-  .appuser-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-card:active {
     background: #fafafa;
   }
 
-  .appuser-mobile-avatar {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-avatar {
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -988,14 +959,14 @@ html {
     overflow: hidden;
   }
 
-  .appuser-mobile-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-tag {
     margin: 0 !important;
     font-size: 10px !important;
     line-height: 16px !important;
     padding: 0 4px !important;
   }
 
-  .appuser-mobile-meta {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-meta {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -1005,46 +976,44 @@ html {
     padding-left: 46px;
   }
 
-  .appuser-mobile-meta span {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-mobile-meta span {
     white-space: nowrap;
   }
 
-  .appuser-meta-active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-meta-active {
     color: #52c41a !important;
   }
 
-  .appuser-meta-expired {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .appuser-meta-expired {
     color: #ff4d4f !important;
   }
 
   /* 个人中心移动端 */
-  .profile-detail-card .ant-card-head,
-  .profile-role-card .ant-card-head {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-detail-card .ant-card-head, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-role-card .ant-card-head {
     min-height: 36px !important;
     padding: 0 12px !important;
   }
 
-  .profile-detail-card .ant-card-body,
-  .profile-role-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-detail-card .ant-card-body, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-role-card .ant-card-body {
     padding: 12px !important;
   }
 
-  .profile-role-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-role-item {
     transition: background 0.15s ease !important;
   }
 
-  .profile-role-item:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .profile-role-item:active {
     background: #f0f0f0 !important;
   }
 
   /* 通用移动端管理卡片 */
-  .mgmt-mobile-list {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mgmt-mobile-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
-  .mgmt-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mgmt-mobile-card {
     background: #fafafa;
     border-radius: 8px;
     padding: 10px 12px;
@@ -1052,18 +1021,18 @@ html {
     transition: background 0.15s ease;
   }
 
-  .mgmt-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mgmt-mobile-card:active {
     background: #f0f0f0;
   }
 
-  .mgmt-mobile-card-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mgmt-mobile-card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 6px;
   }
 
-  .mgmt-mobile-card-meta {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mgmt-mobile-card-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -1072,33 +1041,33 @@ html {
   }
 
   /* 快速操作按钮移动端适配 */
-  .ant-space-wrap {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space-wrap {
     justify-content: center !important;
   }
 
-  .ant-space-wrap .ant-space-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space-wrap .ant-space-item {
     margin-bottom: 8px !important;
   }
 
   /* 用户信息区域移动端适配 */
-  .ant-typography h3 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-typography h3 {
     font-size: 18px !important;
     text-align: center !important;
     margin-bottom: 8px !important;
   }
 
-  .ant-layout-content .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-content .ant-space {
     justify-content: center !important;
     flex-wrap: wrap !important;
   }
 
-  .ant-space .ant-space-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space .ant-space-item {
     font-size: 12px !important;
   }
 }
 
 /* 通知徽章：适配铃铛图标大小 */
-.ant-layout-header .ant-badge-count {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-layout-header .ant-badge-count {
   font-size: 11px !important;
   min-width: 18px !important;
   height: 18px !important;
@@ -1108,7 +1077,7 @@ html {
 
 /* 表格组件移动端优化 */
 @media (max-width: 767px) {
-  .ant-badge-count {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-badge-count {
     font-size: 8px !important;
     min-width: 14px !important;
     height: 14px !important;
@@ -1116,33 +1085,33 @@ html {
     padding: 0 4px !important;
   }
 
-  .ant-table-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-wrapper {
     border-radius: 8px !important;
   }
 
-  .ant-table-thead > tr > th {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-thead > tr > th {
     padding: 8px 4px !important;
     font-size: 12px !important;
     white-space: nowrap !important;
   }
 
-  .ant-table-tbody > tr > td {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-tbody > tr > td {
     padding: 8px 4px !important;
     font-size: 12px !important;
   }
 
-  .ant-table-pagination {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-table-pagination {
     margin: 16px 0 0 0 !important;
     text-align: right !important;
   }
 
   /* 操作按钮组移动端适配 */
-  .ant-space-compact {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space-compact {
     flex-direction: column !important;
     width: 100% !important;
   }
 
-  .ant-space-compact .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-space-compact .ant-btn {
     width: 100% !important;
     margin-bottom: 4px !important;
     border-radius: 4px !important;
@@ -1151,134 +1120,129 @@ html {
 
 /* 表单组件移动端优化 */
 @media (max-width: 767px) {
-  .ant-form-horizontal .ant-form-item-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-horizontal .ant-form-item-label {
     text-align: left !important;
     padding-bottom: 4px !important;
   }
 
-  .ant-form-item-control {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item-control {
     margin-left: 0 !important;
   }
 
-  .ant-form-item-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item-label {
     padding-right: 0 !important;
   }
 
   /* 表单按钮组移动端适配 */
-  .ant-form-item:last-child .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item:last-child .ant-space {
     width: 100% !important;
     justify-content: center !important;
   }
 
-  .ant-form-item:last-child .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-form-item:last-child .ant-btn {
     min-width: 80px !important;
   }
 }
 
 /* 搜索和筛选组件移动端优化 */
 @media (max-width: 767px) {
-  .ant-input-search {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-search {
     margin-bottom: 8px !important;
   }
 
-  .ant-select {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-select {
     width: 100% !important;
     margin-bottom: 6px !important;
   }
 
-  .ant-date-picker {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-date-picker {
     width: 100% !important;
     margin-bottom: 6px !important;
   }
 
   /* 筛选区横向排列（2列） */
-  .ant-input-search + .ant-select,
-  .ant-input-search + .ant-space {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-search + .ant-select, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-search + .ant-space {
     margin-bottom: 6px !important;
   }
 
   /* 防止 iOS 自动缩放：所有输入框 ≥ 16px */
-  .ant-input,
-  .ant-input-affix-wrapper,
-  .ant-select-selector input,
-  .ant-picker input,
-  .ant-input-number input {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-affix-wrapper, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-select-selector input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-picker input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-input-number input {
     font-size: 16px !important;
   }
 }
 
 /* 卡片网格移动端优化 */
 @media (max-width: 767px) {
-  .ant-row {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-row {
     margin-left: -8px !important;
     margin-right: -8px !important;
   }
 
-  .ant-col {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-col {
     padding-left: 8px !important;
     padding-right: 8px !important;
   }
 
-  .ant-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card {
     border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   }
 
-  .ant-card-head {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-head {
     padding: 12px 16px !important;
     min-height: auto !important;
   }
 
-  .ant-card-head-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-head-title {
     font-size: 16px !important;
     font-weight: 500 !important;
   }
 
-  .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-body {
     padding: 16px !important;
   }
 
-  .ant-card-actions {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-actions {
     padding: 8px 16px !important;
   }
 
-  .ant-card-actions > li {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card-actions > li {
     margin: 4px 0 !important;
   }
 }
 
 /* 消息提示移动端优化 */
 @media (max-width: 767px) {
-  .ant-message {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-message {
     top: 16px !important;
   }
 
-  .ant-message-notice {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-message-notice {
     margin-left: 16px !important;
     margin-right: 16px !important;
   }
 
-  .ant-notification {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-notification {
     margin-right: 16px !important;
     margin-top: 16px !important;
   }
 
-  .ant-notification-notice {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-notification-notice {
     margin-bottom: 8px !important;
   }
 }
 
 /* 加载状态移动端优化 */
 @media (max-width: 767px) {
-  .ant-spin-container {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-spin-container {
     min-height: 200px !important;
   }
 
-  .ant-spin-dot {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-spin-dot {
     font-size: 20px !important;
   }
 
-  .ant-spin-text {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-spin-text {
     font-size: 14px !important;
     margin-top: 8px !important;
   }
@@ -1286,16 +1250,16 @@ html {
 
 /* 空状态移动端优化 */
 @media (max-width: 767px) {
-  .ant-empty {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-empty {
     padding: 32px 16px !important;
   }
 
-  .ant-empty-image {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-empty-image {
     height: 60px !important;
     margin-bottom: 8px !important;
   }
 
-  .ant-empty-description {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-empty-description {
     font-size: 14px !important;
     color: #999 !important;
   }
@@ -1303,52 +1267,52 @@ html {
 /* 管理页面移动端专用样式 */
 @media (max-width: 767px) {
   /* 用户管理移动端卡片样式 */
-  .user-management-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card {
     border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 12px !important;
   }
 
-  .user-management-mobile-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .ant-card-body {
     padding: 12px !important;
   }
 
-  .user-management-mobile-card .user-avatar {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-avatar {
     width: 40px !important;
     height: 40px !important;
     border-radius: 50% !important;
     margin-right: 12px !important;
   }
 
-  .user-management-mobile-card .user-info {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-info {
     flex: 1 !important;
     min-width: 0 !important;
   }
 
-  .user-management-mobile-card .user-name {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-name {
     font-weight: 500 !important;
     font-size: 14px !important;
     margin-bottom: 4px !important;
     color: #262626 !important;
   }
 
-  .user-management-mobile-card .user-login {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-login {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
 
-  .user-management-mobile-card .user-email {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-email {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 8px !important;
   }
 
-  .user-management-mobile-card .user-tags {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-tags {
     margin-bottom: 4px !important;
   }
 
-  .user-management-mobile-card .user-tags .ant-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-tags .ant-tag {
     font-size: 11px !important;
     padding: 0 6px !important;
     height: 20px !important;
@@ -1357,48 +1321,48 @@ html {
     margin-bottom: 4px !important;
   }
 
-  .user-management-mobile-card .user-last-login {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card .user-last-login {
     font-size: 11px !important;
     color: #bfbfbf !important;
     margin-top: 4px !important;
   }
 
   /* 菜单管理移动端卡片样式 */
-  .menu-management-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card {
     border-radius: 6px !important;
     margin-bottom: 8px !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   }
 
-  .menu-management-mobile-card.menu-child {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card.menu-child {
     background-color: #fafafa !important;
     border-left: 3px solid var(--ant-color-primary, #1890ff) !important;
   }
 
-  .menu-management-mobile-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card .ant-card-body {
     padding: 10px 12px !important;
   }
 
-  .menu-management-mobile-card .menu-name {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card .menu-name {
     font-weight: 500 !important;
     font-size: 14px !important;
     margin-right: 8px !important;
     color: #262626 !important;
   }
 
-  .menu-management-mobile-card .menu-code {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card .menu-code {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
 
-  .menu-management-mobile-card .menu-path {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card .menu-path {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 4px !important;
   }
 
-  .menu-management-mobile-card .menu-tags .ant-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card .menu-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     height: 18px !important;
@@ -1408,76 +1372,74 @@ html {
   }
 
   /* 移动端操作按钮优化 */
-  .mobile-action-dropdown .ant-dropdown-menu {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-action-dropdown .ant-dropdown-menu {
     min-width: 120px !important;
   }
 
-  .mobile-action-dropdown .ant-dropdown-menu-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-action-dropdown .ant-dropdown-menu-item {
     padding: 8px 12px !important;
     font-size: 14px !important;
   }
 
   /* 移动端分页样式 */
-  .ant-pagination.ant-pagination-simple {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination.ant-pagination-simple {
     text-align: center !important;
     margin-top: 16px !important;
   }
 
-  .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager {
     display: inline-flex !important;
     align-items: center !important;
   }
 
-  .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager input {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-pagination.ant-pagination-simple .ant-pagination-simple-pager input {
     width: 50px !important;
     text-align: center !important;
     margin: 0 8px !important;
   }
 
   /* 移动端标题区域 */
-  .mobile-page-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-page-header {
     margin-bottom: 16px !important;
   }
 
-  .mobile-page-header .ant-typography {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-page-header .ant-typography {
     font-size: 18px !important;
     font-weight: 600 !important;
     margin: 0 !important;
   }
 
-  .mobile-page-header .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-page-header .ant-btn {
     width: 100% !important;
     margin-top: 8px !important;
   }
 
   /* 移动端表单优化 */
-  .mobile-form .ant-form-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-form-item {
     margin-bottom: 16px !important;
   }
 
-  .mobile-form .ant-form-item-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-form-item-label {
     padding-bottom: 4px !important;
     font-weight: 500 !important;
   }
 
-  .mobile-form .ant-input,
-  .mobile-form .ant-select-selector,
-  .mobile-form .ant-input-number {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-select-selector, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-input-number {
     height: 40px !important;
     font-size: 16px !important;
     border-radius: 6px !important;
   }
 
-  .mobile-form .ant-select-selection-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-select-selection-item {
     line-height: 38px !important;
   }
 
-  .mobile-form .ant-switch {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-form .ant-switch {
     margin-top: 4px !important;
   }
 
   /* 移动端模态框优化 - 底部弹出 */
-  .mobile-modal.ant-modal {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal.ant-modal {
     top: auto !important;
     bottom: 0 !important;
     padding: 0 !important;
@@ -1485,7 +1447,7 @@ html {
     width: 100% !important;
   }
 
-  .mobile-modal .ant-modal-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-content {
     border-radius: 16px 16px 0 0 !important;
     overflow: hidden !important;
     max-height: 85vh !important;
@@ -1493,31 +1455,31 @@ html {
     flex-direction: column !important;
   }
 
-  .mobile-modal .ant-modal-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-header {
     padding: 16px 20px 12px !important;
     border-bottom: 1px solid #f0f0f0 !important;
     flex-shrink: 0 !important;
   }
 
-  .mobile-modal .ant-modal-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-title {
     font-size: 18px !important;
     font-weight: 600 !important;
   }
 
-  .mobile-modal .ant-modal-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-body {
     padding: 16px 20px !important;
     overflow-y: auto !important;
     flex: 1 !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
-  .mobile-modal .ant-modal-footer {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-footer {
     padding: 12px 20px 16px !important;
     border-top: 1px solid #f0f0f0 !important;
     flex-shrink: 0 !important;
   }
 
-  .mobile-modal .ant-modal-footer .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-footer .ant-btn {
     height: 44px !important;
     font-size: 16px !important;
     border-radius: 8px !important;
@@ -1526,16 +1488,16 @@ html {
 
 
   /* 移动端加载状态 */
-  .mobile-loading {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-loading {
     padding: 40px 20px !important;
     text-align: center !important;
   }
 
-  .mobile-loading .ant-spin-dot {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-loading .ant-spin-dot {
     font-size: 24px !important;
   }
 
-  .mobile-loading .ant-spin-text {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-loading .ant-spin-text {
     font-size: 14px !important;
     margin-top: 12px !important;
   }
@@ -1543,32 +1505,30 @@ html {
 
 /* 移动端触摸优化 */
 @media (hover: none) and (pointer: coarse) {
-  .user-management-mobile-card,
-  .menu-management-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card {
     transition: transform 0.1s ease !important;
   }
 
-  .user-management-mobile-card:active,
-  .menu-management-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .user-management-mobile-card:active, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-management-mobile-card:active {
     transform: scale(0.98) !important;
   }
 
-  .ant-btn:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-btn:active {
     transform: scale(0.95) !important;
   }
 
-  .ant-dropdown-menu-item:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-dropdown-menu-item:active {
     background-color: #e6f7ff !important;
   }
 }
 
 /* 移动端横屏适配 */
 @media (max-width: 767px) and (orientation: landscape) {
-  .mobile-modal .ant-modal-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-modal .ant-modal-body {
     max-height: 50vh !important;
   }
 
-  .mobile-page-header .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-page-header .ant-btn {
     width: auto !important;
     margin-top: 0 !important;
     margin-left: 8px !important;
@@ -1578,57 +1538,57 @@ html {
 /* 角色管理移动端专用样式 */
 @media (max-width: 767px) {
   /* 角色卡片样式 */
-  .role-management-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card {
     border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 12px !important;
   }
 
-  .role-management-mobile-card .ant-card-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .ant-card-body {
     padding: 12px !important;
   }
 
-  .role-management-mobile-card .role-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-header {
     display: flex !important;
     align-items: center !important;
     margin-bottom: 8px !important;
   }
 
-  .role-management-mobile-card .role-name {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-name {
     font-size: 16px !important;
     font-weight: 500 !important;
     margin-right: 8px !important;
     color: #262626 !important;
   }
 
-  .role-management-mobile-card .role-code-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-code-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     height: 18px !important;
     line-height: 16px !important;
   }
 
-  .role-management-mobile-card .role-description {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-description {
     font-size: 12px !important;
     color: #8c8c8c !important;
     margin-bottom: 8px !important;
     line-height: 1.4 !important;
   }
 
-  .role-management-mobile-card .role-permission-count {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-permission-count {
     font-size: 12px !important;
     color: #999 !important;
     margin-bottom: 8px !important;
   }
 
-  .role-management-mobile-card .role-permissions-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-permissions-label {
     font-size: 12px !important;
     color: #666 !important;
     margin-bottom: 4px !important;
     display: block !important;
   }
 
-  .role-management-mobile-card .role-permission-tags .ant-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card .role-permission-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     height: 16px !important;
@@ -1638,15 +1598,15 @@ html {
   }
 
   /* 权限管理模态框移动端优化 */
-  .permission-modal-mobile .ant-modal-body {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .ant-modal-body {
     padding: 12px 16px !important;
   }
 
-  .permission-modal-mobile .permission-category {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-category {
     margin-bottom: 16px !important;
   }
 
-  .permission-modal-mobile .permission-category-header {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-category-header {
     display: flex !important;
     align-items: center !important;
     margin-bottom: 8px !important;
@@ -1654,40 +1614,40 @@ html {
     border-bottom: 1px solid #f0f0f0 !important;
   }
 
-  .permission-modal-mobile .permission-category-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-category-title {
     font-size: 14px !important;
     font-weight: 500 !important;
     margin-right: 8px !important;
   }
 
-  .permission-modal-mobile .permission-category-count {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-category-count {
     font-size: 12px !important;
     color: #8c8c8c !important;
   }
 
-  .permission-modal-mobile .permission-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-item {
     margin-bottom: 8px !important;
     padding: 8px !important;
     background-color: #fafafa !important;
     border-radius: 4px !important;
   }
 
-  .permission-modal-mobile .permission-item .ant-checkbox-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-item .ant-checkbox-wrapper {
     width: 100% !important;
   }
 
-  .permission-modal-mobile .permission-name {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-name {
     font-size: 14px !important;
     font-weight: 500 !important;
     display: block !important;
     margin-bottom: 4px !important;
   }
 
-  .permission-modal-mobile .permission-tags {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-tags {
     margin: 4px 0 !important;
   }
 
-  .permission-modal-mobile .permission-tags .ant-tag {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-tags .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     height: 16px !important;
@@ -1695,7 +1655,7 @@ html {
     margin-right: 4px !important;
   }
 
-  .permission-modal-mobile .permission-description {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-modal-mobile .permission-description {
     font-size: 12px !important;
     color: #8c8c8c !important;
     line-height: 1.3 !important;
@@ -1703,32 +1663,32 @@ html {
   }
 
   /* 菜单权限树移动端优化 */
-  .menu-tree-mobile .ant-tree {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-tree-mobile .ant-tree {
     font-size: 14px !important;
   }
 
-  .menu-tree-mobile .ant-tree-node-content-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-tree-mobile .ant-tree-node-content-wrapper {
     padding: 4px 8px !important;
     border-radius: 4px !important;
   }
 
-  .menu-tree-mobile .ant-tree-title {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-tree-mobile .ant-tree-title {
     font-size: 14px !important;
   }
 
-  .menu-tree-mobile .ant-tree-checkbox {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .menu-tree-mobile .ant-tree-checkbox {
     margin-right: 8px !important;
   }
 
   /* 移动端操作按钮组优化 */
-  .mobile-action-buttons {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-action-buttons {
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
     width: 100% !important;
   }
 
-  .mobile-action-buttons .ant-btn {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-action-buttons .ant-btn {
     width: 100% !important;
     height: 40px !important;
     font-size: 14px !important;
@@ -1736,72 +1696,71 @@ html {
   }
 
   /* 移动端表单项间距优化 */
-  .mobile-role-form .ant-form-item {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-role-form .ant-form-item {
     margin-bottom: 20px !important;
   }
 
-  .mobile-role-form .ant-form-item-label {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-role-form .ant-form-item-label {
     padding-bottom: 6px !important;
     font-weight: 500 !important;
     font-size: 14px !important;
   }
 
-  .mobile-role-form .ant-input,
-  .mobile-role-form .ant-input-affix-wrapper {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-role-form .ant-input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-role-form .ant-input-affix-wrapper {
     height: 44px !important;
     font-size: 16px !important;
     border-radius: 6px !important;
   }
 
-  .mobile-role-form .ant-input::placeholder {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-role-form .ant-input::placeholder {
     color: #bfbfbf !important;
   }
 
   /* 移动端树形控件优化 */
-  .mobile-tree-container {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-tree-container {
     border: 1px solid #f0f0f0 !important;
     border-radius: 6px !important;
     padding: 8px !important;
     background-color: #fafafa !important;
   }
 
-  .mobile-tree-container .ant-tree-node-content-wrapper:hover {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-tree-container .ant-tree-node-content-wrapper:hover {
     background-color: #e6f7ff !important;
   }
 
-  .mobile-tree-container .ant-tree-node-selected {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .mobile-tree-container .ant-tree-node-selected {
     background-color: #bae7ff !important;
   }
 }
 
 /* 移动端角色管理触摸优化 */
 @media (hover: none) and (pointer: coarse) {
-  .role-management-mobile-card {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card {
     transition: transform 0.1s ease !important;
   }
 
-  .role-management-mobile-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .role-management-mobile-card:active {
     transform: scale(0.98) !important;
   }
 
-  .permission-item:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .permission-item:active {
     background-color: #e6f7ff !important;
   }
 
-  .ant-tree-node-content-wrapper:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-tree-node-content-wrapper:active {
     background-color: #e6f7ff !important;
   }
 }
 
 /* 应用管理移动端触摸优化 */
 @media (hover: none) and (pointer: coarse) {
-  .ant-card:active {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .ant-card:active {
     opacity: 0.96;
   }
 }
 
 /* MDEditor 亮色主题完整覆盖 */
-div[data-color-mode="light"] .w-md-editor {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor {
   --color-border-default: #d9d9d9;
   --color-canvas-default: #ffffff;
   --color-canvas-subtle: #f6f8fa;
@@ -1814,264 +1773,228 @@ div[data-color-mode="light"] .w-md-editor {
   border-color: #d9d9d9 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar {
   background-color: #fafafa !important;
   border-bottom: 1px solid #d9d9d9 !important;
   color: #555 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar * {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar * {
   color: inherit !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button {
   color: #555 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button span,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button strong,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button em,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button div {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button span, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button strong, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button em, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button div {
   color: #555 !important;
   fill: #555 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover span,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover strong {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover span, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button:hover strong {
   color: #1677ff !important;
   background-color: #f0f5ff !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg,
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg path {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button svg path {
   fill: #555 !important;
   color: #555 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button[disabled] {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-toolbar ul > li > button[disabled] {
   opacity: 0.5 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-content {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-content {
   background-color: #ffffff !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-text-input,
-div[data-color-mode="light"] .w-md-editor textarea,
-div[data-color-mode="light"] .w-md-editor textarea:focus,
-div[data-color-mode="light"] .w-md-editor textarea::placeholder {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-text-input, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor textarea, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor textarea:focus, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor textarea::placeholder {
   color: #333 !important;
   -webkit-text-fill-color: #333 !important;
   background-color: #fff !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .cm-editor {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor {
   background-color: #ffffff !important;
   caret-color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .cm-editor .cm-content,
-div[data-color-mode="light"] .w-md-editor .cm-editor .cm-line,
-div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor .cm-content, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor .cm-line, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
   color: #333 !important;
   -webkit-text-fill-color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor .cm-activeLine {
   background-color: rgba(175, 184, 193, 0.1) !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .cm-editor .cm-selectionBackground {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .cm-editor .cm-selectionBackground {
   background-color: #b4d5fe !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown-container {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown-container {
   background-color: #ffffff !important;
   color: #333333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h1,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h2,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h3,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h4,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h5,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown h6 {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h1, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h2, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h3, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h4, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h5, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown h6 {
   color: #1a1a1a !important;
   border-bottom: 1px solid #e8e8e8 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown p,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown span,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown li,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown td,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown p, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown span, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown li, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown td, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown th {
   color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown a {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown a {
   color: #1677ff !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown code {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown code {
   background-color: rgba(175, 184, 193, 0.2) !important;
   color: #333 !important;
   border: 1px solid #e8e8e8 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown pre {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown pre {
   background-color: #f6f8fa !important;
   border: 1px solid #d9d9d9 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown pre code {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown pre code {
   background-color: transparent !important;
   border: none !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown blockquote {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown blockquote {
   border-left: 3px solid #d9d9d9 !important;
   color: #666 !important;
   background-color: #f9f9f9 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown hr {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown hr {
   background-color: #e8e8e8 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown table {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown table {
   border-color: #d9d9d9 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
   background-color: #f6f8fa !important;
   color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown table td,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown table td, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown table th {
   border-color: #d9d9d9 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown img {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown img {
   max-width: 100% !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown ul,
-div[data-color-mode="light"] .w-md-editor .wmde-markdown ol {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown ul, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown ol {
   color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown strong {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown strong {
   color: #1a1a1a !important;
 }
 
-div[data-color-mode="light"] .w-md-editor .wmde-markdown em {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor .wmde-markdown em {
   color: #333 !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-fullscreen {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-fullscreen {
   background-color: #ffffff !important;
 }
 
-div[data-color-mode="light"] .w-md-editor-preview {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) div[data-color-mode="light"] .w-md-editor-preview {
   border-left: 1px solid #d9d9d9 !important;
 }
 
 /* 文档查看页的 Markdown 渲染 */
-.doc-content .wmde-markdown,
-.doc-content .wmde-markdown-container {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown-container {
   background-color: transparent !important;
   color: #333333 !important;
 }
 
-.doc-content .wmde-markdown h1,
-.doc-content .wmde-markdown h2,
-.doc-content .wmde-markdown h3,
-.doc-content .wmde-markdown h4,
-.doc-content .wmde-markdown h5,
-.doc-content .wmde-markdown h6 {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h1, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h2, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h3, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h4, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h5, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h6 {
   color: #1a1a1a !important;
   border-bottom: 1px solid #e8e8e8 !important;
 }
 
-.doc-content .wmde-markdown p,
-.doc-content .wmde-markdown span,
-.doc-content .wmde-markdown li,
-.doc-content .wmde-markdown td,
-.doc-content .wmde-markdown th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown p, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown span, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown li, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown td, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown th {
   color: #333 !important;
 }
 
-.doc-content .wmde-markdown a {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown a {
   color: #1677ff !important;
 }
 
-.doc-content .wmde-markdown pre {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown pre {
   background-color: #f6f8fa !important;
   border: 1px solid #d9d9d9 !important;
 }
 
-.doc-content .wmde-markdown code {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown code {
   background-color: rgba(175, 184, 193, 0.2) !important;
   color: #333 !important;
 }
 
-.doc-content .wmde-markdown pre code {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown pre code {
   background-color: transparent !important;
   border: none !important;
 }
 
-.doc-content .wmde-markdown blockquote {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown blockquote {
   border-left: 3px solid #d9d9d9 !important;
   color: #666 !important;
   background-color: #f9f9f9 !important;
 }
 
-.doc-content .wmde-markdown table th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table th {
   background-color: #f6f8fa !important;
   color: #333 !important;
 }
 
-.doc-content .wmde-markdown table td,
-.doc-content .wmde-markdown table th {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table td, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table th {
   border-color: #d9d9d9 !important;
 }
 
-.doc-content .wmde-markdown strong {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown strong {
   color: #1a1a1a !important;
 }
 
-.doc-content .wmde-markdown hr {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown hr {
   background-color: #e8e8e8 !important;
 }
 
 /* 移动端表格优化 */
 @media (max-width: 768px) {
-  .doc-content {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content {
     overflow: hidden;
   }
 
-  .doc-content > div {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content > div {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .doc-content .wmde-markdown table {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table {
     min-width: 500px;
     margin: 12px 0;
   }
 
-  .doc-content .wmde-markdown table td,
-  .doc-content .wmde-markdown table th {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table td, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown table th {
     white-space: nowrap;
     padding: 8px 12px;
     font-size: 13px;
   }
 
-  .doc-content .wmde-markdown pre {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown pre {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding: 12px;
@@ -2079,46 +2002,45 @@ div[data-color-mode="light"] .w-md-editor-preview {
     min-width: 300px;
   }
 
-  .doc-content .wmde-markdown img {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown img {
     max-width: 100%;
     height: auto;
   }
 
-  .doc-content .wmde-markdown h1 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h1 {
     font-size: 22px;
   }
 
-  .doc-content .wmde-markdown h2 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h2 {
     font-size: 18px;
   }
 
-  .doc-content .wmde-markdown h3 {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown h3 {
     font-size: 16px;
   }
 
-  .doc-content .wmde-markdown p,
-  .doc-content .wmde-markdown li {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown p, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown li {
     font-size: 14px;
     line-height: 1.7;
   }
 
-  .doc-content .wmde-markdown code {
+  :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .doc-content .wmde-markdown code {
     font-size: 12px;
     word-break: break-all;
   }
 }
 
 /* 消息列表项 hover */
-.msg-item-unread:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .msg-item-unread:hover {
   background-color: #e6f4ff !important;
 }
 
-.msg-item-read:hover {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .msg-item-read:hover {
   background-color: #fafafa !important;
 }
 
 /* M5 风格底部弹出面板 */
-.m5-bottom-sheet-overlay {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
@@ -2130,7 +2052,7 @@ div[data-color-mode="light"] .w-md-editor-preview {
   overflow: hidden;
 }
 
-.m5-bottom-sheet {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet {
   background: #fff;
   width: 100%;
   max-height: 85vh;
@@ -2142,11 +2064,11 @@ div[data-color-mode="light"] .w-md-editor-preview {
   touch-action: none;
 }
 
-.m5-sheet-closing {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-sheet-closing {
   transition: opacity 0.3s ease !important;
 }
 
-.m5-bottom-sheet-handle {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-handle {
   width: 36px;
   height: 4px;
   border-radius: 2px;
@@ -2157,7 +2079,7 @@ div[data-color-mode="light"] .w-md-editor-preview {
   touch-action: none;
 }
 
-.m5-bottom-sheet-header {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2166,7 +2088,7 @@ div[data-color-mode="light"] .w-md-editor-preview {
   flex-shrink: 0;
 }
 
-.m5-bottom-sheet-body {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
@@ -2174,24 +2096,23 @@ div[data-color-mode="light"] .w-md-editor-preview {
   overscroll-behavior: contain;
 }
 
-.m5-bottom-sheet-body .ant-form-item-label {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-body .ant-form-item-label {
   padding-bottom: 4px;
 }
 
-.m5-bottom-sheet-body .ant-form-item-label > label {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-body .ant-form-item-label > label {
   font-size: 13px;
   color: #666;
   font-weight: 500;
 }
 
-.m5-bottom-sheet-body .ant-select-selector,
-.m5-bottom-sheet-body .ant-input {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-body .ant-select-selector, :where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-body .ant-input {
   border-radius: 10px !important;
   height: 40px !important;
   font-size: 15px !important;
 }
 
-.m5-bottom-sheet-footer {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .m5-bottom-sheet-footer {
   display: flex;
   gap: 10px;
   padding: 12px 20px;
@@ -2206,8 +2127,7 @@ div[data-color-mode="light"] .w-md-editor-preview {
 }
 
 /* 移动端铃铛角标缩小 */
-.mobile-bell-badge .ant-badge-count,
-.mobile-bell-badge .ant-badge-count-sm {
+ {
   font-size: 10px !important;
   min-width: 16px !important;
   height: 16px !important;
@@ -2222,7 +2142,7 @@ div[data-color-mode="light"] .w-md-editor-preview {
 }
 
 /* Captcha input addonAfter fix */
-.captcha-input .ant-input-group-addon {
+:where(.ciphergate-page, .ciphergate-portal-page, .ciphergate-public, .ciphergate-overlay) .captcha-input .ant-input-group-addon {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;

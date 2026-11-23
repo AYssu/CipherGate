@@ -2,7 +2,7 @@ import type { PortalPricingPlan } from '../services/types';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, Typography, Row, Col, Button, Tag, message, Modal, Alert, Empty } from 'antd';
 import { CrownOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@umijs/max';
 import { portalMembershipApi } from '../services/portalMembershipService';
 import { portalPaymentApi } from '../services/portalPaymentService';
 

@@ -2,7 +2,7 @@ import type { PortalMembershipInfo } from '../services/types';
 import React, { useEffect, useState } from 'react';
 import { Card, Typography, Descriptions, Tag, Button, Space, Row, Col, Statistic } from 'antd';
 import { CrownOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@umijs/max';
 import { portalMembershipApi } from '../services/portalMembershipService';
 
 const { Title } = Typography;

@@ -200,7 +200,7 @@ CipherGate/
 └── deploy-bundle/          # 生成的部署目录，不提交 Git
 ```
 
-后端采用 Java 17、Spring Boot 4、Spring Security、MyBatis-Plus 与 Flyway；前端采用 React、TypeScript、Vite、Ant Design 与 ECharts。基础设施版本以对应 Compose 文件为准。
+后端采用 Java 17、Spring Boot 4、Spring Security、MyBatis-Plus 与 Flyway；前端采用 React、TypeScript、Ant Design Pro（Umi Max / Pro Components）、Ant Design 与 ECharts。基础设施版本以对应 Compose 文件为准。
 
 ## 贡献与许可
 

@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Umi generated runtime files
+src/.umi
+src/.umi-production
+src/.umi-test

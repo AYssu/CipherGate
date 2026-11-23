@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Typography, Form, Input, Button, message, Space, Row, Col, Tag } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, SendOutlined, SafetyOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { portalSettingsApi } from '../services/portalSettingsService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@umijs/max';
 import { portalAuthApi } from '../services/portalAuthService';
 
 const { Title, Text } = Typography;

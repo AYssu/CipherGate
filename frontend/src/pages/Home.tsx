@@ -958,7 +958,7 @@ const Home: React.FC = () => {
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <a
-              href={import.meta.env.VITE_DOCS_URL || '/docs/'}
+              href={process.env.CIPHERGATE_DOCS_URL || '/docs/'}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -1140,7 +1140,7 @@ const Home: React.FC = () => {
             </div>
             <div>
               <div style={styles.footerColTitle}>资源中心</div>
-              <a href={import.meta.env.VITE_DOCS_URL || '/docs/'} target="_blank" rel="noopener noreferrer" className="home-footer-link" style={styles.footerLink}>使用文档</a>
+              <a href={process.env.CIPHERGATE_DOCS_URL || '/docs/'} target="_blank" rel="noopener noreferrer" className="home-footer-link" style={styles.footerLink}>使用文档</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>更新日志</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>常见问题</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>服务条款</a>

@@ -1,0 +1,18 @@
+@import './index.css';
+@import './App.css';
+
+/* ProLayout owns navigation dimensions; business pages retain their own component styles. */
+.ant-pro-layout .ant-pro-layout-content { min-width: 0; }
+.ciphergate-menu-footer { display: block; padding: 16px; color: #8c8c8c; font-size: 12px; }
+.ciphergate-page { min-width: 0; }
+.ciphergate-page .ant-pro-page-container-children-container,
+.ciphergate-portal-page .ant-pro-page-container-children-container { margin: 0; }
+@media (max-width: 767px) {
+  .ciphergate-page .ant-pro-page-container-children-container,
+  .ciphergate-portal-page .ant-pro-page-container-children-container { padding: 12px 0; }
+  .ant-pro-layout .ant-pro-layout-content { padding-inline: 12px; }
+}
+
+.ciphergate-mobile-header { position: relative; height: 100%; }
+.ciphergate-mobile-header .ant-pro-global-header-collapsed-button { visibility: hidden; pointer-events: none; }
+.ciphergate-mobile-nav-toggle { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); }

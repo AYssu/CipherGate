@@ -46,6 +46,12 @@ python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
 核心业务、页面故障恢复和备份演练的验收矩阵见[稳定性与体验验收](docs/stability-acceptance.md)。测试应验证行为和失败分支。缺陷修复需补充可重现问题的回归测试；权限、凭证、迁移、充值和文件访问变更需覆盖拒绝或失败场景。浏览器测试验证用户操作，避免将组件实现细节作为断言。
 
+## 前端工程约定
+
+前端采用 Ant Design Pro 基底，入口、运行时和开发说明见 [frontend/README.md](frontend/README.md)。新增页面须登记到 `frontend/config/routes.ts`；后台菜单由服务端权限数据生成，公开页与门户显式设置 `layout: false`。使用 `@umijs/max` 的路由接口，保留现有会话、CSRF、Token 和接口响应契约。共享后台及门户布局已提供 `PageContainer`，业务页面只负责自身内容。
+
+样式应限定在页面范围内；禁止依靠全局 `.ant-*` 覆盖修改导航。Umi 的 `src/.umi*` 是生成目录，不提交源码或发布包。提交前同时运行路由契约测试和桌面/移动浏览器测试。
+
 ## 集成测试
 
 ### 隔离环境

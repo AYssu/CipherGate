@@ -42,15 +42,15 @@ cd frontend && npm run lint
 ## Structure
 
 - `src/` — Spring Boot backend (MyBatis-Plus, Security, WebSocket, RabbitMQ)
-- `frontend/` — React + TypeScript (Vite, Ant Design, ECharts)
+- `frontend/` — React + TypeScript (Ant Design Pro / Umi Max, Ant Design, ECharts)
 - `plugins/` — PF4J plugins (each subfolder is a standalone Gradle project)
 - `ciphergate-plugin-api/` — shared plugin API (included in main build via `settings.gradle`)
 - `deploy-bundle/` — packaging output (JAR + frontend dist + plugins + compose)
 
 ## Key conventions
 
-- **Ports**: backend 8080 (prod via `BACKEND_PORT`), frontend dev 5173 (Vite default)
-- **Frontend proxy**: Vite proxies `/api` to `http://localhost:8080` (see `frontend/vite.config.ts`)
+- **Ports**: backend 8080 (prod via `BACKEND_PORT`), frontend dev 5173 (`npm run dev`)
+- **Frontend proxy**: Umi proxies `/api` to `http://localhost:8080` (see `frontend/config/config.ts`)
 - **MyBatis-Plus**: logical deletes enabled (`deleted` field, 1=deleted, 0=active)
 - **Config**: environment variables override `application.yaml` defaults; see `compose.yaml` / `application-dev.yaml` for local-only credentials; `.env.server.example` is the public production template
 - **CI**: fork-safe PR checks cover backend/frontend/plugins/docs; releases require tags, then package on Linux and Windows; both deploy scripts use `scripts/project.py`
@@ -75,7 +75,7 @@ cd frontend && npm run lint
 - Root `package.json` is only for `caveman-installer` — not the frontend. Frontend is `frontend/package.json`.
 - Both deploy scripts use the same Python packaging implementation; install Node 22.22.0 and Python 3.12+.
 - Docker Compose services use non-standard host ports (e.g., MySQL 13306, Redis 16379) to avoid conflicts.
-- Frontend build (`npm run build`) runs TypeScript compilation first (`tsc -b`) — type errors will fail the build.
+- Frontend build (`npm run build`) generates Umi runtime types, then runs TypeScript compilation (`tsc -b`) — type errors will fail the build.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
@@ -122,3 +122,11 @@ gives you structural context (callers, dependents, test coverage) that file sear
 3. Use `get_affected_flows_tool` to understand impact.
 4. Use `query_graph_tool` pattern="tests_for" to check coverage.
 <!-- /code-review-graph MCP tools -->
+
+## Frontend foundation
+
+- Ant Design Pro foundation uses Umi Max and Pro Components. `config/routes.ts` owns every admin, portal and public route; use router hooks from `@umijs/max`. Do not introduce a second RouterProvider or Vite entry point.
+- `src/app.tsx` owns administrator initial state and ProLayout runtime configuration. Backend menus remain the source of menu permissions; `src/navigation/menu.tsx` maps them to Pro menus. The backend remains the authority for endpoint authorization.
+- Public pages opt out of the admin layout; portal authentication stays scoped to its own Token client. Retain CSRF/session handling in `src/utils/request.ts` and the portal client.
+- Shared layouts provide PageContainer. Keep business styles scoped to page classes; avoid global Ant component overrides that affect Pro navigation.
+- `npm ci` runs `max setup`; generated `src/.umi*` files are ignored and must not be committed. Production output remains `frontend/dist`. See `frontend/README.md` and `frontend/TESTING.md`.

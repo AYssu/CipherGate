@@ -1,11 +1,11 @@
 import type { PortalAppInfo } from '../services/types';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@umijs/max';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React from 'react';
 import { Alert, Button, List, Typography, Avatar, Tag, Space } from 'antd';
 import { AppstoreOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@umijs/max';
 import { portalAuthApi } from '../services/portalAuthService';
 
 const { Text } = Typography;
