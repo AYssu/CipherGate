@@ -1,0 +1,82 @@
+.portal-recharge {
+  --recharge-ink: #172b42;
+  --recharge-muted: #667589;
+  --recharge-blue: #1765d1;
+  --recharge-line: #e2e8ef;
+  --recharge-offer: #a74620;
+  color: var(--recharge-ink);
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.portal-recharge__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.portal-recharge .portal-recharge__title { margin: 0 0 7px; color: var(--recharge-ink); font-size: 24px; }
+.portal-recharge__header p { margin: 0; color: var(--recharge-muted); font-size: 14px; }
+.portal-recharge__orders { flex-shrink: 0; font-size: 14px; }
+.portal-recharge__plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+
+.recharge-plan {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 1px solid var(--recharge-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.recharge-plan--limited { border-color: #9bbdec; box-shadow: inset 0 3px 0 var(--recharge-blue); }
+.recharge-plan__topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.recharge-plan__kind { display: inline-flex; align-items: center; gap: 6px; color: var(--recharge-muted); font-size: 12px; }
+.recharge-plan__saving { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 5px; background: #fff0e7; color: var(--recharge-offer); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.recharge-plan__name { margin: 19px 0 5px; font-size: 20px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.recharge-plan__duration { margin: 0; color: var(--recharge-muted); font-size: 13px; }
+.recharge-plan__pricing { margin: 28px 0 24px; }
+.recharge-plan__current { display: flex; align-items: baseline; gap: 3px; color: var(--recharge-ink); font-size: clamp(30px, 2.7vw, 40px); font-weight: 650; line-height: 1.2; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.recharge-plan__currency { font-size: 20px; font-weight: 500; letter-spacing: 0; }
+.recharge-plan__reference { min-height: 22px; margin-top: 9px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; color: var(--recharge-muted); font-size: 12px; line-height: 22px; }
+.recharge-plan__offer { margin-left: 4px; color: var(--recharge-offer); }
+.recharge-plan__footer { margin-top: auto; padding-top: 16px; border-top: 1px solid #edf0f4; }
+.recharge-plan__availability { min-height: 22px; margin-bottom: 12px; color: var(--recharge-muted); font-size: 12px; }
+.recharge-plan__stock { display: inline-flex; align-items: center; gap: 4px; color: var(--recharge-blue); }
+.recharge-plan__stock strong { font-size: 14px; }
+.recharge-plan__stock-dot { width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: currentColor; }
+.portal-recharge .recharge-plan__buy { height: 40px; border-radius: 7px; font-size: 14px; font-weight: 500; box-shadow: none; }
+.portal-recharge .recharge-plan__buy:not(:disabled) { background: var(--recharge-blue); border-color: var(--recharge-blue); }
+.portal-recharge .recharge-plan__buy:not(:disabled):hover { background: #1055b8; border-color: #1055b8; }
+.recharge-plan--sold-out .recharge-plan__stock { color: var(--recharge-muted); }
+.portal-recharge a:focus-visible { outline: 2px solid var(--recharge-blue); outline-offset: 4px; border-radius: 2px; }
+
+@media (max-width: 1100px) and (min-width: 701px) {
+  .portal-recharge__plans { gap: 12px; }
+  .recharge-plan { padding: 18px; }
+  .recharge-plan__topline { flex-wrap: wrap; }
+}
+
+@media (max-width: 700px) {
+  .portal-recharge__header { position: relative; display: block; padding-top: 0; margin-bottom: 20px; }
+  .portal-recharge .portal-recharge__title { font-size: 22px; }
+  .portal-recharge__header p { font-size: 12px; line-height: 1.7; }
+  .portal-recharge__orders { position: absolute; right: 0; top: 6px; font-size: 12px; }
+  .portal-recharge__plans { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .recharge-plan { padding: 20px; }
+  .recharge-plan__name { margin-top: 10px; font-size: 19px; }
+  .recharge-plan__pricing { margin: 19px 0; }
+  .recharge-plan__current { font-size: 36px; }
+  .recharge-plan__footer { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 12px; padding-top: 15px; }
+  .recharge-plan__availability { min-height: auto; margin: 0; }
+}
+
+@media (max-width: 360px) {
+  .recharge-plan { padding: 17px; }
+  .portal-recharge__header { gap: 7px; }
+  .portal-recharge__orders { font-size: 11px; }
+  .recharge-plan__footer { grid-template-columns: minmax(0, 1fr) 100px; }
+}

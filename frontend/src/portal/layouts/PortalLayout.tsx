@@ -154,7 +154,7 @@ const PortalLayout: React.FC = () => {
           </Header>
         )}
 
-        <Content style={{ margin: isMobile ? 12 : 24, padding: isMobile ? 12 : 24, background: '#f0f2f5', minHeight: 280 }}>
+        <Content style={{ margin: isMobile ? 12 : 24, padding: isMobile ? 12 : 24, background: location.pathname === '/portal/recharge' ? 'transparent' : '#f0f2f5', minHeight: 280 }}>
           <Outlet />
         </Content>
       </Layout>
