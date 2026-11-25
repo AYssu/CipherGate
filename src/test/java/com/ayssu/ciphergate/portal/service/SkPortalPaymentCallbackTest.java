@@ -27,12 +27,14 @@ class SkPortalPaymentCallbackTest {
         AppUserMapper users=mock(AppUserMapper.class);
         PortalPaymentService service=new PortalPaymentService(orders,mock(PortalPricingPlanMapper.class),configs,
             mock(ApplicationMapper.class),users,mock(SystemConfigService.class));
-        PortalPaymentOrder order=new PortalPaymentOrder();order.setOrderNo("P1");order.setAppId(10L);
+        PortalPaymentOrder order=new PortalPaymentOrder();order.setId(1L);order.setStatus(0);order.setOrderNo("P1");order.setAppId(10L);
         order.setAppUserId(20L);order.setAmountFen(101L);order.setDurationDays(30);
         when(orders.selectOne(any(Wrapper.class))).thenReturn(order);
         ApplicationEpayConfig config=new ApplicationEpayConfig();config.setEpayPid("123");config.setEpayKey("test-secret");
         when(configs.selectOne(any(Wrapper.class))).thenReturn(config);
-        when(orders.update(isNull(),any(Wrapper.class))).thenReturn(1,0);
+        when(orders.selectForUpdate(1L)).thenReturn(order);
+        when(orders.update(isNull(),any(Wrapper.class))).thenAnswer(invocation->{ order.setStatus(1);order.setTradeNo("T1");return 1; });
+        when(users.updateById(any(AppUser.class))).thenReturn(1);
         AppUser user=new AppUser();user.setId(20L);when(users.selectForUpdate(20L)).thenReturn(user);
         Map<String,String> p=new TreeMap<>(Map.of("pid","123","money","1.01","name","会员","out_trade_no","P1","trade_no","T1","type","alipay","trade_status","TRADE_SUCCESS"));
         SkPaymentSignature.seal(p,"test-secret","payment.notify");

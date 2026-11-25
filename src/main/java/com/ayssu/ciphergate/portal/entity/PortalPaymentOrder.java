@@ -28,6 +28,7 @@ public class PortalPaymentOrder implements Serializable {
     private Integer status;
     private LocalDateTime paidAt;
     private Boolean notifyReceived;
+    private Boolean stockReserved;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

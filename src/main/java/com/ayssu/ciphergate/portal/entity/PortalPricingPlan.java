@@ -20,6 +20,9 @@ public class PortalPricingPlan implements Serializable {
     private String planType;
     private Integer durationDays;
     private Long priceFen;
+    private Long originalPriceFen;
+    private Integer stockRemaining;
+    private Long revision;
     private Integer sortOrder;
     private Boolean enabled;
 
