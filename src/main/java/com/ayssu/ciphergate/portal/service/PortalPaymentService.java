@@ -39,7 +39,7 @@ public class PortalPaymentService {
 
     private static final DateTimeFormatter ORDER_NO_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
-    @Transactional
+    @Transactional(noRollbackFor = PortalCheckoutPendingException.class)
     public PortalPaymentOrder createOrder(Long appUserId, Long appId, Long planId) {
         // 校验应用支付功能
         Application app = applicationMapper.selectById(appId);
@@ -48,12 +48,21 @@ public class PortalPaymentService {
         }
 
         // 校验定价方案
-        PortalPricingPlan plan = planMapper.selectById(planId);
+        PortalPricingPlan plan = planMapper.selectForUpdate(planId);
         if (plan == null || !plan.getAppId().equals(appId) || !Boolean.TRUE.equals(plan.getEnabled())) {
             throw new IllegalArgumentException("定价方案不存在或已停用");
         }
 
-        // 创建订单
+        ApplicationEpayConfig epayConfig = epayConfigMapper.selectOne(
+            new LambdaQueryWrapper<ApplicationEpayConfig>()
+                .eq(ApplicationEpayConfig::getAppId, appId)
+                .eq(ApplicationEpayConfig::getEnabled, true));
+        if (epayConfig == null) throw new IllegalArgumentException("该应用未配置支付网关");
+        if (plan.getPriceFen() == null || plan.getPriceFen() <= 0) throw new IllegalArgumentException("方案价格无效");
+        boolean limited = plan.getStockRemaining() != null;
+        if (limited && planMapper.reserveStock(planId) != 1) {
+            throw new IllegalArgumentException("该方案已售罄，请选择其他方案");
+        }
         PortalPaymentOrder order = new PortalPaymentOrder();
         order.setOrderNo(generateOrderNo());
         order.setAppUserId(appUserId);
@@ -64,24 +73,21 @@ public class PortalPaymentService {
         order.setAmountFen(plan.getPriceFen());
         order.setPaymentChannel("alipay");
         order.setStatus(0);
-
-        orderMapper.insert(order);
-
-        // 获取易支付配置
-        ApplicationEpayConfig epayConfig = epayConfigMapper.selectOne(
-            new LambdaQueryWrapper<ApplicationEpayConfig>()
-                .eq(ApplicationEpayConfig::getAppId, appId)
-                .eq(ApplicationEpayConfig::getEnabled, true)
-        );
-
-        if (epayConfig == null) {
-            throw new IllegalArgumentException("该应用未配置支付网关");
-        }
+        order.setStockReserved(limited);
+        if (orderMapper.insert(order) != 1) throw new IllegalStateException("订单保存失败");
 
         // 通过 SK 网关创建订单并取得付款地址
-        String payUrl = buildPayUrl(epayConfig, order);
+        String payUrl;
+        try {
+            payUrl = buildPayUrl(epayConfig, order);
+        } catch (RuntimeException e) {
+            // An HTTP timeout does not prove the gateway failed to create its order.
+            // Commit the snapshot and reservation, then reconcile through /pay/query.
+            log.warn("门户付款地址暂不可用，保留订单等待核对: orderNo={}", order.getOrderNo());
+            throw new PortalCheckoutPendingException();
+        }
         order.setPayUrl(payUrl);
-        orderMapper.updateById(order);
+        if (orderMapper.updateById(order) != 1) throw new PortalCheckoutPendingException();
 
         log.info("创建门户支付订单: orderNo={}, appId={}, planId={}, amount={}",
             order.getOrderNo(), appId, planId, plan.getPriceFen());
@@ -167,21 +173,69 @@ public class PortalPaymentService {
             return false;
         }
 
-        boolean claimed = orderMapper.update(null, new LambdaUpdateWrapper<PortalPaymentOrder>()
-            .eq(PortalPaymentOrder::getOrderNo, orderNo)
-            .eq(PortalPaymentOrder::getStatus, 0)
+        return completeOrder(order, tradeNo);
+    }
+
+    /** All inventory transitions lock plan -> order -> user, matching creation and management. */
+    private boolean completeOrder(PortalPaymentOrder snapshot, String tradeNo) {
+        lockPlan(snapshot);
+        PortalPaymentOrder order = orderMapper.selectForUpdate(snapshot.getId());
+        if (order == null) return false;
+        if (Integer.valueOf(1).equals(order.getStatus())) return java.util.Objects.equals(order.getTradeNo(), tradeNo);
+        if (!Integer.valueOf(0).equals(order.getStatus())) {
+            log.warn("已关闭门户订单收到付款结果，需人工核对: orderNo={}", order.getOrderNo());
+            return false;
+        }
+        int changed = orderMapper.update(null, new LambdaUpdateWrapper<PortalPaymentOrder>()
+            .eq(PortalPaymentOrder::getId, order.getId()).eq(PortalPaymentOrder::getStatus, 0)
             .set(PortalPaymentOrder::getStatus, 1)
             .set(PortalPaymentOrder::getTradeNo, tradeNo)
             .set(PortalPaymentOrder::getPaidAt, LocalDateTime.now())
-            .set(PortalPaymentOrder::getNotifyReceived, true)) > 0;
-        if (!claimed) {
-            log.info("门户支付回调重复到达, orderNo={}", orderNo);
-            return true;
-        }
-
+            .set(PortalPaymentOrder::getNotifyReceived, true)
+            .set(PortalPaymentOrder::getStockReserved, false));
+        if (changed != 1) throw new IllegalStateException("订单完成状态更新失败");
         extendMembership(order);
-        log.info("门户支付订单完成: orderNo={}, tradeNo={}", orderNo, tradeNo);
+        log.info("门户支付订单完成: orderNo={}, tradeNo={}", order.getOrderNo(), tradeNo);
         return true;
+    }
+
+    private void lockPlan(PortalPaymentOrder order) {
+        PortalPricingPlan plan = order.getPlanId() == null ? null : planMapper.selectForUpdate(order.getPlanId());
+        if (Boolean.TRUE.equals(order.getStockReserved()) && plan == null) {
+            throw new IllegalStateException("库存方案缺失，需人工核对");
+        }
+    }
+
+    /** A local timeout alone must never free stock while a payable/paid gateway order exists. */
+    @Transactional
+    public void reconcileExpiredOrder(Long orderId) {
+        PortalPaymentOrder snapshot = orderMapper.selectById(orderId);
+        if (snapshot == null || !Integer.valueOf(0).equals(snapshot.getStatus())
+                || snapshot.getCreatedAt() == null || snapshot.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(30))) return;
+        ApplicationEpayConfig config = epayConfigMapper.selectOne(new LambdaQueryWrapper<ApplicationEpayConfig>()
+            .eq(ApplicationEpayConfig::getAppId, snapshot.getAppId()).eq(ApplicationEpayConfig::getEnabled, true));
+        if (config == null) return; // Retain reservations until an operator restores the gateway configuration.
+        SkPaymentGateway.OrderState remote = SkPaymentGateway.queryOrder(
+            config.getEpayUrl(), config.getEpayPid(), snapshot.getOrderNo(), config.getEpayKey());
+        if (remote != null && (snapshot.getAmountFen() == null || remote.amountFen() != snapshot.getAmountFen())) {
+            throw new IllegalStateException("支付订单核对金额不一致");
+        }
+        if (remote != null && "PAID".equals(remote.status())) {
+            completeOrder(snapshot, remote.tradeNo());
+            return;
+        }
+        if (remote != null && !java.util.Set.of("CLOSED", "FAILED", "REFUNDED").contains(remote.status())) return;
+        lockPlan(snapshot);
+        PortalPaymentOrder order = orderMapper.selectForUpdate(orderId);
+        if (order == null || !Integer.valueOf(0).equals(order.getStatus())) return;
+        int changed = orderMapper.update(null, new LambdaUpdateWrapper<PortalPaymentOrder>()
+            .eq(PortalPaymentOrder::getId, orderId).eq(PortalPaymentOrder::getStatus, 0)
+            .set(PortalPaymentOrder::getStatus, 2).set(PortalPaymentOrder::getStockReserved, false)
+            .set(PortalPaymentOrder::getUpdatedAt, LocalDateTime.now()));
+        if (changed != 1) throw new IllegalStateException("订单关闭失败");
+        if (Boolean.TRUE.equals(order.getStockReserved()) && planMapper.releaseStock(order.getPlanId()) != 1) {
+            throw new IllegalStateException("库存释放失败");
+        }
     }
 
     private boolean hasRequiredNotifyFields(Map<String, String> params) {
@@ -228,7 +282,7 @@ public class PortalPaymentService {
 
     private void extendMembership(PortalPaymentOrder order) {
         AppUser appUser = appUserMapper.selectForUpdate(order.getAppUserId());
-        if (appUser == null) return;
+        if (appUser == null) throw new IllegalStateException("付款用户不存在，需人工核对");
 
         LocalDateTime baseTime = appUser.getMemberExpiresAt() != null
             && appUser.getMemberExpiresAt().isAfter(LocalDateTime.now())
@@ -243,7 +297,7 @@ public class PortalPaymentService {
         }
 
         appUser.setUpdatedAt(LocalDateTime.now());
-        appUserMapper.updateById(appUser);
+        if (appUserMapper.updateById(appUser) != 1) throw new IllegalStateException("会员权益更新失败");
     }
 
     private String buildPayUrl(ApplicationEpayConfig config, PortalPaymentOrder order) {

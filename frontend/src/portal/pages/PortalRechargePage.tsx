@@ -32,7 +32,7 @@ const PortalRechargePage: React.FC = () => {
   useEffect(() => { void loadPlans(); }, [loadPlans]);
 
   const handleOrder = async (plan: PortalPricingPlan) => {
-    if (orderPending.current) return;
+    if (orderPending.current || plan.stockRemaining === 0) return;
     orderPending.current = true;
     setOrdering(plan.id);
     let dialogOpened = false;
@@ -40,6 +40,7 @@ const PortalRechargePage: React.FC = () => {
     try {
       const res = await portalPaymentApi.createOrder(plan.id);
       if (res?.data) {
+        void loadPlans();
         dialogOpened = true;
         Modal.confirm({
           title: '确认支付',
@@ -77,7 +78,7 @@ const PortalRechargePage: React.FC = () => {
         message.error('订单创建结果不完整，请先查看订单记录，避免重复下单');
       }
     } catch {
-      // error handled by interceptor
+      void loadPlans(); // Refresh stock after a concurrent purchase or an uncertain gateway result.
     } finally {
       if (!dialogOpened) releaseOrder();
     }
@@ -106,18 +107,29 @@ const PortalRechargePage: React.FC = () => {
                 hoverable
                 style={{ textAlign: 'center' }}
                 actions={[
-                  <Button type="primary" loading={ordering === plan.id} disabled={ordering !== null} onClick={() => handleOrder(plan)}>
-                    购买
+                  <Button type="primary" loading={ordering === plan.id} disabled={ordering !== null || plan.stockRemaining === 0} onClick={() => handleOrder(plan)}>
+                    {plan.stockRemaining === 0 ? '已售罄' : '购买'}
                   </Button>,
                 ]}
               >
                 <CrownOutlined style={{ fontSize: 32, color: '#faad14', marginBottom: 12 }} />
                 <Title level={4} style={{ margin: 0 }}>{plan.planName}</Title>
-                <div style={{ margin: '16px 0' }}>
+                <div style={{ margin: '16px 0', display: 'flex', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  {plan.originalPriceFen != null && plan.originalPriceFen > plan.priceFen && (
+                    <>
+                      <Text type="secondary" delete>原价 ¥{(plan.originalPriceFen / 100).toFixed(2)}</Text>
+                      <Tag color="red">优惠价</Tag>
+                    </>
+                  )}
                   <Text style={{ fontSize: 28, fontWeight: 700, color: '#ff4d4f' }}>
                     ¥{(plan.priceFen / 100).toFixed(2)}
                   </Text>
                 </div>
+                {plan.stockRemaining != null && (
+                  <Tag color={plan.stockRemaining === 0 ? 'default' : 'orange'}>
+                    {plan.stockRemaining === 0 ? '已售罄' : `限量 · 剩余 ${plan.stockRemaining} 份`}
+                  </Tag>
+                )}
                 <Tag color={plan.planType === 'PERMANENT' ? 'gold' : 'blue'}>
                   {plan.planType === 'PERMANENT' ? '永久' : `${plan.durationDays}天`}
                 </Tag>

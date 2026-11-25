@@ -2,6 +2,7 @@ package com.ayssu.ciphergate.portal.scheduler;
 
 import com.ayssu.ciphergate.portal.entity.PortalPaymentOrder;
 import com.ayssu.ciphergate.portal.mapper.PortalPaymentOrderMapper;
+import com.ayssu.ciphergate.portal.service.PortalPaymentService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 public class PortalOrderTimeoutScheduler {
 
     private final PortalPaymentOrderMapper orderMapper;
+    private final PortalPaymentService paymentService;
 
     private static final int TIMEOUT_MINUTES = 30;
 
@@ -23,12 +25,20 @@ public class PortalOrderTimeoutScheduler {
     public void closeExpiredOrders() {
         LocalDateTime expireTime = LocalDateTime.now().minusMinutes(TIMEOUT_MINUTES);
 
-        int closed = orderMapper.update(null,
-                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<PortalPaymentOrder>()
-                        .eq(PortalPaymentOrder::getStatus, 0)
-                        .lt(PortalPaymentOrder::getCreatedAt, expireTime)
-                        .set(PortalPaymentOrder::getStatus, 2)
-                        .set(PortalPaymentOrder::getUpdatedAt, LocalDateTime.now()));
-        if (closed > 0) log.info("本次关闭超时订单数量: {}", closed);
+        var orders = orderMapper.selectList(new LambdaQueryWrapper<PortalPaymentOrder>()
+            .eq(PortalPaymentOrder::getStatus, 0).lt(PortalPaymentOrder::getCreatedAt, expireTime)
+            .orderByAsc(PortalPaymentOrder::getUpdatedAt).last("LIMIT 100"));
+        for (PortalPaymentOrder order : orders) {
+            try {
+                paymentService.reconcileExpiredOrder(order.getId());
+            } catch (RuntimeException e) {
+                log.warn("门户超时订单暂无法核对，保留订单及库存: orderNo={}", order.getOrderNo());
+            } finally {
+                // Rotate inconclusive orders, so the oldest failing gateway cannot starve later reservations.
+                orderMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<PortalPaymentOrder>()
+                    .eq(PortalPaymentOrder::getId, order.getId()).eq(PortalPaymentOrder::getStatus, 0)
+                    .set(PortalPaymentOrder::getUpdatedAt, LocalDateTime.now()));
+            }
+        }
     }
 }

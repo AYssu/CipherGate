@@ -13,7 +13,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import com.ayssu.ciphergate.portal.dto.PortalPricingPlanRequest;
+import com.ayssu.ciphergate.portal.service.PortalPricingPlanService;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -24,6 +26,12 @@ public class PortalPricingPlanController {
 
     private final PortalPricingPlanMapper planMapper;
     private final ApplicationMapper applicationMapper;
+    private final PortalPricingPlanService pricingService;
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Result<Void> invalidPlan(IllegalArgumentException error) {
+        return Result.badRequest(error.getMessage());
+    }
 
     @GetMapping
     @Operation(summary = "获取价格方案列表")
@@ -41,33 +49,21 @@ public class PortalPricingPlanController {
 
     @PostMapping
     @Operation(summary = "创建价格方案")
-    public Result<Void> create(@PathVariable Long appId, @RequestBody PortalPricingPlan plan) {
+    public Result<Void> create(@PathVariable Long appId, @Valid @RequestBody PortalPricingPlanRequest plan) {
         User user = AuthUtils.getCurrentUser();
         if (user == null) return Result.error(401, "未登录");
         checkPermission(appId, user);
-        plan.setAppId(appId);
-        if (plan.getEnabled() == null) plan.setEnabled(true);
-        if (plan.getSortOrder() == null) plan.setSortOrder(0);
-        plan.setCreatedAt(LocalDateTime.now());
-        plan.setUpdatedAt(LocalDateTime.now());
-        planMapper.insert(plan);
+        pricingService.create(appId, plan);
         return Result.success("创建成功", null);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "更新价格方案")
-    public Result<Void> update(@PathVariable Long appId, @PathVariable Long id, @RequestBody PortalPricingPlan plan) {
+    public Result<Void> update(@PathVariable Long appId, @PathVariable Long id, @Valid @RequestBody PortalPricingPlanRequest plan) {
         User user = AuthUtils.getCurrentUser();
         if (user == null) return Result.error(401, "未登录");
         checkPermission(appId, user);
-        PortalPricingPlan existing = planMapper.selectById(id);
-        if (existing == null || !existing.getAppId().equals(appId)) {
-            return Result.badRequest("方案不存在");
-        }
-        plan.setId(id);
-        plan.setAppId(appId);
-        plan.setUpdatedAt(LocalDateTime.now());
-        planMapper.updateById(plan);
+        pricingService.update(appId, id, plan);
         return Result.success("更新成功", null);
     }
 
@@ -77,11 +73,7 @@ public class PortalPricingPlanController {
         User user = AuthUtils.getCurrentUser();
         if (user == null) return Result.error(401, "未登录");
         checkPermission(appId, user);
-        PortalPricingPlan existing = planMapper.selectById(id);
-        if (existing == null || !existing.getAppId().equals(appId)) {
-            return Result.badRequest("方案不存在");
-        }
-        planMapper.deleteById(id);
+        pricingService.delete(appId, id);
         return Result.success("删除成功", null);
     }
 

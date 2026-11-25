@@ -2175,6 +2175,7 @@ const ApplicationManagementContent: React.FC = () => {
           </div>
           <Table
             dataSource={pricingList}
+            scroll={{ x: 960 }}
             rowKey="id"
             loading={pricingLoading}
             pagination={false}
@@ -2183,7 +2184,9 @@ const ApplicationManagementContent: React.FC = () => {
               { title: '方案名称', dataIndex: 'planName', key: 'planName' },
               { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
               { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
-              { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '现价(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '原价(元)', dataIndex: 'originalPriceFen', key: 'originalPriceFen', render: (v: number | null) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '剩余可售', dataIndex: 'stockRemaining', key: 'stockRemaining', render: (v: number | null) => v == null ? '不限量' : v === 0 ? <Tag>已售罄</Tag> : `${v} 份` },
               { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
               { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
               {
@@ -2244,8 +2247,10 @@ const ApplicationManagementContent: React.FC = () => {
                 </Row>
                 <Row gutter={16}>
                   <Col span={8}>
-                    <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
-                      <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
+                    <Form.Item name="priceFen" label="现价(元)" rules={[{ required: true, message: '请输入现价' }]}
+                      getValueProps={(v: number | undefined) => ({ value: v == null ? null : v / 100 })}
+                      normalize={(v: number | null) => v == null ? null : Math.round(v * 100)}>
+                      <InputNumber min={0.01} precision={2} style={{ width: '100%' }} placeholder="如：25.00" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
@@ -2259,6 +2264,21 @@ const ApplicationManagementContent: React.FC = () => {
                     </Form.Item>
                   </Col>
                 </Row>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item name="originalPriceFen" label="原价(元)" extra="选填；高于现价时展示原价和优惠标签"
+                      getValueProps={(v: number | undefined) => ({ value: v == null ? null : v / 100 })}
+                      normalize={(v: number | null) => v == null ? null : Math.round(v * 100)}>
+                      <InputNumber min={0.01} precision={2} style={{ width: '100%' }} placeholder="如：40.00" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item name="stockRemaining" label="剩余可售(份)" extra="留空为不限量；0 为售罄。下单占用，未支付关闭后返还。">
+                      <InputNumber min={0} max={2147483646} precision={0} style={{ width: '100%' }} placeholder="不限量" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="revision" hidden><InputNumber /></Form.Item>
                 <Form.Item>
                   <Space>
                     <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>
@@ -2284,6 +2304,7 @@ const ApplicationManagementContent: React.FC = () => {
           </div>
           <Table
             dataSource={pricingList}
+            scroll={{ x: 960 }}
             rowKey="id"
             loading={pricingLoading}
             pagination={false}
@@ -2292,7 +2313,9 @@ const ApplicationManagementContent: React.FC = () => {
               { title: '方案名称', dataIndex: 'planName', key: 'planName' },
               { title: '类型', dataIndex: 'planType', key: 'planType', render: (v: string) => v === 'MEMBER' ? '会员' : v === 'TRIAL' ? '试用' : v },
               { title: '时长(天)', dataIndex: 'durationDays', key: 'durationDays' },
-              { title: '价格(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '现价(元)', dataIndex: 'priceFen', key: 'priceFen', render: (v: number) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '原价(元)', dataIndex: 'originalPriceFen', key: 'originalPriceFen', render: (v: number | null) => v != null ? `¥${(v / 100).toFixed(2)}` : '-' },
+              { title: '剩余可售', dataIndex: 'stockRemaining', key: 'stockRemaining', render: (v: number | null) => v == null ? '不限量' : v === 0 ? <Tag>已售罄</Tag> : `${v} 份` },
               { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
               { title: '状态', dataIndex: 'enabled', key: 'enabled', render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? '启用' : '禁用'}</Tag> },
               {
@@ -2353,8 +2376,10 @@ const ApplicationManagementContent: React.FC = () => {
                 </Row>
                 <Row gutter={16}>
                   <Col span={8}>
-                    <Form.Item name="priceFen" label="价格(分)" rules={[{ required: true, message: '请输入价格' }]}>
-                      <InputNumber min={0} style={{ width: '100%' }} placeholder="如：1990 = ¥19.90" />
+                    <Form.Item name="priceFen" label="现价(元)" rules={[{ required: true, message: '请输入现价' }]}
+                      getValueProps={(v: number | undefined) => ({ value: v == null ? null : v / 100 })}
+                      normalize={(v: number | null) => v == null ? null : Math.round(v * 100)}>
+                      <InputNumber min={0.01} precision={2} style={{ width: '100%' }} placeholder="如：25.00" />
                     </Form.Item>
                   </Col>
                   <Col span={8}>
@@ -2368,6 +2393,21 @@ const ApplicationManagementContent: React.FC = () => {
                     </Form.Item>
                   </Col>
                 </Row>
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item name="originalPriceFen" label="原价(元)" extra="选填；高于现价时展示原价和优惠标签"
+                      getValueProps={(v: number | undefined) => ({ value: v == null ? null : v / 100 })}
+                      normalize={(v: number | null) => v == null ? null : Math.round(v * 100)}>
+                      <InputNumber min={0.01} precision={2} style={{ width: '100%' }} placeholder="如：40.00" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item name="stockRemaining" label="剩余可售(份)" extra="留空为不限量；0 为售罄。下单占用，未支付关闭后返还。">
+                      <InputNumber min={0} max={2147483646} precision={0} style={{ width: '100%' }} placeholder="不限量" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Form.Item name="revision" hidden><InputNumber /></Form.Item>
                 <Form.Item>
                   <Space>
                     <Button type="primary" htmlType="submit">{editingPricing ? '保存' : '创建'}</Button>

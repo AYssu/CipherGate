@@ -19,7 +19,7 @@ export interface PortalMembershipInfo {
   memberActive: boolean; loginCount: number | null; lastLoginAt: string | null;
   trialActive: boolean; trialExpiresAt: string | null; trialApplied: boolean;
 }
-export interface PortalPricingPlan { id: number; planName: string; planType: string; durationDays: number | null; priceFen: number; sortOrder: number }
+export interface PortalPricingPlan { id: number; planName: string; planType: string; durationDays: number | null; priceFen: number; originalPriceFen?: number | null; stockRemaining?: number | null; revision?: number; sortOrder: number }
 export interface PortalCreatedOrder { orderNo: string; payUrl: string; amount: number; planName: string }
 export interface PortalOrder { id: number; orderNo: string; planName: string | null; amountFen: number; status: number; createdAt: string; paidAt: string | null }
 export interface PortalEpayConfig { appId: number; epayUrl: string; epayPid: string; epayKey?: string; notifyUrl: string | null; returnUrl: string | null; enabled: boolean }
