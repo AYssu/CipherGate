@@ -2,7 +2,7 @@ import type { PortalPasswordReset } from '../services/types';
 import CaptchaImage from '../../components/CaptchaImage';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React, { useState, useCallback, useEffect } from 'react';
-import { Form, Input, Button, message, Steps, Select } from 'antd';
+import { Form, Input, Button, message, Select } from 'antd';
 import { MailOutlined, LockOutlined, SendOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { portalAuthApi } from '../services/portalAuthService';
@@ -74,9 +74,9 @@ const PortalPasswordRecoveryPage: React.FC = () => {
 
   return (
     <PublicServiceLayout title="找回密码" description="验证注册邮箱后，为您选择的应用设置新密码。" help="验证码发送到您的注册邮箱，5 分钟内有效。请留意垃圾邮件文件夹。">
-          <Steps current={currentStep} size="small" style={{ marginBottom: 24 }}
-            items={[{ title: '发送验证码' }, { title: '验证邮箱' }, { title: '重置密码' }]}
-          />
+          <ol className="public-service-steps" aria-label="找回密码步骤">
+            {['填写邮箱', '验证邮箱', '设置密码'].map((step, index) => <li key={step} aria-current={currentStep === index ? 'step' : undefined}><span>{index + 1}</span>{step}</li>)}
+          </ol>
 
           {currentStep === 0 && (
             <Form form={form} layout="vertical" onFinish={handleSendCode}>
@@ -118,11 +118,9 @@ const PortalPasswordRecoveryPage: React.FC = () => {
             </Form>
           )}
           {currentStep > 0 && <>
-          <Button type="link" disabled={loading} onClick={() => { setCurrentStep(0); void refreshCaptcha(); setVerifiedCode(''); setApps([]); form.resetFields(['verifyCode', 'newPassword', 'appId']); }}>更换邮箱或重新获取验证码</Button></>}
+          <Button className="public-recovery-restart" type="link" disabled={loading} onClick={() => { setCurrentStep(0); void refreshCaptcha(); setVerifiedCode(''); setApps([]); form.resetFields(['verifyCode', 'newPassword', 'appId']); }}>更换邮箱或重新获取验证码</Button></>}
 
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Link to="/portal/login"><Button type="link">返回登录</Button></Link>
-          </div>
+          <div className="public-service-actions public-service-actions--center"><Link to="/portal/login">返回登录</Link></div>
     </PublicServiceLayout>
   );
 };

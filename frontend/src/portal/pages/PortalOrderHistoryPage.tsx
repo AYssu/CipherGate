@@ -68,17 +68,17 @@ const PortalOrderHistoryPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>订单记录</Title>
+    <div className="portal-orders">
+      <div className="portal-page__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+        <div><Title level={4} className="portal-page__title">订单记录</Title><p className="portal-page__subtitle">查看购买记录和支付状态。</p></div>
         <Button onClick={() => void loadOrders(page)} disabled={loading}>刷新订单</Button>
       </div>
       {returnedFromPayment && <Alert style={{ marginBottom: 16 }} type="info" showIcon
         message="已返回订单页面" description="支付结果以订单状态为准。如仍显示待支付，请稍后刷新订单。" />}
       {loadFailed && <Alert style={{ marginBottom: 16 }} type="error" showIcon message="订单加载失败"
-        description={loaded ? `当前保留第 ${page} 页的上次加载结果，请重试以获取最新状态。` : '暂时无法获取订单记录，请重试。'}
+        description={loaded ? '刷新失败，当前订单状态可能不是最新的。' : '暂时无法获取订单记录，请重试。'}
         action={<Button onClick={() => void loadOrders(requestedPage)}>重新加载</Button>} />}
-      <Card>
+      <Card className="portal-panel portal-orders-panel">
         <Table
           dataSource={orders}
           columns={columns}
