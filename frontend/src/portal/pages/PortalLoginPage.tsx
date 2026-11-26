@@ -2,12 +2,11 @@ import type { PortalLoginInput } from '../services/types';
 import CaptchaImage from '../../components/CaptchaImage';
 import PublicServiceLayout from '../../components/PublicServiceLayout';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Form, Input, Button, Typography, message } from 'antd';
+import { Form, Input, Button, message } from 'antd';
 import { MailOutlined, LockOutlined, KeyOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { portalAuthApi } from '../services/portalAuthService';
 
-const { Text } = Typography;
 
 const PortalLoginPage: React.FC = () => {
   const [form] = Form.useForm();
@@ -68,8 +67,8 @@ const PortalLoginPage: React.FC = () => {
   };
 
   return (
-    <PublicServiceLayout title="应用用户登录" description="登录后查看应用会员、充值记录，管理您的账号。" help="使用注册邮箱与密码登录。忘记密码时，可通过邮箱验证码找回。">
-          <Form form={form} layout="vertical" onFinish={handleLogin} size="large">
+    <PublicServiceLayout title="应用用户登录" description="登录后管理会员、查看订单和账号信息。" help="使用注册邮箱登录，请勿向他人透露密码或验证码。">
+          <Form form={form} requiredMark={false} layout="vertical" onFinish={handleLogin} size="large">
             <Form.Item name="email" label="邮箱" rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '邮箱格式不正确' }]}>
               <Input prefix={<MailOutlined />} placeholder="请输入注册邮箱" autoComplete="email" inputMode="email"  />
             </Form.Item>
@@ -95,7 +94,7 @@ const PortalLoginPage: React.FC = () => {
             </Form.Item>
           </Form>
 
-          <div className="public-service-actions"><Link to="/portal/recovery">找回密码</Link><Text type="secondary">请勿向他人透露密码或验证码</Text></div>
+          <div className="public-service-actions public-service-actions--center"><Link to="/portal/recovery">忘记密码？通过邮箱找回</Link></div>
     </PublicServiceLayout>
   );
 };

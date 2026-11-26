@@ -1,10 +1,11 @@
 import type { PortalPricingPlan } from '../services/types';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, Typography, Row, Col, Button, Tag, message, Modal, Alert, Empty } from 'antd';
-import { CrownOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Typography, Button, message, Modal, Alert, Empty } from 'antd';
+import { CheckCircleOutlined, ClockCircleOutlined, GiftOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { portalMembershipApi } from '../services/portalMembershipService';
 import { portalPaymentApi } from '../services/portalPaymentService';
+import './PortalRechargePage.css';
 
 const { Title, Text } = Typography;
 
@@ -85,11 +86,14 @@ const PortalRechargePage: React.FC = () => {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>充值续费</Title>
-        <Link to="/portal/orders">查看订单记录</Link>
-      </div>
+    <div className="portal-recharge">
+      <header className="portal-recharge__header">
+        <div>
+          <Title level={4} className="portal-recharge__title">充值续费</Title>
+          <p>选择会员方案，支付成功后自动生效。</p>
+        </div>
+        <Link to="/portal/orders" className="portal-recharge__orders">查看订单记录</Link>
+      </header>
 
       {loading ? (
         <Card loading />
@@ -100,43 +104,46 @@ const PortalRechargePage: React.FC = () => {
       ) : plans.length === 0 ? (
         <Card><Empty description="该应用暂无可购买的方案" image={Empty.PRESENTED_IMAGE_SIMPLE} /></Card>
       ) : (
-        <Row gutter={[16, 16]}>
-          {plans.map((plan) => (
-            <Col xs={24} sm={12} lg={8} key={plan.id}>
-              <Card
-                hoverable
-                style={{ textAlign: 'center' }}
-                actions={[
-                  <Button type="primary" loading={ordering === plan.id} disabled={ordering !== null || plan.stockRemaining === 0} onClick={() => handleOrder(plan)}>
-                    {plan.stockRemaining === 0 ? '已售罄' : '购买'}
-                  </Button>,
-                ]}
-              >
-                <CrownOutlined style={{ fontSize: 32, color: '#faad14', marginBottom: 12 }} />
-                <Title level={4} style={{ margin: 0 }}>{plan.planName}</Title>
-                <div style={{ margin: '16px 0', display: 'flex', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', gap: 8 }}>
-                  {plan.originalPriceFen != null && plan.originalPriceFen > plan.priceFen && (
-                    <>
-                      <Text type="secondary" delete>原价 ¥{(plan.originalPriceFen / 100).toFixed(2)}</Text>
-                      <Tag color="red">优惠价</Tag>
-                    </>
-                  )}
-                  <Text style={{ fontSize: 28, fontWeight: 700, color: '#ff4d4f' }}>
-                    ¥{(plan.priceFen / 100).toFixed(2)}
-                  </Text>
+        <div className="portal-recharge__plans">
+          {plans.map((plan) => {
+            const discounted = plan.originalPriceFen != null && plan.originalPriceFen > plan.priceFen;
+            const soldOut = plan.stockRemaining === 0;
+            const limited = plan.stockRemaining != null;
+            const saving = discounted ? ((plan.originalPriceFen! - plan.priceFen) / 100).toFixed(2).replace(/\.00$/, '') : '';
+            return (
+              <article className={`recharge-plan${limited ? ' recharge-plan--limited' : ''}${soldOut ? ' recharge-plan--sold-out' : ''}`} key={plan.id}>
+                <div className="recharge-plan__topline">
+                  <span className="recharge-plan__kind">
+                    {limited ? <ShoppingOutlined /> : <ClockCircleOutlined />}
+                    {limited ? '限量方案' : '会员方案'}
+                  </span>
+                  {discounted && <span className="recharge-plan__saving"><GiftOutlined />省 ¥{saving}</span>}
                 </div>
-                {plan.stockRemaining != null && (
-                  <Tag color={plan.stockRemaining === 0 ? 'default' : 'orange'}>
-                    {plan.stockRemaining === 0 ? '已售罄' : `限量 · 剩余 ${plan.stockRemaining} 份`}
-                  </Tag>
-                )}
-                <Tag color={plan.planType === 'PERMANENT' ? 'gold' : 'blue'}>
-                  {plan.planType === 'PERMANENT' ? '永久' : `${plan.durationDays}天`}
-                </Tag>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+                <h2 className="recharge-plan__name">{plan.planName}</h2>
+                <p className="recharge-plan__duration">
+                  {plan.planType === 'PERMANENT' ? '永久有效' : `有效期 ${plan.durationDays} 天`}
+                </p>
+                <div className="recharge-plan__pricing">
+                  <div className="recharge-plan__current">
+                    <span className="recharge-plan__currency">¥</span>
+                    <span>{(plan.priceFen / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="recharge-plan__reference">
+                    {discounted ? <><span>原价</span><del>¥{(plan.originalPriceFen! / 100).toFixed(2)}</del><span className="recharge-plan__offer">优惠价</span></> : <span>按此价格一次支付</span>}
+                  </div>
+                </div>
+                <div className="recharge-plan__footer">
+                  <div className="recharge-plan__availability">
+                    {limited ? <span className="recharge-plan__stock"><span aria-hidden="true" className="recharge-plan__stock-dot" />{soldOut ? '已售罄' : <>剩余 <strong>{plan.stockRemaining}</strong> 份</>}</span> : <span>支付成功后开通</span>}
+                  </div>
+                  <Button type="primary" block className="recharge-plan__buy" loading={ordering === plan.id} disabled={ordering !== null || soldOut} onClick={() => handleOrder(plan)}>
+                    {soldOut ? '已售罄' : '购买'}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       )}
     </div>
   );

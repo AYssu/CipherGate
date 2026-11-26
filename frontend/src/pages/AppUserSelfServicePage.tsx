@@ -13,6 +13,7 @@ import {
   Grid,
   Descriptions,
   Tag,
+  Tabs,
 } from 'antd';
 import { MailOutlined, SearchOutlined } from '@ant-design/icons';
 import {
@@ -74,52 +75,34 @@ const AppUserSelfServicePage: React.FC = () => {
   };
 
   return (
-    <PublicServiceLayout title="用户自助管理" description="查询会员到期时间，或使用卡密为账号充值会员时长。" help="请使用应用方提供的专用链接，并填写该应用的注册邮箱。">
+    <PublicServiceLayout title="用户自助管理" description="查询会员到期时间，或使用卡密为账号充值会员时长。">
             {!appId && (
               <Alert
                 type="warning"
                 showIcon
                 message="链接无效或已过期"
-                description="请通过应用方提供的专用入口访问本页面。"
+                description="请联系商家获取新的访问链接。"
               />
             )}
 
+          <Tabs className="public-service-mode" defaultActiveKey="query" items={[
+            { key: 'query', label: '会员查询', forceRender: true, children: <>
+
           <Form name="membership-query" form={form} layout="vertical" requiredMark={false} onFinish={() => void doQuery()} onValuesChange={() => setData(null)}>
-            <Form.Item label="邮箱">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Form.Item name="email" noStyle rules={[
-                  { required: true, message: '请输入邮箱' },
-                  { type: 'email', message: '邮箱格式不正确' },
-                ]}>
-                <Input
-                  size="middle"
-                  aria-label="邮箱"
-                  prefix={<MailOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
-                  placeholder="请输入注册邮箱"
-                  disabled={!appId}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-                </Form.Item>
-                <Button
-                  type="primary"
-                  size="middle"
-                  icon={<SearchOutlined />}
-                  htmlType="submit"
-                  loading={loading}
-                  disabled={!appId}
-                  style={{ flexShrink: 0, minWidth: isNarrow ? 86 : 96 }}
-                >
-                  查询
-                </Button>
-              </div>
+            <Form.Item name="email" label="邮箱" rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '邮箱格式不正确' },
+            ]}>
+              <Input prefix={<MailOutlined />} placeholder="请输入注册邮箱" autoComplete="email" inputMode="email" disabled={!appId} />
             </Form.Item>
             <Form.Item name="password" label="账号密码" rules={[{required: true, message: '请输入该应用账号密码'}]}>
-              <Input.Password autoComplete="current-password" maxLength={100} />
+              <Input.Password placeholder="请输入该应用的账号密码" autoComplete="current-password" maxLength={100} />
             </Form.Item>
             {challenge.fields}
+            <Button type="primary" icon={<SearchOutlined />} htmlType="submit" loading={loading} disabled={!appId} block>
+              查询
+            </Button>
           </Form>
-
-          <AppUserLicenseRechargeForm appId={appId} onSuccess={setData} />
 
           {data && (
             <Descriptions
@@ -145,6 +128,10 @@ const AppUserSelfServicePage: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
           )}
+            </> },
+            { key: 'recharge', label: '卡密充值', forceRender: true,
+              children: <AppUserLicenseRechargeForm appId={appId} onSuccess={setData} /> },
+          ]} />
     </PublicServiceLayout>
   );
 };

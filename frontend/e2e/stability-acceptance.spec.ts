@@ -90,7 +90,7 @@ test('orders paginate without fabricated totals and preserve the last page on fa
   await page.getByRole('button', { name: '下一页', exact: true }).click();
   await expect(page.getByText('订单加载失败', { exact: true })).toBeVisible();
   await expect(page.getByText('PAGE1-ORDER0', { exact: true })).toBeVisible();
-  await expect(page.getByText(/当前保留第 1 页的上次加载结果/)).toBeVisible();
+  await expect(page.getByText('刷新失败，当前订单状态可能不是最新的。')).toBeVisible();
   await page.getByRole('button', { name: '重新加载', exact: true }).click();
   await expect(page.getByText('PAGE2-ORDER0', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '下一页', exact: true })).toBeDisabled();

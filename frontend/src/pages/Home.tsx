@@ -600,7 +600,7 @@ const Home: React.FC = () => {
       if (url) {
         window.location.href = url;
       } else {
-        message.error('无法获取登录地址，请检查后端 OAuth 配置');
+        message.error('暂时无法登录，请稍后重试');
       }
     } catch {
       // handled by interceptor
@@ -778,14 +778,23 @@ const Home: React.FC = () => {
             grid-template-columns: repeat(2, 1fr) !important;
           }
           .home-footer-grid {
-            grid-template-columns: 1fr 1fr !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 28px 24px !important;
+            margin-bottom: 32px !important;
           }
+          .home-footer-brand,
+          .home-footer-support {
+            grid-column: 1 / -1;
+          }
+          .home-footer-grid > div { min-width: 0; }
+          .home-footer-links .home-footer-link {
+            display: flex !important;
+            align-items: center;
+            min-height: 44px;
+            margin-bottom: 0 !important;
+          }
+          .home-footer-links > div { margin-bottom: 8px !important; }
           .home-features-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-        @media (max-width: 480px) {
-          .home-footer-grid {
             grid-template-columns: 1fr !important;
           }
         }
@@ -1122,7 +1131,7 @@ const Home: React.FC = () => {
       <Footer style={styles.footer}>
         <div style={styles.footerInner}>
           <div className="home-footer-grid" style={styles.footerGrid}>
-            <div>
+            <div className="home-footer-brand">
               <div style={{ ...styles.logo, fontSize: 18, marginBottom: 16 }}>
                 <img src="/favicon.svg" alt="CipherGate" style={{ width: 24, height: 24 }} />
                 CipherGate
@@ -1131,24 +1140,24 @@ const Home: React.FC = () => {
                 专业的网络安全解决方案提供商，致力于为企业构建安全可信的数字化环境。
               </p>
             </div>
-            <div>
+            <div className="home-footer-links">
               <div style={styles.footerColTitle}>快速入口</div>
               <a href="#features" className="home-footer-link" style={styles.footerLink}>产品能力</a>
               <a href="#about" className="home-footer-link" style={styles.footerLink}>关于我们</a>
               <a href="#contact" className="home-footer-link" style={styles.footerLink}>商务咨询</a>
               <a href="#login" className="home-footer-link" style={styles.footerLink}>登录平台</a>
             </div>
-            <div>
+            <div className="home-footer-links">
               <div style={styles.footerColTitle}>资源中心</div>
               <a href={import.meta.env.VITE_DOCS_URL || '/docs/'} target="_blank" rel="noopener noreferrer" className="home-footer-link" style={styles.footerLink}>使用文档</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>更新日志</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>常见问题</a>
               <a href="#" className="home-footer-link" style={styles.footerLink}>服务条款</a>
             </div>
-            <div>
+            <div className="home-footer-support">
               <div style={styles.footerColTitle}>获取支持</div>
               <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.7 }}>
-                建议通过页面上的「登录」入口提交工单。企业合作与售前咨询请联系管理员配置的官方渠道。
+                登录后可提交工单，企业合作与售前咨询请联系官方客服。
               </p>
             </div>
           </div>

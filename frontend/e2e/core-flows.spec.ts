@@ -165,6 +165,7 @@ for (const succeeds of [true, false]) test(`license redemption ${succeeds ? 'con
   await page.getByLabel('图形验证码', { exact: true }).fill('12345');
   await page.getByRole('button', { name: /查\s*询/ }).click();
   await expect(page.getByText('未开通会员', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '卡密充值', exact: true }).click();
   await page.getByLabel('充值邮箱', { exact: true }).fill('Alice@example.test');
   await page.getByLabel('充值卡密', { exact: true }).fill('ABCD1234WXYZ');
   await page.getByRole('button', { name: /兑换充值/ }).click();
@@ -182,10 +183,12 @@ for (const succeeds of [true, false]) test(`license redemption ${succeeds ? 'con
     await expect(page.getByText('卡密充值成功', { exact: true })).toBeVisible();
     await expect(page.getByLabel('充值卡密', { exact: true })).toHaveValue('');
     await expect(page.getByText('未开通会员', { exact: true })).not.toBeVisible();
+    await page.getByRole('tab', { name: '会员查询', exact: true }).click();
     await expect(page.getByText('有效', { exact: true })).toBeVisible();
   } else {
     await expect(page.getByText('卡密充值失败', { exact: true })).toBeVisible();
     await expect(page.getByLabel('充值卡密', { exact: true })).toHaveValue('ABCD1234WXYZ');
+    await page.getByRole('tab', { name: '会员查询', exact: true }).click();
     await expect(page.getByText('未开通会员', { exact: true })).toBeVisible();
   }
 });
@@ -193,6 +196,7 @@ for (const succeeds of [true, false]) test(`license redemption ${succeeds ? 'con
 test('license redemption cannot submit without a valid application link', async ({ page }) => {
   await mockApi(page, async () => false);
   await page.goto('/app-user');
+  await page.getByRole('tab', { name: '卡密充值', exact: true }).click();
   await expect(page.getByRole('button', { name: /兑换充值/ })).toBeDisabled();
   await expect(page.getByLabel('充值邮箱', { exact: true })).toBeDisabled();
 });

@@ -11,6 +11,7 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import './PortalLayout.css';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -76,18 +77,18 @@ const PortalLayout: React.FC = () => {
 
   const siderContent = (
     <>
-      <div style={{ padding: '16px', textAlign: 'center', borderBottom: '1px solid #f0f0f0' }}>
+      <div className="portal-identity">
         {avatarUrl ? (
-          <Avatar src={avatarUrl} size={48} style={{ marginBottom: 8 }} />
+          <Avatar src={avatarUrl} size={40} style={{ flexShrink: 0 }} />
         ) : (
           <Avatar
-            size={48}
-            style={{ backgroundColor: '#1890ff', marginBottom: 8, fontSize: 20, fontWeight: 600 }}
+            size={40}
+            style={{ backgroundColor: '#1765d1', flexShrink: 0, fontSize: 18, fontWeight: 600 }}
           >
             {displayName ? displayName.charAt(0).toUpperCase() : '?'}
           </Avatar>
         )}
-        <div>
+        <div className="portal-identity__copy">
           <Text strong style={{ display: 'block', fontSize: 14 }}>{displayName || '用户'}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>应用用户</Text>
         </div>
@@ -106,9 +107,9 @@ const PortalLayout: React.FC = () => {
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="portal-shell" style={{ minHeight: '100vh' }}>
       {isMobile ? (
-        <Drawer placement="left" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={240} bodyStyle={{ padding: 0 }}>
+        <Drawer rootClassName="portal-navigation-drawer" placement="left" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={240} bodyStyle={{ padding: 0 }}>
           {siderContent}
         </Drawer>
       ) : (
@@ -117,11 +118,11 @@ const PortalLayout: React.FC = () => {
         </Sider>
       )}
 
-      <Layout>
+      <Layout className="portal-workspace">
         {isMobile ? (
           <Header style={{ background: '#fff', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0', height: 48, lineHeight: '48px', overflow: 'hidden', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, overflow: 'hidden' }}>
-              <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} style={{ flexShrink: 0 }} />
+              <Button type="text" icon={<MenuOutlined />} aria-label="打开导航菜单" onClick={() => setDrawerOpen(true)} style={{ flexShrink: 0 }} />
               <Text strong style={{ fontSize: 14 }}>CipherGate</Text>
             </div>
             <Dropdown menu={{ items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout }] }}>
@@ -129,7 +130,7 @@ const PortalLayout: React.FC = () => {
                 {avatarUrl ? (
                   <Avatar src={avatarUrl} size={28} />
                 ) : (
-                  <Avatar size={28} style={{ backgroundColor: '#1890ff', fontSize: 12 }}>
+                  <Avatar size={28} style={{ backgroundColor: '#1765d1', fontSize: 12 }}>
                     {displayName ? displayName.charAt(0).toUpperCase() : '?'}
                   </Avatar>
                 )}
@@ -138,13 +139,13 @@ const PortalLayout: React.FC = () => {
           </Header>
         ) : (
           <Header style={{ background: '#fff', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f0' }}>
-            <Text strong style={{ fontSize: 16 }}>CipherGate 应用用户</Text>
+            <Text strong style={{ fontSize: 16 }}>CipherGate 用户中心</Text>
             <Dropdown menu={{ items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout }] }}>
               <Button type="text" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {avatarUrl ? (
                   <Avatar src={avatarUrl} size={24} />
                 ) : (
-                  <Avatar size={24} style={{ backgroundColor: '#1890ff', fontSize: 12 }}>
+                  <Avatar size={24} style={{ backgroundColor: '#1765d1', fontSize: 12 }}>
                     {displayName ? displayName.charAt(0).toUpperCase() : '?'}
                   </Avatar>
                 )}
@@ -154,8 +155,8 @@ const PortalLayout: React.FC = () => {
           </Header>
         )}
 
-        <Content style={{ margin: isMobile ? 12 : 24, padding: isMobile ? 12 : 24, background: '#f0f2f5', minHeight: 280 }}>
-          <Outlet />
+        <Content className="portal-content">
+          <div className="portal-content__inner"><Outlet /></div>
         </Content>
       </Layout>
     </Layout>

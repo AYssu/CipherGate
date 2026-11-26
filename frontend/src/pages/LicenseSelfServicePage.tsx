@@ -122,7 +122,7 @@ const LicenseSelfServicePage: React.FC = () => {
             确定要解绑当前卡密的设备与 IP 吗？
           </p>
           <p style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
-            解绑成功后，可在新设备/新 IP 下重新登录绑定（需卡密开启对应校验）。
+            解绑后可更换设备登录，将使用一次可用解绑次数。
           </p>
         </div>
       ),
@@ -149,31 +149,26 @@ const LicenseSelfServicePage: React.FC = () => {
   };
 
   return (
-    <PublicServiceLayout title="卡密自助管理" description="查询卡密有效期与绑定状态，需要更换设备时可在这里解绑。" help="卡密是您的使用凭证，请勿分享给他人。解绑可能消耗次数，确认后再操作。">
+    <PublicServiceLayout title="卡密自助管理" description="查询卡密有效期与绑定状态，需要更换设备时可在这里解绑。" help="请妥善保管卡密，勿分享给他人。">
             {!appId && (
               <Alert
                 type="warning"
                 showIcon
                 message="链接无效或已过期"
-                description="请通过应用方提供的专用入口访问本页面。"
+                description="请联系商家获取新的访问链接。"
               />
             )}
 
           <Form form={form} layout="vertical" requiredMark={false} onFinish={() => void doQuery()} onValuesChange={() => setData(null)}>
-            <Form.Item label="卡密">
-              <div className="public-service-row">
-                <Form.Item name="keyCode" noStyle normalize={(value: string) => value.toUpperCase()}
-                  rules={[{ required: true, message: '请输入卡密' }, { max: 64, message: '长度不能超过64位' }, { pattern: /^[A-Z0-9]+$/, message: '只能包含字母和数字' }]}>
-                  <Input.Password aria-label="卡密" prefix={<KeyOutlined />} placeholder="请输入卡密" maxLength={64}
-                    autoComplete="off" disabled={!appId} style={{ flex: 1, minWidth: 0 }} />
-                </Form.Item>
-                <Button type="primary" icon={<SearchOutlined />} htmlType="submit" loading={loading} disabled={!appId}>查询</Button>
-              </div>
+            <Form.Item name="keyCode" label="卡密" normalize={(value: string) => value.toUpperCase()}
+              rules={[{ required: true, message: '请输入卡密' }, { max: 64, message: '长度不能超过64位' }, { pattern: /^[A-Z0-9]+$/, message: '只能包含字母和数字' }]}>
+              <Input.Password prefix={<KeyOutlined />} placeholder="请输入卡密" maxLength={64} autoComplete="off" disabled={!appId} />
             </Form.Item>
 
             {challenge.fields}
+            <Button type="primary" icon={<SearchOutlined />} htmlType="submit" loading={loading} disabled={!appId} block>查询</Button>
             {data && unbindChallenge.fields}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -10, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, marginBottom: 8 }}>
               <Button
                 type="link"
                 danger
@@ -188,13 +183,6 @@ const LicenseSelfServicePage: React.FC = () => {
               </Button>
             </div>
 
-            <div style={{ marginTop: -8, marginBottom: 10 }}>
-              <Space size={12} wrap>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  提示：解绑会占用一次解绑次数（若应用设置了上限）
-                </Text>
-              </Space>
-            </div>
           </Form>
 
           {data && (

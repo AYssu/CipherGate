@@ -59,7 +59,7 @@ test('registration accepts six digits and blocks passwords exceeding the UTF-8 l
   await page.getByLabel('设置密码', { exact: true }).fill('密'.repeat(25));
   await page.getByLabel('确认密码', { exact: true }).fill('密'.repeat(25));
   await page.getByRole('button', { name: '创建账户', exact: true }).click();
-  await expect(page.getByText('密码不能全为空白，UTF-8 编码不能超过72字节', { exact: true })).toBeVisible();
+  await expect(page.getByText('密码不能全为空格或过长，请减少字符后重试', { exact: true })).toBeVisible();
   expect(submitted).toHaveLength(0);
   await page.getByLabel('设置密码', { exact: true }).fill('123456');
   await page.getByLabel('确认密码', { exact: true }).fill('123456');
@@ -204,4 +204,32 @@ test('home login binds captcha and exchanges a selection ticket for the string s
   expect(loginPayload).toEqual({ email: 'user@example.com', password: 'valid-password', captchaCode: '1234', captchaId: 'captcha' });
   expect(await page.evaluate(() => localStorage.getItem('portal_token'))).toBe('formal-home-session');
   expect(await page.evaluate(() => localStorage.getItem('portal_app_id'))).toBe('1');
+});
+
+
+test('membership and recharge tabs preserve separate forms without redeeming', async ({ page }) => {
+  await mock(page);
+  const redemptions: unknown[] = [];
+  await page.route('**/api/public/app-user/self/redeem-license', async route => {
+    redemptions.push(route.request().postDataJSON());
+    await route.fulfill({ json: envelope(null) });
+  });
+  await page.goto('/app-user?id=12');
+  await expect(page.getByRole('tab', { name: '会员查询' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('充值邮箱', { exact: true })).not.toBeVisible();
+  await page.getByLabel('邮箱', { exact: true }).fill('query@example.com');
+  await page.getByLabel('账号密码', { exact: true }).fill('password-123');
+  await page.getByRole('tab', { name: '卡密充值' }).click();
+  await expect(page.getByLabel('账号密码', { exact: true })).not.toBeVisible();
+  await page.getByLabel('充值邮箱', { exact: true }).fill('recharge@example.com');
+  await page.getByLabel('充值卡密', { exact: true }).fill('KEEP-THIS-CARD');
+  await page.getByRole('tab', { name: '会员查询' }).click();
+  await expect(page.getByLabel('邮箱', { exact: true })).toHaveValue('query@example.com');
+  await expect(page.getByLabel('账号密码', { exact: true })).toHaveValue('password-123');
+  await page.getByRole('tab', { name: '卡密充值' }).click();
+  await expect(page.getByLabel('充值邮箱', { exact: true })).toHaveValue('recharge@example.com');
+  await expect(page.getByLabel('充值卡密', { exact: true })).toHaveValue('KEEP-THIS-CARD');
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(redemptions).toEqual([]);
 });

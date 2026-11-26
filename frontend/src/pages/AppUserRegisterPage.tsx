@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Form, Input, message } from 'antd';
-import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+import { MailOutlined, LockOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { usePublicChallenge } from '../components/usePublicChallenge';
 import PublicServiceLayout from '../components/PublicServiceLayout';
 import { sendAppUserRegisterEmailCode, submitAppUserRegister } from '../services/appUserRegisterPublicService';
@@ -50,9 +50,9 @@ export default function AppUserRegisterPage() {
   }
 
   return (
-    <PublicServiceLayout title="创建应用账户" description="完成邮箱验证，创建您在当前应用中的账号。" help="账号用于应用登录，邮箱用于接收验证码和找回密码。请使用本人可正常收信的邮箱。">
-      {!appId && <Alert type="warning" showIcon message="注册链接无效" description="请通过应用方提供的专用链接重新打开。" />}
-      {registered ? <div role="status"><h2 className="public-service-section">注册成功</h2><p className="public-service-note">您可以使用刚才的邮箱和密码登录，也可以返回应用继续使用。</p><Link to="/portal/login"><Button type="primary" block>前往登录</Button></Link></div> : (
+    <PublicServiceLayout title="创建应用账户" description="完成邮箱验证，创建您在当前应用中的账号。" help="请使用可正常接收邮件的邮箱。">
+      {!appId && <Alert type="warning" showIcon message="注册链接无效" description="请联系商家获取新的注册链接。" />}
+      {registered ? <div className="public-service-success" role="status"><span className="public-service-success__icon"><CheckCircleOutlined /></span><h2 className="public-service-section">注册成功</h2><p className="public-service-note">您可以使用刚才的邮箱和密码登录，也可以返回应用继续使用。</p><Link to="/portal/login"><Button type="primary" block>前往登录</Button></Link></div> : (
         <Form name="app-register" form={form} layout="vertical" requiredMark={false} onFinish={register} disabled={!appId || submitting}>
           <Form.Item name="username" label="账号" extra="2～50 位，可使用字母、数字、下划线或短横线" rules={[{ required: true, message: '请输入账号' }, { min: 2, max: 50, message: '请输入 2～50 个字符' }, { pattern: /^[a-zA-Z0-9_-]+$/, message: '可使用字母、数字、下划线和中划线' }]}>
             <Input prefix={<UserOutlined />} placeholder="请输入账号" autoComplete="username" maxLength={50} />
@@ -69,7 +69,7 @@ export default function AppUserRegisterPage() {
               <Button loading={sending} disabled={!appId || countdown > 0} onClick={() => void sendCode()}>{countdown ? `${countdown} 秒后重发` : '发送验证码'}</Button>
             </div>
           </Form.Item>
-          <Form.Item name="password" label="设置密码" extra="6～50 位，UTF-8 编码不超过 72 字节" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 50, message: '密码长度须为6～50位' }, { validator: (_, value: string | undefined) => !value || (value.trim().length > 0 && new TextEncoder().encode(value).length <= 72) ? Promise.resolve() : Promise.reject(new Error('密码不能全为空白，UTF-8 编码不能超过72字节')) }]}>
+          <Form.Item name="password" label="设置密码" extra="6～50 位，请勿与其他网站使用相同密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, max: 50, message: '密码长度须为6～50位' }, { validator: (_, value: string | undefined) => !value || (value.trim().length > 0 && new TextEncoder().encode(value).length <= 72) ? Promise.resolve() : Promise.reject(new Error('密码不能全为空格或过长，请减少字符后重试')) }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="请设置至少 6 位密码" autoComplete="new-password" maxLength={50} />
           </Form.Item>
           <Form.Item name="confirmPassword" label="确认密码" dependencies={['password']} rules={[{ required: true, message: '请再次输入密码' }, ({ getFieldValue }) => ({ validator(_, value) { return !value || getFieldValue('password') === value ? Promise.resolve() : Promise.reject(new Error('两次输入的密码不一致')); } })]}>
@@ -78,7 +78,7 @@ export default function AppUserRegisterPage() {
           <Button type="primary" htmlType="submit" loading={submitting} disabled={!appId} block>创建账户</Button>
         </Form>
       )}
-      <div className="public-service-actions"><Link to="/portal/login">已有账号？登录</Link></div>
+      <div className="public-service-actions public-service-actions--center"><Link to="/portal/login">已有账号？登录</Link></div>
     </PublicServiceLayout>
   );
 }

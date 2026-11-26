@@ -1,0 +1,86 @@
+.portal-shell,
+.portal-shell .portal-workspace { background: #fff; color: #172b42; min-width: 0; }
+.portal-shell { --portal-ink: #172b42; --portal-muted: #667589; --portal-blue: #1765d1; --portal-line: #e2e8ef; }
+.portal-content { min-width: 0; padding: 32px 28px 48px; background: transparent; }
+.portal-content__inner { max-width: 1120px; margin: 0 auto; }
+.portal-identity { display: flex; gap: 11px; align-items: center; min-height: 88px; padding: 20px; border-bottom: 1px solid #edf0f4; overflow: hidden; }
+.portal-identity__copy { min-width: 0; }
+.portal-identity__copy .ant-typography { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.portal-shell .ant-layout-sider-collapsed .portal-identity { padding: 20px; }
+.portal-shell .ant-layout-sider-collapsed .portal-identity__copy { display: none; }
+.portal-shell .ant-menu-inline .ant-menu-item-selected,
+.portal-navigation-drawer .ant-menu-inline .ant-menu-item-selected { background: #edf4ff; color: #1765d1; }
+.portal-shell .ant-layout-sider-trigger { border-top: 1px solid #edf0f4; }
+.portal-page__header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.portal-content .portal-page__title { margin: 0 0 7px; color: var(--portal-ink); font-size: 24px; line-height: 1.4; font-weight: 600; }
+.portal-page__subtitle { margin: 0; color: var(--portal-muted); font-size: 14px; line-height: 1.7; }
+.portal-page__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.portal-content .portal-panel { border: 1px solid var(--portal-line); border-radius: 14px; box-shadow: none; overflow: hidden; }
+.portal-content .portal-panel > .ant-card-head { min-height: 58px; padding: 0 24px; border-bottom: 1px solid #edf0f4; }
+.portal-content .portal-panel > .ant-card-head .ant-card-head-title { font-size: 16px; font-weight: 600; color: var(--portal-ink); }
+.portal-content .portal-panel > .ant-card-body { padding: 24px; }
+.portal-content .portal-panel .ant-empty { margin: 36px 0; }
+.portal-content .portal-panel .ant-table { color: var(--portal-ink); }
+.portal-content .portal-panel .ant-table-thead > tr > th { background: #f8fafc; color: var(--portal-muted); font-size: 12px; font-weight: 500; }
+.portal-content .ant-btn-primary { background: var(--portal-blue); border-color: var(--portal-blue); box-shadow: none; }
+.portal-content .ant-btn-primary:not(:disabled):hover { background: #1055b8; border-color: #1055b8; }
+.portal-content .ant-btn { border-radius: 7px; }
+.portal-content a { color: var(--portal-blue); }
+.portal-content a:focus-visible { outline: 2px solid var(--portal-blue); outline-offset: 3px; border-radius: 2px; }
+.portal-section-gap { margin-top: 20px; }
+.portal-content .portal-orders-panel > .ant-card-body { padding: 8px 24px 20px; }
+
+
+.membership-overview > .ant-card-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+.membership-overview__status { display: flex; align-items: center; gap: 16px; }
+.membership-overview__icon { display: inline-flex; width: 52px; height: 52px; align-items: center; justify-content: center; border-radius: 14px; background: #edf4ff; color: var(--portal-blue); font-size: 25px; flex-shrink: 0; }
+.membership-label { display: block; color: var(--portal-muted); font-size: 13px; margin-bottom: 10px; }
+.membership-overview__expiry { border-left: 1px solid var(--portal-line); padding-left: 28px; }
+.membership-overview__expiry strong { color: var(--portal-ink); font-weight: 500; font-size: 18px; overflow-wrap: anywhere; }
+
+.settings-account { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--portal-line); border-bottom: 1px solid var(--portal-line); padding: 20px 0; margin-bottom: 24px; }
+.settings-account > div { min-width: 0; }
+.settings-account .membership-label { margin-bottom: 4px; font-size: 12px; }
+.settings-account strong { font-size: 16px; font-weight: 500; color: var(--portal-ink); overflow-wrap: anywhere; }
+.settings-account > span { flex-shrink: 0; }
+.settings-guidance { margin: 0 0 22px; color: var(--portal-muted); font-size: 13px; line-height: 1.8; }
+.portal-content .settings-panel .ant-form-item-label > label { color: var(--portal-ink); font-size: 13px; }
+.portal-content .settings-panel .ant-input, .portal-content .settings-panel .ant-input-affix-wrapper { border-radius: 7px; min-height: 38px; }
+.portal-content .settings-panel .ant-input-affix-wrapper > .ant-input { min-height: auto; }
+.portal-content .settings-panel .ant-btn { min-height: 38px; }
+.portal-content .settings-panel .ant-space-compact .ant-input { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.portal-content .settings-panel .ant-space-compact .ant-btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+.portal-content .settings-panel > .ant-card-body { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-panel .settings-guidance { max-width: 260px; }
+.settings-panel form { width: 100%; max-width: 480px; }
+
+
+.portal-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: #edf4ff; color: var(--portal-blue); font-size: 18px; }
+
+/* Scoped !important rules preserve this layout against legacy global mobile styles. */
+@media (max-width: 767px) {
+  .portal-content { padding: 24px 20px 36px; }
+  .portal-page__header { gap: 14px; margin-bottom: 20px; }
+  .portal-content .portal-page__title { font-size: 22px; }
+  .portal-page__subtitle { font-size: 12px; }
+  .portal-content .portal-panel > .ant-card-head { min-height: 54px; padding: 0 18px; }
+  .portal-content .portal-panel > .ant-card-body { padding: 18px; }
+  .portal-content .portal-orders-panel > .ant-card-body { padding: 8px 12px 18px; }
+  .membership-overview > .ant-card-body { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .membership-overview__expiry { border-left: 0; border-top: 1px solid var(--portal-line); padding: 20px 0 0; }
+  .membership-overview__expiry strong { font-size: 17px; }
+  .portal-content .settings-panel > .ant-card-body { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .settings-panel .settings-guidance { max-width: none; margin-bottom: 18px; }
+  .portal-shell .portal-content { padding: 24px 20px 36px !important; }
+  .portal-content .portal-panel { border-radius: 14px !important; box-shadow: none !important; }
+  .portal-content .portal-panel > .ant-card-head { padding: 0 18px !important; min-height: 54px !important; }
+  .portal-content .portal-panel > .ant-card-body { padding: 18px !important; }
+  .portal-content .dashboard-trend > .ant-card-body { padding: 8px !important; }
+  .portal-content .dashboard-history > .ant-card-body { padding: 0 18px 12px !important; }
+  .portal-content .portal-orders-panel > .ant-card-body { padding: 8px 12px 18px !important; }
+  .portal-content .settings-panel .ant-space-compact { flex-direction: row !important; }
+  .portal-content .settings-panel .ant-space-compact .ant-input { min-width: 0; }
+  .portal-content .settings-panel .ant-space-compact .ant-btn { width: auto !important; flex-shrink: 0; margin-bottom: 0 !important; border-radius: 0 7px 7px 0 !important; }
+}
+@media (max-width: 360px) { .portal-shell .portal-content { padding-right: 16px !important; padding-left: 16px !important; } }
